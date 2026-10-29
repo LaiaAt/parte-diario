@@ -234,20 +234,20 @@ function llenarSel(id, conTodas) {
 }
 function dias() { const a = [], d = $('desde').value, hh = $('hasta').value; for (let f = d; f <= hh && a.length < 93; f = sumDias(f, 1)) a.push(f); return a; }
 
-const COD = (f, l) => 'PD-' + String(f).replace(/-/g, '') + '-' + String(l).toUpperCase();
+const COD = (f, l, n) => 'PD-' + String(f).replace(/-/g, '') + '-' + String(l).toUpperCase() + ((n || 1) > 1 ? '-' + n : '');
 const SECS = ['ACTIVIDAD', 'PERSONAL', 'MAQUINA', 'MATERIAL', 'SOLICITUD'];
 let ESP = '', SORT = { k: -1, d: 1 };
 function prep() {
   const hijos = {};
   SECS.forEach(k => D[k].forEach(r => {
-    r._cod = COD(r.fecha, r.llave);
+    r._cod = COD(r.fecha, r.llave, r.n);
     r._h = Object.keys(r).filter(x => x[0] !== '_').map(x => r[x]).join(' ').toLowerCase() + ' ' + r._cod.toLowerCase();
     const o = hijos[r.id] = hijos[r.id] || { n: { ACTIVIDAD: 0, PERSONAL: 0, MAQUINA: 0, MATERIAL: 0, SOLICITUD: 0 }, h: [] };
     o.n[k]++; o.h.push(r._h);
   }));
   D.partes.forEach(p => {
     const c = hijos[p.id] || { n: { ACTIVIDAD: 0, PERSONAL: 0, MAQUINA: 0, MATERIAL: 0, SOLICITUD: 0 }, h: [] };
-    p._cod = COD(p.fecha, p.llave); p._n = c.n;
+    p._cod = COD(p.fecha, p.llave, p.n); p._n = c.n;
     p._h = [p._cod, p.fecha, fmtF(p.fecha), p.llave, p.usuario, p.localizacion, p.pk].join(' ').toLowerCase() + ' ' + c.h.join(' ');
   });
 }
@@ -449,7 +449,7 @@ async function cargarFotos() {
 function prepFotos() {
   const ad = {}; D.ACTIVIDAD.forEach(a => { ad[a.id + '#' + a.n] = a.descripcion; });
   FT.forEach(f => {
-    f._cod = COD(f.fecha, f.llave);
+    f._cod = COD(f.fecha, f.llave, (String(f.id).match(/_n(\d+)$/) || [0, 1])[1]);
     f._ad = f.acts.map(n => ({ n: n, t: ad[f.id + '#' + n] })).filter(x => x.t);
     f._k = f._ad.map(x => norm(x.t));
     f._h = [f._cod, f.fecha, fmtF(f.fecha), f.llave, f.caption, f.tipo === 'ALBARAN' ? 'albaran' : 'trabajo'].concat(f._ad.map(x => x.t)).join(' ').toLowerCase();
@@ -469,7 +469,7 @@ function fotosVisibles() {
   return fotosBase().filter(f => !ac || (ac === '__sin' ? !f._k.length : f._k.indexOf(ac) >= 0))
     .sort((a, b) => (b.fecha + b.llave).localeCompare(a.fecha + a.llave) || a.n - b.n);
 }
-const nombreFoto = f => f.llave + '_' + f.fecha.slice(2).replace(/-/g, '') + '_' + f.n + '.jpg';
+const nombreFoto = f => f.llave + '_' + f.fecha.slice(2).replace(/-/g, '') + (/_n\d+$/.test(String(f.id)) ? 'i' + String(f.id).match(/_n(\d+)$/)[1] : '') + '_' + f.n + '.jpg';
 async function obtener(f) {
   const k = f.id + '#' + f.foto;
   if (IMG.has(k)) return IMG.get(k);
