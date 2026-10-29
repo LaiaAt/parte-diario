@@ -230,7 +230,7 @@ async function biblioteca() {
   aviso('');
   ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
   $('biblio').hidden = false;
-  const B = $('biblio'); B.textContent = '';
+  const B = $('biblio');
   let lista = (await kv.get('bib_' + user.llave)) || [];
   if (navigator.onLine) {
     try { const x = await api({ accion: 'lista', llave: user.llave }); if (x.ok) { lista = x.biblioteca; await kv.set('bib_' + user.llave, lista); } } catch (e) {}
@@ -240,6 +240,7 @@ async function biblioteca() {
   lista.forEach(x => { por[x.fecha] = { fecha: x.fecha, pdf: x.pdf, pend: false }; });
   cola.forEach(e => { const f = e.parte.fecha; por[f] = Object.assign(por[f] || { fecha: f, pdf: false }, { pend: true, local: !!e.pdf }); });
   const hayHoy = !!por[h0];
+  B.textContent = '';
   B.appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + user.nombre), h('br'), h('small', {}, PD.fechaLarga(h0)), h('br'),
     h('button', { class: 'link', onclick: salir }, 'Cambiar de usuario')));
   B.appendChild(h('button', { onclick: editarHoy }, hayHoy ? '✏️ Editar el parte de hoy' : '➕ Crear el parte de hoy'));
