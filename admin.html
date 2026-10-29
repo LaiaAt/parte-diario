@@ -59,6 +59,13 @@ svg text{fill:var(--ink);font-size:12px}
 #detalle h2{margin-top:14px}
 th.s{cursor:pointer;user-select:none}
 button.chipm{cursor:pointer;font:inherit}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:10px;margin-top:10px}
+.ft{border:1px solid var(--line);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px}
+.ft img{width:100%;height:130px;object-fit:cover;border-radius:6px;background:var(--line);cursor:pointer;display:block}
+.ft .small{font-size:12px;line-height:1.25;overflow-wrap:anywhere}
+#visor{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px}
+#visor img{max-width:96vw;max-height:78vh;border-radius:6px}
+#visor .small{color:#fff}
 [hidden]{display:none!important}
 #login{max-width:380px;margin:60px auto}
 #login input{width:100%;margin:8px 0}
@@ -125,6 +132,16 @@ button.chipm{cursor:pointer;font:inherit}
     <div class="tw" style="margin-top:8px"><table id="tPar"></table></div>
   </div>
 
+  <div class="card" id="cFoto"><h2>Fotos <span id="nFoto" class="small"></span></h2>
+    <div class="small">Cada foto lleva la llave, el código del parte y las actividades con que se etiquetó. Solo se ven y se descargan: aquí no se puede borrar ni cambiar nada.</div>
+    <div class="row" style="margin-top:8px"><div><label>Llave</label><select id="fFotoLlave"></select></div>
+      <div><label>Actividad</label><select id="fFotoAct"></select></div>
+      <div><label>Tipo</label><select id="fFotoTipo"><option value="">Todas</option><option value="GENERAL">Del trabajo</option><option value="ALBARAN">Albaranes</option></select></div>
+      <button class="sec sm" id="bajaFotos">Descargar las visibles</button></div>
+    <div class="gal" id="gal"></div>
+    <div style="margin-top:10px"><button class="sec" id="masFotos" hidden>Ver más</button></div>
+  </div>
+
   <div class="card" id="cCon"><h2>Consolidados <span id="nCon" class="small"></span></h2>
     <div class="small">Cada fila indica la llave y el código del parte. Toca un título de columna para ordenar.</div>
     <div class="tabs" id="tabs"></div>
@@ -138,6 +155,7 @@ button.chipm{cursor:pointer;font:inherit}
   </div>
 </section>
 <div id="detalle" hidden></div>
+<div id="visor" hidden></div>
 </main>
 
 <script>
@@ -161,7 +179,7 @@ async function api(d) {
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); }
 }
-function salir() { try { sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
+function salir() { IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
 async function entrar() {
   const l = $('llave').value.trim(); if (!l) return;
   $('loginmsg').textContent = 'Entrando…'; $('entrar').disabled = true;
@@ -178,7 +196,7 @@ async function cargar(primera) {
   const r = await api({ accion: 'admin', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
   $('estado').textContent = '';
   if (!r.ok) { (primera ? $('loginmsg') : $('err')).textContent = r.mensaje || 'No se pudo cargar'; if (!primera && /administradores/.test(r.mensaje || '')) salir(); return false; }
-  D = r; $('quien').textContent = r.nombre; pintar(); return true;
+  D = r; $('quien').textContent = r.nombre; pintar(); cargarFotos(); return true;
 }
 
 function llaves() { return D.usuarios.map(u => u.llave); }
@@ -211,12 +229,12 @@ function coincide(r) { return $('q').value.toLowerCase().split(/\s+/).filter(Boo
 function uniq(a) { return Array.from(new Set(a.filter(Boolean))).sort(); }
 function llenarOpts(id, todas, vals) { const s = $(id), v = s.value; s.textContent = ''; s.appendChild(h('option', { value: '' }, todas)); vals.forEach(x => s.appendChild(h('option', { value: x }, x))); s.value = vals.indexOf(v) >= 0 ? v : ''; }
 function ir(id) { $(id).scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-function rerender() { solicitudes(); partes(); consolidado(); }
+function rerender() { solicitudes(); partes(); fotos(true); consolidado(); }
 function pintar() {
   prep();
-  ['fSolLlave', 'fPar', 'fCon'].forEach(i => llenarSel(i));
+  ['fSolLlave', 'fPar', 'fCon', 'fFotoLlave'].forEach(i => llenarSel(i));
   llenarOpts('fSolTipo', 'Todos', uniq(D.SOLICITUD.map(s => s.tipo)));
-  kpis(); alertas(); faltan(); matriz(); solicitudes(); grafico(); partes(); consolidado();
+  kpis(); alertas(); faltan(); matriz(); solicitudes(); grafico(); partes(); fotos(); consolidado();
 }
 function efectiva(s) { return s.para === 'MAÑANA' ? sumDias(s.fecha, 1) : s.para; }
 function alertas() {
@@ -235,7 +253,7 @@ function alertas() {
   L.forEach(x => c.appendChild(x));
 }
 function limpiar() {
-  $('q').value = ''; ['fSolLlave', 'fSolTipo', 'fPar', 'fPdf', 'fCon', 'fEst', 'fCC'].forEach(i => { $(i).value = ''; }); $('fSol').value = 'pend';
+  $('q').value = ''; ['fSolLlave', 'fSolTipo', 'fPar', 'fPdf', 'fCon', 'fEst', 'fCC', 'fFotoLlave', 'fFotoAct', 'fFotoTipo'].forEach(i => { $(i).value = ''; }); $('fSol').value = 'pend';
   ESP = ''; SORT = { k: -1, d: 1 }; rerender();
 }
 function kpis() {
@@ -380,6 +398,7 @@ function detalle(p) {
     h('div', { class: 'row' }, h('div', {}, h('h2', { style: 'margin:0' }, p._cod), h('div', { class: 'small' }, [fmtF(p.fecha), p.llave, p.usuario, p.localizacion, p.pk].join(' · '))),
       p.pdf ? h('button', { onclick: () => bajarPdf(p) }, 'Descargar PDF') : h('span', { class: 'tag r' }, 'sin PDF'),
       h('button', { class: 'sec', onclick: () => { try { navigator.clipboard.writeText(p._cod); } catch (e) {} } }, 'Copiar código'),
+      h('button', { class: 'sec', onclick: () => { o.hidden = true; $('q').value = p._cod; rerender(); ir('cFoto'); } }, 'Ver fotos'),
       h('button', { class: 'sec', onclick: () => { o.hidden = true; } }, 'Cerrar')),
     tabla('Actividades', ['N°', 'Actividad', 'Unidad', 'Cantidad', 'Obs.'], del('ACTIVIDAD').map(r => [r.n, r.descripcion, r.unidad, r.cantidad, r.obs])),
     tabla('Personal', ['C. costo', 'Nombre', 'Cargo', 'Inicio', 'Fin', 'Horas', 'Estado'], del('PERSONAL').map(r => [r.c_costo, r.nombre, r.cargo, r.inicio, r.fin, r.horas, r.estado])),
@@ -387,6 +406,101 @@ function detalle(p) {
     tabla('Materiales', ['C. costo', 'Material', 'Almacén', 'Albarán', 'Cantidad', 'Unidad', 'Estado'], del('MATERIAL').map(r => [r.c_costo, r.nombre, r.almacen, r.albaran, r.cantidad, r.unidad, r.estado])),
     tabla('Pedidos', ['Qué', 'Detalle', 'Cant.', 'Para cuándo', 'Liberado'], del('SOLICITUD').map(r => [r.tipo, r.detalle, [r.cantidad, r.unidad].join(' ').trim(), paraTxt(r), r.liberado ? 'SI (' + r.liberado_por + ')' : 'NO']))));
   o.hidden = false; o.scrollTop = 0;
+}
+
+/* ---- fotos (solo lectura) ---- */
+let FT = [], FSHOW = 24, FV = [], FOK = false;
+const IMG = new Map(), COLA = []; let activos = 0;
+const norm = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+async function cargarFotos() {
+  FOK = false;
+  try { const r = await api({ accion: 'admin_fotos', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); FT = r.ok && Array.isArray(r.fotos) ? r.fotos : []; }
+  catch (e) { FT = []; }
+  FOK = true; fotos();
+}
+function prepFotos() {
+  const ad = {}; D.ACTIVIDAD.forEach(a => { ad[a.id + '#' + a.n] = a.descripcion; });
+  FT.forEach(f => {
+    f._cod = COD(f.fecha, f.llave);
+    f._ad = f.acts.map(n => ({ n: n, t: ad[f.id + '#' + n] })).filter(x => x.t);
+    f._k = f._ad.map(x => norm(x.t));
+    f._h = [f._cod, f.fecha, fmtF(f.fecha), f.llave, f.caption, f.tipo === 'ALBARAN' ? 'albaran' : 'trabajo'].concat(f._ad.map(x => x.t)).join(' ').toLowerCase();
+  });
+  const m = new Map(); FT.forEach(f => f._ad.forEach(x => { if (!m.has(norm(x.t))) m.set(norm(x.t), x.t); }));
+  const s = $('fFotoAct'), v = s.value; s.textContent = '';
+  s.appendChild(h('option', { value: '' }, 'Todas')); s.appendChild(h('option', { value: '__sin' }, 'Sin actividad'));
+  Array.from(m.entries()).sort((a, b) => a[1].localeCompare(b[1])).forEach(e => s.appendChild(h('option', { value: e[0] }, e[1].length > 50 ? e[1].slice(0, 50) + '…' : e[1])));
+  s.value = Array.from(s.options).some(o => o.value === v) ? v : '';
+}
+function fotosVisibles() {
+  const ll = $('fFotoLlave').value, ac = $('fFotoAct').value, ti = $('fFotoTipo').value;
+  return FT.filter(f => (!ll || f.llave === ll) && (!ti || f.tipo === ti) && (!ac || (ac === '__sin' ? !f._k.length : f._k.indexOf(ac) >= 0)) && coincide(f))
+    .sort((a, b) => (b.fecha + b.llave).localeCompare(a.fecha + a.llave) || a.n - b.n);
+}
+const nombreFoto = f => f.llave + '_' + f.fecha.slice(2).replace(/-/g, '') + '_' + f.n + '.jpg';
+async function obtener(f) {
+  const k = f.id + '#' + f.foto;
+  if (IMG.has(k)) return IMG.get(k);
+  try {
+    const r = await api({ accion: 'admin_foto', llave: LLAVE, id: f.id, foto: f.foto });
+    if (!r.ok) return null;
+    const bin = atob(r.data), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    const b = new Blob([u], { type: r.tipo === 'image/png' ? 'image/png' : 'image/jpeg' });
+    const o = { url: URL.createObjectURL(b), blob: b }; IMG.set(k, o); return o;
+  } catch (e) { return null; }
+}
+function bombear() {
+  while (activos < 3 && COLA.length) {
+    const t = COLA.shift(); if (!t.img.isConnected) continue;
+    activos++;
+    obtener(t.f).then(o => { if (o) t.img.src = o.url; else t.img.alt = 'No disponible'; }).finally(() => { activos--; bombear(); });
+  }
+}
+const obs = typeof IntersectionObserver === 'function' ? new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return; obs.unobserve(e.target); COLA.push(e.target._t); bombear();
+}), { rootMargin: '300px' }) : null;
+function verFoto(f) {
+  const v = $('visor'); v.textContent = '';
+  const img = h('img', { alt: 'foto' });
+  obtener(f).then(o => { if (o) img.src = o.url; });
+  v.appendChild(img);
+  v.appendChild(h('div', { class: 'small' }, [f._cod, 'Foto ' + f.n].concat(f._ad.map(x => 'Act. ' + x.n + ' ' + x.t)).join(' · ')));
+  v.appendChild(h('div', { class: 'row' }, h('button', { onclick: () => bajarFoto(f) }, 'Descargar'), h('button', { class: 'sec', onclick: () => { v.hidden = true; } }, 'Cerrar')));
+  v.hidden = false;
+}
+async function bajarFoto(f) {
+  $('estado').textContent = 'Descargando foto…';
+  const o = await obtener(f); $('estado').textContent = '';
+  if (!o) { $('err').textContent = 'No se pudo bajar la foto.'; return false; }
+  $('err').textContent = ''; bajar(o.blob, nombreFoto(f)); return true;
+}
+async function bajarFotos() {
+  const L = FV; if (!L.length) return;
+  if (L.length > 1 && !confirm('Se descargarán ' + L.length + ' fotos una tras otra. ¿Continuar?')) return;
+  $('bajaFotos').disabled = true;
+  for (let i = 0; i < L.length; i++) { $('estado').textContent = 'Foto ' + (i + 1) + ' de ' + L.length + '…'; if (!(await bajarFoto(L[i]))) break; await new Promise(r => setTimeout(r, 500)); }
+  $('estado').textContent = ''; $('bajaFotos').disabled = false;
+}
+function fotos(reset) {
+  if (!D) return;
+  if (reset === true) FSHOW = 24;
+  prepFotos();
+  FV = fotosVisibles();
+  $('nFoto').textContent = '(' + FV.length + ' de ' + FT.length + ')';
+  const g = $('gal'); g.textContent = '';
+  FV.slice(0, FSHOW).forEach(f => {
+    const img = h('img', { alt: '' });
+    img._t = { f: f, img: img }; img.onclick = () => verFoto(f);
+    if (obs) obs.observe(img); else { COLA.push(img._t); }
+    g.appendChild(h('div', { class: 'ft' }, img,
+      h('div', { class: 'small' }, h('b', {}, f.llave + ' · ' + fmtF(f.fecha)), f.tipo === 'ALBARAN' ? ' · albarán' : '', ' · #' + f.n),
+      h('div', { class: 'small' }, f._ad.length ? f._ad.map(x => 'Act. ' + x.n + ' ' + x.t).join(' | ') : 'Sin actividad'),
+      f.caption ? h('div', { class: 'small' }, f.caption) : null,
+      h('button', { class: 'sm', onclick: () => bajarFoto(f) }, 'Descargar')));
+  });
+  if (!obs) bombear();
+  if (!FV.length) g.appendChild(h('div', { class: 'small' }, !FOK ? 'Cargando fotos…' : FT.length ? 'No hay fotos con esos filtros' : 'No hay fotos en este rango'));
+  $('masFotos').hidden = FV.length <= FSHOW;
 }
 
 /* ---- consolidados ---- */
@@ -475,10 +589,13 @@ let qt;
 $('q').oninput = () => { clearTimeout(qt); qt = setTimeout(rerender, 200); };
 ['fSol', 'fSolLlave', 'fSolTipo'].forEach(i => $(i).onchange = solicitudes);
 ['fPar', 'fPdf'].forEach(i => $(i).onchange = partes);
+['fFotoLlave', 'fFotoAct', 'fFotoTipo'].forEach(i => $(i).onchange = () => fotos(true));
+$('masFotos').onclick = () => { FSHOW += 24; fotos(); }; $('bajaFotos').onclick = bajarFotos;
 ['fCon', 'fEst', 'fCC'].forEach(i => $(i).onchange = consolidado);
 $('libTodos').onclick = liberarVisibles; $('limpiar').onclick = limpiar;
 $('todosPdf').onclick = todosPdf; $('csv').onclick = descargarCsv; $('xlsx').onclick = descargarXlsx;
-document.addEventListener('keydown', e => { if (e.key === 'Escape') $('detalle').hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('detalle').hidden = true; $('visor').hidden = true; } });
+$('visor').onclick = e => { if (e.target === $('visor')) $('visor').hidden = true; };
 $('detalle').onclick = e => { if (e.target === $('detalle')) $('detalle').hidden = true; };
 setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('detalle').hidden === false) cargar(false); }, 300000);
 (function () {

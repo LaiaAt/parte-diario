@@ -158,7 +158,7 @@ function base(p, reiniciar) {
   const L = x => Array.isArray(x) ? x : [];
   if (!reiniciar) {
     o.clima_sel = p.clima_sel || null; o.clima = L(p.clima); o.actividades = L(p.actividades);
-    o.fotos = L(p.fotos); o.solicitudes = L(p.solicitudes).map(q => Object.assign({ cuando: 'MANANA', fecha: '' }, q));
+    o.fotos = L(p.fotos).map(f => Object.assign({}, f, { acts: L(f.acts) })); o.solicitudes = L(p.solicitudes).map(q => Object.assign({ cuando: 'MANANA', fecha: '' }, q));
   }
   o.personal = L(p.personal).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', cargo: x.cargo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
     estado: reiniciar ? 'PRESENTE' : (x.estado || 'PRESENTE'), acts: reiniciar ? [] : L(x.acts) }));
@@ -380,7 +380,7 @@ function quitarActividad(i) {
   const n = P.actividades[i].n;
   P.actividades.splice(i, 1);
   P.actividades.forEach((a, k) => a.n = k + 1);
-  [].concat(P.personal, P.maquinas, P.materiales).forEach(x => { x.acts = x.acts.filter(v => v !== n).map(v => v > n ? v - 1 : v); });
+  [].concat(P.personal, P.maquinas, P.materiales, P.fotos).forEach(x => { x.acts = (x.acts || []).filter(v => v !== n).map(v => v > n ? v - 1 : v); });
 }
 
 /* ---------- fotos ---------- */
@@ -553,18 +553,30 @@ function pasoMateriales(c) {
   c.appendChild(h('button', { class: 'sec', onclick: () => { P.materiales.push(nuevoMaterial()); mostrar(); } }, '+ Agregar material'));
 }
 
+const actsInicial = () => P.actividades.length === 1 ? [P.actividades[0].n] : [];
+function chipsFoto(f) {
+  if (!P.actividades.length) return null;
+  f.acts = f.acts || [];
+  const c = h('div', { class: 'chips' });
+  P.actividades.forEach(a => {
+    const b = h('button', { type: 'button', class: 'chip' + (f.acts.indexOf(a.n) >= 0 ? ' on' : ''),
+      onclick: () => { const i = f.acts.indexOf(a.n); if (i >= 0) f.acts.splice(i, 1); else f.acts.push(a.n); b.classList.toggle('on'); cambio(); } }, 'Act. ' + a.n);
+    c.appendChild(b);
+  });
+  return h('div', {}, h('label', {}, '¿De qué actividad es? (opcional)'), c);
+}
 function pasoFotos(c) {
   c.appendChild(h('h2', {}, 'Fotos del trabajo'));
   c.appendChild(h('p', { class: 'guia' }, 'Toma fotos de lo que hicieron hoy. Saldrán en el PDF.'));
   const gen = P.fotos.filter(f => f.tipo !== 'ALBARAN');
   const gal = h('div', { class: 'fotos' });
   gen.forEach(f => gal.appendChild(h('div', {}, h('img', { src: f.data, alt: 'foto' }),
-    campo('Qué se ve (opcional)', f, 'caption'),
+    campo('Qué se ve (opcional)', f, 'caption'), chipsFoto(f),
     h('button', { class: 'sec', style: 'margin-top:4px;padding:8px', onclick: () => { P.fotos = P.fotos.filter(x => x.id !== f.id); mostrar(); } }, 'Quitar'))));
   c.appendChild(gal);
   if (gen.length < MAXFOTOS) {
-    c.appendChild(h('div', { class: 'row' }, botonFoto('📷 Tomar foto', false, true, ph => { P.fotos.push({ id: uid(), tipo: 'GENERAL', caption: '', data: ph.data, w: ph.w, h: ph.h, url: '' }); mostrar(); }),
-      botonFoto('🖼 Elegir de la galería', true, false, ph => { if (P.fotos.filter(f => f.tipo !== 'ALBARAN').length < MAXFOTOS) { P.fotos.push({ id: uid(), tipo: 'GENERAL', caption: '', data: ph.data, w: ph.w, h: ph.h, url: '' }); } mostrar(); })));
+    c.appendChild(h('div', { class: 'row' }, botonFoto('📷 Tomar foto', false, true, ph => { P.fotos.push({ id: uid(), tipo: 'GENERAL', caption: '', acts: actsInicial(), data: ph.data, w: ph.w, h: ph.h, url: '' }); mostrar(); }),
+      botonFoto('🖼 Elegir de la galería', true, false, ph => { if (P.fotos.filter(f => f.tipo !== 'ALBARAN').length < MAXFOTOS) { P.fotos.push({ id: uid(), tipo: 'GENERAL', caption: '', acts: actsInicial(), data: ph.data, w: ph.w, h: ph.h, url: '' }); } mostrar(); })));
   } else c.appendChild(h('small', {}, 'Máximo ' + MAXFOTOS + ' fotos.'));
 }
 
@@ -732,7 +744,7 @@ async function verPdf() {
 let sincronizando = false;
 function payload(parte) {
   const p = copia(parte);
-  p.fotos = p.fotos.map(f => ({ id: f.id, tipo: f.tipo, caption: f.caption, url: f.url || '', data: f.url ? undefined : f.data }));
+  p.fotos = p.fotos.map(f => ({ id: f.id, tipo: f.tipo, caption: f.caption, acts: f.tipo === 'ALBARAN' ? [] : (f.acts || []), url: f.url || '', data: f.url ? undefined : f.data }));
   return p;
 }
 async function sincronizar(manual) {
