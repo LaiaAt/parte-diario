@@ -210,6 +210,14 @@ async function ingresar() {
   } catch (e) { aviso('No se pudo conectar. Intenta de nuevo.', 'err'); }
 }
 
+async function cerrarSesion(msg) {
+  await kv.del('user'); await kv.del('borrador');
+  user = null; P = null;
+  ['app', 'listo', 'barra', 'biblio'].forEach(i => $(i).hidden = true);
+  $('login').hidden = false; $('llave').value = '';
+  aviso(msg || 'Llave no válida. Ingresa de nuevo.', 'err');
+}
+
 async function salir() {
   const cola = (await kv.get('cola')) || [];
   if (cola.length && !confirm('Hay ' + cola.length + ' parte(s) sin enviar. Se enviarán cuando haya señal. ¿Cambiar de usuario?')) return;
@@ -223,7 +231,7 @@ let ult = null;
 async function abrir(r) {
   ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
   if (!r && navigator.onLine) {
-    try { const x = await api({ accion: 'ingresar', llave: user.llave }); if (x.ok) { r = x; await guardarIngreso(x); } } catch (e) {}
+    try { const x = await api({ accion: 'ingresar', llave: user.llave }); if (x.ok) { r = x; await guardarIngreso(x); } else if (/no v[aá]lida|inactiv/i.test(x.mensaje || '')) { await cerrarSesion(x.mensaje); return; } } catch (e) {}
   }
   ult = r;
   await biblioteca();
@@ -237,7 +245,7 @@ async function biblioteca() {
   const B = $('biblio');
   let lista = (await kv.get('bib_' + user.llave)) || [];
   if (navigator.onLine) {
-    try { const x = await api({ accion: 'lista', llave: user.llave }); if (x.ok) { lista = x.biblioteca; await kv.set('bib_' + user.llave, lista); } } catch (e) {}
+    try { const x = await api({ accion: 'lista', llave: user.llave }); if (x.ok) { lista = x.biblioteca; await kv.set('bib_' + user.llave, lista); } else if (/no v[aá]lida|inactiv/i.test(x.mensaje || '')) { await cerrarSesion(x.mensaje); return; } } catch (e) {}
   }
   const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave);
   const h0 = hoy(), por = {};
@@ -792,6 +800,7 @@ window.addEventListener('offline', estadoRed);
 estadoRed();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 (async () => { try { user = await kv.get('user'); } catch (e) { user = null; } if (user) abrir(null); })();
+setTimeout(() => { try { if (['login','app','biblio','listo'].every(i => $(i).hidden)) $('login').hidden = false; } catch (e) {} }, 8000);
 </script>
 </body>
 </html>
