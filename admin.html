@@ -59,6 +59,9 @@ svg text{fill:var(--ink);font-size:12px}
 #detalle h2{margin-top:14px}
 th.s{cursor:pointer;user-select:none}
 button.chipm{cursor:pointer;font:inherit}
+.card{scroll-margin-top:64px}
+@media (max-width:700px){header{position:static}.card{scroll-margin-top:8px}}
+.ft button{margin-top:auto}
 .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:10px;margin-top:10px}
 .ft{border:1px solid var(--line);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px}
 .ft img{width:100%;height:130px;object-fit:cover;border-radius:6px;background:var(--line);cursor:pointer;display:block}
@@ -66,13 +69,14 @@ button.chipm{cursor:pointer;font:inherit}
 #visor{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px}
 #visor img{max-width:96vw;max-height:78vh;border-radius:6px}
 #visor .small{color:#fff}
+.nav{display:flex;gap:6px;flex-wrap:wrap}.nav button{padding:4px 10px;font-size:13px;background:rgba(0,0,0,.12);color:#16202b;border:0;border-radius:14px}
 [hidden]{display:none!important}
 #login{max-width:380px;margin:60px auto}
 #login input{width:100%;margin:8px 0}
 </style>
 </head>
 <body>
-<header><b>Dashboard · Partes diarios</b><span id="quien"></span></header>
+<header><b>Dashboard · Partes diarios</b><span id="nav" class="nav"></span><span id="quien"></span></header>
 <main>
 <section id="login" class="card">
   <h2>Acceso administradores</h2>
@@ -108,6 +112,7 @@ button.chipm{cursor:pointer;font:inherit}
   <div class="card"><h2>¿Quién no ha creado el parte?</h2><div id="faltan"></div>
     <h2 style="margin-top:14px">Control por llave y día</h2>
     <div class="small">✔ = parte creado (toca para bajar el PDF) · ✖ = falta · el borde amarillo es hoy</div>
+    <div id="matNota" class="small"></div>
     <div class="tw" style="margin-top:8px"><table class="mx" id="matriz"></table></div>
   </div>
 
@@ -137,7 +142,7 @@ button.chipm{cursor:pointer;font:inherit}
     <div class="row" style="margin-top:8px"><div><label>Llave</label><select id="fFotoLlave"></select></div>
       <div><label>Actividad</label><select id="fFotoAct"></select></div>
       <div><label>Tipo</label><select id="fFotoTipo"><option value="">Todas</option><option value="GENERAL">Del trabajo</option><option value="ALBARAN">Albaranes</option></select></div>
-      <button class="sec sm" id="bajaFotos">Descargar las visibles</button></div>
+      <button class="sm" id="bajaZip">Descargar visibles en un ZIP</button><button class="sec sm" id="bajaFotos">Una por una</button></div>
     <div class="gal" id="gal"></div>
     <div style="margin-top:10px"><button class="sec" id="masFotos" hidden>Ver más</button></div>
   </div>
@@ -199,6 +204,10 @@ async function cargar(primera) {
   D = r; $('quien').textContent = r.nombre; pintar(); cargarFotos(); return true;
 }
 
+function navegacion() {
+  const n = $('nav'); if (n.firstChild) return;
+  [['Pedidos', 'cPed'], ['Partes', 'cPar'], ['Fotos', 'cFoto'], ['Consolidados', 'cCon']].forEach(x => n.appendChild(h('button', { onclick: () => ir(x[1]) }, x[0])));
+}
 function llaves() { return D.usuarios.map(u => u.llave); }
 function llenarSel(id, conTodas) {
   const s = $(id), v = s.value; s.textContent = '';
@@ -234,7 +243,7 @@ function pintar() {
   prep();
   ['fSolLlave', 'fPar', 'fCon', 'fFotoLlave'].forEach(i => llenarSel(i));
   llenarOpts('fSolTipo', 'Todos', uniq(D.SOLICITUD.map(s => s.tipo)));
-  kpis(); alertas(); faltan(); matriz(); solicitudes(); grafico(); partes(); fotos(); consolidado();
+  navegacion(); kpis(); alertas(); faltan(); matriz(); solicitudes(); grafico(); partes(); fotos(); consolidado();
 }
 function efectiva(s) { return s.para === 'MAÑANA' ? sumDias(s.fecha, 1) : s.para; }
 function alertas() {
@@ -263,7 +272,7 @@ function kpis() {
   const K = (t, v, c) => h('div', { class: 'kpi ' + (c || '') }, h('b', {}, v), t);
   const e = $('kpis'); e.textContent = '';
   e.append(K('Llaves de usuario', us), K('Partes de hoy', hechosHoy + ' / ' + us, hechosHoy < us ? 'mal' : 'bien'), K('Sin parte hoy', us - hechosHoy, us - hechosHoy ? 'mal' : 'bien'),
-    K('Pedidos por liberar', pend, pend ? 'mal' : 'bien'), K('Partes en el rango', D.partes.length));
+    K('Pedidos por liberar', pend, pend ? 'mal' : 'bien'), K('Partes en el rango', D.partes.length), K('Fotos en el rango', FOK ? FT.length : '…'));
 }
 function faltan() {
   const c = $('faltan'); c.textContent = '';
@@ -278,7 +287,8 @@ function faltan() {
 }
 function matriz() {
   const t = $('matriz'); t.textContent = '';
-  const ds = dias();
+  $('matNota').textContent = dias().length > 14 ? 'Se muestran los últimos 14 días del rango.' : '';
+  const ds = dias().slice(-14);
   const mapa = {}; D.partes.forEach(p => { mapa[p.llave + '|' + p.fecha] = p; });
   t.appendChild(h('thead', {}, h('tr', {}, h('th', {}, 'Llave'), ds.map(f => h('th', { class: f === D.hoy ? 'c-hoy' : '' }, f.slice(8) + '/' + f.slice(5, 7))))));
   const b = h('tbody');
@@ -367,6 +377,7 @@ async function bajarPdf(p) {
     $('err').textContent = ''; bajar(b64Blob(r.pdf), r.nombre); return true;
   } catch (e) { $('estado').textContent = ''; $('err').textContent = 'No se pudo bajar el PDF.'; return false; }
 }
+const nFotos = id => FT.filter(f => f.id === id).length;
 function partesVisibles() {
   const ll = $('fPar').value, sp = $('fPdf').value;
   return D.partes.filter(p => (!ll || p.llave === ll) && (sp !== 'no' || !p.pdf) && coincide(p));
@@ -375,12 +386,12 @@ function partes() {
   const L = partesVisibles();
   $('nPar').textContent = '(' + L.length + ')';
   const t = $('tPar'); t.textContent = '';
-  t.appendChild(h('thead', {}, h('tr', {}, ['Código', 'Fecha', 'Llave', 'Usuario', 'Lugar', 'PK', 'Act.', 'Pers.', 'Máq.', 'Mat.', 'Ped.', ''].map(x => h('th', {}, x)))));
+  t.appendChild(h('thead', {}, h('tr', {}, ['Código', 'Fecha', 'Llave', 'Usuario', 'Lugar', 'PK', 'Act.', 'Pers.', 'Máq.', 'Mat.', 'Ped.', 'Fot.', ''].map(x => h('th', {}, x)))));
   const b = h('tbody');
   L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, p._cod), h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
-    h('td', {}, p._n.ACTIVIDAD), h('td', {}, p._n.PERSONAL), h('td', {}, p._n.MAQUINA), h('td', {}, p._n.MATERIAL), h('td', {}, p._n.SOLICITUD),
+    h('td', {}, p._n.ACTIVIDAD), h('td', {}, p._n.PERSONAL), h('td', {}, p._n.MAQUINA), h('td', {}, p._n.MATERIAL), h('td', {}, p._n.SOLICITUD), h('td', {}, nFotos(p.id) ? h('button', { class: 'sm sec', onclick: () => { $('q').value = p._cod; rerender(); ir('cFoto'); } }, '📷 ' + nFotos(p.id)) : '0'),
     h('td', {}, h('button', { class: 'sm sec', onclick: () => detalle(p) }, 'Detalle'), ' ', p.pdf ? h('button', { class: 'sm', onclick: () => bajarPdf(p) }, 'PDF') : h('span', { class: 'tag r' }, 'sin PDF')))));
-  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 12 }, 'No hay partes con esos filtros')));
+  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 13 }, 'No hay partes con esos filtros')));
   t.appendChild(b);
 }
 async function todosPdf() {
@@ -409,14 +420,14 @@ function detalle(p) {
 }
 
 /* ---- fotos (solo lectura) ---- */
-let FT = [], FSHOW = 24, FV = [], FOK = false;
+let VIS = -1, FT = [], FSHOW = 24, FV = [], FOK = false;
 const IMG = new Map(), COLA = []; let activos = 0;
 const norm = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
 async function cargarFotos() {
   FOK = false;
   try { const r = await api({ accion: 'admin_fotos', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); FT = r.ok && Array.isArray(r.fotos) ? r.fotos : []; }
   catch (e) { FT = []; }
-  FOK = true; fotos();
+  FOK = true; kpis(); partes(); fotos();
 }
 function prepFotos() {
   const ad = {}; D.ACTIVIDAD.forEach(a => { ad[a.id + '#' + a.n] = a.descripcion; });
@@ -426,15 +437,19 @@ function prepFotos() {
     f._k = f._ad.map(x => norm(x.t));
     f._h = [f._cod, f.fecha, fmtF(f.fecha), f.llave, f.caption, f.tipo === 'ALBARAN' ? 'albaran' : 'trabajo'].concat(f._ad.map(x => x.t)).join(' ').toLowerCase();
   });
-  const m = new Map(); FT.forEach(f => f._ad.forEach(x => { if (!m.has(norm(x.t))) m.set(norm(x.t), x.t); }));
+  const BF = fotosBase(), m = new Map(), cn = {}; BF.forEach(f => f._ad.forEach(x => { const k = norm(x.t); cn[k] = (cn[k] || 0) + 1; if (!m.has(k)) m.set(k, x.t); }));
   const s = $('fFotoAct'), v = s.value; s.textContent = '';
-  s.appendChild(h('option', { value: '' }, 'Todas')); s.appendChild(h('option', { value: '__sin' }, 'Sin actividad'));
-  Array.from(m.entries()).sort((a, b) => a[1].localeCompare(b[1])).forEach(e => s.appendChild(h('option', { value: e[0] }, e[1].length > 50 ? e[1].slice(0, 50) + '…' : e[1])));
+  s.appendChild(h('option', { value: '' }, 'Todas')); s.appendChild(h('option', { value: '__sin' }, 'Sin actividad (' + BF.filter(f => !f._k.length).length + ')'));
+  Array.from(m.entries()).sort((a, b) => a[1].localeCompare(b[1])).forEach(e => s.appendChild(h('option', { value: e[0] }, (e[1].length > 45 ? e[1].slice(0, 45) + '…' : e[1]) + ' (' + cn[e[0]] + ')')));
   s.value = Array.from(s.options).some(o => o.value === v) ? v : '';
 }
+function fotosBase() {
+  const ll = $('fFotoLlave').value, ti = $('fFotoTipo').value;
+  return FT.filter(f => (!ll || f.llave === ll) && (!ti || f.tipo === ti) && coincide(f));
+}
 function fotosVisibles() {
-  const ll = $('fFotoLlave').value, ac = $('fFotoAct').value, ti = $('fFotoTipo').value;
-  return FT.filter(f => (!ll || f.llave === ll) && (!ti || f.tipo === ti) && (!ac || (ac === '__sin' ? !f._k.length : f._k.indexOf(ac) >= 0)) && coincide(f))
+  const ac = $('fFotoAct').value;
+  return fotosBase().filter(f => !ac || (ac === '__sin' ? !f._k.length : f._k.indexOf(ac) >= 0))
     .sort((a, b) => (b.fecha + b.llave).localeCompare(a.fecha + a.llave) || a.n - b.n);
 }
 const nombreFoto = f => f.llave + '_' + f.fecha.slice(2).replace(/-/g, '') + '_' + f.n + '.jpg';
@@ -460,19 +475,50 @@ const obs = typeof IntersectionObserver === 'function' ? new IntersectionObserve
   if (!e.isIntersecting) return; obs.unobserve(e.target); COLA.push(e.target._t); bombear();
 }), { rootMargin: '300px' }) : null;
 function verFoto(f) {
-  const v = $('visor'); v.textContent = '';
+  const v = $('visor'); v.textContent = ''; VIS = FV.indexOf(f);
   const img = h('img', { alt: 'foto' });
   obtener(f).then(o => { if (o) img.src = o.url; });
   v.appendChild(img);
   v.appendChild(h('div', { class: 'small' }, [f._cod, 'Foto ' + f.n].concat(f._ad.map(x => 'Act. ' + x.n + ' ' + x.t)).join(' · ')));
-  v.appendChild(h('div', { class: 'row' }, h('button', { onclick: () => bajarFoto(f) }, 'Descargar'), h('button', { class: 'sec', onclick: () => { v.hidden = true; } }, 'Cerrar')));
+  v.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => pasoVisor(-1) }, '◀'), h('button', { onclick: () => bajarFoto(f) }, 'Descargar'), h('button', { class: 'sec', onclick: () => pasoVisor(1) }, '▶'), h('button', { class: 'sec', onclick: () => { v.hidden = true; } }, 'Cerrar')));
   v.hidden = false;
 }
+function pasoVisor(d) { const i = VIS + d; if (VIS >= 0 && i >= 0 && i < FV.length) verFoto(FV[i]); }
 async function bajarFoto(f) {
   $('estado').textContent = 'Descargando foto…';
   const o = await obtener(f); $('estado').textContent = '';
   if (!o) { $('err').textContent = 'No se pudo bajar la foto.'; return false; }
   $('err').textContent = ''; bajar(o.blob, nombreFoto(f)); return true;
+}
+const CRC = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u) { let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipear(items) {
+  const enc = new TextEncoder(), partes = [], central = []; let off = 0;
+  const w16 = (a, v) => a.push(v & 255, (v >> 8) & 255), w32 = (a, v) => a.push(v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255);
+  items.forEach(it => {
+    const nm = enc.encode(it.nombre), crc = crc32(it.datos), h1 = [];
+    w32(h1, 0x04034b50); w16(h1, 20); w16(h1, 0x0800); w16(h1, 0); w16(h1, 0); w16(h1, 0x21); w32(h1, crc); w32(h1, it.datos.length); w32(h1, it.datos.length); w16(h1, nm.length); w16(h1, 0);
+    partes.push(new Uint8Array(h1), nm, it.datos);
+    const c1 = []; w32(c1, 0x02014b50); w16(c1, 20); w16(c1, 20); w16(c1, 0x0800); w16(c1, 0); w16(c1, 0); w16(c1, 0x21); w32(c1, crc); w32(c1, it.datos.length); w32(c1, it.datos.length); w16(c1, nm.length); w16(c1, 0); w16(c1, 0); w16(c1, 0); w16(c1, 0); w32(c1, 0); w32(c1, off);
+    central.push(new Uint8Array(c1), nm);
+    off += h1.length + nm.length + it.datos.length;
+  });
+  const cs = central.reduce((a, x) => a + x.length, 0), fin = [];
+  w32(fin, 0x06054b50); w16(fin, 0); w16(fin, 0); w16(fin, items.length); w16(fin, items.length); w32(fin, cs); w32(fin, off); w16(fin, 0);
+  return new Blob(partes.concat(central, [new Uint8Array(fin)]), { type: 'application/zip' });
+}
+async function bajarZip() {
+  const L = FV; if (!L.length) return;
+  if (L.length > 150 && !confirm('Son ' + L.length + ' fotos; puede tardar y pesar mucho. ¿Continuar?')) return;
+  $('bajaZip').disabled = true; const items = [];
+  for (let i = 0; i < L.length; i++) {
+    $('estado').textContent = 'Preparando fotos ' + (i + 1) + ' de ' + L.length + '…';
+    const o = await obtener(L[i]); if (o) items.push({ nombre: nombreFoto(L[i]), datos: new Uint8Array(await o.blob.arrayBuffer()) });
+  }
+  $('estado').textContent = ''; $('bajaZip').disabled = false;
+  if (!items.length) { $('err').textContent = 'No se pudieron bajar las fotos.'; return; }
+  $('err').textContent = items.length < L.length ? 'Faltaron ' + (L.length - items.length) + ' fotos que no se pudieron bajar.' : '';
+  bajar(zipear(items), 'fotos_' + bogota().replace(/-/g, '') + '_' + items.length + '.zip');
 }
 async function bajarFotos() {
   const L = FV; if (!L.length) return;
@@ -590,11 +636,11 @@ $('q').oninput = () => { clearTimeout(qt); qt = setTimeout(rerender, 200); };
 ['fSol', 'fSolLlave', 'fSolTipo'].forEach(i => $(i).onchange = solicitudes);
 ['fPar', 'fPdf'].forEach(i => $(i).onchange = partes);
 ['fFotoLlave', 'fFotoAct', 'fFotoTipo'].forEach(i => $(i).onchange = () => fotos(true));
-$('masFotos').onclick = () => { FSHOW += 24; fotos(); }; $('bajaFotos').onclick = bajarFotos;
+$('masFotos').onclick = () => { FSHOW += 24; fotos(); }; $('bajaFotos').onclick = bajarFotos; $('bajaZip').onclick = bajarZip;
 ['fCon', 'fEst', 'fCC'].forEach(i => $(i).onchange = consolidado);
 $('libTodos').onclick = liberarVisibles; $('limpiar').onclick = limpiar;
 $('todosPdf').onclick = todosPdf; $('csv').onclick = descargarCsv; $('xlsx').onclick = descargarXlsx;
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('detalle').hidden = true; $('visor').hidden = true; } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('detalle').hidden = true; $('visor').hidden = true; } else if (!$('visor').hidden && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) pasoVisor(e.key === 'ArrowLeft' ? -1 : 1); });
 $('visor').onclick = e => { if (e.target === $('visor')) $('visor').hidden = true; };
 $('detalle').onclick = e => { if (e.target === $('detalle')) $('detalle').hidden = true; };
 setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('detalle').hidden === false) cargar(false); }, 300000);

@@ -211,6 +211,11 @@
     // ---------- Fotos ----------
     const fotos = (parte.fotos || []).filter(f => f.data);
     if (fotos.length) {
+      const actsFoto = f => {
+        const m = f.tipo === 'ALBARAN' ? (parte.materiales || []).find(x => (x.fotos_ids || []).indexOf(f.id) >= 0) : null;
+        const a = (m ? m.acts : f.acts) || [];
+        return a.length ? 'Act. ' + a.join(', ') : '';
+      };
       const nombreMat = id => { const m = (parte.materiales || []).find(x => (x.fotos_ids || []).indexOf(id) >= 0); return m ? m.nombre : ''; };
       const cw = (AN - 6) / 2, ch = 72, cap = 8, filas = 3;
       let i = 0;
@@ -230,6 +235,8 @@
           doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
           let c = f.caption || '';
           if (f.tipo === 'ALBARAN') c = 'Albaran: ' + (nombreMat(f.id) || '') + (c ? ' - ' + c : '');
+          const ac = actsFoto(f);
+          if (ac) c = ac + (c ? '  |  ' + c : '');
           txt(c, x + 2, yy + ch + 4.5, { maxWidth: cw - 4 });
         }
       }

@@ -348,7 +348,7 @@ function campo(etiqueta, obj, clave, o) {
   const caja = h('div', { class: er ? 'err-c' : '' });
   const inp = h('input', { type: o.type || 'text', inputmode: o.inputmode, placeholder: o.ph, list: o.list, autocomplete: 'off', value: obj[clave] == null ? '' : obj[clave],
     oninput: () => { obj[clave] = inp.value; if (o.alCambiar) o.alCambiar(); caja.classList.remove('err-c'); msg.hidden = true; cambio(); } });
-  caja.append(h('label', {}, etiqueta, req ? h('span', { class: 'req' }, ' *') : null), inp, msg, o.ayuda ? h('small', {}, o.ayuda) : null);
+  [h('label', {}, etiqueta, req ? h('span', { class: 'req' }, ' *') : null), inp, msg, o.ayuda ? h('small', {}, o.ayuda) : null].forEach(x => { if (x) caja.appendChild(x); });
   return caja;
 }
 function pkCampo() {
@@ -358,7 +358,7 @@ function pkCampo() {
   const inp = h('input', { type: 'text', inputmode: 'numeric', placeholder: 'Ej: 1650', autocomplete: 'off', value: P.encabezado.pk,
     oninput: () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 6); P.encabezado.pk = inp.value; caja.classList.remove('err-c');
       vista.textContent = PD.formatoPK(inp.value) ? 'Quedará: ' + PD.formatoPK(inp.value) : 'Escribe solo números. Ej: 1650 queda K01+650'; cambio(); } });
-  caja.append(h('label', {}, 'PK', h('span', { class: 'req' }, ' *')), inp, er ? h('small', { class: 'msgerr' }, er) : null, vista);
+  [h('label', {}, 'PK', h('span', { class: 'req' }, ' *')), inp, er ? h('small', { class: 'msgerr' }, er) : null, vista].forEach(x => { if (x) caja.appendChild(x); });
   return caja;
 }
 const decimal = (e, o, k, x) => campo(e, o, k, Object.assign({ inputmode: 'decimal' }, x));
@@ -553,6 +553,7 @@ function pasoMateriales(c) {
   c.appendChild(h('button', { class: 'sec', onclick: () => { P.materiales.push(nuevoMaterial()); mostrar(); } }, '+ Agregar material'));
 }
 
+const sinActFotos = () => P.fotos.filter(f => f.tipo !== 'ALBARAN' && !(f.acts || []).length).length;
 const actsInicial = () => P.actividades.length === 1 ? [P.actividades[0].n] : [];
 function chipsFoto(f) {
   if (!P.actividades.length) return null;
@@ -567,7 +568,7 @@ function chipsFoto(f) {
 }
 function pasoFotos(c) {
   c.appendChild(h('h2', {}, 'Fotos del trabajo'));
-  c.appendChild(h('p', { class: 'guia' }, 'Toma fotos de lo que hicieron hoy. Saldrán en el PDF.'));
+  c.appendChild(h('p', { class: 'guia' }, 'Toma fotos de lo que hicieron hoy. Marca la actividad de cada foto: así el jefe la encuentra rápido. Saldrán en el PDF.'));
   const gen = P.fotos.filter(f => f.tipo !== 'ALBARAN');
   const gal = h('div', { class: 'fotos' });
   gen.forEach(f => gal.appendChild(h('div', {}, h('img', { src: f.data, alt: 'foto' }),
@@ -658,7 +659,7 @@ function pasoRevisar(c) {
   c.appendChild(h('div', { class: 'card' },
     h('div', {}, P.actividades.length + ' actividades'), h('div', {}, pres + ' personas (' + (P.personal.length - pres) + ' no vinieron)'),
     h('div', {}, P.maquinas.length + ' máquinas'), h('div', {}, P.materiales.filter(x => x.estado !== 'NO USADO').length + ' materiales'),
-    h('div', {}, P.fotos.length + ' fotos'), h('div', {}, P.solicitudes.length + ' pedidos para mañana')));
+    h('div', {}, P.fotos.length + ' fotos' + (P.actividades.length > 1 && sinActFotos() ? ' (' + sinActFotos() + ' sin actividad)' : '')), h('div', {}, P.solicitudes.length + ' pedidos para mañana')));
   if (pr.length) {
     const b = h('div', { class: 'card' }, h('b', {}, 'Falta arreglar esto:'));
     pr.forEach(x => b.appendChild(h('div', { class: 'prob' }, h('span', {}, x.t), h('button', { class: 'sec', onclick: () => { paso = x.paso; mostrar(); } }, 'Ir'))));
