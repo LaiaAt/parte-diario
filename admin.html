@@ -18,6 +18,7 @@ header{background:var(--acc);color:#fff;border-bottom:4px solid #1f2d3d;padding:
 .bar b{background:#b3261e;color:#fff;border-radius:10px;font-size:12px;padding:1px 7px;margin-left:6px}
 #panel>.card:first-child .row>div{flex:1 1 44%}#panel>.card:first-child .row select,#panel>.card:first-child .row input{width:100%}
 #panel>.card:first-child{padding:10px}
+.buscar{display:flex;gap:8px;margin:4px 0 10px}.buscar input{flex:1;min-width:0}
 header b{font-size:18px}
 header .logo{height:36px;width:auto;background:#fff;border-radius:6px;padding:2px 4px;margin-right:8px;vertical-align:middle}
 .marca{display:block;max-width:240px;width:70%;margin:4px auto 10px}
@@ -97,6 +98,7 @@ button.chipm{cursor:pointer;font:inherit}
 
 <section id="panel" hidden>
   <div class="card">
+    <div class="small" style="margin-bottom:6px"><b>Periodo</b> (aplica a todos los módulos)</div>
     <div class="row">
       <div><label>Mes</label><select id="mes"></select></div>
       <div><label>Desde</label><input type="date" id="desde"></div>
@@ -106,13 +108,6 @@ button.chipm{cursor:pointer;font:inherit}
       <span id="estado" class="small"></span>
     </div>
     <div id="err" class="msg"></div>
-  </div>
-
-  <div class="card">
-    <div class="row"><div style="flex:1;min-width:240px"><label>Buscar: código, nombre, actividad, material, máquina, albarán, lugar, cargo…</label>
-      <input id="q" type="search" style="width:100%" placeholder="Ej: PD-20261028-U1 · arena · retroexcavadora · AL-9 · Pedro"></div>
-      <button class="sec" id="limpiar">Limpiar filtros</button></div>
-    <div class="small">La búsqueda filtra pedidos, partes y consolidados a la vez (varias palabras = todas deben aparecer).</div>
   </div>
 
   <div id="alertas" class="miss" data-m="resumen" style="margin:8px 0"></div>
@@ -126,6 +121,7 @@ button.chipm{cursor:pointer;font:inherit}
   </div>
 
   <div class="card" id="cPed" data-m="pedidos"><h2>Planeación y requerimientos <span id="nSol" class="small"></span></h2>
+    <div class="buscar"><input id="qPed" type="search" placeholder="🔍 Buscar en pedidos (llave, material, código…)…"><button class="sec sm" data-limpiar>Limpiar</button></div>
     <div class="row"><div><label>Mostrar</label><select id="fSol"><option value="pend">Por liberar</option><option value="lib">Liberados</option><option value="todos">Todos</option></select></div>
       <div><label>Llave</label><select id="fSolLlave"></select></div>
       <div><label>Qué piden</label><select id="fSolTipo"></select></div>
@@ -140,6 +136,7 @@ button.chipm{cursor:pointer;font:inherit}
   </div>
 
   <div class="card" id="cPar" data-m="partes"><h2>Partes diarios <span id="nPar" class="small"></span></h2>
+    <div class="buscar"><input id="qPar" type="search" placeholder="🔍 Buscar en partes (código, nombre, lugar…)…"><button class="sec sm" data-limpiar>Limpiar</button></div>
     <div class="row"><div><label>Llave</label><select id="fPar"></select></div>
       <div><label>PDF</label><select id="fPdf"><option value="">Todos</option><option value="no">Solo sin PDF</option></select></div>
       <button class="sec sm" id="todosPdf">Descargar todos los PDF de la lista</button></div>
@@ -147,6 +144,7 @@ button.chipm{cursor:pointer;font:inherit}
   </div>
 
   <div class="card" id="cFoto" data-m="fotos"><h2>Fotos <span id="nFoto" class="small"></span></h2>
+    <div class="buscar"><input id="qFot" type="search" placeholder="🔍 Buscar en fotos (código del parte, actividad…)…"><button class="sec sm" data-limpiar>Limpiar</button></div>
     <div class="small">Cada foto lleva la llave, el código del parte y las actividades con que se etiquetó. Solo se ven y se descargan: aquí no se puede borrar ni cambiar nada.</div>
     <div class="row" style="margin-top:8px"><div><label>Llave</label><select id="fFotoLlave"></select></div>
       <div><label>Actividad</label><select id="fFotoAct"></select></div>
@@ -157,6 +155,7 @@ button.chipm{cursor:pointer;font:inherit}
   </div>
 
   <div class="card" id="cCon" data-m="consolidados"><h2>Consolidados <span id="nCon" class="small"></span></h2>
+    <div class="buscar"><input id="qCon" type="search" placeholder="🔍 Buscar en esta tabla (actividad, máquina, personal…)…"><button class="sec sm" data-limpiar>Limpiar</button></div>
     <div class="small">Cada fila indica la llave y el código del parte. Toca un título de columna para ordenar.</div>
     <div class="tabs" id="tabs"></div>
     <div class="row"><div><label>Llave</label><select id="fCon"></select></div>
@@ -252,7 +251,7 @@ function prep() {
     p._h = [p._cod, p.fecha, fmtF(p.fecha), p.llave, p.usuario, p.localizacion, p.pk].join(' ').toLowerCase() + ' ' + c.h.join(' ');
   });
 }
-function coincide(r) { return $('q').value.toLowerCase().split(/\s+/).filter(Boolean).every(x => r._h.indexOf(x) >= 0); }
+function coincide(r, q) { return $(q).value.toLowerCase().split(/\s+/).filter(Boolean).every(x => r._h.indexOf(x) >= 0); }
 function uniq(a) { return Array.from(new Set(a.filter(Boolean))).sort(); }
 function llenarOpts(id, todas, vals) { const s = $(id), v = s.value; s.textContent = ''; s.appendChild(h('option', { value: '' }, todas)); vals.forEach(x => s.appendChild(h('option', { value: x }, x))); s.value = vals.indexOf(v) >= 0 ? v : ''; }
 function ir(id) { modulo({ cPed: 'pedidos', cPar: 'partes', cFoto: 'fotos', cCon: 'consolidados' }[id] || 'resumen'); }
@@ -280,7 +279,7 @@ function alertas() {
   L.forEach(x => c.appendChild(x));
 }
 function limpiar() {
-  $('q').value = ''; ['fSolLlave', 'fSolTipo', 'fPar', 'fPdf', 'fCon', 'fEst', 'fCC', 'fFotoLlave', 'fFotoAct', 'fFotoTipo'].forEach(i => { $(i).value = ''; }); $('fSol').value = 'pend';
+  ['qPed', 'qPar', 'qFot', 'qCon'].forEach(i => { $(i).value = ''; }); ['fSolLlave', 'fSolTipo', 'fPar', 'fPdf', 'fCon', 'fEst', 'fCC', 'fFotoLlave', 'fFotoAct', 'fFotoTipo'].forEach(i => { $(i).value = ''; }); $('fSol').value = 'pend';
   ESP = ''; SORT = { k: -1, d: 1 }; rerender();
 }
 function kpis() {
@@ -322,7 +321,7 @@ function matriz() {
 function paraTxt(s) { return s.para === 'MAÑANA' ? 'Mañana ' + fmtF(sumDias(s.fecha, 1)) : fmtF(s.para); }
 function pedidosVisibles() {
   const modo = $('fSol').value, ll = $('fSolLlave').value, tp = $('fSolTipo').value;
-  return D.SOLICITUD.filter(s => (!ll || s.llave === ll) && (!tp || s.tipo === tp) && coincide(s) && (modo === 'todos' || (modo === 'lib') === !!s.liberado))
+  return D.SOLICITUD.filter(s => (!ll || s.llave === ll) && (!tp || s.tipo === tp) && coincide(s, 'qPed') && (modo === 'todos' || (modo === 'lib') === !!s.liberado))
     .sort((a, b) => (a.liberado - b.liberado) || efectiva(a).localeCompare(efectiva(b)));
 }
 async function liberar(s, nuevo) {
@@ -398,7 +397,7 @@ async function bajarPdf(p) {
 const nFotos = id => FT.filter(f => f.id === id).length;
 function partesVisibles() {
   const ll = $('fPar').value, sp = $('fPdf').value;
-  return D.partes.filter(p => (!ll || p.llave === ll) && (sp !== 'no' || !p.pdf) && coincide(p));
+  return D.partes.filter(p => (!ll || p.llave === ll) && (sp !== 'no' || !p.pdf) && coincide(p, 'qPar'));
 }
 function partes() {
   const L = partesVisibles();
@@ -407,7 +406,7 @@ function partes() {
   t.appendChild(h('thead', {}, h('tr', {}, ['Código', 'Fecha', 'Llave', 'Usuario', 'Lugar', 'PK', 'Act.', 'Pers.', 'Máq.', 'Mat.', 'Ped.', 'Fot.', ''].map(x => h('th', {}, x)))));
   const b = h('tbody');
   L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, p._cod), h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
-    h('td', {}, p._n.ACTIVIDAD), h('td', {}, p._n.PERSONAL), h('td', {}, p._n.MAQUINA), h('td', {}, p._n.MATERIAL), h('td', {}, p._n.SOLICITUD), h('td', {}, nFotos(p.id) ? h('button', { class: 'sm sec', onclick: () => { $('q').value = p._cod; rerender(); ir('cFoto'); } }, '📷 ' + nFotos(p.id)) : '0'),
+    h('td', {}, p._n.ACTIVIDAD), h('td', {}, p._n.PERSONAL), h('td', {}, p._n.MAQUINA), h('td', {}, p._n.MATERIAL), h('td', {}, p._n.SOLICITUD), h('td', {}, nFotos(p.id) ? h('button', { class: 'sm sec', onclick: () => { $('qFot').value = p._cod; rerender(); ir('cFoto'); } }, '📷 ' + nFotos(p.id)) : '0'),
     h('td', {}, h('button', { class: 'sm sec', onclick: () => detalle(p) }, 'Detalle'), ' ', p.pdf ? h('button', { class: 'sm', onclick: () => bajarPdf(p) }, 'PDF') : h('span', { class: 'tag r' }, 'sin PDF')))));
   if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 13 }, 'No hay partes con esos filtros')));
   t.appendChild(b);
@@ -427,7 +426,7 @@ function detalle(p) {
     h('div', { class: 'row' }, h('div', {}, h('h2', { style: 'margin:0' }, p._cod), h('div', { class: 'small' }, [fmtF(p.fecha), p.llave, p.usuario, p.localizacion, p.pk].join(' · '))),
       p.pdf ? h('button', { onclick: () => bajarPdf(p) }, 'Descargar PDF') : h('span', { class: 'tag r' }, 'sin PDF'),
       h('button', { class: 'sec', onclick: () => { try { navigator.clipboard.writeText(p._cod); } catch (e) {} } }, 'Copiar código'),
-      h('button', { class: 'sec', onclick: () => { o.hidden = true; $('q').value = p._cod; rerender(); ir('cFoto'); } }, 'Ver fotos'),
+      h('button', { class: 'sec', onclick: () => { o.hidden = true; $('qFot').value = p._cod; rerender(); ir('cFoto'); } }, 'Ver fotos'),
       h('button', { class: 'sec', onclick: () => { o.hidden = true; } }, 'Cerrar')),
     tabla('Actividades', ['N°', 'Actividad', 'Unidad', 'Cantidad', 'Obs.'], del('ACTIVIDAD').map(r => [r.n, r.descripcion, r.unidad, r.cantidad, r.obs])),
     tabla('Personal', ['C. costo', 'Nombre', 'Cargo', 'Inicio', 'Fin', 'Horas', 'Estado'], del('PERSONAL').map(r => [r.c_costo, r.nombre, r.cargo, r.inicio, r.fin, r.horas, r.estado])),
@@ -463,7 +462,7 @@ function prepFotos() {
 }
 function fotosBase() {
   const ll = $('fFotoLlave').value, ti = $('fFotoTipo').value;
-  return FT.filter(f => (!ll || f.llave === ll) && (!ti || f.tipo === ti) && coincide(f));
+  return FT.filter(f => (!ll || f.llave === ll) && (!ti || f.tipo === ti) && coincide(f, 'qFot'));
 }
 function fotosVisibles() {
   const ac = $('fFotoAct').value;
@@ -577,7 +576,7 @@ const DEF = {
   RESUMEN: { nombre: 'Resumen por ítem', cols: [['Tipo'], ['Ítem'], ['Unidad'], ['Total'], ['Días'], ['Llaves']] }
 };
 function valor(k, r) { if (k === '_para') return paraTxt(r); if (k === '_lib') return r.liberado ? 'SI' : 'NO'; return r[k] === undefined || r[k] === null ? '' : r[k]; }
-function base(k) { const ll = $('fCon').value; return D[k].filter(r => (!ll || r.llave === ll) && coincide(r)); }
+function base(k) { const ll = $('fCon').value; return D[k].filter(r => (!ll || r.llave === ll) && coincide(r, 'qCon')); }
 function resumen() {
   const g = {};
   const add = (tipo, item, unidad, val, r) => { const kk = tipo + '|' + item + '|' + unidad; const o = g[kk] = g[kk] || { tipo: tipo, item: item, unidad: unidad, total: 0, dias: new Set(), llaves: new Set() }; o.total += val; o.dias.add(r.fecha); o.llaves.add(r.llave); };
@@ -650,13 +649,13 @@ $('llave').onkeydown = e => { if (e.key === 'Enter') entrar(); };
 $('salir').onclick = salir;
 $('act').onclick = () => cargar(false);
 let qt;
-$('q').oninput = () => { clearTimeout(qt); qt = setTimeout(rerender, 200); };
+['qPed', 'qPar', 'qFot', 'qCon'].forEach(i => { $(i).oninput = () => { clearTimeout(qt); qt = setTimeout(rerender, 200); }; });
 ['fSol', 'fSolLlave', 'fSolTipo'].forEach(i => $(i).onchange = solicitudes);
 ['fPar', 'fPdf'].forEach(i => $(i).onchange = partes);
 ['fFotoLlave', 'fFotoAct', 'fFotoTipo'].forEach(i => $(i).onchange = () => fotos(true));
 $('masFotos').onclick = () => { FSHOW += 24; fotos(); }; $('bajaFotos').onclick = bajarFotos; $('bajaZip').onclick = bajarZip;
 ['fCon', 'fEst', 'fCC'].forEach(i => $(i).onchange = consolidado);
-$('libTodos').onclick = liberarVisibles; $('limpiar').onclick = limpiar;
+$('libTodos').onclick = liberarVisibles; document.querySelectorAll('[data-limpiar]').forEach(b => { b.onclick = limpiar; });
 $('todosPdf').onclick = todosPdf; $('csv').onclick = descargarCsv; $('xlsx').onclick = descargarXlsx;
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('detalle').hidden = true; $('visor').hidden = true; } else if (!$('visor').hidden && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) pasoVisor(e.key === 'ArrowLeft' ? -1 : 1); });
 $('visor').onclick = e => { if (e.target === $('visor')) $('visor').hidden = true; };
