@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5b800">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Parte diario de obra</title>
+<style>
+:root{--ink:#14202b;--hv:#f5b800;--paper:#eef0f2;--line:#c9d0d6;--ok:#1f7a3d;--err:#b3261e;--mut:#51606d}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:16px}
+header{background:var(--hv);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+header h1{font-size:18px;margin:0}
+#estado{font-size:13px;font-weight:600}
+main{max-width:640px;margin:auto;padding:16px}
+h2{font-size:17px;margin:22px 0 8px}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:10px}
+.row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:flex-end}
+.row>*{flex:1;min-width:110px}
+label{font-size:13px;color:var(--mut);display:block;margin-bottom:2px}
+input,select{width:100%;padding:11px;font-size:16px;border:1px solid #8794a0;border-radius:6px;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--hv);outline-offset:1px}
+button{padding:13px 16px;font-size:16px;font-weight:600;border:0;border-radius:6px;background:var(--ink);color:#fff;width:100%}
+button.sec{background:#dde2e6;color:var(--ink)}
+button.link{background:none;color:var(--ink);text-decoration:underline;width:auto;padding:4px;font-weight:400;font-size:14px}
+.chk{display:flex;align-items:center;gap:10px;font-size:17px;color:var(--ink);margin:0}
+.chk input{width:26px;height:26px}
+.msg{padding:10px 12px;border-radius:6px;margin:12px 0;font-size:15px;border:1px solid var(--line);background:#fff}
+.msg.ok{border-color:var(--ok);color:var(--ok)}
+.msg.err{border-color:var(--err);color:var(--err)}
+.off{opacity:.5}
+.pend{margin:12px 0;font-size:15px;font-weight:600}
+small{color:var(--mut)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Parte diario de obra</h1>
+  <span id="estado"></span>
+</header>
+<main>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div id="login" class="card">
+    <label for="llave">Tu llave</label>
+    <input id="llave" type="text" autocapitalize="characters" autocomplete="off">
+    <div class="row"><button onclick="ingresar()">Ingresar</button></div>
+    <p><small>El primer ingreso necesita señal. Después puedes trabajar sin internet.</small></p>
+  </div>
+
+  <div id="form" style="display:none">
+    <div class="card">
+      <b id="saludo"></b><br>
+      <span id="fecha"></span><br>
+      <small id="aviso"></small><br>
+      <button class="link" onclick="cambiarUsuario()">Cambiar de usuario</button>
+    </div>
+
+    <h2>Personal</h2>
+    <div id="PERSONAL"></div>
+    <button class="sec" onclick="agregar('PERSONAL')">Agregar persona</button>
+
+    <h2>Maquinaria</h2>
+    <div id="MAQUINA"></div>
+    <button class="sec" onclick="agregar('MAQUINA')">Agregar máquina</button>
+
+    <div id="pend" class="pend"></div>
+    <div class="row">
+      <button onclick="guardar()">Guardar parte</button>
+      <button class="sec" id="btnEnviar" onclick="sincronizar(true)" style="display:none">Enviar pendientes</button>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbz6LjPHWbh_vLcYhwSvYFp8tMN737nX-hJUPiX6vOvLb_3tEAyH9zeCC_4pqNSPRz9O1w/exec';
+
+const $ = id => document.getElementById(id);
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const hoy = () => new Date().toLocaleDateString('sv-SE');
+let user = LS.get('pd_user', null);
+let items = [];
+
+function msg(t, c) {
+  const m = $('msg');
+  m.textContent = t;
+  m.className = 'msg ' + (c || '');
+  m.style.display = t ? 'block' : 'none';
+}
+
+function estadoRed() {
+  $('estado').textContent = navigator.onLine ? 'Con conexión' : 'Sin conexión';
+}
+
+async function api(d) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 25000);
+  try {
+    const r = await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal });
+    return await r.json();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function reiniciar(it) {
+  const o = Object.assign({}, it);
+  o.estado = it.seccion === 'PERSONAL' ? 'PRESENTE' : 'OPERANDO';
+  o.obs = '';
+  return o;
+}
+
+async function ingresar() {
+  const l = $('llave').value.trim();
+  if (!l) { msg('Escribe tu llave', 'err'); return; }
+  if (!navigator.onLine) { msg('El primer ingreso necesita señal.', 'err'); return; }
+  msg('Validando…');
+  try {
+    const r = await api({ accion: 'ingresar', llave: l });
+    if (!r.ok) { msg(r.mensaje || 'Llave no válida', 'err'); return; }
+    if (!user || user.llave !== r.llave) {
+      localStorage.removeItem('pd_borrador');
+    }
+    user = { llave: r.llave, nombre: r.nombre };
+    LS.set('pd_user', user);
+    LS.set('pd_roster', { llave: r.llave, items: r.items });
+    msg('');
+    await abrir(r);
+  } catch (e) {
+    msg('No se pudo conectar. Intenta de nuevo.', 'err');
+  }
+}
+
+function cambiarUsuario() {
+  const n = cola().length;
+  if (n && !confirm('Hay ' + n + ' parte(s) sin enviar. Si cambias de usuario se enviarán después con la señal. ¿Continuar?')) return;
+  localStorage.removeItem('pd_user');
+  localStorage.removeItem('pd_borrador');
+  user = null;
+  $('form').style.display = 'none';
+  $('login').style.display = 'block';
+  $('llave').value = '';
+}
+
+async function abrir(respuesta) {
+  $('login').style.display = 'none';
+  $('form').style.display = 'block';
+  $('saludo').textContent = 'Hola, ' + user.nombre;
+  $('fecha').textContent = hoy();
+
+  const b = LS.get('pd_borrador', null);
+  if (b && b.fecha === hoy() && b.llave === user.llave) {
+    items = b.items;
+    $('aviso').textContent = 'Borrador de hoy recuperado.';
+  } else {
+    let r = respuesta;
+    if (!r && navigator.onLine) {
+      try {
+        r = await api({ accion: 'ingresar', llave: user.llave });
+        if (r && r.ok) LS.set('pd_roster', { llave: user.llave, items: r.items });
+        else r = null;
+      } catch (e) { r = null; }
+    }
+    if (r && r.ok) {
+      items = r.items;
+      $('aviso').textContent = r.esHoy
+        ? 'Ya hay un parte de hoy. Puedes editarlo.'
+        : (items.length ? 'Cuadrilla cargada del último parte. Revisa quién está presente.' : 'Primer parte: agrega tu personal y máquinas.');
+    } else {
+      const ros = LS.get('pd_roster', null);
+      if (ros && ros.llave === user.llave && ros.items.length) {
+        items = ros.items.map(reiniciar);
+        $('aviso').textContent = 'Cuadrilla del último parte guardado en este teléfono.';
+      } else {
+        items = [];
+        $('aviso').textContent = 'Primer parte: agrega tu personal y máquinas.';
+      }
+    }
+  }
+  render();
+  pintarPend();
+  sincronizar(false);
+}
+
+function guardarBorrador() {
+  if (user) LS.set('pd_borrador', { fecha: hoy(), llave: user.llave, items: items });
+}
+
+function agregar(sec) {
+  const base = items.length ? items[0].c_costo : '';
+  items.push({
+    seccion: sec, c_costo: base, descripcion: '', categoria: '',
+    inicio: '07:00', fin: '16:00',
+    estado: sec === 'PERSONAL' ? 'PRESENTE' : 'OPERANDO', obs: ''
+  });
+  guardarBorrador();
+  render();
+}
+
+function render() {
+  ['PERSONAL', 'MAQUINA'].forEach(sec => {
+    const cont = $(sec);
+    cont.textContent = '';
+    items.forEach((it, i) => { if (it.seccion === sec) cont.appendChild(tarjeta(it, i)); });
+  });
+}
+
+function campo(etiqueta, tipo, valor, fn) {
+  const d = document.createElement('div');
+  const lb = document.createElement('label');
+  lb.textContent = etiqueta;
+  const inp = document.createElement('input');
+  inp.type = tipo;
+  inp.value = valor || '';
+  inp.oninput = () => { fn(inp.value); guardarBorrador(); };
+  d.appendChild(lb);
+  d.appendChild(inp);
+  return d;
+}
+
+function tarjeta(it, i) {
+  const esP = it.seccion === 'PERSONAL';
+  const c = document.createElement('div');
+  c.className = 'card';
+  const apagado = () => it.estado === 'AUSENTE' || it.estado === 'NO ESTUVO';
+  const aplicar = () => c.classList.toggle('off', apagado());
+
+  const top = document.createElement('div');
+  top.className = 'row';
+  if (esP) {
+    const l = document.createElement('label');
+    l.className = 'chk';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = it.estado !== 'AUSENTE';
+    cb.onchange = () => { it.estado = cb.checked ? 'PRESENTE' : 'AUSENTE'; aplicar(); guardarBorrador(); };
+    l.appendChild(cb);
+    l.appendChild(document.createTextNode('Presente'));
+    top.appendChild(l);
+  } else {
+    const d = document.createElement('div');
+    const lb = document.createElement('label');
+    lb.textContent = 'Estado';
+    const s = document.createElement('select');
+    [['OPERANDO', 'Operando'], ['VARADA', 'Varada'], ['OPERO Y SE VARO', 'Operó y se varó'], ['NO ESTUVO', 'No estuvo']]
+      .forEach(o => {
+        const op = document.createElement('option');
+        op.value = o[0];
+        op.textContent = o[1];
+        if (it.estado === o[0]) op.selected = true;
+        s.appendChild(op);
+      });
+    s.onchange = () => { it.estado = s.value; aplicar(); guardarBorrador(); };
+    d.appendChild(lb);
+    d.appendChild(s);
+    top.appendChild(d);
+  }
+  const q = document.createElement('button');
+  q.className = 'sec';
+  q.textContent = 'Quitar';
+  q.style.flex = '0 0 90px';
+  q.onclick = () => {
+    if (confirm('¿Quitar de la lista?')) { items.splice(i, 1); guardarBorrador(); render(); }
+  };
+  top.appendChild(q);
+  c.appendChild(top);
+
+  const r1 = document.createElement('div');
+  r1.className = 'row';
+  r1.appendChild(campo(esP ? 'Nombre' : 'Equipo', 'text', it.descripcion, v => it.descripcion = v));
+  r1.appendChild(campo(esP ? 'Cargo' : 'No. recibo', 'text', it.categoria, v => it.categoria = v));
+  r1.appendChild(campo('Centro de costos', 'text', it.c_costo, v => it.c_costo = v));
+  c.appendChild(r1);
+
+  const r2 = document.createElement('div');
+  r2.className = 'row';
+  r2.appendChild(campo('Inicio', 'time', it.inicio, v => it.inicio = v));
+  r2.appendChild(campo('Fin', 'time', it.fin, v => it.fin = v));
+  c.appendChild(r2);
+
+  if (!esP) {
+    const r3 = document.createElement('div');
+    r3.className = 'row';
+    r3.appendChild(campo('Observación (hora de la varada, etc.)', 'text', it.obs, v => it.obs = v));
+    c.appendChild(r3);
+  }
+  aplicar();
+  return c;
+}
+
+const cola = () => LS.get('pd_cola', []);
+
+function pintarPend() {
+  const n = cola().length;
+  $('pend').textContent = n ? n + ' parte(s) pendiente(s) de enviar' : '';
+  $('btnEnviar').style.display = n ? 'block' : 'none';
+}
+
+let sincronizando = false;
+async function sincronizar(manual) {
+  if (sincronizando) return;
+  const pendientes = cola();
+  if (!pendientes.length) { pintarPend(); return; }
+  if (!navigator.onLine) {
+    if (manual) msg('Sin conexión. Se enviará cuando haya señal.');
+    return;
+  }
+  sincronizando = true;
+  try {
+    for (const p of pendientes) {
+      try {
+        const r = await api({ accion: 'guardar', llave: p.llave, items: p.items, fecha: p.fecha });
+        if (r.ok) {
+          LS.set('pd_cola', cola().filter(x => !(x.id === p.id && x.ts === p.ts)));
+        } else {
+          msg(r.mensaje || 'El servidor rechazó el parte.', 'err');
+          break;
+        }
+      } catch (e) {
+        if (manual) msg('No se pudo enviar. Se reintentará con señal.');
+        break;
+      }
+    }
+  } finally {
+    sincronizando = false;
+    pintarPend();
+  }
+}
+
+async function guardar() {
+  if (!items.length) { msg('Agrega al menos una persona o máquina.', 'err'); return; }
+  for (const it of items) {
+    const apagado = it.estado === 'AUSENTE' || it.estado === 'NO ESTUVO';
+    if (!it.descripcion.trim()) { msg('Hay un registro sin nombre.', 'err'); return; }
+    if (!it.c_costo.trim()) { msg('Falta el centro de costos de ' + it.descripcion + '.', 'err'); return; }
+    if (!apagado && (!it.inicio || !it.fin || it.fin <= it.inicio)) {
+      msg('Revisa las horas de ' + it.descripcion + '.', 'err');
+      return;
+    }
+  }
+  const f = hoy();
+  const p = {
+    id: f + '_' + user.llave, llave: user.llave, fecha: f,
+    items: JSON.parse(JSON.stringify(items)), ts: Date.now()
+  };
+  LS.set('pd_cola', cola().filter(x => x.id !== p.id).concat([p]));
+  LS.set('pd_roster', { llave: user.llave, items: p.items });
+  guardarBorrador();
+  pintarPend();
+  msg('Parte guardado en el teléfono.', 'ok');
+  await sincronizar(false);
+  const sigue = cola().some(x => x.id === p.id);
+  if (!sigue) msg('Parte enviado y guardado en la hoja.', 'ok');
+  else msg('Parte guardado en el teléfono. Se enviará cuando haya señal.');
+}
+
+window.addEventListener('online', () => { estadoRed(); sincronizar(false); });
+window.addEventListener('offline', estadoRed);
+estadoRed();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+if (user) abrir(null);
+</script>
+</body>
+</html>
