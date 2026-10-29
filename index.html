@@ -280,6 +280,7 @@ async function biblioteca() {
 function filaParte(x, esHoy) {
   const bs = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' });
   if (esHoy) bs.appendChild(h('button', { onclick: editarHoy }, 'Editar'));
+  if (esHoy) bs.appendChild(h('button', { class: 'sec', style: 'color:#b00020', onclick: eliminarHoy }, '🗑 Eliminar'));
   if (x.pdf || x.local) {
     bs.appendChild(h('button', { class: 'sec', onclick: () => verDe(x.fecha) }, 'Ver'));
     bs.appendChild(h('button', { class: 'sec', onclick: () => compDe(x.fecha) }, 'Compartir'));
@@ -328,6 +329,21 @@ async function cargarFotos() {
   } catch (e) {}
 }
 
+async function eliminarHoy() {
+  if (!confirm('¿Eliminar el parte de hoy? Se borra del sistema y de la biblioteca. No se puede deshacer.')) return;
+  if (!navigator.onLine) { aviso('Para eliminar necesitas señal.', 'err'); return; }
+  aviso('Eliminando…');
+  try {
+    const r = await api({ accion: 'eliminar', llave: user.llave, fecha: hoy() });
+    if (!r.ok) { aviso(r.mensaje || 'No se pudo eliminar.', 'err'); return; }
+    await mutarCola(c => c.filter(x => !(x.llave === user.llave && x.parte.fecha === hoy())));
+    await kv.del('borrador'); P = null;
+    const k = 'bib_' + user.llave;
+    await kv.set(k, ((await kv.get(k)) || []).filter(x => x.fecha !== hoy()));
+    await biblioteca();
+    aviso('Parte eliminado. Ya puedes crear uno nuevo.', 'ok');
+  } catch (e) { aviso('No se pudo eliminar. Intenta de nuevo.', 'err'); }
+}
 async function editarHoy() {
   const r = ult;
   verErr = false;
