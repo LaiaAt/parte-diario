@@ -810,8 +810,9 @@ function payload(parte) {
   p.fotos = p.fotos.map(f => ({ id: f.id, tipo: f.tipo, caption: f.caption, acts: f.tipo === 'ALBARAN' ? [] : (f.acts || []), url: f.url || '', data: f.url ? undefined : f.data }));
   return p;
 }
+let otraVez = false;
 async function sincronizar(manual) {
-  if (sincronizando) return;
+  if (sincronizando) { otraVez = true; return; }
   const cola = (await kv.get('cola')) || [];
   if (!cola.length) { await pintarEstado(); return; }
   if (!navigator.onLine) { if (manual) aviso('No hay señal. Se enviará cuando haya.'); return; }
@@ -836,7 +837,7 @@ async function sincronizar(manual) {
     }
     if (manual) aviso('');
   } catch (err) { if (manual) aviso('No se pudo enviar. Se reintentará cuando haya señal.', 'err'); }
-  finally { sincronizando = false; pintarEstado(); if (user && !$('biblio').hidden) biblioteca(); }
+  finally { sincronizando = false; pintarEstado(); if (user && !$('biblio').hidden) biblioteca(); if (otraVez) { otraVez = false; setTimeout(() => sincronizar(false), 300); } }
 }
 
 /* ---------- arranque ---------- */
