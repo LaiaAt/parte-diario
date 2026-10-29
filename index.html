@@ -76,7 +76,7 @@ small{color:var(--mut)}
 
   <section id="app" hidden>
     <div class="card"><b id="saludo"></b> · <span id="fecha"></span><br><small id="info"></small><br>
-      <button class="link" id="btnBib">← Mis partes</button> <button class="link" id="btnSalir">Cambiar de usuario</button></div>
+      <button class="link" id="btnBib">← Mis partes</button> <button class="link" id="btnSalir" style="color:#b00020;font-weight:700">🚪 Cerrar sesión</button></div>
     <div id="progreso" class="guia"></div>
     <div id="contenido"></div>
   </section>
@@ -220,7 +220,7 @@ async function cerrarSesion(msg) {
 
 async function salir() {
   const cola = (await kv.get('cola')) || [];
-  if (cola.length && !confirm('Hay ' + cola.length + ' parte(s) sin enviar. Se enviarán cuando haya señal. ¿Cambiar de usuario?')) return;
+  if (cola.length && !confirm('Hay ' + cola.length + ' parte(s) sin enviar. Se enviarán cuando haya señal. ¿Cerrar sesión?')) return;
   await kv.del('user'); await kv.del('borrador');
   user = null; P = null;
   ['app', 'listo', 'barra', 'biblio'].forEach(i => $(i).hidden = true);
@@ -233,7 +233,7 @@ async function abrir(r) {
   $('biblio').hidden = false;
   $('biblio').textContent = '';
   $('biblio').appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + (user.nombre || '')), h('br'), h('small', {}, 'Cargando…'), h('br'),
-    h('button', { class: 'link', onclick: salir }, 'Cambiar de usuario')));
+    h('button', { onclick: salir, style: 'margin-top:8px;background:#fff;color:#b00020;border:2px solid #b00020' }, '🚪 Cerrar sesión (cambiar llave)')));
   ult = r;
   if (!r && navigator.onLine) {
     api({ accion: 'ingresar', llave: user.llave }, 15000).then(async x => {
@@ -254,7 +254,7 @@ async function pintarBiblio(lista) {
   const B = $('biblio');
   B.textContent = '';
   B.appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + user.nombre), h('br'), h('small', {}, PD.fechaLarga(h0)), h('br'),
-    h('button', { class: 'link', onclick: salir }, 'Cambiar de usuario')));
+    h('button', { onclick: salir, style: 'margin-top:8px;background:#fff;color:#b00020;border:2px solid #b00020' }, '🚪 Cerrar sesión (cambiar llave)')));
   B.appendChild(h('button', { onclick: editarHoy }, hayHoy ? '✏️ Editar el parte de hoy' : '➕ Crear el parte de hoy'));
   const card = h('div', { class: 'card', style: 'margin-top:12px' }, h('b', {}, 'Mis partes'));
   if (hayHoy) card.appendChild(filaParte(por[h0], true));

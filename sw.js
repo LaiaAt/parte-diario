@@ -1,4 +1,4 @@
-const CACHE = 'pd-v8';
+const CACHE = 'pd-v9';
 const ARCHIVOS = ['./', 'index.html', 'comun.js', 'pdf.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'marca.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js'];
 
