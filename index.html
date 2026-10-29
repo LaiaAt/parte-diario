@@ -171,16 +171,22 @@ function base(p, reiniciar) {
   o.rev = reiniciar ? 0 : (p.rev || 0);
   o.encabezado = { localizacion: (p.encabezado || {}).localizacion || '', pk: PD.pkDigitos((p.encabezado || {}).pk) };
   const L = x => Array.isArray(x) ? x : [];
-  if (!reiniciar) {
+  const mismoDia = (p.fecha || '') === hoy();
+  if (reiniciar) {
+    // informe nuevo: se conserva TODO lo del anterior (editable y eliminable); solo las fotos no se copian
+    o.actividades = JSON.parse(JSON.stringify(L(p.actividades)));
+    o.solicitudes = L(p.solicitudes).map(q => Object.assign({ cuando: 'MANANA', fecha: '' }, q));
+    if (mismoDia) { o.clima_sel = p.clima_sel || null; o.clima = JSON.parse(JSON.stringify(L(p.clima))); }
+  } else {
     o.clima_sel = p.clima_sel || null; o.clima = L(p.clima); o.actividades = L(p.actividades);
     o.fotos = L(p.fotos).map(f => Object.assign({}, f, { acts: L(f.acts) })); o.solicitudes = L(p.solicitudes).map(q => Object.assign({ cuando: 'MANANA', fecha: '' }, q));
   }
   o.personal = L(p.personal).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', cargo: x.cargo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
-    estado: reiniciar ? 'PRESENTE' : (x.estado || 'PRESENTE'), acts: reiniciar ? [] : L(x.acts) }));
+    estado: x.estado || 'PRESENTE', acts: L(x.acts).slice() }));
   o.maquinas = L(p.maquinas).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', recibo: x.recibo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
-    estado: reiniciar ? 'OPERANDO' : (x.estado || 'OPERANDO'), obs: reiniciar ? '' : (x.obs || ''), acts: reiniciar ? [] : L(x.acts) }));
+    estado: x.estado || 'OPERANDO', obs: x.obs || '', acts: L(x.acts).slice() }));
   o.materiales = L(p.materiales).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', procedencia: x.procedencia || 'Almacén', albaran: x.albaran || '', unidad: x.unidad || 'M3', ubicacion: x.ubicacion || '',
-    cantidad: reiniciar ? '' : (x.cantidad === undefined ? '' : x.cantidad), acts: reiniciar ? [] : L(x.acts), fotos_ids: reiniciar ? [] : L(x.fotos_ids), estado: reiniciar ? 'NO USADO' : (x.estado || 'USADO') }));
+    cantidad: x.cantidad === undefined ? '' : x.cantidad, acts: L(x.acts).slice(), fotos_ids: reiniciar ? [] : L(x.fotos_ids), estado: x.estado || 'USADO' }));
   return o;
 }
 
@@ -408,7 +414,7 @@ async function editarHoy(n, existe) {
     else {
       const src = mio || ((r && r.ok && r.parte) ? r.parte : null);
       P = base(src, true);
-      $('info').textContent = src ? (n > 1 ? 'Nuevo informe: cargamos tu gente y máquinas. Marca quién vino.' : 'Cargamos tu gente y máquinas de ayer. Marca quién vino.') : 'Primer parte: agrega tu gente y máquinas.';
+      $('info').textContent = src ? (n > 1 ? 'Nuevo informe: cargamos todo lo del anterior. Corrige, quita o agrega lo que haga falta.' : 'Cargamos todo lo del parte anterior. Corrige, quita o agrega lo que haga falta.') : 'Primer parte: agrega tu gente y máquinas.';
     }
   }
   P.n = n; P.fecha = hoy();
@@ -801,12 +807,12 @@ function mostrarListo(parte, hayPdf) {
   $('app').hidden = true; $('barra').hidden = true; $('listo').hidden = false;
   const L = $('listo'); L.textContent = '';
   L.appendChild(h('div', { class: 'card' }, h('h2', {}, '✔ Parte guardado'), h('p', { id: 'estadoEnvio' }, 'Está guardado en el teléfono.')));
+  L.appendChild(h('div', { class: 'row' }, h('button', { onclick: () => biblioteca() }, '🏠 Volver al inicio')));
   if (hayPdf) {
     L.appendChild(h('div', { class: 'row' }, h('button', { onclick: compartir }, 'Compartir PDF por WhatsApp')));
     L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: verPdf }, 'Ver / descargar PDF')));
   } else L.appendChild(h('p', { class: 'aviso err' }, 'No se pudo crear el PDF en este teléfono. Los datos sí quedaron guardados.'));
   L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', id: 'btnEnviar', onclick: () => sincronizar(true) }, 'Enviar ahora')));
-  L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: biblioteca }, 'Ir a mis partes')));
   L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { menuEdicion(); } }, 'Corregir el parte')));
   pintarEstado();
 }
