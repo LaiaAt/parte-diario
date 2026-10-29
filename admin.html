@@ -51,6 +51,14 @@ td.w{white-space:normal;min-width:180px}
 .leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 svg text{fill:var(--ink);font-size:12px}
 .small{font-size:13px;color:var(--mut)}
+.late td{background:var(--errbg)}
+.hoyp td{background:var(--warnbg)}
+:root{--warnbg:#fff3cd}
+@media (prefers-color-scheme:dark){:root{--warnbg:#3b3217}}
+#detalle{position:fixed;inset:0;background:rgba(0,0,0,.55);overflow:auto;z-index:20;padding:10px}
+#detalle h2{margin-top:14px}
+th.s{cursor:pointer;user-select:none}
+button.chipm{cursor:pointer;font:inherit}
 [hidden]{display:none!important}
 #login{max-width:380px;margin:60px auto}
 #login input{width:100%;margin:8px 0}
@@ -80,6 +88,14 @@ svg text{fill:var(--ink);font-size:12px}
     <div id="err" class="msg"></div>
   </div>
 
+  <div class="card">
+    <div class="row"><div style="flex:1;min-width:240px"><label>Buscar: código, nombre, actividad, material, máquina, albarán, lugar, cargo…</label>
+      <input id="q" type="search" style="width:100%" placeholder="Ej: PD-20261028-U1 · arena · retroexcavadora · AL-9 · Pedro"></div>
+      <button class="sec" id="limpiar">Limpiar filtros</button></div>
+    <div class="small">La búsqueda filtra pedidos, partes y consolidados a la vez (varias palabras = todas deben aparecer).</div>
+    <div id="alertas" class="miss" style="margin-top:8px"></div>
+  </div>
+
   <div class="kpis" id="kpis"></div>
 
   <div class="card"><h2>¿Quién no ha creado el parte?</h2><div id="faltan"></div>
@@ -88,9 +104,12 @@ svg text{fill:var(--ink);font-size:12px}
     <div class="tw" style="margin-top:8px"><table class="mx" id="matriz"></table></div>
   </div>
 
-  <div class="card"><h2>Planeación y requerimientos</h2>
+  <div class="card" id="cPed"><h2>Planeación y requerimientos <span id="nSol" class="small"></span></h2>
     <div class="row"><div><label>Mostrar</label><select id="fSol"><option value="pend">Por liberar</option><option value="lib">Liberados</option><option value="todos">Todos</option></select></div>
-      <div><label>Llave</label><select id="fSolLlave"></select></div></div>
+      <div><label>Llave</label><select id="fSolLlave"></select></div>
+      <div><label>Qué piden</label><select id="fSolTipo"></select></div>
+      <button class="sec sm" id="libTodos">Liberar todos los visibles</button></div>
+    <div class="small" style="margin-top:6px">Rojo = ya venció (era para hoy o antes) · amarillo = es para hoy</div>
     <div class="tw" style="margin-top:8px"><table id="tSol"></table></div>
   </div>
 
@@ -99,22 +118,26 @@ svg text{fill:var(--ink);font-size:12px}
     <div id="grafico"></div>
   </div>
 
-  <div class="card"><h2>Partes diarios</h2>
+  <div class="card" id="cPar"><h2>Partes diarios <span id="nPar" class="small"></span></h2>
     <div class="row"><div><label>Llave</label><select id="fPar"></select></div>
+      <div><label>PDF</label><select id="fPdf"><option value="">Todos</option><option value="no">Solo sin PDF</option></select></div>
       <button class="sec sm" id="todosPdf">Descargar todos los PDF de la lista</button></div>
     <div class="tw" style="margin-top:8px"><table id="tPar"></table></div>
   </div>
 
-  <div class="card"><h2>Consolidados</h2>
-    <div class="small">Cada fila indica la llave a la que pertenece. Rango: el de arriba.</div>
+  <div class="card" id="cCon"><h2>Consolidados <span id="nCon" class="small"></span></h2>
+    <div class="small">Cada fila indica la llave y el código del parte. Toca un título de columna para ordenar.</div>
     <div class="tabs" id="tabs"></div>
     <div class="row"><div><label>Llave</label><select id="fCon"></select></div>
+      <div id="fEstW"><label id="fEstL">Estado</label><select id="fEst"></select></div>
+      <div id="fCCW"><label>Centro de costos</label><select id="fCC"></select></div>
       <button class="sec sm" id="csv">Descargar esta tabla (CSV)</button>
-      <button class="sm" id="xlsx">Descargar consolidado completo (Excel)</button></div>
+      <button class="sm" id="xlsx">Descargar todo (Excel)</button></div>
     <div id="totales" class="small" style="margin:8px 0"></div>
     <div class="tw"><table id="tCon"></table></div>
   </div>
 </section>
+<div id="detalle" hidden></div>
 </main>
 
 <script>
@@ -167,9 +190,53 @@ function llenarSel(id, conTodas) {
 }
 function dias() { const a = [], d = $('desde').value, hh = $('hasta').value; for (let f = d; f <= hh && a.length < 93; f = sumDias(f, 1)) a.push(f); return a; }
 
+const COD = (f, l) => 'PD-' + String(f).replace(/-/g, '') + '-' + String(l).toUpperCase();
+const SECS = ['ACTIVIDAD', 'PERSONAL', 'MAQUINA', 'MATERIAL', 'SOLICITUD'];
+let ESP = '', SORT = { k: -1, d: 1 };
+function prep() {
+  const hijos = {};
+  SECS.forEach(k => D[k].forEach(r => {
+    r._cod = COD(r.fecha, r.llave);
+    r._h = Object.keys(r).filter(x => x[0] !== '_').map(x => r[x]).join(' ').toLowerCase() + ' ' + r._cod.toLowerCase();
+    const o = hijos[r.id] = hijos[r.id] || { n: { ACTIVIDAD: 0, PERSONAL: 0, MAQUINA: 0, MATERIAL: 0, SOLICITUD: 0 }, h: [] };
+    o.n[k]++; o.h.push(r._h);
+  }));
+  D.partes.forEach(p => {
+    const c = hijos[p.id] || { n: { ACTIVIDAD: 0, PERSONAL: 0, MAQUINA: 0, MATERIAL: 0, SOLICITUD: 0 }, h: [] };
+    p._cod = COD(p.fecha, p.llave); p._n = c.n;
+    p._h = [p._cod, p.fecha, fmtF(p.fecha), p.llave, p.usuario, p.localizacion, p.pk].join(' ').toLowerCase() + ' ' + c.h.join(' ');
+  });
+}
+function coincide(r) { return $('q').value.toLowerCase().split(/\s+/).filter(Boolean).every(x => r._h.indexOf(x) >= 0); }
+function uniq(a) { return Array.from(new Set(a.filter(Boolean))).sort(); }
+function llenarOpts(id, todas, vals) { const s = $(id), v = s.value; s.textContent = ''; s.appendChild(h('option', { value: '' }, todas)); vals.forEach(x => s.appendChild(h('option', { value: x }, x))); s.value = vals.indexOf(v) >= 0 ? v : ''; }
+function ir(id) { $(id).scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function rerender() { solicitudes(); partes(); consolidado(); }
 function pintar() {
+  prep();
   ['fSolLlave', 'fPar', 'fCon'].forEach(i => llenarSel(i));
-  kpis(); faltan(); matriz(); solicitudes(); grafico(); partes(); consolidado();
+  llenarOpts('fSolTipo', 'Todos', uniq(D.SOLICITUD.map(s => s.tipo)));
+  kpis(); alertas(); faltan(); matriz(); solicitudes(); grafico(); partes(); consolidado();
+}
+function efectiva(s) { return s.para === 'MAÑANA' ? sumDias(s.fecha, 1) : s.para; }
+function alertas() {
+  const c = $('alertas'); c.textContent = '';
+  const venc = D.SOLICITUD.filter(s => !s.liberado && efectiva(s) <= D.hoy).length;
+  const sinPdf = D.partes.filter(p => !p.pdf).length;
+  const vara = D.MAQUINA.filter(m => /VAR|NO ESTUVO/.test(String(m.estado).toUpperCase())).length;
+  const aus = D.PERSONAL.filter(p => p.estado === 'AUSENTE').length;
+  const L = [];
+  const chip = (n, t, f) => { if (n) L.push(h('button', { class: 'chipm', onclick: f }, n + ' ' + t)); };
+  chip(venc, 'pedidos por liberar (para hoy o antes)', () => { $('fSol').value = 'pend'; solicitudes(); ir('cPed'); });
+  chip(sinPdf, 'partes sin PDF', () => { $('fPdf').value = 'no'; partes(); ir('cPar'); });
+  chip(vara, 'máquinas varadas o que no estuvieron', () => { tab = 'MAQUINA'; ESP = 'var'; SORT = { k: -1, d: 1 }; consolidado(); ir('cCon'); });
+  chip(aus, 'ausencias de personal', () => { tab = 'PERSONAL'; ESP = 'aus'; SORT = { k: -1, d: 1 }; consolidado(); ir('cCon'); });
+  if (!L.length) c.appendChild(h('div', { class: 'okmsg' }, '✔ Sin alertas en este rango'));
+  L.forEach(x => c.appendChild(x));
+}
+function limpiar() {
+  $('q').value = ''; ['fSolLlave', 'fSolTipo', 'fPar', 'fPdf', 'fCon', 'fEst', 'fCC'].forEach(i => { $(i).value = ''; }); $('fSol').value = 'pend';
+  ESP = ''; SORT = { k: -1, d: 1 }; rerender();
 }
 function kpis() {
   const hoy = D.hoy, us = D.usuarios.length;
@@ -207,28 +274,41 @@ function matriz() {
 
 /* ---- pedidos ---- */
 function paraTxt(s) { return s.para === 'MAÑANA' ? 'Mañana ' + fmtF(sumDias(s.fecha, 1)) : fmtF(s.para); }
+function pedidosVisibles() {
+  const modo = $('fSol').value, ll = $('fSolLlave').value, tp = $('fSolTipo').value;
+  return D.SOLICITUD.filter(s => (!ll || s.llave === ll) && (!tp || s.tipo === tp) && coincide(s) && (modo === 'todos' || (modo === 'lib') === !!s.liberado))
+    .sort((a, b) => (a.liberado - b.liberado) || efectiva(a).localeCompare(efectiva(b)));
+}
+async function liberar(s, nuevo) {
+  try {
+    const r = await api({ accion: 'admin_liberar', llave: LLAVE, sid: s.sid, lib: nuevo });
+    if (!r.ok) { $('err').textContent = r.mensaje || 'No se pudo guardar'; return false; }
+    s.liberado = nuevo; s.liberado_por = r.por; s.liberado_ts = r.ts; $('err').textContent = ''; return true;
+  } catch (e) { $('err').textContent = 'No se pudo guardar. Intenta de nuevo.'; return false; }
+}
+function refrescarPed() { kpis(); alertas(); grafico(); solicitudes(); }
+async function liberarVisibles() {
+  const pend = pedidosVisibles().filter(s => !s.liberado);
+  if (!pend.length || !confirm('Se liberarán ' + pend.length + ' pedidos. ¿Continuar?')) return;
+  $('libTodos').disabled = true;
+  for (let i = 0; i < pend.length; i++) { $('estado').textContent = 'Liberando ' + (i + 1) + ' de ' + pend.length + '…'; if (!(await liberar(pend[i], true))) break; }
+  $('estado').textContent = ''; refrescarPed();
+}
 function solicitudes() {
-  const modo = $('fSol').value, ll = $('fSolLlave').value;
-  let L = D.SOLICITUD.filter(s => (!ll || s.llave === ll) && (modo === 'todos' || (modo === 'lib') === !!s.liberado));
-  L.sort((a, b) => (a.liberado - b.liberado) || ((a.para === 'MAÑANA' ? sumDias(a.fecha, 1) : a.para).localeCompare(b.para === 'MAÑANA' ? sumDias(b.fecha, 1) : b.para)));
+  const L = pedidosVisibles();
+  $('nSol').textContent = '(' + L.length + ')';
+  $('libTodos').disabled = !L.some(s => !s.liberado);
   const t = $('tSol'); t.textContent = '';
-  t.appendChild(h('thead', {}, h('tr', {}, ['Liberado', 'Llave', 'Parte del', 'Para cuándo', 'Qué', 'Detalle', 'Cant.', 'Observación'].map(x => h('th', {}, x)))));
+  t.appendChild(h('thead', {}, h('tr', {}, ['Liberado', 'Llave', 'Código', 'Parte del', 'Para cuándo', 'Qué', 'Detalle', 'Cant.', 'Observación'].map(x => h('th', {}, x)))));
   const b = h('tbody');
   L.forEach(s => {
     const cb = h('input', { type: 'checkbox' }); cb.checked = !!s.liberado;
-    cb.onchange = async () => {
-      cb.disabled = true; const nuevo = cb.checked;
-      try {
-        const r = await api({ accion: 'admin_liberar', llave: LLAVE, sid: s.sid, lib: nuevo });
-        if (!r.ok) { cb.checked = !nuevo; $('err').textContent = r.mensaje || 'No se pudo guardar'; }
-        else { s.liberado = nuevo; s.liberado_por = r.por; s.liberado_ts = r.ts; $('err').textContent = ''; kpis(); grafico(); solicitudes(); }
-      } catch (e) { cb.checked = !nuevo; $('err').textContent = 'No se pudo guardar. Intenta de nuevo.'; }
-      cb.disabled = false;
-    };
-    b.appendChild(h('tr', {}, h('td', {}, cb, s.liberado ? h('div', { class: 'small' }, s.liberado_por + ' ' + String(s.liberado_ts).slice(5, 16)) : ''),
-      h('td', {}, s.llave), h('td', {}, fmtF(s.fecha)), h('td', {}, paraTxt(s)), h('td', {}, s.tipo), h('td', { class: 'w' }, s.detalle), h('td', {}, [s.cantidad, s.unidad].join(' ').trim()), h('td', { class: 'w' }, s.obs)));
+    cb.onchange = async () => { cb.disabled = true; const ok = await liberar(s, cb.checked); if (!ok) { cb.checked = !cb.checked; cb.disabled = false; } else refrescarPed(); };
+    const ef = efectiva(s), cl = s.liberado ? '' : (ef < D.hoy ? 'late' : (ef === D.hoy ? 'hoyp' : ''));
+    b.appendChild(h('tr', { class: cl }, h('td', {}, cb, s.liberado ? h('div', { class: 'small' }, s.liberado_por + ' ' + String(s.liberado_ts).slice(5, 16)) : ''),
+      h('td', {}, s.llave), h('td', {}, s._cod), h('td', {}, fmtF(s.fecha)), h('td', {}, paraTxt(s)), h('td', {}, s.tipo), h('td', { class: 'w' }, s.detalle), h('td', {}, [s.cantidad, s.unidad].join(' ').trim()), h('td', { class: 'w' }, s.obs)));
   });
-  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 8 }, 'Nada por mostrar')));
+  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 9 }, 'Nada por mostrar')));
   t.appendChild(b);
 }
 function grafico() {
@@ -269,66 +349,120 @@ async function bajarPdf(p) {
     $('err').textContent = ''; bajar(b64Blob(r.pdf), r.nombre); return true;
   } catch (e) { $('estado').textContent = ''; $('err').textContent = 'No se pudo bajar el PDF.'; return false; }
 }
-function listaPartes() { const ll = $('fPar').value; return D.partes.filter(p => !ll || p.llave === ll); }
+function partesVisibles() {
+  const ll = $('fPar').value, sp = $('fPdf').value;
+  return D.partes.filter(p => (!ll || p.llave === ll) && (sp !== 'no' || !p.pdf) && coincide(p));
+}
 function partes() {
+  const L = partesVisibles();
+  $('nPar').textContent = '(' + L.length + ')';
   const t = $('tPar'); t.textContent = '';
-  t.appendChild(h('thead', {}, h('tr', {}, ['Fecha', 'Llave', 'Usuario', 'Lugar', 'PK', 'PDF'].map(x => h('th', {}, x)))));
-  const b = h('tbody'); const L = listaPartes();
-  L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
-    h('td', {}, p.pdf ? h('button', { class: 'sm', onclick: () => bajarPdf(p) }, 'Descargar') : h('span', { class: 'tag r' }, 'sin PDF')))));
-  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 6 }, 'No hay partes en este rango')));
+  t.appendChild(h('thead', {}, h('tr', {}, ['Código', 'Fecha', 'Llave', 'Usuario', 'Lugar', 'PK', 'Act.', 'Pers.', 'Máq.', 'Mat.', 'Ped.', ''].map(x => h('th', {}, x)))));
+  const b = h('tbody');
+  L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, p._cod), h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
+    h('td', {}, p._n.ACTIVIDAD), h('td', {}, p._n.PERSONAL), h('td', {}, p._n.MAQUINA), h('td', {}, p._n.MATERIAL), h('td', {}, p._n.SOLICITUD),
+    h('td', {}, h('button', { class: 'sm sec', onclick: () => detalle(p) }, 'Detalle'), ' ', p.pdf ? h('button', { class: 'sm', onclick: () => bajarPdf(p) }, 'PDF') : h('span', { class: 'tag r' }, 'sin PDF')))));
+  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 12 }, 'No hay partes con esos filtros')));
   t.appendChild(b);
 }
 async function todosPdf() {
-  const L = listaPartes().filter(p => p.pdf); if (!L.length) return;
+  const L = partesVisibles().filter(p => p.pdf); if (!L.length) return;
   if (L.length > 1 && !confirm('Se descargarán ' + L.length + ' PDF uno tras otro. ¿Continuar?')) return;
   $('todosPdf').disabled = true;
   for (let i = 0; i < L.length; i++) { $('estado').textContent = 'PDF ' + (i + 1) + ' de ' + L.length + '…'; if (!(await bajarPdf(L[i]))) break; await new Promise(r => setTimeout(r, 700)); }
   $('estado').textContent = ''; $('todosPdf').disabled = false;
 }
+function detalle(p) {
+  const o = $('detalle'); o.textContent = '';
+  const del = k => D[k].filter(r => r.id === p.id);
+  const tabla = (tit, cols, rows) => rows.length ? h('div', {}, h('h2', {}, tit + ' (' + rows.length + ')'), h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, cols.map(c => h('th', {}, c)))), h('tbody', {}, rows.map(r => h('tr', {}, r.map(v => h('td', { class: 'w' }, v)))))))) : null;
+  o.appendChild(h('div', { class: 'card', style: 'max-width:1000px;margin:20px auto' },
+    h('div', { class: 'row' }, h('div', {}, h('h2', { style: 'margin:0' }, p._cod), h('div', { class: 'small' }, [fmtF(p.fecha), p.llave, p.usuario, p.localizacion, p.pk].join(' · '))),
+      p.pdf ? h('button', { onclick: () => bajarPdf(p) }, 'Descargar PDF') : h('span', { class: 'tag r' }, 'sin PDF'),
+      h('button', { class: 'sec', onclick: () => { try { navigator.clipboard.writeText(p._cod); } catch (e) {} } }, 'Copiar código'),
+      h('button', { class: 'sec', onclick: () => { o.hidden = true; } }, 'Cerrar')),
+    tabla('Actividades', ['N°', 'Actividad', 'Unidad', 'Cantidad', 'Obs.'], del('ACTIVIDAD').map(r => [r.n, r.descripcion, r.unidad, r.cantidad, r.obs])),
+    tabla('Personal', ['C. costo', 'Nombre', 'Cargo', 'Inicio', 'Fin', 'Horas', 'Estado'], del('PERSONAL').map(r => [r.c_costo, r.nombre, r.cargo, r.inicio, r.fin, r.horas, r.estado])),
+    tabla('Máquinas', ['C. costo', 'Máquina', 'Recibo', 'Inicio', 'Fin', 'Horas', 'Estado', 'Obs.'], del('MAQUINA').map(r => [r.c_costo, r.nombre, r.recibo, r.inicio, r.fin, r.horas, r.estado, r.obs])),
+    tabla('Materiales', ['C. costo', 'Material', 'Almacén', 'Albarán', 'Cantidad', 'Unidad', 'Estado'], del('MATERIAL').map(r => [r.c_costo, r.nombre, r.almacen, r.albaran, r.cantidad, r.unidad, r.estado])),
+    tabla('Pedidos', ['Qué', 'Detalle', 'Cant.', 'Para cuándo', 'Liberado'], del('SOLICITUD').map(r => [r.tipo, r.detalle, [r.cantidad, r.unidad].join(' ').trim(), paraTxt(r), r.liberado ? 'SI (' + r.liberado_por + ')' : 'NO']))));
+  o.hidden = false; o.scrollTop = 0;
+}
 
 /* ---- consolidados ---- */
 const DEF = {
-  ACTIVIDAD: { nombre: 'Actividades', cols: [['Llave', 'llave'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['N°', 'n'], ['Actividad', 'descripcion'], ['Unidad', 'unidad'], ['Cantidad', 'cantidad'], ['Observación', 'obs']] },
-  PERSONAL: { nombre: 'Personal', cols: [['Llave', 'llave'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Nombre', 'nombre'], ['Cargo', 'cargo'], ['Inicio', 'inicio'], ['Fin', 'fin'], ['Horas', 'horas'], ['Estado', 'estado'], ['Actividades', 'acts']] },
-  MAQUINA: { nombre: 'Máquinas', cols: [['Llave', 'llave'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Máquina', 'nombre'], ['Recibo', 'recibo'], ['Inicio', 'inicio'], ['Fin', 'fin'], ['Horas', 'horas'], ['Estado', 'estado'], ['Actividades', 'acts'], ['Observación', 'obs']] },
-  MATERIAL: { nombre: 'Materiales', cols: [['Llave', 'llave'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Material', 'nombre'], ['Almacén', 'almacen'], ['Albarán', 'albaran'], ['Cantidad', 'cantidad'], ['Unidad', 'unidad'], ['Ubicación', 'ubicacion'], ['Estado', 'estado'], ['Actividades', 'acts']] },
-  SOLICITUD: { nombre: 'Pedidos', cols: [['Llave', 'llave'], ['Fecha parte', 'fecha'], ['Usuario', 'usuario'], ['Qué', 'tipo'], ['Detalle', 'detalle'], ['Cantidad', 'cantidad'], ['Unidad', 'unidad'], ['Para cuándo', '_para'], ['Observación', 'obs'], ['Liberado', '_lib'], ['Liberado por', 'liberado_por']] }
+  ACTIVIDAD: { nombre: 'Actividades', est: ['Unidad', 'unidad'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['N°', 'n'], ['Actividad', 'descripcion'], ['Unidad', 'unidad'], ['Cantidad', 'cantidad'], ['Observación', 'obs']] },
+  PERSONAL: { nombre: 'Personal', est: ['Estado', 'estado'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Nombre', 'nombre'], ['Cargo', 'cargo'], ['Inicio', 'inicio'], ['Fin', 'fin'], ['Horas', 'horas'], ['Estado', 'estado'], ['Actividades', 'acts']] },
+  MAQUINA: { nombre: 'Máquinas', est: ['Estado', 'estado'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Máquina', 'nombre'], ['Recibo', 'recibo'], ['Inicio', 'inicio'], ['Fin', 'fin'], ['Horas', 'horas'], ['Estado', 'estado'], ['Actividades', 'acts'], ['Observación', 'obs']] },
+  MATERIAL: { nombre: 'Materiales', est: ['Estado', 'estado'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Material', 'nombre'], ['Almacén', 'almacen'], ['Albarán', 'albaran'], ['Cantidad', 'cantidad'], ['Unidad', 'unidad'], ['Ubicación', 'ubicacion'], ['Estado', 'estado'], ['Actividades', 'acts']] },
+  SOLICITUD: { nombre: 'Pedidos', est: ['Tipo', 'tipo'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha parte', 'fecha'], ['Usuario', 'usuario'], ['Qué', 'tipo'], ['Detalle', 'detalle'], ['Cantidad', 'cantidad'], ['Unidad', 'unidad'], ['Para cuándo', '_para'], ['Observación', 'obs'], ['Liberado', '_lib'], ['Liberado por', 'liberado_por']] },
+  RESUMEN: { nombre: 'Resumen por ítem', cols: [['Tipo'], ['Ítem'], ['Unidad'], ['Total'], ['Días'], ['Llaves']] }
 };
 function valor(k, r) { if (k === '_para') return paraTxt(r); if (k === '_lib') return r.liberado ? 'SI' : 'NO'; return r[k] === undefined || r[k] === null ? '' : r[k]; }
-function filas(sec, ll) { return D[sec].filter(r => !ll || r.llave === ll).slice().sort((a, b) => (a.llave + a.fecha).localeCompare(b.llave + b.fecha)); }
+function base(k) { const ll = $('fCon').value; return D[k].filter(r => (!ll || r.llave === ll) && coincide(r)); }
+function resumen() {
+  const g = {};
+  const add = (tipo, item, unidad, val, r) => { const kk = tipo + '|' + item + '|' + unidad; const o = g[kk] = g[kk] || { tipo: tipo, item: item, unidad: unidad, total: 0, dias: new Set(), llaves: new Set() }; o.total += val; o.dias.add(r.fecha); o.llaves.add(r.llave); };
+  base('PERSONAL').forEach(r => { if (r.estado !== 'AUSENTE') add('Personal', r.nombre, 'horas', Number(r.horas) || 0, r); });
+  base('MAQUINA').forEach(r => { if (r.estado !== 'NO ESTUVO') add('Máquina', r.nombre, 'horas', Number(r.horas) || 0, r); });
+  base('MATERIAL').forEach(r => { if (r.estado !== 'NO USADO') add('Material', r.nombre, r.unidad, Number(r.cantidad) || 0, r); });
+  base('ACTIVIDAD').forEach(r => add('Actividad', r.descripcion, r.unidad, Number(r.cantidad) || 0, r));
+  return Object.keys(g).map(k => { const o = g[k]; return [o.tipo, o.item, o.unidad, Math.round(o.total * 100) / 100, o.dias.size, Array.from(o.llaves).sort().join(', ')]; });
+}
+function datos(k, usarTab) {
+  const d = DEF[k], cols = d.cols.map(c => c[0]); let rows;
+  if (k === 'RESUMEN') rows = resumen();
+  else {
+    let L = base(k);
+    if (usarTab) {
+      const e = $('fEst').value, cc = $('fCC').value;
+      if (e) L = L.filter(r => String(r[d.est[1]]) === e);
+      if (cc) L = L.filter(r => r.c_costo === cc);
+      if (ESP === 'var' && k === 'MAQUINA') L = L.filter(r => /VAR|NO ESTUVO/.test(String(r.estado).toUpperCase()));
+      if (ESP === 'aus' && k === 'PERSONAL') L = L.filter(r => r.estado === 'AUSENTE');
+    }
+    rows = L.map(r => d.cols.map(c => valor(c[1], r)));
+  }
+  if (usarTab && SORT.k >= 0 && SORT.k < cols.length) {
+    const i = SORT.k, s = SORT.d;
+    rows.sort((a, b) => { const x = a[i], y = b[i], nx = Number(x), ny = Number(y); return s * ((x !== '' && y !== '' && !isNaN(nx) && !isNaN(ny)) ? nx - ny : String(x).localeCompare(String(y))); });
+  } else if (k === 'RESUMEN') rows.sort((a, b) => (a[0] + a[1]).localeCompare(b[0] + b[1]));
+  else rows.sort((a, b) => (String(a[0]) + String(a[2])).localeCompare(String(b[0]) + String(b[2])));
+  return { cols: cols, rows: rows };
+}
 function consolidado() {
   const tb = $('tabs'); tb.textContent = '';
-  Object.keys(DEF).forEach(k => tb.appendChild(h('button', { class: k === tab ? 'on' : '', onclick: () => { tab = k; consolidado(); } }, DEF[k].nombre + ' (' + D[k].length + ')')));
-  const d = DEF[tab], ll = $('fCon').value, L = filas(tab, ll);
-  const t = $('tCon'); t.textContent = '';
-  t.appendChild(h('thead', {}, h('tr', {}, d.cols.map(c => h('th', {}, c[0])))));
+  Object.keys(DEF).forEach(k => tb.appendChild(h('button', { class: k === tab ? 'on' : '', onclick: () => { tab = k; SORT = { k: -1, d: 1 }; ESP = ''; consolidado(); } }, DEF[k].nombre + ' (' + (k === 'RESUMEN' ? resumen().length : base(k).length) + ')')));
+  const d = DEF[tab], esRes = tab === 'RESUMEN';
+  $('fEstW').hidden = esRes; $('fCCW').hidden = esRes || !D[tab].some(r => r.c_costo);
+  if (!esRes) { $('fEstL').textContent = d.est[0]; llenarOpts('fEst', 'Todos', uniq(D[tab].map(r => String(r[d.est[1]])))); llenarOpts('fCC', 'Todos', uniq(D[tab].map(r => r.c_costo))); }
+  const dt = datos(tab, true), t = $('tCon'); t.textContent = '';
+  t.appendChild(h('thead', {}, h('tr', {}, dt.cols.map((c, i) => h('th', { class: 's', onclick: () => { SORT = { k: i, d: SORT.k === i ? -SORT.d : 1 }; consolidado(); } }, c + (SORT.k === i ? (SORT.d > 0 ? ' ▲' : ' ▼') : ''))))));
   const b = h('tbody');
-  L.slice(0, 1500).forEach(r => b.appendChild(h('tr', {}, d.cols.map(c => h('td', { class: /obs|detalle|descripcion/.test(c[1]) ? 'w' : '' }, valor(c[1], r))))));
-  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: d.cols.length }, 'Sin datos en este rango')));
+  dt.rows.slice(0, 1500).forEach(r => b.appendChild(h('tr', {}, r.map((v, i) => h('td', { class: /Observ|Detalle|Actividad$|Ítem|Llaves/.test(dt.cols[i]) ? 'w' : '' }, v)))));
+  if (!dt.rows.length) b.appendChild(h('tr', {}, h('td', { colspan: dt.cols.length }, 'Sin datos con estos filtros')));
   t.appendChild(b);
-  let tot = L.length + ' filas';
-  if (tab === 'PERSONAL' || tab === 'MAQUINA') tot += ' · ' + (Math.round(L.reduce((a, r) => a + (Number(r.horas) || 0), 0) * 100) / 100) + ' horas';
-  if (tab === 'MATERIAL') tot += ' · cantidades por material: ' + resumenMat(L);
-  if (L.length > 1500) tot += ' (se muestran 1500; la descarga trae todo)';
+  const ih = dt.cols.indexOf('Horas');
+  let tot = dt.rows.length + ' filas';
+  if (ih >= 0) tot += ' · ' + (Math.round(dt.rows.reduce((a, r) => a + (Number(r[ih]) || 0), 0) * 100) / 100) + ' horas';
+  if (ESP) tot += ' · filtro activo: ' + (ESP === 'var' ? 'máquinas varadas / que no estuvieron' : 'ausencias') + ' (usa "Limpiar filtros" para quitarlo)';
+  if (dt.rows.length > 1500) tot += ' · se muestran 1500; la descarga trae todo';
   $('totales').textContent = tot;
+  $('nCon').textContent = '';
 }
-function resumenMat(L) { const m = {}; L.forEach(r => { if (r.estado === 'NO USADO') return; const k = r.nombre + ' (' + r.unidad + ')'; m[k] = (m[k] || 0) + (Number(r.cantidad) || 0); }); return Object.keys(m).slice(0, 8).map(k => k + ': ' + Math.round(m[k] * 100) / 100).join(', ') || '—'; }
 function csvCelda(v) { let s = String(v); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; }
 function descargarCsv() {
-  const d = DEF[tab], L = filas(tab, $('fCon').value);
-  const out = [d.cols.map(c => csvCelda(c[0])).join(';')].concat(L.map(r => d.cols.map(c => csvCelda(valor(c[1], r))).join(';')));
-  bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Consolidado_' + d.nombre + '_' + $('desde').value + '_' + $('hasta').value + '.csv');
+  const dt = datos(tab, true), out = [dt.cols.map(csvCelda).join(';')].concat(dt.rows.map(r => r.map(csvCelda).join(';')));
+  bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Consolidado_' + DEF[tab].nombre.replace(/\s/g, '_') + '_' + $('desde').value + '_' + $('hasta').value + '.csv');
 }
-function formula(v) { return typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v; }
 function descargarXlsx() {
   if (!window.XLSX) { $('err').textContent = 'No cargó el módulo de Excel. Usa la descarga CSV o revisa tu conexión.'; return; }
-  const ll = $('fCon').value, wb = XLSX.utils.book_new();
+  const wb = XLSX.utils.book_new(), ll = $('fCon').value;
   Object.keys(DEF).forEach(k => {
-    const d = DEF[k], L = filas(k, ll);
-    const aoa = [d.cols.map(c => c[0])].concat(L.map(r => d.cols.map(c => { const v = valor(c[1], r); const n = (typeof v === 'string' && v !== '' && !isNaN(Number(v)) && /^(cantidad|horas|n)$/.test(c[1])) ? Number(v) : v; return formula(n); })));
-    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = d.cols.map(c => ({ wch: Math.max(c[0].length + 2, /obs|detalle|descripcion|nombre/.test(c[1]) ? 28 : 12) }));
-    XLSX.utils.book_append_sheet(wb, ws, d.nombre);
+    const dt = datos(k, false), num = dt.cols.map(c => /^(Cantidad|Horas|N°|Total|Días)$/.test(c));
+    const aoa = [dt.cols].concat(dt.rows.map(r => r.map((v, i) => { if (num[i] && typeof v === 'string' && v !== '' && !isNaN(Number(v))) return Number(v); return typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v; })));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = dt.cols.map(c => ({ wch: /Observ|Detalle|Actividad$|Ítem|Llaves|Código|Usuario/.test(c) ? 28 : 13 }));
+    XLSX.utils.book_append_sheet(wb, ws, DEF[k].nombre.slice(0, 31));
   });
   XLSX.writeFile(wb, 'Consolidado_' + (ll || 'TODAS') + '_' + $('desde').value + '_' + $('hasta').value + '.xlsx');
 }
@@ -337,9 +471,16 @@ $('entrar').onclick = entrar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') entrar(); };
 $('salir').onclick = salir;
 $('act').onclick = () => cargar(false);
-['fSol', 'fSolLlave'].forEach(i => $(i).onchange = solicitudes);
-$('fPar').onchange = partes; $('fCon').onchange = consolidado;
+let qt;
+$('q').oninput = () => { clearTimeout(qt); qt = setTimeout(rerender, 200); };
+['fSol', 'fSolLlave', 'fSolTipo'].forEach(i => $(i).onchange = solicitudes);
+['fPar', 'fPdf'].forEach(i => $(i).onchange = partes);
+['fCon', 'fEst', 'fCC'].forEach(i => $(i).onchange = consolidado);
+$('libTodos').onclick = liberarVisibles; $('limpiar').onclick = limpiar;
 $('todosPdf').onclick = todosPdf; $('csv').onclick = descargarCsv; $('xlsx').onclick = descargarXlsx;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('detalle').hidden = true; });
+$('detalle').onclick = e => { if (e.target === $('detalle')) $('detalle').hidden = true; };
+setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('detalle').hidden === false) cargar(false); }, 300000);
 (function () {
   const hy = bogota(), M = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   let y = Number(hy.slice(0, 4)), m = Number(hy.slice(5, 7));

@@ -74,7 +74,10 @@
     return 'K' + String(Math.floor(n / 1000)).padStart(2, '0') + '+' + String(n % 1000).padStart(3, '0');
   }
 
-  const PD = { UNIDADES, num, dimsDe, undPdf, cantidadActividad, fmt, horasEntre, fechaLarga, pkDigitos, formatoPK };
+  // codigo unico y estable del parte (una llave por dia)
+  function codigoParte(fecha, llave) { return 'PD-' + String(fecha || '').replace(/-/g, '') + '-' + String(llave || '').toUpperCase(); }
+
+  const PD = { codigoParte, UNIDADES, num, dimsDe, undPdf, cantidadActividad, fmt, horasEntre, fechaLarga, pkDigitos, formatoPK };
   if (typeof module !== 'undefined' && module.exports) module.exports = PD;
   else root.PD = PD;
 })(typeof window !== 'undefined' ? window : globalThis);

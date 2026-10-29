@@ -259,7 +259,7 @@ function filaParte(x, esHoy) {
     bs.appendChild(h('button', { class: 'sec', onclick: () => compDe(x.fecha) }, 'Compartir'));
   }
   return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
-    x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir')), bs);
+    x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave))), bs);
 }
 function b64Blob(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Blob([u], { type: 'application/pdf' }); }
 function bajar(blob, nombre) {
@@ -657,7 +657,7 @@ function pasoRevisar(c) {
 
 /* ---------- guardar, PDF y envío ---------- */
 function copia(o) { return JSON.parse(JSON.stringify(o)); }
-function conPdf(parte) { return PD.generarParteDoc(parte, { encargado: user.nombre, residente: 'INGENIERO RESIDENTE AUXILIAR', control: 'CONTROL DE GESTION' }, window.jspdf.jsPDF); }
+function conPdf(parte) { return PD.generarParteDoc(parte, { llave: user.llave, encargado: user.nombre, residente: 'INGENIERO RESIDENTE AUXILIAR', control: 'CONTROL DE GESTION' }, window.jspdf.jsPDF); }
 
 async function guardar() {
   verErr = true;
