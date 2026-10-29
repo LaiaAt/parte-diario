@@ -45,6 +45,17 @@ button.link{background:none;color:var(--ink);text-decoration:underline;width:aut
 small{color:var(--mut)}
 #barra{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 14px;display:flex;gap:10px}
 #barra button{flex:1}
+.err-c input,.err-c select{border:3px solid var(--err);background:#fdecea}
+.err-c label{color:var(--err);font-weight:700}
+.err-c .chip{border-color:var(--err)}
+.card.err-c{border:3px solid var(--err);background:#fdecea}
+.msgerr{color:var(--err);font-weight:700;display:block;margin-top:3px}
+.req{color:var(--err)}
+.li{display:flex;gap:8px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:10px 0;flex-wrap:wrap}
+.li b{display:block}
+.tag{font-size:12px;color:#fff;background:var(--mut);border-radius:4px;padding:2px 6px;margin-left:6px}
+.tag.hoy{background:var(--ok)}.tag.pend{background:#b36b00}
+.li button{width:auto;padding:10px 12px;font-size:15px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -62,11 +73,12 @@ small{color:var(--mut)}
 
   <section id="app" hidden>
     <div class="card"><b id="saludo"></b> · <span id="fecha"></span><br><small id="info"></small><br>
-      <button class="link" id="btnSalir">Cambiar de usuario</button></div>
+      <button class="link" id="btnBib">← Mis partes</button> <button class="link" id="btnSalir">Cambiar de usuario</button></div>
     <div id="progreso" class="guia"></div>
     <div id="contenido"></div>
   </section>
 
+  <section id="biblio" hidden></section>
   <section id="listo" hidden></section>
 </main>
 <nav id="barra" hidden><button class="sec" id="atras">Atrás</button><button id="sig">Siguiente</button></nav>
@@ -133,25 +145,26 @@ const ultimoCC = () => { const t = [].concat(P.personal, P.maquinas, P.materiale
 const nuevaActividad = () => ({ n: P.actividades.length + 1, descripcion: '', unidad: '', d1: '', d2: '', d3: '', descuentos: '0', factor: '1', obs: '' });
 const nuevaPersona = () => ({ c_costo: ultimoCC(), nombre: '', cargo: '', inicio: '07:00', fin: '16:00', estado: 'PRESENTE', acts: [] });
 const nuevaMaquina = () => ({ c_costo: ultimoCC(), nombre: '', recibo: '', inicio: '07:00', fin: '16:00', estado: 'OPERANDO', obs: '', acts: [] });
-const nuevoMaterial = () => ({ c_costo: ultimoCC(), nombre: '', procedencia: '', cantidad: '', unidad: 'M3', ubicacion: '', acts: [], fotos_ids: [], estado: 'USADO' });
-const nuevaSolicitud = () => ({ tipo: 'Combustible', detalle: '', cantidad: '', unidad: '', obs: '' });
+const nuevoMaterial = () => ({ c_costo: ultimoCC(), nombre: '', procedencia: 'Almacén', albaran: '', cantidad: '', unidad: 'M3', ubicacion: '', acts: [], fotos_ids: [], estado: 'USADO' });
+const nuevaSolicitud = () => ({ tipo: 'Combustible', detalle: '', cantidad: '', unidad: '', cuando: 'MANANA', fecha: '', obs: '' });
+let verErr = false, ERR = new WeakMap(), ultId = null;
 
 // Convierte lo que viene del servidor o del teléfono en un parte completo. reiniciar = día nuevo con la cuadrilla de ayer.
 function base(p, reiniciar) {
   const o = nuevoParte();
   if (!p) return o;
   o.fecha = reiniciar ? hoy() : (p.fecha || hoy());
-  o.encabezado = { localizacion: (p.encabezado || {}).localizacion || '', pk: (p.encabezado || {}).pk || '' };
+  o.encabezado = { localizacion: (p.encabezado || {}).localizacion || '', pk: PD.pkDigitos((p.encabezado || {}).pk) };
   const L = x => Array.isArray(x) ? x : [];
   if (!reiniciar) {
     o.clima_sel = p.clima_sel || null; o.clima = L(p.clima); o.actividades = L(p.actividades);
-    o.fotos = L(p.fotos); o.solicitudes = L(p.solicitudes);
+    o.fotos = L(p.fotos); o.solicitudes = L(p.solicitudes).map(q => Object.assign({ cuando: 'MANANA', fecha: '' }, q));
   }
   o.personal = L(p.personal).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', cargo: x.cargo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
     estado: reiniciar ? 'PRESENTE' : (x.estado || 'PRESENTE'), acts: reiniciar ? [] : L(x.acts) }));
   o.maquinas = L(p.maquinas).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', recibo: x.recibo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
     estado: reiniciar ? 'OPERANDO' : (x.estado || 'OPERANDO'), obs: reiniciar ? '' : (x.obs || ''), acts: reiniciar ? [] : L(x.acts) }));
-  o.materiales = L(p.materiales).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', procedencia: x.procedencia || '', unidad: x.unidad || 'M3', ubicacion: x.ubicacion || '',
+  o.materiales = L(p.materiales).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', procedencia: x.procedencia || 'Almacén', albaran: x.albaran || '', unidad: x.unidad || 'M3', ubicacion: x.ubicacion || '',
     cantidad: reiniciar ? '' : (x.cantidad === undefined ? '' : x.cantidad), acts: reiniciar ? [] : L(x.acts), fotos_ids: reiniciar ? [] : L(x.fotos_ids), estado: reiniciar ? 'NO USADO' : (x.estado || 'USADO') }));
   return o;
 }
@@ -170,6 +183,12 @@ async function api(d) {
 }
 
 /* ---------- ingreso ---------- */
+async function guardarIngreso(x) {
+  sugerencias = x.sugerencias || [];
+  await kv.set('sug_' + x.llave, sugerencias);
+  if (x.parte) await kv.set('roster', { llave: x.llave, parte: x.parte });
+  await kv.set('bib_' + x.llave, x.biblioteca || []);
+}
 async function ingresar() {
   const l = $('llave').value.trim();
   if (!l) { aviso('Escribe tu llave.', 'err'); return; }
@@ -181,9 +200,7 @@ async function ingresar() {
     if (!user || user.llave !== r.llave) await kv.del('borrador');
     user = { llave: r.llave, nombre: r.nombre };
     await kv.set('user', user);
-    sugerencias = r.sugerencias || [];
-    await kv.set('sugerencias', sugerencias);
-    if (r.parte) await kv.set('roster', { llave: r.llave, parte: r.parte });
+    await guardarIngreso(r);
     aviso('');
     await abrir(r);
   } catch (e) { aviso('No se pudo conectar. Intenta de nuevo.', 'err'); }
@@ -194,12 +211,99 @@ async function salir() {
   if (cola.length && !confirm('Hay ' + cola.length + ' parte(s) sin enviar. Se enviarán cuando haya señal. ¿Cambiar de usuario?')) return;
   await kv.del('user'); await kv.del('borrador');
   user = null; P = null;
-  ['app', 'listo', 'barra'].forEach(i => $(i).hidden = true);
+  ['app', 'listo', 'barra', 'biblio'].forEach(i => $(i).hidden = true);
   $('login').hidden = false; $('llave').value = '';
 }
 
+let ult = null;
 async function abrir(r) {
-  $('login').hidden = true; $('listo').hidden = true; $('app').hidden = false; $('barra').hidden = false;
+  ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
+  if (!r && navigator.onLine) {
+    try { const x = await api({ accion: 'ingresar', llave: user.llave }); if (x.ok) { r = x; await guardarIngreso(x); } } catch (e) {}
+  }
+  ult = r;
+  await biblioteca();
+  sincronizar(false);
+}
+
+async function biblioteca() {
+  aviso('');
+  ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
+  $('biblio').hidden = false;
+  const B = $('biblio'); B.textContent = '';
+  let lista = (await kv.get('bib_' + user.llave)) || [];
+  if (navigator.onLine) {
+    try { const x = await api({ accion: 'lista', llave: user.llave }); if (x.ok) { lista = x.biblioteca; await kv.set('bib_' + user.llave, lista); } } catch (e) {}
+  }
+  const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave);
+  const h0 = hoy(), por = {};
+  lista.forEach(x => { por[x.fecha] = { fecha: x.fecha, pdf: x.pdf, pend: false }; });
+  cola.forEach(e => { const f = e.parte.fecha; por[f] = Object.assign(por[f] || { fecha: f, pdf: false }, { pend: true, local: !!e.pdf }); });
+  const hayHoy = !!por[h0];
+  B.appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + user.nombre), h('br'), h('small', {}, PD.fechaLarga(h0)), h('br'),
+    h('button', { class: 'link', onclick: salir }, 'Cambiar de usuario')));
+  B.appendChild(h('button', { onclick: editarHoy }, hayHoy ? '✏️ Editar el parte de hoy' : '➕ Crear el parte de hoy'));
+  const card = h('div', { class: 'card', style: 'margin-top:12px' }, h('b', {}, 'Mis partes'));
+  if (hayHoy) card.appendChild(filaParte(por[h0], true));
+  Object.keys(por).filter(f => f !== h0).sort().reverse().forEach(f => card.appendChild(filaParte(por[f], false)));
+  if (!Object.keys(por).length) card.appendChild(h('p', {}, h('small', {}, 'Todavía no hay partes.')));
+  B.appendChild(card);
+}
+function filaParte(x, esHoy) {
+  const bs = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' });
+  if (esHoy) bs.appendChild(h('button', { onclick: editarHoy }, 'Editar'));
+  if (x.pdf || x.local) {
+    bs.appendChild(h('button', { class: 'sec', onclick: () => verDe(x.fecha) }, 'Ver'));
+    bs.appendChild(h('button', { class: 'sec', onclick: () => compDe(x.fecha) }, 'Compartir'));
+  }
+  return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
+    x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir')), bs);
+}
+function b64Blob(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Blob([u], { type: 'application/pdf' }); }
+function bajar(blob, nombre) {
+  const u = URL.createObjectURL(blob); const a = h('a', { href: u, download: nombre }); document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+}
+async function pdfDe(fecha) {
+  const e = ((await kv.get('cola')) || []).find(x => x.llave === user.llave && x.parte.fecha === fecha && x.pdf);
+  if (e) return { blob: b64Blob(e.pdf), nombre: 'Parte_' + user.llave + '_' + fecha + '_' + e.hhmm + '_' + e.uid + '.pdf' };
+  if (!navigator.onLine) { aviso('Para abrir este parte necesitas señal.', 'err'); return null; }
+  aviso('Abriendo…');
+  try {
+    const r = await api({ accion: 'ver', llave: user.llave, fecha: fecha });
+    if (!r.ok) { aviso(r.mensaje || 'No se pudo abrir.', 'err'); return null; }
+    aviso(''); return { blob: b64Blob(r.pdf), nombre: r.nombre };
+  } catch (e) { aviso('No se pudo abrir. Intenta de nuevo.', 'err'); return null; }
+}
+async function verDe(f) { const r = await pdfDe(f); if (r) bajar(r.blob, r.nombre); }
+async function compDe(f) {
+  const r = await pdfDe(f); if (!r) return;
+  const file = new File([r.blob], r.nombre, { type: 'application/pdf' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: 'Parte diario ' + PD.fechaLarga(f) });
+    else bajar(r.blob, r.nombre);
+  } catch (e) { if (e && e.name !== 'AbortError') bajar(r.blob, r.nombre); }
+}
+
+async function cargarFotos() {
+  const mio = P;
+  if (!mio.fotos.some(f => f.url && !f.data) || !navigator.onLine) return;
+  try {
+    const r = await api({ accion: 'fotos', llave: user.llave, fecha: mio.fecha });
+    if (!r.ok) return;
+    for (const x of r.fotos) {
+      const f = mio.fotos.find(q => q.id === x.id); if (!f || f.data) continue;
+      f.data = x.data;
+      await new Promise(res => { const i = new Image(); i.onload = () => { f.w = i.naturalWidth; f.h = i.naturalHeight; res(); }; i.onerror = res; i.src = x.data; });
+    }
+    if (P === mio) { cambio(); if (!$('app').hidden && (paso === 4 || paso === 5)) mostrar(); }
+  } catch (e) {}
+}
+
+async function editarHoy() {
+  const r = ult;
+  verErr = false;
+  ['biblio', 'listo'].forEach(i => $(i).hidden = true); $('app').hidden = false; $('barra').hidden = false;
   $('saludo').textContent = 'Hola, ' + user.nombre;
   $('fecha').textContent = PD.fechaLarga(hoy());
   const b = await kv.get('borrador');
@@ -207,23 +311,22 @@ async function abrir(r) {
     P = base(b.parte, false); paso = b.paso || 0;
     $('info').textContent = 'Seguimos con tu parte de hoy.';
   } else {
-    if (!r && navigator.onLine) {
-      try { const x = await api({ accion: 'ingresar', llave: user.llave }); if (x.ok) { r = x; sugerencias = x.sugerencias || []; await kv.set('sugerencias', sugerencias); if (x.parte) await kv.set('roster', { llave: user.llave, parte: x.parte }); } } catch (e) {}
-    }
     paso = 0;
+    const ro = await kv.get('roster');
+    const mio = ro && ro.llave === user.llave ? ro.parte : null;
     if (r && r.ok && r.esHoy) { P = base(r.parte, false); P.fecha = hoy(); $('info').textContent = 'Ya había un parte de hoy. Puedes corregirlo.'; }
+    else if (mio && mio.fecha === hoy()) { P = base(mio, false); $('info').textContent = 'Seguimos con tu parte de hoy.'; }
     else {
-      let src = (r && r.ok) ? r.parte : null;
-      if (!src) { const ro = await kv.get('roster'); if (ro && ro.llave === user.llave) src = ro.parte; }
+      const src = (r && r.ok && r.parte) ? r.parte : mio;
       P = base(src, true);
       $('info').textContent = src ? 'Cargamos tu gente y máquinas de ayer. Marca quién vino.' : 'Primer parte: agrega tu gente y máquinas.';
     }
   }
-  sugerencias = sugerencias.length ? sugerencias : ((await kv.get('sugerencias')) || []);
+  sugerencias = (await kv.get('sug_' + user.llave)) || sugerencias || [];
   const dl = $('dl-act'); dl.textContent = '';
-  sugerencias.forEach(s => dl.appendChild(h('option', { value: s.descripcion })));
+  sugerencias.forEach(q => dl.appendChild(h('option', { value: q.descripcion })));
   mostrar();
-  sincronizar(false);
+  cargarFotos();
 }
 
 function cambio() {
@@ -232,11 +335,29 @@ function cambio() {
 }
 
 /* ---------- piezas reutilizables ---------- */
+const REQ = new Set(['localizacion', 'descripcion', 'nombre', 'c_costo', 'cantidad', 'detalle', 'd1', 'd2', 'd3', 'descuentos', 'factor', 'inicio', 'fin', 'fecha']);
+function E(o, k) { return verErr && o && ERR.has(o) ? (ERR.get(o)[k] || '') : ''; }
 function campo(etiqueta, obj, clave, o) {
   o = o || {};
+  const er = E(obj, clave);
+  const req = o.req !== undefined ? o.req : (REQ.has(clave) && !(clave === 'cantidad' && 'detalle' in obj));
+  const msg = h('small', { class: 'msgerr' }, er);
+  msg.hidden = !er;
+  const caja = h('div', { class: er ? 'err-c' : '' });
   const inp = h('input', { type: o.type || 'text', inputmode: o.inputmode, placeholder: o.ph, list: o.list, autocomplete: 'off', value: obj[clave] == null ? '' : obj[clave],
-    oninput: () => { obj[clave] = inp.value; if (o.alCambiar) o.alCambiar(); cambio(); } });
-  return h('div', {}, h('label', {}, etiqueta), inp, o.ayuda ? h('small', {}, o.ayuda) : null);
+    oninput: () => { obj[clave] = inp.value; if (o.alCambiar) o.alCambiar(); caja.classList.remove('err-c'); msg.hidden = true; cambio(); } });
+  caja.append(h('label', {}, etiqueta, req ? h('span', { class: 'req' }, ' *') : null), inp, msg, o.ayuda ? h('small', {}, o.ayuda) : null);
+  return caja;
+}
+function pkCampo() {
+  const er = E(P.encabezado, 'pk');
+  const caja = h('div', { class: er ? 'err-c' : '' });
+  const vista = h('small', {}, PD.formatoPK(P.encabezado.pk) ? 'Quedará: ' + PD.formatoPK(P.encabezado.pk) : 'Escribe solo números. Ej: 1650 queda K01+650');
+  const inp = h('input', { type: 'text', inputmode: 'numeric', placeholder: 'Ej: 1650', autocomplete: 'off', value: P.encabezado.pk,
+    oninput: () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 6); P.encabezado.pk = inp.value; caja.classList.remove('err-c');
+      vista.textContent = PD.formatoPK(inp.value) ? 'Quedará: ' + PD.formatoPK(inp.value) : 'Escribe solo números. Ej: 1650 queda K01+650'; cambio(); } });
+  caja.append(h('label', {}, 'PK', h('span', { class: 'req' }, ' *')), inp, er ? h('small', { class: 'msgerr' }, er) : null, vista);
+  return caja;
 }
 const decimal = (e, o, k, x) => campo(e, o, k, Object.assign({ inputmode: 'decimal' }, x));
 
@@ -249,7 +370,8 @@ function chips(obj) {
       'Act. ' + a.n);
     c.appendChild(b);
   });
-  return h('div', {}, h('label', {}, '¿En qué actividad trabajó? (toca una o varias)'), c);
+  const er = E(obj, 'acts');
+  return h('div', { class: er ? 'err-c' : '' }, h('label', {}, '¿En qué actividad trabajó? (toca una o varias)', h('span', { class: 'req' }, ' *')), er ? h('small', { class: 'msgerr' }, er) : null, c);
 }
 
 function quitarActividad(i) {
@@ -292,6 +414,8 @@ const miniFoto = (f, alQuitar) => h('div', {}, h('img', { src: f.data, alt: 'fot
 
 /* ---------- pasos ---------- */
 function mostrar() {
+  if (paso === 7) verErr = true;
+  if (verErr) validar();
   const c = $('contenido'); c.textContent = '';
   $('progreso').textContent = 'Paso ' + (paso + 1) + ' de ' + PASOS.length + ': ' + PASOS[paso];
   [pasoDatos, pasoActividades, pasoPersonal, pasoMaquinas, pasoMateriales, pasoFotos, pasoPedidos, pasoRevisar][paso](c);
@@ -304,8 +428,9 @@ function mostrar() {
 function pasoDatos(c) {
   c.appendChild(h('h2', {}, 'Datos del día'));
   c.appendChild(h('p', { class: 'guia' }, 'Dónde trabajaron hoy y si hubo mal clima.'));
-  c.appendChild(h('div', { class: 'card' }, campo('Lugar', P.encabezado, 'localizacion', { ph: 'Ej: QF1' }), h('div', { class: 'row' }, campo('PK', P.encabezado, 'pk', { ph: 'Ej: PK1+650' }))));
-  const clima = h('div', { class: 'card' }, h('b', {}, '¿Hubo lluvia u otro mal clima hoy?'));
+  c.appendChild(h('div', { class: 'card' }, campo('Lugar', P.encabezado, 'localizacion', { ph: 'Ej: QF1' }), h('div', { class: 'row' }, pkCampo())));
+  const ec = E(P, 'clima_sel');
+  const clima = h('div', { class: 'card' + (ec ? ' err-c' : '') }, h('b', {}, '¿Hubo lluvia u otro mal clima hoy? *'), ec ? h('small', { class: 'msgerr' }, ec) : null);
   const fila = h('div', { class: 'chips' });
   [['no', 'No'], ['si', 'Sí']].forEach(o => fila.appendChild(h('button', { type: 'button', class: 'chip' + (P.clima_sel === o[0] ? ' on' : ''),
     onclick: () => { P.clima_sel = o[0]; if (o[0] === 'si' && !P.clima.length) P.clima.push({ tipo: 'Lluvia', inicio: '', fin: '', obs: '' }); if (o[0] === 'no') P.clima = []; mostrar(); } }, o[1])));
@@ -334,7 +459,8 @@ function tarjetaActividad(a, i) {
   } }));
   const sel = h('select', { onchange: () => { a.unidad = sel.value; mostrar(); } }, h('option', { value: '' }, 'Elige…'));
   PD.UNIDADES.forEach(u => sel.appendChild(h('option', { value: u.cod, selected: a.unidad === u.cod }, u.texto)));
-  card.appendChild(h('div', { class: 'row' }, h('div', {}, h('label', {}, '¿En qué se mide?'), sel)));
+  const eu = E(a, 'unidad');
+  card.appendChild(h('div', { class: 'row' }, h('div', { class: eu ? 'err-c' : '' }, h('label', {}, '¿En qué se mide?', h('span', { class: 'req' }, ' *')), sel, eu ? h('small', { class: 'msgerr' }, eu) : null)));
   const u = PD.UNIDADES.find(x => x.cod === a.unidad);
   if (u) {
     const f = h('div', { class: 'row' });
@@ -353,8 +479,7 @@ function pasoActividades(c) {
   c.appendChild(h('h2', {}, 'Actividades'));
   c.appendChild(h('p', { class: 'guia' }, 'Escribe cada trabajo que hicieron hoy y sus medidas.'));
   P.actividades.forEach((a, i) => c.appendChild(tarjetaActividad(a, i)));
-  if (P.actividades.length < MAXACT) c.appendChild(h('button', { class: 'sec', onclick: () => { P.actividades.push(nuevaActividad()); mostrar(); } }, '+ Agregar actividad'));
-  else c.appendChild(h('small', {}, 'Máximo ' + MAXACT + ' actividades por parte.'));
+  c.appendChild(h('button', { class: 'sec', onclick: () => { P.actividades.push(nuevaActividad()); mostrar(); } }, '+ Agregar actividad'));
 }
 
 function horas(o, top) {
@@ -399,14 +524,15 @@ function pasoMaquinas(c) {
 function fotosDe(ids) { return ids.map(id => P.fotos.find(f => f.id === id)).filter(Boolean); }
 function pasoMateriales(c) {
   c.appendChild(h('h2', {}, 'Materiales'));
-  c.appendChild(h('p', { class: 'guia' }, 'Marca los que llegaron hoy. Escribe el material y, si quieres, toma foto del albarán (puedes poner varias).'));
+  c.appendChild(h('p', { class: 'guia' }, 'Material que retiraron del almacén. Marca los de hoy. Toma foto del albarán que les entregaron (puedes poner varias) o escribe el número.'));
   P.materiales.forEach((m, i) => {
     const usado = m.estado !== 'NO USADO';
     const card = h('div', { class: 'card' + (usado ? '' : ' off') });
     const cb = h('input', { type: 'checkbox', checked: usado, onchange: () => { m.estado = cb.checked ? 'USADO' : 'NO USADO'; mostrar(); } });
-    card.appendChild(h('div', { class: 'row' }, h('label', { class: 'chk' }, cb, 'Llegó hoy'),
+    card.appendChild(h('div', { class: 'row' }, h('label', { class: 'chk' }, cb, 'Lo retiraron hoy'),
       h('button', { class: 'sec', style: 'flex:0 0 90px', onclick: () => { if (confirm('¿Quitar de la lista?')) { m.fotos_ids.forEach(id => { P.fotos = P.fotos.filter(f => f.id !== id); }); P.materiales.splice(i, 1); mostrar(); } } }, 'Quitar')));
-    card.appendChild(h('div', { class: 'row' }, campo('Material o nombre', m, 'nombre'), campo('De dónde viene', m, 'procedencia'), campo('Centro de costos', m, 'c_costo')));
+    card.appendChild(h('div', { class: 'row' }, campo('Material retirado', m, 'nombre'), campo('Almacén', m, 'procedencia'), campo('Centro de costos', m, 'c_costo')));
+    if (usado) card.appendChild(h('div', { class: 'row' }, campo('No. de albarán (si lo tiene)', m, 'albaran')));
     if (usado) {
       const u = h('select', { onchange: () => { m.unidad = u.value; cambio(); } });
       PD.UNIDADES.forEach(x => u.appendChild(h('option', { value: x.cod, selected: m.unidad === x.cod }, x.texto)));
@@ -415,7 +541,7 @@ function pasoMateriales(c) {
       const gal = h('div', { class: 'fotos' });
       fotosDe(m.fotos_ids).forEach(f => gal.appendChild(miniFoto(f, () => { P.fotos = P.fotos.filter(x => x.id !== f.id); m.fotos_ids = m.fotos_ids.filter(x => x !== f.id); mostrar(); })));
       card.appendChild(h('div', { class: 'row' }, gal));
-      card.appendChild(h('div', { class: 'row' }, botonFoto('📷 Foto del albarán', true, false, ph => {
+      card.appendChild(h('div', { class: 'row' }, botonFoto('📷 Foto del albarán (puedes poner varias)', true, false, ph => {
         const f = { id: uid(), tipo: 'ALBARAN', caption: '', data: ph.data, w: ph.w, h: ph.h, url: '' };
         P.fotos.push(f); m.fotos_ids.push(f.id); mostrar();
       })));
@@ -441,15 +567,18 @@ function pasoFotos(c) {
 }
 
 function pasoPedidos(c) {
-  c.appendChild(h('h2', {}, 'Pedir para mañana'));
-  c.appendChild(h('p', { class: 'guia' }, 'Lo que necesitan para trabajar mañana. Si no necesitan nada, pasa al siguiente.'));
+  c.appendChild(h('h2', {}, 'Pedir para mañana u otro día'));
+  c.appendChild(h('p', { class: 'guia' }, 'Lo que necesitan y para cuándo. Si no necesitan nada, pasa al siguiente.'));
   P.solicitudes.forEach((s, i) => {
     const t = h('select', { onchange: () => { s.tipo = t.value; cambio(); } });
     ['Combustible', 'Maquinaria', 'Personal', 'Material', 'Herramienta', 'Otro'].forEach(x => t.appendChild(h('option', { value: x, selected: s.tipo === x }, x)));
+    const cu = h('select', { onchange: () => { s.cuando = cu.value; mostrar(); } },
+      h('option', { value: 'MANANA', selected: s.cuando !== 'FECHA' }, 'Para mañana'), h('option', { value: 'FECHA', selected: s.cuando === 'FECHA' }, 'Para otra fecha'));
     c.appendChild(h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Qué piden'), t),
       h('button', { class: 'sec', style: 'flex:0 0 90px', onclick: () => { P.solicitudes.splice(i, 1); mostrar(); } }, 'Quitar')),
+      h('div', { class: 'row' }, h('div', {}, h('label', {}, '¿Para cuándo?'), cu), s.cuando === 'FECHA' ? campo('¿Qué día?', s, 'fecha', { type: 'date' }) : null),
       h('div', { class: 'row' }, campo('Qué necesitan', s, 'detalle', { ph: 'Ej: ACPM para la retroexcavadora' })),
-      h('div', { class: 'row' }, decimal('Cantidad', s, 'cantidad'), campo('Unidad', s, 'unidad', { ph: 'galones, personas…' })),
+      h('div', { class: 'row' }, decimal('Cantidad', s, 'cantidad', { req: false }), campo('Unidad', s, 'unidad', { ph: 'galones, personas…' })),
       h('div', { class: 'row' }, campo('Observación (opcional)', s, 'obs'))));
   });
   c.appendChild(h('button', { class: 'sec', onclick: () => { P.solicitudes.push(nuevaSolicitud()); mostrar(); } }, '+ Agregar pedido'));
@@ -457,40 +586,55 @@ function pasoPedidos(c) {
 
 /* ---------- revisar ---------- */
 function validar() {
-  const pr = [];
-  const m = (paso, t) => pr.push({ paso: paso, t: t });
+  const pr = [], mk = new WeakMap();
+  const m = (paso, t, o, ks, msg) => {
+    pr.push({ paso: paso, t: t });
+    if (o) { const e = mk.get(o) || {}; [].concat(ks).forEach(k => { e[k] = msg || 'Falta este dato'; }); mk.set(o, e); }
+  };
   const hh = (a, b) => a && b && b > a;
-  if (!P.encabezado.localizacion.trim()) m(0, 'Falta el lugar.');
-  if (!P.encabezado.pk.trim()) m(0, 'Falta el PK.');
-  if (!P.clima_sel) m(0, 'Responde si hubo mal clima.');
-  if (P.clima_sel === 'si') P.clima.forEach(e => { if (!hh(e.inicio, e.fin)) m(0, 'Revisa la hora del clima.'); });
+  const e0 = P.encabezado;
+  if (!e0.localizacion.trim()) m(0, 'Falta el lugar.', e0, 'localizacion');
+  if (!/^\d{1,6}$/.test(e0.pk)) m(0, 'Falta el PK (solo números).', e0, 'pk', 'Escribe solo números');
+  if (!P.clima_sel) m(0, 'Responde si hubo mal clima.', P, 'clima_sel', 'Elige Sí o No');
+  if (P.clima_sel === 'si') P.clima.forEach(e => { if (!hh(e.inicio, e.fin)) m(0, 'Revisa la hora del clima.', e, ['inicio', 'fin'], 'Revisa la hora'); });
   if (!P.actividades.length) m(1, 'Agrega al menos una actividad.');
   P.actividades.forEach(a => {
-    if (!a.descripcion.trim()) m(1, 'La actividad ' + a.n + ' no tiene nombre.');
-    else if (isNaN(PD.cantidadActividad(a))) m(1, 'Revisa las medidas de la actividad ' + a.n + '.');
+    if (!a.descripcion.trim()) m(1, 'La actividad ' + a.n + ' no tiene nombre.', a, 'descripcion');
+    if (!a.unidad) m(1, 'Elige en qué se mide la actividad ' + a.n + '.', a, 'unidad', 'Elige una opción');
+    else if (isNaN(PD.cantidadActividad(a))) {
+      const ks = [];
+      for (let i = 1; i <= PD.dimsDe(a.unidad); i++) if (!(PD.num(a['d' + i]) > 0)) ks.push('d' + i);
+      if (isNaN(PD.num(a.descuentos)) || PD.num(a.descuentos) < 0) ks.push('descuentos');
+      if (!(PD.num(a.factor) > 0)) ks.push('factor');
+      m(1, 'Revisa las medidas de la actividad ' + a.n + '.', a, ks.length ? ks : 'unidad', 'Revisa este número');
+    }
   });
   P.personal.forEach(p => {
-    if (!p.nombre.trim()) return m(2, 'Hay una persona sin nombre.');
+    if (!p.nombre.trim()) return m(2, 'Hay una persona sin nombre.', p, 'nombre');
     if (p.estado === 'AUSENTE') return;
-    if (!p.c_costo.trim()) m(2, 'Falta el centro de costos de ' + p.nombre + '.');
-    if (!hh(p.inicio, p.fin)) m(2, 'Revisa las horas de ' + p.nombre + '.');
-    if (P.actividades.length && !p.acts.length) m(2, '¿En qué actividad trabajó ' + p.nombre + '?');
+    if (!p.c_costo.trim()) m(2, 'Falta el centro de costos de ' + p.nombre + '.', p, 'c_costo');
+    if (!hh(p.inicio, p.fin)) m(2, 'Revisa las horas de ' + p.nombre + '.', p, ['inicio', 'fin'], 'Revisa la hora');
+    if (P.actividades.length && !p.acts.length) m(2, '¿En qué actividad trabajó ' + p.nombre + '?', p, 'acts', 'Toca una actividad');
   });
   P.maquinas.forEach(x => {
-    if (!x.nombre.trim()) return m(3, 'Hay una máquina sin nombre.');
+    if (!x.nombre.trim()) return m(3, 'Hay una máquina sin nombre.', x, 'nombre');
     if (x.estado === 'NO ESTUVO') return;
-    if (!x.c_costo.trim()) m(3, 'Falta el centro de costos de ' + x.nombre + '.');
-    if (!hh(x.inicio, x.fin)) m(3, 'Revisa las horas de ' + x.nombre + '.');
-    if (P.actividades.length && x.estado !== 'VARADA' && !x.acts.length) m(3, '¿En qué actividad trabajó ' + x.nombre + '?');
+    if (!x.c_costo.trim()) m(3, 'Falta el centro de costos de ' + x.nombre + '.', x, 'c_costo');
+    if (!hh(x.inicio, x.fin)) m(3, 'Revisa las horas de ' + x.nombre + '.', x, ['inicio', 'fin'], 'Revisa la hora');
+    if (P.actividades.length && x.estado !== 'VARADA' && !x.acts.length) m(3, '¿En qué actividad trabajó ' + x.nombre + '?', x, 'acts', 'Toca una actividad');
   });
   P.materiales.forEach(x => {
     if (x.estado === 'NO USADO') return;
-    if (!x.nombre.trim()) return m(4, 'Hay un material sin nombre.');
-    if (!(PD.num(x.cantidad) > 0)) m(4, 'Falta la cantidad de ' + x.nombre + '.');
-    if (!x.c_costo.trim()) m(4, 'Falta el centro de costos de ' + x.nombre + '.');
-    if (P.actividades.length && !x.acts.length) m(4, '¿En qué actividad se usó ' + x.nombre + '?');
+    if (!x.nombre.trim()) return m(4, 'Hay un material sin nombre.', x, 'nombre');
+    if (!(PD.num(x.cantidad) > 0)) m(4, 'Falta la cantidad de ' + x.nombre + '.', x, 'cantidad', 'Escribe la cantidad');
+    if (!x.c_costo.trim()) m(4, 'Falta el centro de costos de ' + x.nombre + '.', x, 'c_costo');
+    if (P.actividades.length && !x.acts.length) m(4, '¿En qué actividad se usó ' + x.nombre + '?', x, 'acts', 'Toca una actividad');
   });
-  P.solicitudes.forEach(s => { if (!s.detalle.trim()) m(6, 'Hay un pedido sin explicar.'); });
+  P.solicitudes.forEach(q => {
+    if (!q.detalle.trim()) m(6, 'Hay un pedido sin explicar.', q, 'detalle');
+    if (q.cuando === 'FECHA' && !(q.fecha && q.fecha >= hoy())) m(6, 'Elige la fecha del pedido (hoy o después).', q, 'fecha', 'Elige una fecha');
+  });
+  ERR = mk;
   return pr;
 }
 function pasoRevisar(c) {
@@ -514,15 +658,20 @@ function copia(o) { return JSON.parse(JSON.stringify(o)); }
 function conPdf(parte) { return PD.generarParteDoc(parte, { encargado: user.nombre, residente: 'INGENIERO RESIDENTE AUXILIAR', control: 'CONTROL DE GESTION' }, window.jspdf.jsPDF); }
 
 async function guardar() {
+  verErr = true;
   const pr = validar();
   if (pr.length) { aviso('Falta arreglar ' + pr.length + ' cosa(s).', 'err'); paso = pr[0].paso; mostrar(); return; }
   aviso('Guardando…');
   const parte = copia(P);
   parte.actividades.forEach(a => { a.cantidad = PD.cantidadActividad(a); });
+  parte.encabezado.pk = PD.formatoPK(parte.encabezado.pk);
+  const hhmm = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }).replace(':', '');
+  const uid8 = (Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-3)).toLowerCase();
+  ultId = { hhmm: hhmm, uid: uid8 };
   let blob = null, b64 = null;
   try { const d = conPdf(parte); blob = d.output('blob'); b64 = d.output('datauristring').split(',')[1]; } catch (e) { console.error(e); }
   const id = parte.fecha + '_' + user.llave;
-  const entrada = { id: id, ts: Date.now(), llave: user.llave, parte: parte, pdf: b64, datosOk: false, pdfOk: !b64 };
+  const entrada = { id: id, ts: Date.now(), llave: user.llave, parte: parte, pdf: b64, hhmm: hhmm, uid: uid8, datosOk: false, pdfOk: !b64 };
   await mutarCola(c => c.filter(x => x.id !== id).concat([entrada]));
   await kv.set('roster', { llave: user.llave, parte: parte });
   ultimoPdf = blob;
@@ -543,6 +692,7 @@ function mostrarListo(parte, hayPdf) {
     L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: verPdf }, 'Ver / descargar PDF')));
   } else L.appendChild(h('p', { class: 'aviso err' }, 'No se pudo crear el PDF en este teléfono. Los datos sí quedaron guardados.'));
   L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', id: 'btnEnviar', onclick: () => sincronizar(true) }, 'Enviar ahora')));
+  L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: biblioteca }, 'Ir a mis partes')));
   L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { $('listo').hidden = true; $('app').hidden = false; $('barra').hidden = false; paso = 7; mostrar(); } }, 'Corregir el parte')));
   pintarEstado();
 }
@@ -552,7 +702,10 @@ async function pintarEstado() {
   const pend = c.some(x => x.id === (P ? P.fecha + '_' + (user && user.llave) : ''));
   e.textContent = pend ? 'Falta enviarlo a la oficina. Se enviará solo cuando haya señal.' : 'Ya se envió a la oficina. ✔';
 }
-function nombrePdf() { return 'Parte_diario_' + P.fecha + '.pdf'; }
+function nombrePdf() {
+  if (!ultId) ultId = { hhmm: new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }).replace(':', ''), uid: (Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-3)).toLowerCase() };
+  return 'Parte_' + user.llave + '_' + P.fecha + '_' + ultId.hhmm + '_' + ultId.uid + '.pdf';
+}
 async function obtenerPdf() {
   if (ultimoPdf) return ultimoPdf;
   const ro = await kv.get('roster');
@@ -591,28 +744,29 @@ async function sincronizar(manual) {
     for (const e of cola) {
       if (!e.datosOk) {
         const r = await api({ accion: 'guardar', llave: e.llave, parte: payload(e.parte) });
-        if (!r.ok) { aviso(r.mensaje || 'La oficina no aceptó el parte.', 'err'); break; }
+        if (!r.ok && r.codigo !== 'PASADO') { aviso(r.mensaje || 'La oficina no aceptó el parte.', 'err'); break; }
         e.parte.fotos.forEach(f => { if (r.fotos && r.fotos[f.id]) f.url = r.fotos[f.id]; });
         if (P && P.fecha === e.parte.fecha) P.fotos.forEach(f => { if (r.fotos && r.fotos[f.id]) f.url = r.fotos[f.id]; });
         e.datosOk = true;
         await mutarCola(c => c.map(x => (x.id === e.id && x.ts === e.ts) ? e : x));
       }
       if (e.datosOk && !e.pdfOk) {
-        const r2 = await api({ accion: 'pdf', llave: e.llave, fecha: e.parte.fecha, pdf: e.pdf });
-        if (!r2.ok) { aviso(r2.mensaje || 'No se pudo subir el PDF.', 'err'); break; }
+        const r2 = await api({ accion: 'pdf', llave: e.llave, fecha: e.parte.fecha, pdf: e.pdf, hhmm: e.hhmm, uid: e.uid });
+        if (!r2.ok && r2.codigo !== 'PASADO') { aviso(r2.mensaje || 'No se pudo subir el PDF.', 'err'); break; }
         e.pdfOk = true;
       }
       if (e.datosOk && e.pdfOk) await mutarCola(c => c.filter(x => !(x.id === e.id && x.ts === e.ts)));
     }
     if (manual) aviso('');
   } catch (err) { if (manual) aviso('No se pudo enviar. Se reintentará cuando haya señal.', 'err'); }
-  finally { sincronizando = false; pintarEstado(); }
+  finally { sincronizando = false; pintarEstado(); if (user && !$('biblio').hidden) biblioteca(); }
 }
 
 /* ---------- arranque ---------- */
 $('btnIngresar').onclick = ingresar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') ingresar(); };
 $('btnSalir').onclick = salir;
+$('btnBib').onclick = biblioteca;
 $('atras').onclick = () => { if (paso > 0) { paso--; mostrar(); } };
 $('sig').onclick = () => { if (paso < PASOS.length - 1) { paso++; mostrar(); } };
 window.addEventListener('online', () => { estadoRed(); sincronizar(false); });

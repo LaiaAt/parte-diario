@@ -11,6 +11,7 @@
     const W = 215.9, H = 279.4, M = 10, AN = W - 2 * M;
     const acts = parte.actividades || [];
     const K = Math.max(4, acts.length);
+    const wA = Math.min(6, 66 / K); // las columnas de actividades se ajustan si hay muchas
     const negro = [0, 0, 0];
 
     function rect(x, y, w, h) { doc.setDrawColor(0); doc.setLineWidth(0.3); doc.rect(x, y, w, h); }
@@ -109,7 +110,7 @@
 
     function estiloActs(inicio) {
       const s = {};
-      for (let i = 0; i < K; i++) s[inicio + i] = { cellWidth: 6, halign: 'center' };
+      for (let i = 0; i < K; i++) s[inicio + i] = { cellWidth: wA, halign: 'center', cellPadding: K > 10 ? 0.3 : 1.1, fontSize: K > 10 ? 6 : 7.5 };
       return s;
     }
 
@@ -178,7 +179,7 @@
         { content: 'CANT.', rowSpan: 2 }, { content: 'UBICACION', rowSpan: 2 }, { content: 'TRABAJO REALIZADO', colSpan: nA }, { content: 'UND. MEDIDA', rowSpan: 2 }],
       Array.from({ length: nA }, (_, i) => String(i + 1))
     ];
-    const bodyMT = mats.map(m => [m.c_costo, m.nombre, m.procedencia, PD.fmt(m.cantidad), m.ubicacion].concat(marcas(m.acts)).concat([PD.undPdf(m.unidad)]));
+    const bodyMT = mats.map(m => [m.c_costo, m.nombre, (m.procedencia || '') + (m.albaran ? ' / Alb. ' + m.albaran : ''), PD.fmt(m.cantidad), m.ubicacion].concat(marcas(m.acts)).concat([PD.undPdf(m.unidad)]));
     y = tabla(y, headMT, relleno(bodyMT, 4, 6 + nA),
       Object.assign({ 0: { cellWidth: 13 }, 2: { cellWidth: 25 }, 3: { cellWidth: 14, halign: 'right' }, 4: { cellWidth: 25 } }, estiloActs(5), { [5 + nA]: { cellWidth: 17, halign: 'center' } }));
 
@@ -201,9 +202,9 @@
     if (sol.length) {
       y = espacio(y + 4, 40);
       y = barra('SOLICITUDES PARA EL DIA SIGUIENTE', y);
-      y = tabla(y, [['TIPO', 'QUE SE NECESITA', 'CANT.', 'UND', 'OBSERVACIONES']],
-        sol.map(s => [s.tipo, s.detalle, PD.fmt(s.cantidad) || s.cantidad || '', s.unidad || '', s.obs || '']),
-        { 0: { cellWidth: 28 }, 2: { cellWidth: 16, halign: 'right' }, 3: { cellWidth: 16, halign: 'center' }, 4: { cellWidth: 50 } });
+      y = tabla(y, [['TIPO', 'QUE SE NECESITA', 'CANT.', 'UND', 'PARA', 'OBSERVACIONES']],
+        sol.map(s => [s.tipo, s.detalle, PD.fmt(s.cantidad) || s.cantidad || '', s.unidad || '', s.cuando === 'FECHA' ? PD.fechaLarga(s.fecha) : 'MANANA', s.obs || '']),
+        { 0: { cellWidth: 26 }, 2: { cellWidth: 14, halign: 'right' }, 3: { cellWidth: 14, halign: 'center' }, 4: { cellWidth: 22, halign: 'center' }, 5: { cellWidth: 40 } });
     }
 
     // ---------- Fotos ----------

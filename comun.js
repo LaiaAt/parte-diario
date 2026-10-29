@@ -65,7 +65,16 @@
     return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(f || '');
   }
 
-  const PD = { UNIDADES, num, dimsDe, undPdf, cantidadActividad, fmt, horasEntre, fechaLarga };
+  // PK: la persona escribe solo numeros (metros); se muestra como K00+000
+  function pkDigitos(v) { const d = String(v || '').replace(/\D/g, '').slice(0, 6); return d ? String(Number(d)) : ''; }
+  function formatoPK(v) {
+    const d = pkDigitos(v);
+    if (!d) return '';
+    const n = Number(d);
+    return 'K' + String(Math.floor(n / 1000)).padStart(2, '0') + '+' + String(n % 1000).padStart(3, '0');
+  }
+
+  const PD = { UNIDADES, num, dimsDe, undPdf, cantidadActividad, fmt, horasEntre, fechaLarga, pkDigitos, formatoPK };
   if (typeof module !== 'undefined' && module.exports) module.exports = PD;
   else root.PD = PD;
 })(typeof window !== 'undefined' ? window : globalThis);
