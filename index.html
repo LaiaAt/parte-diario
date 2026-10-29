@@ -196,6 +196,7 @@ async function ingresar() {
   aviso('Entrando…');
   try {
     const r = await api({ accion: 'ingresar', llave: l });
+    if (!r.ok && r.admin) { aviso('Eres administrador: te llevo al dashboard…', 'ok'); setTimeout(() => { location.href = 'admin.html'; }, 900); return; }
     if (!r.ok) { aviso(r.mensaje || 'Llave no válida', 'err'); return; }
     if (!user || user.llave !== r.llave) await kv.del('borrador');
     user = { llave: r.llave, nombre: r.nombre };

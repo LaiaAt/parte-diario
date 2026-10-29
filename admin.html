@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Dashboard partes diarios</title>
+<style>
+:root{--bg:#eef0f3;--card:#fff;--ink:#16202b;--mut:#5b6672;--line:#dde1e6;--pri:#16202b;--acc:#f4b900;--ok:#1b7a3a;--err:#b3261e;--errbg:#fdecea;--okbg:#e6f4ea;--p1:#4a78b5;--p2:#1b7a3a}
+@media (prefers-color-scheme:dark){:root{--bg:#10151b;--card:#1a222b;--ink:#e8edf2;--mut:#9aa6b2;--line:#2c3743;--pri:#e8edf2;--errbg:#3a1f1d;--okbg:#17301f;--ok:#58c77a;--err:#ff8a80;--p1:#7ea6dc;--p2:#58c77a}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--acc);color:#16202b;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header b{font-size:18px}
+main{max-width:1200px;margin:0 auto;padding:12px 16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
+h2{margin:0 0 8px;font-size:18px}
+button,select,input{font:inherit}
+button{background:var(--pri);color:var(--card);border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+button.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.sm{padding:5px 10px;font-size:14px}
+button:disabled{opacity:.5;cursor:default}
+input,select{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.row label{display:block;font-size:13px;color:var(--mut)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi b{font-size:28px;display:block}
+.kpi.mal b{color:var(--err)}.kpi.bien b{color:var(--ok)}
+.tw{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--card);z-index:1}
+td.w{white-space:normal;min-width:180px}
+.tag{display:inline-block;border-radius:5px;padding:1px 7px;font-size:12px;color:#fff}
+.tag.r{background:var(--err)}.tag.g{background:var(--ok)}
+.miss{display:flex;gap:8px;flex-wrap:wrap}
+.chipm{background:var(--errbg);color:var(--err);border:1px solid var(--err);border-radius:16px;padding:4px 12px;font-weight:700}
+.okmsg{background:var(--okbg);color:var(--ok);border-radius:8px;padding:8px 12px;font-weight:700}
+.mx td,.mx th{text-align:center;padding:4px 7px}
+.mx td:first-child,.mx th:first-child{text-align:left;position:sticky;left:0;background:var(--card)}
+.c-ok{background:var(--okbg);color:var(--ok);font-weight:700;cursor:pointer}
+.c-no{background:var(--errbg);color:var(--err);font-weight:700}
+.c-hoy{outline:2px solid var(--acc);outline-offset:-2px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.tabs button{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.tabs button.on{background:var(--pri);color:var(--card)}
+.msg{color:var(--err);font-weight:700;margin:8px 0}
+.leg{display:flex;gap:14px;font-size:14px;margin:4px 0}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+svg text{fill:var(--ink);font-size:12px}
+.small{font-size:13px;color:var(--mut)}
+[hidden]{display:none!important}
+#login{max-width:380px;margin:60px auto}
+#login input{width:100%;margin:8px 0}
+</style>
+</head>
+<body>
+<header><b>Dashboard · Partes diarios</b><span id="quien"></span></header>
+<main>
+<section id="login" class="card">
+  <h2>Acceso administradores</h2>
+  <div class="small">Solo llaves de administrador o super administrador.</div>
+  <input id="llave" type="password" autocomplete="off" placeholder="Tu llave">
+  <button id="entrar" style="width:100%">Entrar</button>
+  <div id="loginmsg" class="msg"></div>
+</section>
+
+<section id="panel" hidden>
+  <div class="card">
+    <div class="row">
+      <div><label>Mes</label><select id="mes"></select></div>
+      <div><label>Desde</label><input type="date" id="desde"></div>
+      <div><label>Hasta</label><input type="date" id="hasta"></div>
+      <button id="act">Actualizar</button>
+      <button class="sec" id="salir">Salir</button>
+      <span id="estado" class="small"></span>
+    </div>
+    <div id="err" class="msg"></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card"><h2>¿Quién no ha creado el parte?</h2><div id="faltan"></div>
+    <h2 style="margin-top:14px">Control por llave y día</h2>
+    <div class="small">✔ = parte creado (toca para bajar el PDF) · ✖ = falta · el borde amarillo es hoy</div>
+    <div class="tw" style="margin-top:8px"><table class="mx" id="matriz"></table></div>
+  </div>
+
+  <div class="card"><h2>Planeación y requerimientos</h2>
+    <div class="row"><div><label>Mostrar</label><select id="fSol"><option value="pend">Por liberar</option><option value="lib">Liberados</option><option value="todos">Todos</option></select></div>
+      <div><label>Llave</label><select id="fSolLlave"></select></div></div>
+    <div class="tw" style="margin-top:8px"><table id="tSol"></table></div>
+  </div>
+
+  <div class="card"><h2>Pedidos por llave: solicitado vs liberado</h2>
+    <div class="leg"><span><i style="background:var(--p1)"></i>Solicitado</span><span><i style="background:var(--p2)"></i>Liberado</span></div>
+    <div id="grafico"></div>
+  </div>
+
+  <div class="card"><h2>Partes diarios</h2>
+    <div class="row"><div><label>Llave</label><select id="fPar"></select></div>
+      <button class="sec sm" id="todosPdf">Descargar todos los PDF de la lista</button></div>
+    <div class="tw" style="margin-top:8px"><table id="tPar"></table></div>
+  </div>
+
+  <div class="card"><h2>Consolidados</h2>
+    <div class="small">Cada fila indica la llave a la que pertenece. Rango: el de arriba.</div>
+    <div class="tabs" id="tabs"></div>
+    <div class="row"><div><label>Llave</label><select id="fCon"></select></div>
+      <button class="sec sm" id="csv">Descargar esta tabla (CSV)</button>
+      <button class="sm" id="xlsx">Descargar consolidado completo (Excel)</button></div>
+    <div id="totales" class="small" style="margin:8px 0"></div>
+    <div class="tw"><table id="tCon"></table></div>
+  </div>
+</section>
+</main>
+
+<script>
+'use strict';
+const API = 'https://script.google.com/macros/s/AKfycbz6LjPHWbh_vLcYhwSvYFp8tMN737nX-hJUPiX6vOvLb_3tEAyH9zeCC_4pqNSPRz9O1w/exec';
+const $ = i => document.getElementById(i);
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const k in (attrs || {})) { if (k === 'class') e.className = attrs[k]; else if (k.startsWith('on')) e[k] = attrs[k]; else if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]); }
+  kids.flat().forEach(c => { if (c !== null && c !== undefined && c !== false) e.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c))); });
+  return e;
+}
+const fmtF = f => { const p = String(f).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f; };
+const sumDias = (f, n) => { const d = new Date(f + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const bogota = () => new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10);
+
+let LLAVE = '', D = null, tab = 'ACTIVIDAD';
+
+async function api(d) {
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 90000);
+  try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
+  finally { clearTimeout(t); }
+}
+function salir() { try { sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
+async function entrar() {
+  const l = $('llave').value.trim(); if (!l) return;
+  $('loginmsg').textContent = 'Entrando…'; $('entrar').disabled = true;
+  try {
+    LLAVE = l;
+    const ok = await cargar(true);
+    if (ok) { try { sessionStorage.setItem('adm', l); } catch (e) {} $('login').hidden = true; $('panel').hidden = false; $('loginmsg').textContent = ''; }
+    else { LLAVE = ''; }
+  } catch (e) { $('loginmsg').textContent = 'No se pudo conectar.'; LLAVE = ''; }
+  $('entrar').disabled = false;
+}
+async function cargar(primera) {
+  $('estado').textContent = 'Cargando…'; $('err').textContent = '';
+  const r = await api({ accion: 'admin', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
+  $('estado').textContent = '';
+  if (!r.ok) { (primera ? $('loginmsg') : $('err')).textContent = r.mensaje || 'No se pudo cargar'; if (!primera && /administradores/.test(r.mensaje || '')) salir(); return false; }
+  D = r; $('quien').textContent = r.nombre; pintar(); return true;
+}
+
+function llaves() { return D.usuarios.map(u => u.llave); }
+function llenarSel(id, conTodas) {
+  const s = $(id), v = s.value; s.textContent = '';
+  s.appendChild(h('option', { value: '' }, 'Todas'));
+  llaves().forEach(l => s.appendChild(h('option', { value: l }, l)));
+  s.value = v && llaves().indexOf(v) >= 0 ? v : '';
+}
+function dias() { const a = [], d = $('desde').value, hh = $('hasta').value; for (let f = d; f <= hh && a.length < 93; f = sumDias(f, 1)) a.push(f); return a; }
+
+function pintar() {
+  ['fSolLlave', 'fPar', 'fCon'].forEach(i => llenarSel(i));
+  kpis(); faltan(); matriz(); solicitudes(); grafico(); partes(); consolidado();
+}
+function kpis() {
+  const hoy = D.hoy, us = D.usuarios.length;
+  const hechosHoy = new Set(D.partes.filter(p => p.fecha === hoy).map(p => p.llave)).size;
+  const pend = D.SOLICITUD.filter(s => !s.liberado).length;
+  const K = (t, v, c) => h('div', { class: 'kpi ' + (c || '') }, h('b', {}, v), t);
+  const e = $('kpis'); e.textContent = '';
+  e.append(K('Llaves de usuario', us), K('Partes de hoy', hechosHoy + ' / ' + us, hechosHoy < us ? 'mal' : 'bien'), K('Sin parte hoy', us - hechosHoy, us - hechosHoy ? 'mal' : 'bien'),
+    K('Pedidos por liberar', pend, pend ? 'mal' : 'bien'), K('Partes en el rango', D.partes.length));
+}
+function faltan() {
+  const c = $('faltan'); c.textContent = '';
+  const hoy = D.hoy;
+  if ($('hasta').value < hoy || $('desde').value > hoy) c.appendChild(h('div', { class: 'small' }, 'El rango no incluye hoy. Mira la tabla de abajo.'));
+  const hechos = new Set(D.partes.filter(p => p.fecha === hoy).map(p => p.llave));
+  const no = D.usuarios.filter(u => !hechos.has(u.llave));
+  if ($('desde').value <= hoy && $('hasta').value >= hoy) {
+    if (!no.length) c.appendChild(h('div', { class: 'okmsg' }, '✔ Todas las llaves ya crearon el parte de hoy'));
+    else c.appendChild(h('div', { class: 'miss' }, no.map(u => h('span', { class: 'chipm' }, u.llave + ' · ' + u.nombre))));
+  }
+}
+function matriz() {
+  const t = $('matriz'); t.textContent = '';
+  const ds = dias();
+  const mapa = {}; D.partes.forEach(p => { mapa[p.llave + '|' + p.fecha] = p; });
+  t.appendChild(h('thead', {}, h('tr', {}, h('th', {}, 'Llave'), ds.map(f => h('th', { class: f === D.hoy ? 'c-hoy' : '' }, f.slice(8) + '/' + f.slice(5, 7))))));
+  const b = h('tbody');
+  D.usuarios.forEach(u => b.appendChild(h('tr', {}, h('td', {}, u.llave, h('div', { class: 'small' }, u.nombre)), ds.map(f => {
+    const p = mapa[u.llave + '|' + f], hoyc = f === D.hoy ? ' c-hoy' : '';
+    if (!p) return h('td', { class: 'c-no' + hoyc }, '✖');
+    return h('td', { class: 'c-ok' + hoyc, title: 'Bajar PDF', onclick: () => bajarPdf(p) }, '✔');
+  }))));
+  t.appendChild(b);
+}
+
+/* ---- pedidos ---- */
+function paraTxt(s) { return s.para === 'MAÑANA' ? 'Mañana ' + fmtF(sumDias(s.fecha, 1)) : fmtF(s.para); }
+function solicitudes() {
+  const modo = $('fSol').value, ll = $('fSolLlave').value;
+  let L = D.SOLICITUD.filter(s => (!ll || s.llave === ll) && (modo === 'todos' || (modo === 'lib') === !!s.liberado));
+  L.sort((a, b) => (a.liberado - b.liberado) || ((a.para === 'MAÑANA' ? sumDias(a.fecha, 1) : a.para).localeCompare(b.para === 'MAÑANA' ? sumDias(b.fecha, 1) : b.para)));
+  const t = $('tSol'); t.textContent = '';
+  t.appendChild(h('thead', {}, h('tr', {}, ['Liberado', 'Llave', 'Parte del', 'Para cuándo', 'Qué', 'Detalle', 'Cant.', 'Observación'].map(x => h('th', {}, x)))));
+  const b = h('tbody');
+  L.forEach(s => {
+    const cb = h('input', { type: 'checkbox' }); cb.checked = !!s.liberado;
+    cb.onchange = async () => {
+      cb.disabled = true; const nuevo = cb.checked;
+      try {
+        const r = await api({ accion: 'admin_liberar', llave: LLAVE, sid: s.sid, lib: nuevo });
+        if (!r.ok) { cb.checked = !nuevo; $('err').textContent = r.mensaje || 'No se pudo guardar'; }
+        else { s.liberado = nuevo; s.liberado_por = r.por; s.liberado_ts = r.ts; $('err').textContent = ''; kpis(); grafico(); solicitudes(); }
+      } catch (e) { cb.checked = !nuevo; $('err').textContent = 'No se pudo guardar. Intenta de nuevo.'; }
+      cb.disabled = false;
+    };
+    b.appendChild(h('tr', {}, h('td', {}, cb, s.liberado ? h('div', { class: 'small' }, s.liberado_por + ' ' + String(s.liberado_ts).slice(5, 16)) : ''),
+      h('td', {}, s.llave), h('td', {}, fmtF(s.fecha)), h('td', {}, paraTxt(s)), h('td', {}, s.tipo), h('td', { class: 'w' }, s.detalle), h('td', {}, [s.cantidad, s.unidad].join(' ').trim()), h('td', { class: 'w' }, s.obs)));
+  });
+  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 8 }, 'Nada por mostrar')));
+  t.appendChild(b);
+}
+function grafico() {
+  const c = $('grafico'); c.textContent = '';
+  const ls = llaves(); if (!ls.length) return;
+  const sol = {}, lib = {}; ls.forEach(l => { sol[l] = 0; lib[l] = 0; });
+  D.SOLICITUD.forEach(s => { if (s.llave in sol) { sol[s.llave]++; if (s.liberado) lib[s.llave]++; } });
+  const max = Math.max(1, ...ls.map(l => sol[l]));
+  const W = Math.max(320, ls.length * 90 + 50), H = 240, m = { l: 34, b: 50, t: 14 }, ph = H - m.b - m.t, ns = 'http://www.w3.org/2000/svg';
+  const E = (n, a, tx) => { const e = document.createElementNS(ns, n); for (const k in a) e.setAttribute(k, a[k]); if (tx !== undefined) e.textContent = tx; return e; };
+  const svg = E('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img', 'aria-label': 'Pedidos solicitados y liberados por llave' });
+  const paso = max <= 5 ? 1 : Math.ceil(max / 5);
+  for (let v = 0; v <= max; v += paso) { const y = m.t + ph - ph * v / max; svg.appendChild(E('line', { x1: m.l, x2: W, y1: y, y2: y, stroke: 'var(--line)' })); svg.appendChild(E('text', { x: m.l - 6, y: y + 4, 'text-anchor': 'end' }, v)); }
+  const gw = (W - m.l) / ls.length, bw = Math.min(26, gw / 3);
+  ls.forEach((l, i) => {
+    const x0 = m.l + gw * i + gw / 2;
+    [[sol[l], 'var(--p1)', -bw], [lib[l], 'var(--p2)', 0]].forEach(([v, col, dx]) => {
+      const bh = ph * v / max;
+      svg.appendChild(E('rect', { x: x0 + dx, y: m.t + ph - bh, width: bw - 2, height: bh, fill: col, rx: 2 }));
+      svg.appendChild(E('text', { x: x0 + dx + (bw - 2) / 2, y: m.t + ph - bh - 4, 'text-anchor': 'middle' }, v));
+    });
+    svg.appendChild(E('text', { x: x0, y: H - m.b + 16, 'text-anchor': 'middle' }, l.length > 12 ? l.slice(0, 11) + '…' : l));
+  });
+  const w = h('div', { class: 'tw', style: 'border:0' }); w.appendChild(svg); c.appendChild(w);
+  const tot = ls.reduce((a, l) => a + sol[l], 0), tl = ls.reduce((a, l) => a + lib[l], 0);
+  c.appendChild(h('div', { class: 'small' }, 'Total solicitado: ' + tot + ' · liberado: ' + tl + ' · por liberar: ' + (tot - tl)));
+}
+
+/* ---- partes y PDFs ---- */
+function b64Blob(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Blob([u], { type: 'application/pdf' }); }
+function bajar(blob, nombre) { const u = URL.createObjectURL(blob); const a = h('a', { href: u, download: nombre }); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000); }
+async function bajarPdf(p) {
+  $('estado').textContent = 'Descargando PDF…';
+  try {
+    const r = await api({ accion: 'admin_pdf', llave: LLAVE, id: p.id });
+    $('estado').textContent = '';
+    if (!r.ok) { $('err').textContent = r.mensaje || 'No se pudo bajar'; return false; }
+    $('err').textContent = ''; bajar(b64Blob(r.pdf), r.nombre); return true;
+  } catch (e) { $('estado').textContent = ''; $('err').textContent = 'No se pudo bajar el PDF.'; return false; }
+}
+function listaPartes() { const ll = $('fPar').value; return D.partes.filter(p => !ll || p.llave === ll); }
+function partes() {
+  const t = $('tPar'); t.textContent = '';
+  t.appendChild(h('thead', {}, h('tr', {}, ['Fecha', 'Llave', 'Usuario', 'Lugar', 'PK', 'PDF'].map(x => h('th', {}, x)))));
+  const b = h('tbody'); const L = listaPartes();
+  L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
+    h('td', {}, p.pdf ? h('button', { class: 'sm', onclick: () => bajarPdf(p) }, 'Descargar') : h('span', { class: 'tag r' }, 'sin PDF')))));
+  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 6 }, 'No hay partes en este rango')));
+  t.appendChild(b);
+}
+async function todosPdf() {
+  const L = listaPartes().filter(p => p.pdf); if (!L.length) return;
+  if (L.length > 1 && !confirm('Se descargarán ' + L.length + ' PDF uno tras otro. ¿Continuar?')) return;
+  $('todosPdf').disabled = true;
+  for (let i = 0; i < L.length; i++) { $('estado').textContent = 'PDF ' + (i + 1) + ' de ' + L.length + '…'; if (!(await bajarPdf(L[i]))) break; await new Promise(r => setTimeout(r, 700)); }
+  $('estado').textContent = ''; $('todosPdf').disabled = false;
+}
+
+/* ---- consolidados ---- */
+const DEF = {
+  ACTIVIDAD: { nombre: 'Actividades', cols: [['Llave', 'llave'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['N°', 'n'], ['Actividad', 'descripcion'], ['Unidad', 'unidad'], ['Cantidad', 'cantidad'], ['Observación', 'obs']] },
+  PERSONAL: { nombre: 'Personal', cols: [['Llave', 'llave'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Nombre', 'nombre'], ['Cargo', 'cargo'], ['Inicio', 'inicio'], ['Fin', 'fin'], ['Horas', 'horas'], ['Estado', 'estado'], ['Actividades', 'acts']] },
+  MAQUINA: { nombre: 'Máquinas', cols: [['Llave', 'llave'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Máquina', 'nombre'], ['Recibo', 'recibo'], ['Inicio', 'inicio'], ['Fin', 'fin'], ['Horas', 'horas'], ['Estado', 'estado'], ['Actividades', 'acts'], ['Observación', 'obs']] },
+  MATERIAL: { nombre: 'Materiales', cols: [['Llave', 'llave'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Material', 'nombre'], ['Almacén', 'almacen'], ['Albarán', 'albaran'], ['Cantidad', 'cantidad'], ['Unidad', 'unidad'], ['Ubicación', 'ubicacion'], ['Estado', 'estado'], ['Actividades', 'acts']] },
+  SOLICITUD: { nombre: 'Pedidos', cols: [['Llave', 'llave'], ['Fecha parte', 'fecha'], ['Usuario', 'usuario'], ['Qué', 'tipo'], ['Detalle', 'detalle'], ['Cantidad', 'cantidad'], ['Unidad', 'unidad'], ['Para cuándo', '_para'], ['Observación', 'obs'], ['Liberado', '_lib'], ['Liberado por', 'liberado_por']] }
+};
+function valor(k, r) { if (k === '_para') return paraTxt(r); if (k === '_lib') return r.liberado ? 'SI' : 'NO'; return r[k] === undefined || r[k] === null ? '' : r[k]; }
+function filas(sec, ll) { return D[sec].filter(r => !ll || r.llave === ll).slice().sort((a, b) => (a.llave + a.fecha).localeCompare(b.llave + b.fecha)); }
+function consolidado() {
+  const tb = $('tabs'); tb.textContent = '';
+  Object.keys(DEF).forEach(k => tb.appendChild(h('button', { class: k === tab ? 'on' : '', onclick: () => { tab = k; consolidado(); } }, DEF[k].nombre + ' (' + D[k].length + ')')));
+  const d = DEF[tab], ll = $('fCon').value, L = filas(tab, ll);
+  const t = $('tCon'); t.textContent = '';
+  t.appendChild(h('thead', {}, h('tr', {}, d.cols.map(c => h('th', {}, c[0])))));
+  const b = h('tbody');
+  L.slice(0, 1500).forEach(r => b.appendChild(h('tr', {}, d.cols.map(c => h('td', { class: /obs|detalle|descripcion/.test(c[1]) ? 'w' : '' }, valor(c[1], r))))));
+  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: d.cols.length }, 'Sin datos en este rango')));
+  t.appendChild(b);
+  let tot = L.length + ' filas';
+  if (tab === 'PERSONAL' || tab === 'MAQUINA') tot += ' · ' + (Math.round(L.reduce((a, r) => a + (Number(r.horas) || 0), 0) * 100) / 100) + ' horas';
+  if (tab === 'MATERIAL') tot += ' · cantidades por material: ' + resumenMat(L);
+  if (L.length > 1500) tot += ' (se muestran 1500; la descarga trae todo)';
+  $('totales').textContent = tot;
+}
+function resumenMat(L) { const m = {}; L.forEach(r => { if (r.estado === 'NO USADO') return; const k = r.nombre + ' (' + r.unidad + ')'; m[k] = (m[k] || 0) + (Number(r.cantidad) || 0); }); return Object.keys(m).slice(0, 8).map(k => k + ': ' + Math.round(m[k] * 100) / 100).join(', ') || '—'; }
+function csvCelda(v) { let s = String(v); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; }
+function descargarCsv() {
+  const d = DEF[tab], L = filas(tab, $('fCon').value);
+  const out = [d.cols.map(c => csvCelda(c[0])).join(';')].concat(L.map(r => d.cols.map(c => csvCelda(valor(c[1], r))).join(';')));
+  bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Consolidado_' + d.nombre + '_' + $('desde').value + '_' + $('hasta').value + '.csv');
+}
+function formula(v) { return typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v; }
+function descargarXlsx() {
+  if (!window.XLSX) { $('err').textContent = 'No cargó el módulo de Excel. Usa la descarga CSV o revisa tu conexión.'; return; }
+  const ll = $('fCon').value, wb = XLSX.utils.book_new();
+  Object.keys(DEF).forEach(k => {
+    const d = DEF[k], L = filas(k, ll);
+    const aoa = [d.cols.map(c => c[0])].concat(L.map(r => d.cols.map(c => { const v = valor(c[1], r); const n = (typeof v === 'string' && v !== '' && !isNaN(Number(v)) && /^(cantidad|horas|n)$/.test(c[1])) ? Number(v) : v; return formula(n); })));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = d.cols.map(c => ({ wch: Math.max(c[0].length + 2, /obs|detalle|descripcion|nombre/.test(c[1]) ? 28 : 12) }));
+    XLSX.utils.book_append_sheet(wb, ws, d.nombre);
+  });
+  XLSX.writeFile(wb, 'Consolidado_' + (ll || 'TODAS') + '_' + $('desde').value + '_' + $('hasta').value + '.xlsx');
+}
+
+$('entrar').onclick = entrar;
+$('llave').onkeydown = e => { if (e.key === 'Enter') entrar(); };
+$('salir').onclick = salir;
+$('act').onclick = () => cargar(false);
+['fSol', 'fSolLlave'].forEach(i => $(i).onchange = solicitudes);
+$('fPar').onchange = partes; $('fCon').onchange = consolidado;
+$('todosPdf').onclick = todosPdf; $('csv').onclick = descargarCsv; $('xlsx').onclick = descargarXlsx;
+(function () {
+  const hy = bogota(), M = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  let y = Number(hy.slice(0, 4)), m = Number(hy.slice(5, 7));
+  const s = $('mes'); s.appendChild(h('option', { value: '' }, 'Rango propio'));
+  for (let i = 0; i < 24; i++) { s.appendChild(h('option', { value: y + '-' + String(m).padStart(2, '0') }, M[m - 1] + ' ' + y)); m--; if (!m) { m = 12; y--; } }
+  s.onchange = () => {
+    if (!s.value) return;
+    const [yy, mm] = s.value.split('-').map(Number), fin = new Date(Date.UTC(yy, mm, 0)).toISOString().slice(0, 10);
+    $('desde').value = s.value + '-01'; $('hasta').value = fin > hy ? hy : fin;
+    if (LLAVE) cargar(false);
+  };
+  s.value = hy.slice(0, 7); $('desde').value = hy.slice(0, 7) + '-01'; $('hasta').value = hy;
+  ['desde', 'hasta'].forEach(i => $(i).onchange = () => { s.value = ''; });
+})();
+(function () { let l = ''; try { l = sessionStorage.getItem('adm') || ''; } catch (e) {} if (l) { $('llave').value = l; entrar(); } })();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+</body>
+</html>
