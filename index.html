@@ -176,9 +176,9 @@ function base(p, reiniciar) {
 function aviso(t, c) { const a = $('aviso'); a.textContent = t || ''; a.className = 'aviso ' + (c || ''); a.hidden = !t; if (t) window.scrollTo(0, 0); }
 function estadoRed() { $('red').textContent = navigator.onLine ? 'Con señal' : 'Sin señal'; }
 
-async function api(d) {
+async function api(d, ms) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 60000);
+  const t = setTimeout(() => ctrl.abort(), ms || 60000);
   try {
     const r = await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal });
     return await r.json();
@@ -230,28 +230,28 @@ async function salir() {
 let ult = null;
 async function abrir(r) {
   ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
-  if (!r && navigator.onLine) {
-    try { const x = await api({ accion: 'ingresar', llave: user.llave }); if (x.ok) { r = x; await guardarIngreso(x); } else if (/no v[aá]lida|inactiv/i.test(x.mensaje || '')) { await cerrarSesion(x.mensaje); return; } } catch (e) {}
-  }
+  $('biblio').hidden = false;
+  $('biblio').textContent = '';
+  $('biblio').appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + (user.nombre || '')), h('br'), h('small', {}, 'Cargando…'), h('br'),
+    h('button', { class: 'link', onclick: salir }, 'Cambiar de usuario')));
   ult = r;
+  if (!r && navigator.onLine) {
+    api({ accion: 'ingresar', llave: user.llave }, 15000).then(async x => {
+      if (x.ok) { ult = x; await guardarIngreso(x); }
+      else if (/no v[aá]lida|inactiv/i.test(x.mensaje || '')) await cerrarSesion(x.mensaje);
+    }).catch(() => {});
+  }
   await biblioteca();
   sincronizar(false);
 }
 
-async function biblioteca() {
-  aviso('');
-  ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
-  $('biblio').hidden = false;
-  const B = $('biblio');
-  let lista = (await kv.get('bib_' + user.llave)) || [];
-  if (navigator.onLine) {
-    try { const x = await api({ accion: 'lista', llave: user.llave }); if (x.ok) { lista = x.biblioteca; await kv.set('bib_' + user.llave, lista); } else if (/no v[aá]lida|inactiv/i.test(x.mensaje || '')) { await cerrarSesion(x.mensaje); return; } } catch (e) {}
-  }
+async function pintarBiblio(lista) {
   const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave);
   const h0 = hoy(), por = {};
   lista.forEach(x => { por[x.fecha] = { fecha: x.fecha, pdf: x.pdf, pend: false }; });
   cola.forEach(e => { const f = e.parte.fecha; por[f] = Object.assign(por[f] || { fecha: f, pdf: false }, { pend: true, local: !!e.pdf }); });
   const hayHoy = !!por[h0];
+  const B = $('biblio');
   B.textContent = '';
   B.appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + user.nombre), h('br'), h('small', {}, PD.fechaLarga(h0)), h('br'),
     h('button', { class: 'link', onclick: salir }, 'Cambiar de usuario')));
@@ -261,6 +261,21 @@ async function biblioteca() {
   Object.keys(por).filter(f => f !== h0).sort().reverse().forEach(f => card.appendChild(filaParte(por[f], false)));
   if (!Object.keys(por).length) card.appendChild(h('p', {}, h('small', {}, 'Todavía no hay partes.')));
   B.appendChild(card);
+}
+
+async function biblioteca() {
+  aviso('');
+  ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
+  $('biblio').hidden = false;
+  let lista = (await kv.get('bib_' + user.llave)) || [];
+  await pintarBiblio(lista);
+  if (navigator.onLine) {
+    try {
+      const x = await api({ accion: 'lista', llave: user.llave }, 20000);
+      if (x.ok) { lista = x.biblioteca; await kv.set('bib_' + user.llave, lista); if (user && !$('biblio').hidden) await pintarBiblio(lista); }
+      else if (/no v[aá]lida|inactiv/i.test(x.mensaje || '')) { await cerrarSesion(x.mensaje); return; }
+    } catch (e) {}
+  }
 }
 function filaParte(x, esHoy) {
   const bs = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' });
