@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#f5b800">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -10,364 +12,614 @@
 <style>
 :root{--ink:#14202b;--hv:#f5b800;--paper:#eef0f2;--line:#c9d0d6;--ok:#1f7a3d;--err:#b3261e;--mut:#51606d}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:16px}
-header{background:var(--hv);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:17px;padding-bottom:84px}
+header{background:var(--hv);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 header h1{font-size:18px;margin:0}
-#estado{font-size:13px;font-weight:600}
-main{max-width:640px;margin:auto;padding:16px}
-h2{font-size:17px;margin:22px 0 8px}
-.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:10px}
-.row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:flex-end}
-.row>*{flex:1;min-width:110px}
-label{font-size:13px;color:var(--mut);display:block;margin-bottom:2px}
-input,select{width:100%;padding:11px;font-size:16px;border:1px solid #8794a0;border-radius:6px;background:#fff;color:var(--ink)}
+#red{font-size:13px;font-weight:700}
+main{max-width:640px;margin:auto;padding:14px}
+h2{font-size:20px;margin:6px 0 4px}
+.guia{margin:0 0 12px;color:var(--mut);font-size:15px}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:flex-end}
+.row>*{flex:1;min-width:120px}
+label{font-size:14px;color:var(--mut);display:block;margin-bottom:3px}
+input,select{width:100%;padding:12px;font-size:17px;border:1px solid #8794a0;border-radius:6px;background:#fff;color:var(--ink)}
 input:focus,select:focus,button:focus-visible{outline:3px solid var(--hv);outline-offset:1px}
-button{padding:13px 16px;font-size:16px;font-weight:600;border:0;border-radius:6px;background:var(--ink);color:#fff;width:100%}
+button{padding:14px 16px;font-size:17px;font-weight:700;border:0;border-radius:6px;background:var(--ink);color:#fff;width:100%}
 button.sec{background:#dde2e6;color:var(--ink)}
-button.link{background:none;color:var(--ink);text-decoration:underline;width:auto;padding:4px;font-weight:400;font-size:14px}
-.chk{display:flex;align-items:center;gap:10px;font-size:17px;color:var(--ink);margin:0}
-.chk input{width:26px;height:26px}
-.msg{padding:10px 12px;border-radius:6px;margin:12px 0;font-size:15px;border:1px solid var(--line);background:#fff}
-.msg.ok{border-color:var(--ok);color:var(--ok)}
-.msg.err{border-color:var(--err);color:var(--err)}
+button.link{background:none;color:var(--ink);text-decoration:underline;width:auto;padding:4px;font-weight:400;font-size:15px}
+.chk{display:flex;align-items:center;gap:10px;font-size:18px;color:var(--ink);margin:0;font-weight:700}
+.chk input{width:28px;height:28px}
+.aviso{padding:10px 12px;border-radius:6px;margin:0 0 12px;font-size:16px;border:1px solid var(--line);background:#fff}
+.aviso.ok{border-color:var(--ok);color:var(--ok)}.aviso.err{border-color:var(--err);color:var(--err)}
 .off{opacity:.5}
-.pend{margin:12px 0;font-size:15px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{width:auto;min-width:64px;padding:10px 12px;background:#fff;color:var(--ink);border:2px solid var(--ink);font-weight:600}
+.chip.on{background:var(--ink);color:#fff}
+.total{margin-top:10px;font-size:19px;font-weight:700}
+.n{display:inline-block;background:var(--hv);border-radius:50%;width:30px;height:30px;line-height:30px;text-align:center;font-weight:800;margin-right:6px}
+.fotos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fotos img{width:100%;border-radius:4px;display:block}
+.prob{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0;color:var(--err);font-size:16px}
+.prob button{width:auto;padding:8px 12px;font-size:15px}
 small{color:var(--mut)}
+#barra{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 14px;display:flex;gap:10px}
+#barra button{flex:1}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
-<header>
-  <h1>Parte diario de obra</h1>
-  <span id="estado"></span>
-</header>
+<header><h1>Parte diario de obra</h1><span id="red"></span></header>
 <main>
-  <div id="msg" class="msg" style="display:none"></div>
+  <div id="aviso" class="aviso" hidden></div>
 
-  <div id="login" class="card">
-    <label for="llave">Tu llave</label>
+  <section id="login" class="card">
+    <label for="llave">Escribe tu llave</label>
     <input id="llave" type="text" autocapitalize="characters" autocomplete="off">
-    <div class="row"><button onclick="ingresar()">Ingresar</button></div>
-    <p><small>El primer ingreso necesita señal. Después puedes trabajar sin internet.</small></p>
-  </div>
+    <div class="row"><button id="btnIngresar">Entrar</button></div>
+    <p><small>La primera vez necesitas señal. Después funciona sin internet.</small></p>
+  </section>
 
-  <div id="form" style="display:none">
-    <div class="card">
-      <b id="saludo"></b><br>
-      <span id="fecha"></span><br>
-      <small id="aviso"></small><br>
-      <button class="link" onclick="cambiarUsuario()">Cambiar de usuario</button>
-    </div>
+  <section id="app" hidden>
+    <div class="card"><b id="saludo"></b> · <span id="fecha"></span><br><small id="info"></small><br>
+      <button class="link" id="btnSalir">Cambiar de usuario</button></div>
+    <div id="progreso" class="guia"></div>
+    <div id="contenido"></div>
+  </section>
 
-    <h2>Personal</h2>
-    <div id="PERSONAL"></div>
-    <button class="sec" onclick="agregar('PERSONAL')">Agregar persona</button>
-
-    <h2>Maquinaria</h2>
-    <div id="MAQUINA"></div>
-    <button class="sec" onclick="agregar('MAQUINA')">Agregar máquina</button>
-
-    <div id="pend" class="pend"></div>
-    <div class="row">
-      <button onclick="guardar()">Guardar parte</button>
-      <button class="sec" id="btnEnviar" onclick="sincronizar(true)" style="display:none">Enviar pendientes</button>
-    </div>
-  </div>
+  <section id="listo" hidden></section>
 </main>
+<nav id="barra" hidden><button class="sec" id="atras">Atrás</button><button id="sig">Siguiente</button></nav>
+<datalist id="dl-act"></datalist>
+<datalist id="dl-cargo"><option value="Oficial"><option value="Ayudante"><option value="Operador"><option value="Tráfico"><option value="Conductor"><option value="Topógrafo"><option value="Inspector SST"></datalist>
 
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="comun.js"></script>
+<script src="pdf.js"></script>
 <script>
+'use strict';
 const API = 'https://script.google.com/macros/s/AKfycbz6LjPHWbh_vLcYhwSvYFp8tMN737nX-hJUPiX6vOvLb_3tEAyH9zeCC_4pqNSPRz9O1w/exec';
-
+const MAXACT = 6, MAXFOTOS = 15;
+const PASOS = ['Datos del día', 'Actividades', 'Personal', 'Máquinas', 'Materiales', 'Fotos', 'Pedir para mañana', 'Revisar y guardar'];
 const $ = id => document.getElementById(id);
-const LS = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
-};
 const hoy = () => new Date().toLocaleDateString('sv-SE');
-let user = LS.get('pd_user', null);
-let items = [];
+const uid = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-function msg(t, c) {
-  const m = $('msg');
-  m.textContent = t;
-  m.className = 'msg ' + (c || '');
-  m.style.display = t ? 'block' : 'none';
-}
-
-function estadoRed() {
-  $('estado').textContent = navigator.onLine ? 'Con conexión' : 'Sin conexión';
-}
-
-async function api(d) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 25000);
-  try {
-    const r = await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal });
-    return await r.json();
-  } finally {
-    clearTimeout(t);
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const k in (props || {})) {
+    const v = props[k];
+    if (k === 'class') e.className = v;
+    else if (k.slice(0, 2) === 'on') e[k] = v;
+    else if (k === 'value') e.value = v;
+    else if (k === 'checked') e.checked = !!v;
+    else if (v !== false && v !== null && v !== undefined) e.setAttribute(k, v);
   }
+  kids.flat().forEach(c => {
+    if (c === null || c === undefined || c === false) return;
+    e.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
+  });
+  return e;
 }
 
-function reiniciar(it) {
-  const o = Object.assign({}, it);
-  o.estado = it.seccion === 'PERSONAL' ? 'PRESENTE' : 'OPERANDO';
-  o.obs = '';
+/* ---------- almacenamiento en el teléfono ---------- */
+const kv = (() => {
+  let dbp;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('parte-diario', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+  const tx = async (modo, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv', modo);
+      const rq = fn(t.objectStore('kv'));
+      t.oncomplete = () => res(rq && rq.result);
+      t.onerror = () => rej(t.error);
+    });
+  };
+  return { get: k => tx('readonly', s => s.get(k)), set: (k, v) => tx('readwrite', s => s.put(v, k)), del: k => tx('readwrite', s => s.delete(k)) };
+})();
+
+/* ---------- estado ---------- */
+let user = null, P = null, paso = 0, sugerencias = [], ultimoPdf = null, tBorr = null;
+
+const nuevoParte = () => ({ fecha: hoy(), encabezado: { localizacion: '', pk: '' }, clima_sel: null, clima: [], actividades: [],
+  personal: [], maquinas: [], materiales: [], fotos: [], solicitudes: [] });
+const ultimoCC = () => { const t = [].concat(P.personal, P.maquinas, P.materiales); for (let i = t.length - 1; i >= 0; i--) if (t[i].c_costo) return t[i].c_costo; return ''; };
+const nuevaActividad = () => ({ n: P.actividades.length + 1, descripcion: '', unidad: '', d1: '', d2: '', d3: '', descuentos: '0', factor: '1', obs: '' });
+const nuevaPersona = () => ({ c_costo: ultimoCC(), nombre: '', cargo: '', inicio: '07:00', fin: '16:00', estado: 'PRESENTE', acts: [] });
+const nuevaMaquina = () => ({ c_costo: ultimoCC(), nombre: '', recibo: '', inicio: '07:00', fin: '16:00', estado: 'OPERANDO', obs: '', acts: [] });
+const nuevoMaterial = () => ({ c_costo: ultimoCC(), nombre: '', procedencia: '', cantidad: '', unidad: 'M3', ubicacion: '', acts: [], fotos_ids: [], estado: 'USADO' });
+const nuevaSolicitud = () => ({ tipo: 'Combustible', detalle: '', cantidad: '', unidad: '', obs: '' });
+
+// Convierte lo que viene del servidor o del teléfono en un parte completo. reiniciar = día nuevo con la cuadrilla de ayer.
+function base(p, reiniciar) {
+  const o = nuevoParte();
+  if (!p) return o;
+  o.fecha = reiniciar ? hoy() : (p.fecha || hoy());
+  o.encabezado = { localizacion: (p.encabezado || {}).localizacion || '', pk: (p.encabezado || {}).pk || '' };
+  const L = x => Array.isArray(x) ? x : [];
+  if (!reiniciar) {
+    o.clima_sel = p.clima_sel || null; o.clima = L(p.clima); o.actividades = L(p.actividades);
+    o.fotos = L(p.fotos); o.solicitudes = L(p.solicitudes);
+  }
+  o.personal = L(p.personal).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', cargo: x.cargo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
+    estado: reiniciar ? 'PRESENTE' : (x.estado || 'PRESENTE'), acts: reiniciar ? [] : L(x.acts) }));
+  o.maquinas = L(p.maquinas).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', recibo: x.recibo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
+    estado: reiniciar ? 'OPERANDO' : (x.estado || 'OPERANDO'), obs: reiniciar ? '' : (x.obs || ''), acts: reiniciar ? [] : L(x.acts) }));
+  o.materiales = L(p.materiales).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', procedencia: x.procedencia || '', unidad: x.unidad || 'M3', ubicacion: x.ubicacion || '',
+    cantidad: reiniciar ? '' : (x.cantidad === undefined ? '' : x.cantidad), acts: reiniciar ? [] : L(x.acts), fotos_ids: reiniciar ? [] : L(x.fotos_ids), estado: reiniciar ? 'NO USADO' : (x.estado || 'USADO') }));
   return o;
 }
 
+/* ---------- avisos y red ---------- */
+function aviso(t, c) { const a = $('aviso'); a.textContent = t || ''; a.className = 'aviso ' + (c || ''); a.hidden = !t; if (t) window.scrollTo(0, 0); }
+function estadoRed() { $('red').textContent = navigator.onLine ? 'Con señal' : 'Sin señal'; }
+
+async function api(d) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 60000);
+  try {
+    const r = await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal });
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+
+/* ---------- ingreso ---------- */
 async function ingresar() {
   const l = $('llave').value.trim();
-  if (!l) { msg('Escribe tu llave', 'err'); return; }
-  if (!navigator.onLine) { msg('El primer ingreso necesita señal.', 'err'); return; }
-  msg('Validando…');
+  if (!l) { aviso('Escribe tu llave.', 'err'); return; }
+  if (!navigator.onLine) { aviso('La primera vez necesitas señal.', 'err'); return; }
+  aviso('Entrando…');
   try {
     const r = await api({ accion: 'ingresar', llave: l });
-    if (!r.ok) { msg(r.mensaje || 'Llave no válida', 'err'); return; }
-    if (!user || user.llave !== r.llave) {
-      localStorage.removeItem('pd_borrador');
-    }
+    if (!r.ok) { aviso(r.mensaje || 'Llave no válida', 'err'); return; }
+    if (!user || user.llave !== r.llave) await kv.del('borrador');
     user = { llave: r.llave, nombre: r.nombre };
-    LS.set('pd_user', user);
-    LS.set('pd_roster', { llave: r.llave, items: r.items });
-    msg('');
+    await kv.set('user', user);
+    sugerencias = r.sugerencias || [];
+    await kv.set('sugerencias', sugerencias);
+    if (r.parte) await kv.set('roster', { llave: r.llave, parte: r.parte });
+    aviso('');
     await abrir(r);
-  } catch (e) {
-    msg('No se pudo conectar. Intenta de nuevo.', 'err');
-  }
+  } catch (e) { aviso('No se pudo conectar. Intenta de nuevo.', 'err'); }
 }
 
-function cambiarUsuario() {
-  const n = cola().length;
-  if (n && !confirm('Hay ' + n + ' parte(s) sin enviar. Si cambias de usuario se enviarán después con la señal. ¿Continuar?')) return;
-  localStorage.removeItem('pd_user');
-  localStorage.removeItem('pd_borrador');
-  user = null;
-  $('form').style.display = 'none';
-  $('login').style.display = 'block';
-  $('llave').value = '';
+async function salir() {
+  const cola = (await kv.get('cola')) || [];
+  if (cola.length && !confirm('Hay ' + cola.length + ' parte(s) sin enviar. Se enviarán cuando haya señal. ¿Cambiar de usuario?')) return;
+  await kv.del('user'); await kv.del('borrador');
+  user = null; P = null;
+  ['app', 'listo', 'barra'].forEach(i => $(i).hidden = true);
+  $('login').hidden = false; $('llave').value = '';
 }
 
-async function abrir(respuesta) {
-  $('login').style.display = 'none';
-  $('form').style.display = 'block';
+async function abrir(r) {
+  $('login').hidden = true; $('listo').hidden = true; $('app').hidden = false; $('barra').hidden = false;
   $('saludo').textContent = 'Hola, ' + user.nombre;
-  $('fecha').textContent = hoy();
-
-  const b = LS.get('pd_borrador', null);
+  $('fecha').textContent = PD.fechaLarga(hoy());
+  const b = await kv.get('borrador');
   if (b && b.fecha === hoy() && b.llave === user.llave) {
-    items = b.items;
-    $('aviso').textContent = 'Borrador de hoy recuperado.';
+    P = base(b.parte, false); paso = b.paso || 0;
+    $('info').textContent = 'Seguimos con tu parte de hoy.';
   } else {
-    let r = respuesta;
     if (!r && navigator.onLine) {
-      try {
-        r = await api({ accion: 'ingresar', llave: user.llave });
-        if (r && r.ok) LS.set('pd_roster', { llave: user.llave, items: r.items });
-        else r = null;
-      } catch (e) { r = null; }
+      try { const x = await api({ accion: 'ingresar', llave: user.llave }); if (x.ok) { r = x; sugerencias = x.sugerencias || []; await kv.set('sugerencias', sugerencias); if (x.parte) await kv.set('roster', { llave: user.llave, parte: x.parte }); } } catch (e) {}
     }
-    if (r && r.ok) {
-      items = r.items;
-      $('aviso').textContent = r.esHoy
-        ? 'Ya hay un parte de hoy. Puedes editarlo.'
-        : (items.length ? 'Cuadrilla cargada del último parte. Revisa quién está presente.' : 'Primer parte: agrega tu personal y máquinas.');
-    } else {
-      const ros = LS.get('pd_roster', null);
-      if (ros && ros.llave === user.llave && ros.items.length) {
-        items = ros.items.map(reiniciar);
-        $('aviso').textContent = 'Cuadrilla del último parte guardado en este teléfono.';
-      } else {
-        items = [];
-        $('aviso').textContent = 'Primer parte: agrega tu personal y máquinas.';
-      }
+    paso = 0;
+    if (r && r.ok && r.esHoy) { P = base(r.parte, false); P.fecha = hoy(); $('info').textContent = 'Ya había un parte de hoy. Puedes corregirlo.'; }
+    else {
+      let src = (r && r.ok) ? r.parte : null;
+      if (!src) { const ro = await kv.get('roster'); if (ro && ro.llave === user.llave) src = ro.parte; }
+      P = base(src, true);
+      $('info').textContent = src ? 'Cargamos tu gente y máquinas de ayer. Marca quién vino.' : 'Primer parte: agrega tu gente y máquinas.';
     }
   }
-  render();
-  pintarPend();
+  sugerencias = sugerencias.length ? sugerencias : ((await kv.get('sugerencias')) || []);
+  const dl = $('dl-act'); dl.textContent = '';
+  sugerencias.forEach(s => dl.appendChild(h('option', { value: s.descripcion })));
+  mostrar();
   sincronizar(false);
 }
 
-function guardarBorrador() {
-  if (user) LS.set('pd_borrador', { fecha: hoy(), llave: user.llave, items: items });
+function cambio() {
+  clearTimeout(tBorr);
+  tBorr = setTimeout(() => { if (user && P) kv.set('borrador', { fecha: P.fecha, llave: user.llave, parte: P, paso: paso }); }, 600);
 }
 
-function agregar(sec) {
-  const base = items.length ? items[0].c_costo : '';
-  items.push({
-    seccion: sec, c_costo: base, descripcion: '', categoria: '',
-    inicio: '07:00', fin: '16:00',
-    estado: sec === 'PERSONAL' ? 'PRESENTE' : 'OPERANDO', obs: ''
+/* ---------- piezas reutilizables ---------- */
+function campo(etiqueta, obj, clave, o) {
+  o = o || {};
+  const inp = h('input', { type: o.type || 'text', inputmode: o.inputmode, placeholder: o.ph, list: o.list, autocomplete: 'off', value: obj[clave] == null ? '' : obj[clave],
+    oninput: () => { obj[clave] = inp.value; if (o.alCambiar) o.alCambiar(); cambio(); } });
+  return h('div', {}, h('label', {}, etiqueta), inp, o.ayuda ? h('small', {}, o.ayuda) : null);
+}
+const decimal = (e, o, k, x) => campo(e, o, k, Object.assign({ inputmode: 'decimal' }, x));
+
+function chips(obj) {
+  if (!P.actividades.length) return h('small', {}, 'Primero escribe las actividades (paso 2).');
+  const c = h('div', { class: 'chips' });
+  P.actividades.forEach(a => {
+    const b = h('button', { type: 'button', class: 'chip' + (obj.acts.indexOf(a.n) >= 0 ? ' on' : ''),
+      onclick: () => { const i = obj.acts.indexOf(a.n); if (i >= 0) obj.acts.splice(i, 1); else obj.acts.push(a.n); b.classList.toggle('on'); cambio(); } },
+      'Act. ' + a.n);
+    c.appendChild(b);
   });
-  guardarBorrador();
-  render();
+  return h('div', {}, h('label', {}, '¿En qué actividad trabajó? (toca una o varias)'), c);
 }
 
-function render() {
-  ['PERSONAL', 'MAQUINA'].forEach(sec => {
-    const cont = $(sec);
-    cont.textContent = '';
-    items.forEach((it, i) => { if (it.seccion === sec) cont.appendChild(tarjeta(it, i)); });
+function quitarActividad(i) {
+  const n = P.actividades[i].n;
+  P.actividades.splice(i, 1);
+  P.actividades.forEach((a, k) => a.n = k + 1);
+  [].concat(P.personal, P.maquinas, P.materiales).forEach(x => { x.acts = x.acts.filter(v => v !== n).map(v => v > n ? v - 1 : v); });
+}
+
+/* ---------- fotos ---------- */
+function comprimir(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * k), hh = Math.round(img.naturalHeight * k);
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = hh;
+      cv.getContext('2d').drawImage(img, 0, 0, w, hh);
+      URL.revokeObjectURL(url);
+      res({ data: cv.toDataURL('image/jpeg', 0.65), w: w, h: hh });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('foto')); };
+    img.src = url;
   });
 }
-
-function campo(etiqueta, tipo, valor, fn) {
-  const d = document.createElement('div');
-  const lb = document.createElement('label');
-  lb.textContent = etiqueta;
-  const inp = document.createElement('input');
-  inp.type = tipo;
-  inp.value = valor || '';
-  inp.oninput = () => { fn(inp.value); guardarBorrador(); };
-  d.appendChild(lb);
-  d.appendChild(inp);
-  return d;
-}
-
-function tarjeta(it, i) {
-  const esP = it.seccion === 'PERSONAL';
-  const c = document.createElement('div');
-  c.className = 'card';
-  const apagado = () => it.estado === 'AUSENTE' || it.estado === 'NO ESTUVO';
-  const aplicar = () => c.classList.toggle('off', apagado());
-
-  const top = document.createElement('div');
-  top.className = 'row';
-  if (esP) {
-    const l = document.createElement('label');
-    l.className = 'chk';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = it.estado !== 'AUSENTE';
-    cb.onchange = () => { it.estado = cb.checked ? 'PRESENTE' : 'AUSENTE'; aplicar(); guardarBorrador(); };
-    l.appendChild(cb);
-    l.appendChild(document.createTextNode('Presente'));
-    top.appendChild(l);
-  } else {
-    const d = document.createElement('div');
-    const lb = document.createElement('label');
-    lb.textContent = 'Estado';
-    const s = document.createElement('select');
-    [['OPERANDO', 'Operando'], ['VARADA', 'Varada'], ['OPERO Y SE VARO', 'Operó y se varó'], ['NO ESTUVO', 'No estuvo']]
-      .forEach(o => {
-        const op = document.createElement('option');
-        op.value = o[0];
-        op.textContent = o[1];
-        if (it.estado === o[0]) op.selected = true;
-        s.appendChild(op);
-      });
-    s.onchange = () => { it.estado = s.value; aplicar(); guardarBorrador(); };
-    d.appendChild(lb);
-    d.appendChild(s);
-    top.appendChild(d);
-  }
-  const q = document.createElement('button');
-  q.className = 'sec';
-  q.textContent = 'Quitar';
-  q.style.flex = '0 0 90px';
-  q.onclick = () => {
-    if (confirm('¿Quitar de la lista?')) { items.splice(i, 1); guardarBorrador(); render(); }
+function botonFoto(texto, multiple, capture, alAgregar) {
+  const inp = h('input', { type: 'file', accept: 'image/*', hidden: true });
+  if (multiple) inp.multiple = true;
+  if (capture) inp.setAttribute('capture', 'environment');
+  inp.onchange = async () => {
+    aviso('Preparando foto…');
+    try { for (const f of Array.from(inp.files)) { const c = await comprimir(f); alAgregar(c); } aviso(''); }
+    catch (e) { aviso('No se pudo leer la foto.', 'err'); }
+    inp.value = '';
   };
-  top.appendChild(q);
-  c.appendChild(top);
+  return h('div', {}, inp, h('button', { class: 'sec', type: 'button', onclick: () => inp.click() }, texto));
+}
+const miniFoto = (f, alQuitar) => h('div', {}, h('img', { src: f.data, alt: 'foto' }),
+  h('button', { class: 'sec', type: 'button', style: 'margin-top:4px;padding:8px', onclick: alQuitar }, 'Quitar'));
 
-  const r1 = document.createElement('div');
-  r1.className = 'row';
-  r1.appendChild(campo(esP ? 'Nombre' : 'Equipo', 'text', it.descripcion, v => it.descripcion = v));
-  r1.appendChild(campo(esP ? 'Cargo' : 'No. recibo', 'text', it.categoria, v => it.categoria = v));
-  r1.appendChild(campo('Centro de costos', 'text', it.c_costo, v => it.c_costo = v));
-  c.appendChild(r1);
-
-  const r2 = document.createElement('div');
-  r2.className = 'row';
-  r2.appendChild(campo('Inicio', 'time', it.inicio, v => it.inicio = v));
-  r2.appendChild(campo('Fin', 'time', it.fin, v => it.fin = v));
-  c.appendChild(r2);
-
-  if (!esP) {
-    const r3 = document.createElement('div');
-    r3.className = 'row';
-    r3.appendChild(campo('Observación (hora de la varada, etc.)', 'text', it.obs, v => it.obs = v));
-    c.appendChild(r3);
-  }
-  aplicar();
-  return c;
+/* ---------- pasos ---------- */
+function mostrar() {
+  const c = $('contenido'); c.textContent = '';
+  $('progreso').textContent = 'Paso ' + (paso + 1) + ' de ' + PASOS.length + ': ' + PASOS[paso];
+  [pasoDatos, pasoActividades, pasoPersonal, pasoMaquinas, pasoMateriales, pasoFotos, pasoPedidos, pasoRevisar][paso](c);
+  $('atras').hidden = paso === 0;
+  $('sig').hidden = paso === PASOS.length - 1;
+  window.scrollTo(0, 0);
+  cambio();
 }
 
-const cola = () => LS.get('pd_cola', []);
+function pasoDatos(c) {
+  c.appendChild(h('h2', {}, 'Datos del día'));
+  c.appendChild(h('p', { class: 'guia' }, 'Dónde trabajaron hoy y si hubo mal clima.'));
+  c.appendChild(h('div', { class: 'card' }, campo('Lugar', P.encabezado, 'localizacion', { ph: 'Ej: QF1' }), h('div', { class: 'row' }, campo('PK', P.encabezado, 'pk', { ph: 'Ej: PK1+650' }))));
+  const clima = h('div', { class: 'card' }, h('b', {}, '¿Hubo lluvia u otro mal clima hoy?'));
+  const fila = h('div', { class: 'chips' });
+  [['no', 'No'], ['si', 'Sí']].forEach(o => fila.appendChild(h('button', { type: 'button', class: 'chip' + (P.clima_sel === o[0] ? ' on' : ''),
+    onclick: () => { P.clima_sel = o[0]; if (o[0] === 'si' && !P.clima.length) P.clima.push({ tipo: 'Lluvia', inicio: '', fin: '', obs: '' }); if (o[0] === 'no') P.clima = []; mostrar(); } }, o[1])));
+  clima.appendChild(fila);
+  if (P.clima_sel === 'si') {
+    P.clima.forEach((e, i) => {
+      const t = h('select', { onchange: () => { e.tipo = t.value; cambio(); } });
+      ['Lluvia', 'Tormenta', 'Viento fuerte', 'Otro'].forEach(x => t.appendChild(h('option', { value: x, selected: e.tipo === x }, x)));
+      clima.appendChild(h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Qué pasó'), t), campo('Desde', e, 'inicio', { type: 'time' }), campo('Hasta', e, 'fin', { type: 'time' }),
+        h('button', { class: 'sec', style: 'flex:0 0 80px;padding:12px', onclick: () => { P.clima.splice(i, 1); mostrar(); } }, 'Quitar')));
+    });
+    clima.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { P.clima.push({ tipo: 'Lluvia', inicio: '', fin: '', obs: '' }); mostrar(); } }, '+ Otra vez que llovió')));
+  }
+  c.appendChild(clima);
+}
 
-function pintarPend() {
-  const n = cola().length;
-  $('pend').textContent = n ? n + ' parte(s) pendiente(s) de enviar' : '';
-  $('btnEnviar').style.display = n ? 'block' : 'none';
+function totalTexto(a) { const q = PD.cantidadActividad(a); return isNaN(q) ? 'Total: completa las medidas' : 'Total: ' + PD.fmt(q) + ' ' + PD.undPdf(a.unidad); }
+function tarjetaActividad(a, i) {
+  const card = h('div', { class: 'card' });
+  const tot = h('div', { class: 'total' }, totalTexto(a));
+  const act = () => { tot.textContent = totalTexto(a); };
+  card.appendChild(h('div', {}, h('span', { class: 'n' }, a.n), h('b', {}, 'Actividad ' + a.n)));
+  card.appendChild(campo('¿Qué hicieron?', a, 'descripcion', { list: 'dl-act', ph: 'Ej: Excavación del canal', alCambiar: () => {
+    const s = sugerencias.find(x => x.descripcion.toUpperCase() === a.descripcion.trim().toUpperCase());
+    if (s && !a.unidad) { a.unidad = s.unidad; mostrar(); }
+  } }));
+  const sel = h('select', { onchange: () => { a.unidad = sel.value; mostrar(); } }, h('option', { value: '' }, 'Elige…'));
+  PD.UNIDADES.forEach(u => sel.appendChild(h('option', { value: u.cod, selected: a.unidad === u.cod }, u.texto)));
+  card.appendChild(h('div', { class: 'row' }, h('div', {}, h('label', {}, '¿En qué se mide?'), sel)));
+  const u = PD.UNIDADES.find(x => x.cod === a.unidad);
+  if (u) {
+    const f = h('div', { class: 'row' });
+    u.dims.forEach((d, k) => f.appendChild(decimal(d, a, 'd' + (k + 1), { alCambiar: act })));
+    card.appendChild(f);
+    card.appendChild(h('div', { class: 'row' },
+      decimal('Descuentos', a, 'descuentos', { alCambiar: act, ayuda: 'Lo que no cuenta (ej: una tubería dentro). Si no hay, deja 0.' }),
+      decimal('Factor', a, 'factor', { alCambiar: act, ayuda: 'Veces que se repitió, o esponjamiento (ej: 1.6). Si no, deja 1.' })));
+    card.appendChild(tot);
+  }
+  card.appendChild(h('div', { class: 'row' }, campo('Observaciones (opcional)', a, 'obs')));
+  card.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { if (confirm('¿Quitar esta actividad?')) { quitarActividad(i); mostrar(); } } }, 'Quitar actividad')));
+  return card;
+}
+function pasoActividades(c) {
+  c.appendChild(h('h2', {}, 'Actividades'));
+  c.appendChild(h('p', { class: 'guia' }, 'Escribe cada trabajo que hicieron hoy y sus medidas.'));
+  P.actividades.forEach((a, i) => c.appendChild(tarjetaActividad(a, i)));
+  if (P.actividades.length < MAXACT) c.appendChild(h('button', { class: 'sec', onclick: () => { P.actividades.push(nuevaActividad()); mostrar(); } }, '+ Agregar actividad'));
+  else c.appendChild(h('small', {}, 'Máximo ' + MAXACT + ' actividades por parte.'));
+}
+
+function horas(o, top) {
+  return h('div', { class: 'row' }, campo('Entró', o, 'inicio', { type: 'time' }), campo('Salió', o, 'fin', { type: 'time' }));
+}
+function pasoPersonal(c) {
+  c.appendChild(h('h2', {}, 'Personal'));
+  c.appendChild(h('p', { class: 'guia' }, 'Deja marcado a quien vino. Quita la marca a quien no vino.'));
+  P.personal.forEach((p, i) => {
+    const card = h('div', { class: 'card' + (p.estado === 'AUSENTE' ? ' off' : '') });
+    const cb = h('input', { type: 'checkbox', checked: p.estado !== 'AUSENTE', onchange: () => { p.estado = cb.checked ? 'PRESENTE' : 'AUSENTE'; mostrar(); } });
+    card.appendChild(h('div', { class: 'row' }, h('label', { class: 'chk' }, cb, 'Vino'),
+      h('button', { class: 'sec', style: 'flex:0 0 90px', onclick: () => { if (confirm('¿Quitar de la lista?')) { P.personal.splice(i, 1); mostrar(); } } }, 'Quitar')));
+    card.appendChild(h('div', { class: 'row' }, campo('Nombre', p, 'nombre'), campo('Cargo', p, 'cargo', { list: 'dl-cargo' }), campo('Centro de costos', p, 'c_costo')));
+    if (p.estado !== 'AUSENTE') { card.appendChild(horas(p)); card.appendChild(chips(p)); }
+    c.appendChild(card);
+  });
+  c.appendChild(h('button', { class: 'sec', onclick: () => { P.personal.push(nuevaPersona()); mostrar(); } }, '+ Agregar persona'));
+}
+
+function pasoMaquinas(c) {
+  c.appendChild(h('h2', {}, 'Máquinas'));
+  c.appendChild(h('p', { class: 'guia' }, 'Cuáles máquinas trabajaron y si alguna se varó.'));
+  P.maquinas.forEach((m, i) => {
+    const off = m.estado === 'NO ESTUVO';
+    const card = h('div', { class: 'card' + (off ? ' off' : '') });
+    const s = h('select', { onchange: () => { m.estado = s.value; mostrar(); } });
+    [['OPERANDO', 'Trabajó bien'], ['OPERO Y SE VARO', 'Trabajó y se varó'], ['VARADA', 'Estuvo varada'], ['NO ESTUVO', 'No vino']].forEach(o => s.appendChild(h('option', { value: o[0], selected: m.estado === o[0] }, o[1])));
+    card.appendChild(h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Estado'), s),
+      h('button', { class: 'sec', style: 'flex:0 0 90px', onclick: () => { if (confirm('¿Quitar de la lista?')) { P.maquinas.splice(i, 1); mostrar(); } } }, 'Quitar')));
+    card.appendChild(h('div', { class: 'row' }, campo('Máquina', m, 'nombre'), campo('No. de recibo', m, 'recibo'), campo('Centro de costos', m, 'c_costo')));
+    if (!off) {
+      card.appendChild(horas(m));
+      if (m.estado === 'OPERO Y SE VARO' || m.estado === 'VARADA') card.appendChild(h('div', { class: 'row' }, campo('¿A qué hora se varó? ¿Qué pasó?', m, 'obs')));
+      if (m.estado !== 'VARADA') card.appendChild(chips(m));
+    }
+    c.appendChild(card);
+  });
+  c.appendChild(h('button', { class: 'sec', onclick: () => { P.maquinas.push(nuevaMaquina()); mostrar(); } }, '+ Agregar máquina'));
+}
+
+function fotosDe(ids) { return ids.map(id => P.fotos.find(f => f.id === id)).filter(Boolean); }
+function pasoMateriales(c) {
+  c.appendChild(h('h2', {}, 'Materiales'));
+  c.appendChild(h('p', { class: 'guia' }, 'Marca los que llegaron hoy. Escribe el material y, si quieres, toma foto del albarán (puedes poner varias).'));
+  P.materiales.forEach((m, i) => {
+    const usado = m.estado !== 'NO USADO';
+    const card = h('div', { class: 'card' + (usado ? '' : ' off') });
+    const cb = h('input', { type: 'checkbox', checked: usado, onchange: () => { m.estado = cb.checked ? 'USADO' : 'NO USADO'; mostrar(); } });
+    card.appendChild(h('div', { class: 'row' }, h('label', { class: 'chk' }, cb, 'Llegó hoy'),
+      h('button', { class: 'sec', style: 'flex:0 0 90px', onclick: () => { if (confirm('¿Quitar de la lista?')) { m.fotos_ids.forEach(id => { P.fotos = P.fotos.filter(f => f.id !== id); }); P.materiales.splice(i, 1); mostrar(); } } }, 'Quitar')));
+    card.appendChild(h('div', { class: 'row' }, campo('Material o nombre', m, 'nombre'), campo('De dónde viene', m, 'procedencia'), campo('Centro de costos', m, 'c_costo')));
+    if (usado) {
+      const u = h('select', { onchange: () => { m.unidad = u.value; cambio(); } });
+      PD.UNIDADES.forEach(x => u.appendChild(h('option', { value: x.cod, selected: m.unidad === x.cod }, x.texto)));
+      card.appendChild(h('div', { class: 'row' }, decimal('Cantidad', m, 'cantidad'), h('div', {}, h('label', {}, 'Unidad'), u), campo('Dónde se usó', m, 'ubicacion')));
+      card.appendChild(chips(m));
+      const gal = h('div', { class: 'fotos' });
+      fotosDe(m.fotos_ids).forEach(f => gal.appendChild(miniFoto(f, () => { P.fotos = P.fotos.filter(x => x.id !== f.id); m.fotos_ids = m.fotos_ids.filter(x => x !== f.id); mostrar(); })));
+      card.appendChild(h('div', { class: 'row' }, gal));
+      card.appendChild(h('div', { class: 'row' }, botonFoto('📷 Foto del albarán', true, false, ph => {
+        const f = { id: uid(), tipo: 'ALBARAN', caption: '', data: ph.data, w: ph.w, h: ph.h, url: '' };
+        P.fotos.push(f); m.fotos_ids.push(f.id); mostrar();
+      })));
+    }
+    c.appendChild(card);
+  });
+  c.appendChild(h('button', { class: 'sec', onclick: () => { P.materiales.push(nuevoMaterial()); mostrar(); } }, '+ Agregar material'));
+}
+
+function pasoFotos(c) {
+  c.appendChild(h('h2', {}, 'Fotos del trabajo'));
+  c.appendChild(h('p', { class: 'guia' }, 'Toma fotos de lo que hicieron hoy. Saldrán en el PDF.'));
+  const gen = P.fotos.filter(f => f.tipo !== 'ALBARAN');
+  const gal = h('div', { class: 'fotos' });
+  gen.forEach(f => gal.appendChild(h('div', {}, h('img', { src: f.data, alt: 'foto' }),
+    campo('Qué se ve (opcional)', f, 'caption'),
+    h('button', { class: 'sec', style: 'margin-top:4px;padding:8px', onclick: () => { P.fotos = P.fotos.filter(x => x.id !== f.id); mostrar(); } }, 'Quitar'))));
+  c.appendChild(gal);
+  if (gen.length < MAXFOTOS) {
+    c.appendChild(h('div', { class: 'row' }, botonFoto('📷 Tomar foto', false, true, ph => { P.fotos.push({ id: uid(), tipo: 'GENERAL', caption: '', data: ph.data, w: ph.w, h: ph.h, url: '' }); mostrar(); }),
+      botonFoto('🖼 Elegir de la galería', true, false, ph => { if (P.fotos.filter(f => f.tipo !== 'ALBARAN').length < MAXFOTOS) { P.fotos.push({ id: uid(), tipo: 'GENERAL', caption: '', data: ph.data, w: ph.w, h: ph.h, url: '' }); } mostrar(); })));
+  } else c.appendChild(h('small', {}, 'Máximo ' + MAXFOTOS + ' fotos.'));
+}
+
+function pasoPedidos(c) {
+  c.appendChild(h('h2', {}, 'Pedir para mañana'));
+  c.appendChild(h('p', { class: 'guia' }, 'Lo que necesitan para trabajar mañana. Si no necesitan nada, pasa al siguiente.'));
+  P.solicitudes.forEach((s, i) => {
+    const t = h('select', { onchange: () => { s.tipo = t.value; cambio(); } });
+    ['Combustible', 'Maquinaria', 'Personal', 'Material', 'Herramienta', 'Otro'].forEach(x => t.appendChild(h('option', { value: x, selected: s.tipo === x }, x)));
+    c.appendChild(h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Qué piden'), t),
+      h('button', { class: 'sec', style: 'flex:0 0 90px', onclick: () => { P.solicitudes.splice(i, 1); mostrar(); } }, 'Quitar')),
+      h('div', { class: 'row' }, campo('Qué necesitan', s, 'detalle', { ph: 'Ej: ACPM para la retroexcavadora' })),
+      h('div', { class: 'row' }, decimal('Cantidad', s, 'cantidad'), campo('Unidad', s, 'unidad', { ph: 'galones, personas…' })),
+      h('div', { class: 'row' }, campo('Observación (opcional)', s, 'obs'))));
+  });
+  c.appendChild(h('button', { class: 'sec', onclick: () => { P.solicitudes.push(nuevaSolicitud()); mostrar(); } }, '+ Agregar pedido'));
+}
+
+/* ---------- revisar ---------- */
+function validar() {
+  const pr = [];
+  const m = (paso, t) => pr.push({ paso: paso, t: t });
+  const hh = (a, b) => a && b && b > a;
+  if (!P.encabezado.localizacion.trim()) m(0, 'Falta el lugar.');
+  if (!P.encabezado.pk.trim()) m(0, 'Falta el PK.');
+  if (!P.clima_sel) m(0, 'Responde si hubo mal clima.');
+  if (P.clima_sel === 'si') P.clima.forEach(e => { if (!hh(e.inicio, e.fin)) m(0, 'Revisa la hora del clima.'); });
+  if (!P.actividades.length) m(1, 'Agrega al menos una actividad.');
+  P.actividades.forEach(a => {
+    if (!a.descripcion.trim()) m(1, 'La actividad ' + a.n + ' no tiene nombre.');
+    else if (isNaN(PD.cantidadActividad(a))) m(1, 'Revisa las medidas de la actividad ' + a.n + '.');
+  });
+  P.personal.forEach(p => {
+    if (!p.nombre.trim()) return m(2, 'Hay una persona sin nombre.');
+    if (p.estado === 'AUSENTE') return;
+    if (!p.c_costo.trim()) m(2, 'Falta el centro de costos de ' + p.nombre + '.');
+    if (!hh(p.inicio, p.fin)) m(2, 'Revisa las horas de ' + p.nombre + '.');
+    if (P.actividades.length && !p.acts.length) m(2, '¿En qué actividad trabajó ' + p.nombre + '?');
+  });
+  P.maquinas.forEach(x => {
+    if (!x.nombre.trim()) return m(3, 'Hay una máquina sin nombre.');
+    if (x.estado === 'NO ESTUVO') return;
+    if (!x.c_costo.trim()) m(3, 'Falta el centro de costos de ' + x.nombre + '.');
+    if (!hh(x.inicio, x.fin)) m(3, 'Revisa las horas de ' + x.nombre + '.');
+    if (P.actividades.length && x.estado !== 'VARADA' && !x.acts.length) m(3, '¿En qué actividad trabajó ' + x.nombre + '?');
+  });
+  P.materiales.forEach(x => {
+    if (x.estado === 'NO USADO') return;
+    if (!x.nombre.trim()) return m(4, 'Hay un material sin nombre.');
+    if (!(PD.num(x.cantidad) > 0)) m(4, 'Falta la cantidad de ' + x.nombre + '.');
+    if (!x.c_costo.trim()) m(4, 'Falta el centro de costos de ' + x.nombre + '.');
+    if (P.actividades.length && !x.acts.length) m(4, '¿En qué actividad se usó ' + x.nombre + '?');
+  });
+  P.solicitudes.forEach(s => { if (!s.detalle.trim()) m(6, 'Hay un pedido sin explicar.'); });
+  return pr;
+}
+function pasoRevisar(c) {
+  c.appendChild(h('h2', {}, 'Revisar y guardar'));
+  const pr = validar();
+  const pres = P.personal.filter(p => p.estado !== 'AUSENTE').length;
+  c.appendChild(h('div', { class: 'card' },
+    h('div', {}, P.actividades.length + ' actividades'), h('div', {}, pres + ' personas (' + (P.personal.length - pres) + ' no vinieron)'),
+    h('div', {}, P.maquinas.length + ' máquinas'), h('div', {}, P.materiales.filter(x => x.estado !== 'NO USADO').length + ' materiales'),
+    h('div', {}, P.fotos.length + ' fotos'), h('div', {}, P.solicitudes.length + ' pedidos para mañana')));
+  if (pr.length) {
+    const b = h('div', { class: 'card' }, h('b', {}, 'Falta arreglar esto:'));
+    pr.forEach(x => b.appendChild(h('div', { class: 'prob' }, h('span', {}, x.t), h('button', { class: 'sec', onclick: () => { paso = x.paso; mostrar(); } }, 'Ir'))));
+    c.appendChild(b);
+  }
+  c.appendChild(h('button', { onclick: guardar }, 'Guardar parte'));
+}
+
+/* ---------- guardar, PDF y envío ---------- */
+function copia(o) { return JSON.parse(JSON.stringify(o)); }
+function conPdf(parte) { return PD.generarParteDoc(parte, { encargado: user.nombre, residente: 'INGENIERO RESIDENTE AUXILIAR', control: 'CONTROL DE GESTION' }, window.jspdf.jsPDF); }
+
+async function guardar() {
+  const pr = validar();
+  if (pr.length) { aviso('Falta arreglar ' + pr.length + ' cosa(s).', 'err'); paso = pr[0].paso; mostrar(); return; }
+  aviso('Guardando…');
+  const parte = copia(P);
+  parte.actividades.forEach(a => { a.cantidad = PD.cantidadActividad(a); });
+  let blob = null, b64 = null;
+  try { const d = conPdf(parte); blob = d.output('blob'); b64 = d.output('datauristring').split(',')[1]; } catch (e) { console.error(e); }
+  const id = parte.fecha + '_' + user.llave;
+  const entrada = { id: id, ts: Date.now(), llave: user.llave, parte: parte, pdf: b64, datosOk: false, pdfOk: !b64 };
+  await mutarCola(c => c.filter(x => x.id !== id).concat([entrada]));
+  await kv.set('roster', { llave: user.llave, parte: parte });
+  ultimoPdf = blob;
+  await kv.set('borrador', { fecha: P.fecha, llave: user.llave, parte: P, paso: paso });
+  aviso('');
+  mostrarListo(parte, !!blob);
+  sincronizar(false);
+}
+
+async function mutarCola(fn) { const c = (await kv.get('cola')) || []; await kv.set('cola', fn(c)); }
+
+function mostrarListo(parte, hayPdf) {
+  $('app').hidden = true; $('barra').hidden = true; $('listo').hidden = false;
+  const L = $('listo'); L.textContent = '';
+  L.appendChild(h('div', { class: 'card' }, h('h2', {}, '✔ Parte guardado'), h('p', { id: 'estadoEnvio' }, 'Está guardado en el teléfono.')));
+  if (hayPdf) {
+    L.appendChild(h('div', { class: 'row' }, h('button', { onclick: compartir }, 'Compartir PDF por WhatsApp')));
+    L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: verPdf }, 'Ver / descargar PDF')));
+  } else L.appendChild(h('p', { class: 'aviso err' }, 'No se pudo crear el PDF en este teléfono. Los datos sí quedaron guardados.'));
+  L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', id: 'btnEnviar', onclick: () => sincronizar(true) }, 'Enviar ahora')));
+  L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { $('listo').hidden = true; $('app').hidden = false; $('barra').hidden = false; paso = 7; mostrar(); } }, 'Corregir el parte')));
+  pintarEstado();
+}
+async function pintarEstado() {
+  const e = $('estadoEnvio'); if (!e) return;
+  const c = (await kv.get('cola')) || [];
+  const pend = c.some(x => x.id === (P ? P.fecha + '_' + (user && user.llave) : ''));
+  e.textContent = pend ? 'Falta enviarlo a la oficina. Se enviará solo cuando haya señal.' : 'Ya se envió a la oficina. ✔';
+}
+function nombrePdf() { return 'Parte_diario_' + P.fecha + '.pdf'; }
+async function obtenerPdf() {
+  if (ultimoPdf) return ultimoPdf;
+  const ro = await kv.get('roster');
+  if (ro && ro.parte) { try { ultimoPdf = conPdf(ro.parte).output('blob'); } catch (e) {} }
+  return ultimoPdf;
+}
+async function compartir() {
+  if (!(await obtenerPdf())) return;
+  const f = new File([ultimoPdf], nombrePdf(), { type: 'application/pdf' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f], title: 'Parte diario ' + PD.fechaLarga(P.fecha) });
+    else verPdf();
+  } catch (e) { if (e && e.name !== 'AbortError') verPdf(); }
+}
+async function verPdf() {
+  if (!(await obtenerPdf())) return;
+  const u = URL.createObjectURL(ultimoPdf);
+  const a = h('a', { href: u, download: nombrePdf() }); document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
 }
 
 let sincronizando = false;
+function payload(parte) {
+  const p = copia(parte);
+  p.fotos = p.fotos.map(f => ({ id: f.id, tipo: f.tipo, caption: f.caption, url: f.url || '', data: f.url ? undefined : f.data }));
+  return p;
+}
 async function sincronizar(manual) {
   if (sincronizando) return;
-  const pendientes = cola();
-  if (!pendientes.length) { pintarPend(); return; }
-  if (!navigator.onLine) {
-    if (manual) msg('Sin conexión. Se enviará cuando haya señal.');
-    return;
-  }
+  const cola = (await kv.get('cola')) || [];
+  if (!cola.length) { await pintarEstado(); return; }
+  if (!navigator.onLine) { if (manual) aviso('No hay señal. Se enviará cuando haya.'); return; }
   sincronizando = true;
+  if (manual) aviso('Enviando…');
   try {
-    for (const p of pendientes) {
-      try {
-        const r = await api({ accion: 'guardar', llave: p.llave, items: p.items, fecha: p.fecha });
-        if (r.ok) {
-          LS.set('pd_cola', cola().filter(x => !(x.id === p.id && x.ts === p.ts)));
-        } else {
-          msg(r.mensaje || 'El servidor rechazó el parte.', 'err');
-          break;
-        }
-      } catch (e) {
-        if (manual) msg('No se pudo enviar. Se reintentará con señal.');
-        break;
+    for (const e of cola) {
+      if (!e.datosOk) {
+        const r = await api({ accion: 'guardar', llave: e.llave, parte: payload(e.parte) });
+        if (!r.ok) { aviso(r.mensaje || 'La oficina no aceptó el parte.', 'err'); break; }
+        e.parte.fotos.forEach(f => { if (r.fotos && r.fotos[f.id]) f.url = r.fotos[f.id]; });
+        if (P && P.fecha === e.parte.fecha) P.fotos.forEach(f => { if (r.fotos && r.fotos[f.id]) f.url = r.fotos[f.id]; });
+        e.datosOk = true;
+        await mutarCola(c => c.map(x => (x.id === e.id && x.ts === e.ts) ? e : x));
       }
+      if (e.datosOk && !e.pdfOk) {
+        const r2 = await api({ accion: 'pdf', llave: e.llave, fecha: e.parte.fecha, pdf: e.pdf });
+        if (!r2.ok) { aviso(r2.mensaje || 'No se pudo subir el PDF.', 'err'); break; }
+        e.pdfOk = true;
+      }
+      if (e.datosOk && e.pdfOk) await mutarCola(c => c.filter(x => !(x.id === e.id && x.ts === e.ts)));
     }
-  } finally {
-    sincronizando = false;
-    pintarPend();
-  }
+    if (manual) aviso('');
+  } catch (err) { if (manual) aviso('No se pudo enviar. Se reintentará cuando haya señal.', 'err'); }
+  finally { sincronizando = false; pintarEstado(); }
 }
 
-async function guardar() {
-  if (!items.length) { msg('Agrega al menos una persona o máquina.', 'err'); return; }
-  for (const it of items) {
-    const apagado = it.estado === 'AUSENTE' || it.estado === 'NO ESTUVO';
-    if (!it.descripcion.trim()) { msg('Hay un registro sin nombre.', 'err'); return; }
-    if (!it.c_costo.trim()) { msg('Falta el centro de costos de ' + it.descripcion + '.', 'err'); return; }
-    if (!apagado && (!it.inicio || !it.fin || it.fin <= it.inicio)) {
-      msg('Revisa las horas de ' + it.descripcion + '.', 'err');
-      return;
-    }
-  }
-  const f = hoy();
-  const p = {
-    id: f + '_' + user.llave, llave: user.llave, fecha: f,
-    items: JSON.parse(JSON.stringify(items)), ts: Date.now()
-  };
-  LS.set('pd_cola', cola().filter(x => x.id !== p.id).concat([p]));
-  LS.set('pd_roster', { llave: user.llave, items: p.items });
-  guardarBorrador();
-  pintarPend();
-  msg('Parte guardado en el teléfono.', 'ok');
-  await sincronizar(false);
-  const sigue = cola().some(x => x.id === p.id);
-  if (!sigue) msg('Parte enviado y guardado en la hoja.', 'ok');
-  else msg('Parte guardado en el teléfono. Se enviará cuando haya señal.');
-}
-
+/* ---------- arranque ---------- */
+$('btnIngresar').onclick = ingresar;
+$('llave').onkeydown = e => { if (e.key === 'Enter') ingresar(); };
+$('btnSalir').onclick = salir;
+$('atras').onclick = () => { if (paso > 0) { paso--; mostrar(); } };
+$('sig').onclick = () => { if (paso < PASOS.length - 1) { paso++; mostrar(); } };
 window.addEventListener('online', () => { estadoRed(); sincronizar(false); });
 window.addEventListener('offline', estadoRed);
 estadoRed();
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
-
-if (user) abrir(null);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+(async () => { try { user = await kv.get('user'); } catch (e) { user = null; } if (user) abrir(null); })();
 </script>
 </body>
 </html>

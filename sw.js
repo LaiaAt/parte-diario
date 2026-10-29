@@ -1,5 +1,6 @@
-const CACHE = 'pd-v1';
-const ARCHIVOS = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'pd-v3';
+const ARCHIVOS = ['./', 'index.html', 'comun.js', 'pdf.js', 'manifest.json', 'icon-192.png', 'icon-512.png',
+  'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)));
@@ -21,10 +22,7 @@ self.addEventListener('fetch', e => {
     caches.match(e.request).then(hit => {
       const red = fetch(e.request)
         .then(r => {
-          if (r.ok) {
-            const copia = r.clone();
-            caches.open(CACHE).then(c => c.put(e.request, copia));
-          }
+          if (r.ok) { const copia = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copia)); }
           return r;
         })
         .catch(() => hit);
