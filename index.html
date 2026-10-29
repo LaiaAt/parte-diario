@@ -255,11 +255,11 @@ async function abrir(r) {
   ult = r;
   if (!r && navigator.onLine) {
     api({ accion: 'ingresar', llave: user.llave }, 15000).then(async x => {
-      if (x.ok) { ult = x; await guardarIngreso(x); }
+      if (x.ok) { ult = x; await guardarIngreso(x); if (user && !$('biblio').hidden) await pintarBiblio(x.biblioteca || []); }
       else if (/no v[aá]lida|inactiv/i.test(x.mensaje || '')) await cerrarSesion(x.mensaje);
     }).catch(() => {});
   }
-  await biblioteca();
+  await biblioteca(true);
   sincronizar(false);
 }
 
@@ -290,13 +290,14 @@ async function pintarBiblio(lista) {
   B.appendChild(card);
 }
 
-async function biblioteca() {
+async function biblioteca(sinRed) {
+  sinRed = sinRed === true;
   aviso('');
   ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
   $('biblio').hidden = false;
   let lista = (await kv.get('bib_' + user.llave)) || [];
   await pintarBiblio(lista);
-  if (navigator.onLine) {
+  if (navigator.onLine && !sinRed) {
     try {
       const x = await api({ accion: 'lista', llave: user.llave }, 20000);
       if (x.ok) { lista = x.biblioteca; await kv.set('bib_' + user.llave, lista); if (user && !$('biblio').hidden) await pintarBiblio(lista); }
