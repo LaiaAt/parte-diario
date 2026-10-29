@@ -75,7 +75,7 @@
   }
 
   // codigo unico y estable del parte (una llave por dia)
-  function codigoParte(fecha, llave, n) { return 'PD-' + String(fecha || '').replace(/-/g, '') + '-' + String(llave || '').toUpperCase() + ((n || 1) > 1 ? '-' + n : ''); }
+  function codigoParte(fecha, llave, n, rev) { return 'PD-' + String(fecha || '').replace(/-/g, '') + '-' + String(llave || '').toUpperCase() + ((n || 1) > 1 ? '-' + n : '') + ((rev || 1) > 1 ? '-R' + rev : ''); }
 
   const PD = { codigoParte, UNIDADES, num, dimsDe, undPdf, cantidadActividad, fmt, horasEntre, fechaLarga, pkDigitos, formatoPK };
   if (typeof module !== 'undefined' && module.exports) module.exports = PD;

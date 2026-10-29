@@ -84,7 +84,7 @@ small{color:var(--mut)}
   <section id="biblio" hidden></section>
   <section id="listo" hidden></section>
 </main>
-<nav id="barra" hidden><button class="sec" id="atras">Atrás</button><button id="sig">Siguiente</button></nav>
+<nav id="barra" hidden><button class="sec" id="atras">Atrás</button><button class="sec" id="btnMenu" hidden>☰ Secciones</button><button id="sig">Siguiente</button></nav>
 <datalist id="dl-act"></datalist>
 <datalist id="dl-cargo"><option value="Oficial"><option value="Ayudante"><option value="Operador"><option value="Tráfico"><option value="Conductor"><option value="Topógrafo"><option value="Inspector SST"></datalist>
 
@@ -143,7 +143,7 @@ const kv = (() => {
 let user = null, P = null, paso = 0, sugerencias = [], ultimoPdf = null, tBorr = null;
 
 const idP = (f, l, n) => f + '_' + l + ((n || 1) > 1 ? '_n' + n : '');
-const nuevoParte = () => ({ n: 1, fecha: hoy(), encabezado: { localizacion: '', pk: '' }, clima_sel: null, clima: [], actividades: [],
+const nuevoParte = () => ({ n: 1, rev: 0, fecha: hoy(), encabezado: { localizacion: '', pk: '' }, clima_sel: null, clima: [], actividades: [],
   personal: [], maquinas: [], materiales: [], fotos: [], solicitudes: [] });
 const ultimoCC = () => { const t = [].concat(P.personal, P.maquinas, P.materiales); for (let i = t.length - 1; i >= 0; i--) if (t[i].c_costo) return t[i].c_costo; return ''; };
 const nuevaActividad = () => ({ n: P.actividades.length + 1, descripcion: '', unidad: '', d1: '', d2: '', d3: '', descuentos: '0', factor: '1', obs: '' });
@@ -159,6 +159,7 @@ function base(p, reiniciar) {
   if (!p) return o;
   o.fecha = reiniciar ? hoy() : (p.fecha || hoy());
   o.n = reiniciar ? 1 : (p.n || 1);
+  o.rev = reiniciar ? 0 : (p.rev || 0);
   o.encabezado = { localizacion: (p.encabezado || {}).localizacion || '', pk: PD.pkDigitos((p.encabezado || {}).pk) };
   const L = x => Array.isArray(x) ? x : [];
   if (!reiniciar) {
@@ -251,8 +252,8 @@ async function pintarBiblio(lista) {
   const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave);
   const h0 = hoy(), por = {};
   const K = (f, n) => f + '|' + (n || 1);
-  lista.forEach(x => { por[K(x.fecha, x.n)] = { fecha: x.fecha, n: x.n || 1, pdf: x.pdf, pend: false }; });
-  cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf }); });
+  lista.forEach(x => { por[K(x.fecha, x.n)] = { fecha: x.fecha, n: x.n || 1, pdf: x.pdf, rev: x.rev || 1, pend: false }; });
+  cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf, rev: e.parte.rev || 1 }); });
   const todos = Object.keys(por).map(k => por[k]);
   const deHoy = todos.filter(x => x.fecha === h0).sort((a, b) => a.n - b.n);
   const otros = todos.filter(x => x.fecha !== h0).sort((a, b) => a.fecha === b.fecha ? b.n - a.n : (a.fecha < b.fecha ? 1 : -1));
@@ -293,7 +294,7 @@ function filaParte(x, esHoy, varios) {
     bs.appendChild(h('button', { class: 'sec', onclick: () => compDe(x.fecha, n) }, 'Compartir'));
   }
   return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), (n > 1 || varios) ? h('span', { class: 'tag' }, 'Informe ' + n) : null, esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
-    x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n))), bs);
+    x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
 }
 function b64Blob(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Blob([u], { type: 'application/pdf' }); }
 function bajar(blob, nombre) {
@@ -355,6 +356,17 @@ async function eliminarHoy(n) {
     aviso('Informe eliminado.', 'ok');
   } catch (e) { aviso('No se pudo eliminar. Intenta de nuevo.', 'err'); }
 }
+let editando = false;
+function menuEdicion() {
+  const c = $('contenido'); c.textContent = '';
+  $('app').hidden = false; $('barra').hidden = true; $('listo').hidden = true;
+  $('progreso').textContent = 'Editar informe' + ((P.n || 1) > 1 ? ' ' + P.n : '') + ' · versión actual: ' + (P.rev || 1);
+  c.appendChild(h('h2', {}, '¿Qué quieres corregir?'));
+  c.appendChild(h('p', { class: 'guia' }, 'Entra a la sección que necesites. Al terminar, guarda: se crea una nueva versión (R' + ((P.rev || 1) + 1) + ') y la anterior se borra.'));
+  PASOS.slice(0, 7).forEach((nombre, i) => c.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { $('barra').hidden = false; paso = i; mostrar(); } }, (i + 1) + '. ' + nombre))));
+  c.appendChild(h('div', { class: 'row' }, h('button', { onclick: () => { $('barra').hidden = false; paso = 7; mostrar(); } }, '✅ Revisar y guardar cambios')));
+  window.scrollTo(0, 0);
+}
 async function editarHoy(n, existe) {
   n = typeof n === 'number' ? n : 1;
   const r = ult;
@@ -386,10 +398,12 @@ async function editarHoy(n, existe) {
     }
   }
   P.n = n; P.fecha = hoy();
+  editando = (P.rev || 0) > 0 || !!cola;
+  if (editando && !P.rev) P.rev = 1;
   sugerencias = (await kv.get('sug_' + user.llave)) || sugerencias || [];
   const dl = $('dl-act'); dl.textContent = '';
   sugerencias.forEach(q => dl.appendChild(h('option', { value: q.descripcion })));
-  mostrar();
+  if (editando && paso === 0) menuEdicion(); else mostrar();
   cargarFotos();
 }
 
@@ -484,6 +498,7 @@ function mostrar() {
   $('progreso').textContent = 'Paso ' + (paso + 1) + ' de ' + PASOS.length + ': ' + PASOS[paso];
   [pasoDatos, pasoActividades, pasoPersonal, pasoMaquinas, pasoMateriales, pasoFotos, pasoPedidos, pasoRevisar][paso](c);
   $('atras').hidden = paso === 0;
+  $('btnMenu').hidden = !editando;
   $('sig').hidden = paso === PASOS.length - 1;
   window.scrollTo(0, 0);
   cambio();
@@ -740,6 +755,10 @@ async function guardar() {
   if (pr.length) { aviso('Falta arreglar ' + pr.length + ' cosa(s).', 'err'); paso = pr[0].paso; mostrar(); return; }
   aviso('Guardando…');
   const parte = copia(P);
+  const idPrev = idP(parte.fecha, user.llave, parte.n || 1);
+  const pend = ((await kv.get('cola')) || []).find(x => x.id === idPrev);
+  parte.rev = pend ? (pend.parte.rev || 1) : ((P.rev || 0) + 1);
+  P.rev = parte.rev; editando = true;
   parte.actividades.forEach(a => { a.cantidad = PD.cantidadActividad(a); });
   parte.encabezado.pk = PD.formatoPK(parte.encabezado.pk);
   const hhmm = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }).replace(':', '');
@@ -770,7 +789,7 @@ function mostrarListo(parte, hayPdf) {
   } else L.appendChild(h('p', { class: 'aviso err' }, 'No se pudo crear el PDF en este teléfono. Los datos sí quedaron guardados.'));
   L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', id: 'btnEnviar', onclick: () => sincronizar(true) }, 'Enviar ahora')));
   L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: biblioteca }, 'Ir a mis partes')));
-  L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { $('listo').hidden = true; $('app').hidden = false; $('barra').hidden = false; paso = 7; mostrar(); } }, 'Corregir el parte')));
+  L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { menuEdicion(); } }, 'Corregir el parte')));
   pintarEstado();
 }
 async function pintarEstado() {
@@ -781,7 +800,7 @@ async function pintarEstado() {
 }
 function nombrePdf() {
   if (!ultId) ultId = { hhmm: new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }).replace(':', ''), uid: (Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-3)).toLowerCase() };
-  return 'Parte_' + user.llave + '_' + P.fecha + ((P.n || 1) > 1 ? '_n' + P.n : '') + '_' + ultId.hhmm + '_' + ultId.uid + '.pdf';
+  return 'Parte_' + user.llave + '_' + P.fecha + ((P.n || 1) > 1 ? '_n' + P.n : '') + ((P.rev || 1) > 1 ? '_R' + P.rev : '') + '_' + ultId.hhmm + '_' + ultId.uid + '.pdf';
 }
 async function obtenerPdf() {
   if (ultimoPdf) return ultimoPdf;
@@ -829,7 +848,7 @@ async function sincronizar(manual) {
         await mutarCola(c => c.map(x => (x.id === e.id && x.ts === e.ts) ? e : x));
       }
       if (e.datosOk && !e.pdfOk) {
-        const r2 = await api({ accion: 'pdf', llave: e.llave, fecha: e.parte.fecha, n: e.parte.n || 1, pdf: e.pdf, hhmm: e.hhmm, uid: e.uid });
+        const r2 = await api({ accion: 'pdf', llave: e.llave, fecha: e.parte.fecha, n: e.parte.n || 1, rev: e.parte.rev || 1, pdf: e.pdf, hhmm: e.hhmm, uid: e.uid });
         if (!r2.ok && r2.codigo !== 'PASADO') { aviso(r2.mensaje || 'No se pudo subir el PDF.', 'err'); break; }
         e.pdfOk = true;
       }
@@ -845,6 +864,7 @@ $('btnIngresar').onclick = ingresar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') ingresar(); };
 $('btnSalir').onclick = salir;
 $('btnBib').onclick = biblioteca;
+$('btnMenu').onclick = () => menuEdicion();
 $('atras').onclick = () => { if (paso > 0) { paso--; mostrar(); } };
 $('sig').onclick = () => { if (paso < PASOS.length - 1) { paso++; mostrar(); } };
 window.addEventListener('online', () => { estadoRed(); sincronizar(false); });

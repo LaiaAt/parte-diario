@@ -48,7 +48,7 @@
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'bold'); txt('FECHA:', M + 2, y + 5);
       doc.setFont('helvetica', 'normal'); txt(PD.fechaLarga(parte.fecha), M + 18, y + 5);
-      if (ctx.llave) { doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); txt('CODIGO:', M + 40, y + 5); doc.setFont('helvetica', 'normal'); txt(PD.codigoParte(parte.fecha, ctx.llave, parte.n), M + 54, y + 5, { maxWidth: 50 }); doc.setFontSize(8.5); }
+      if (ctx.llave) { doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); txt('CODIGO:', M + 40, y + 5); doc.setFont('helvetica', 'normal'); txt(PD.codigoParte(parte.fecha, ctx.llave, parte.n, parte.rev), M + 54, y + 5, { maxWidth: 50 }); doc.setFontSize(8.5); }
       doc.setFont('helvetica', 'bold'); txt('LOCALIZACION:', M + 107, y + 5);
       doc.setFont('helvetica', 'normal'); txt(parte.encabezado.localizacion || '', M + 135, y + 5, { maxWidth: AN - 137 });
       const llovio = parte.clima_sel === 'si';
@@ -251,7 +251,7 @@
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
       doc.setTextColor(90, 90, 90);
       txt('Hoja ' + p + ' de ' + n, W - M, H - 6, { align: 'right' });
-      txt('Parte diario ' + PD.fechaLarga(parte.fecha) + (ctx.llave ? ' - ' + PD.codigoParte(parte.fecha, ctx.llave, parte.n) : '') + (ctx.encargado ? ' - ' + ctx.encargado : ''), M, H - 6);
+      txt('Parte diario ' + PD.fechaLarga(parte.fecha) + (ctx.llave ? ' - ' + PD.codigoParte(parte.fecha, ctx.llave, parte.n, parte.rev) : '') + (ctx.encargado ? ' - ' + ctx.encargado : ''), M, H - 6);
       doc.setTextColor(0, 0, 0);
     }
     return doc;
