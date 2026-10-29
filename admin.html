@@ -7,11 +7,17 @@
 <meta name="referrer" content="no-referrer">
 <title>Dashboard partes diarios</title>
 <style>
-:root{--bg:#eef0f3;--card:#fff;--ink:#16202b;--mut:#5b6672;--line:#dde1e6;--pri:#1f2d3d;--acc:#0a7f2e;--ok:#1b7a3a;--err:#b3261e;--errbg:#fdecea;--okbg:#e6f4ea;--p1:#1f2d3d;--p2:#0a9a38}
-@media (prefers-color-scheme:dark){:root{--bg:#10151b;--card:#1a222b;--ink:#e8edf2;--mut:#9aa6b2;--line:#2c3743;--pri:#e8edf2;--errbg:#3a1f1d;--okbg:#17301f;--ok:#58c77a;--err:#ff8a80;--p1:#7ea6dc;--p2:#58c77a}}
+:root{color-scheme:light;--bg:#eef0f3;--card:#fff;--ink:#16202b;--mut:#5b6672;--line:#dde1e6;--pri:#1f2d3d;--acc:#0a7f2e;--ok:#1b7a3a;--err:#b3261e;--errbg:#fdecea;--okbg:#e6f4ea;--p1:#1f2d3d;--p2:#0a9a38}
 *{box-sizing:border-box}
 body{margin:0;font:16px/1.4 system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-header{background:var(--acc);color:#fff;border-bottom:4px solid #1f2d3d;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+[hidden]{display:none!important}
+header{background:var(--acc);color:#fff;border-bottom:4px solid #1f2d3d;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.bar{position:sticky;top:0;z-index:6;background:#fff;border-bottom:1px solid var(--line);padding:8px 12px;display:flex;gap:8px;overflow-x:auto;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.bar button{flex:0 0 auto;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:20px;padding:8px 16px;font-weight:600}
+.bar button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.bar b{background:#b3261e;color:#fff;border-radius:10px;font-size:12px;padding:1px 7px;margin-left:6px}
+#panel>.card:first-child .row>div{flex:1 1 44%}#panel>.card:first-child .row select,#panel>.card:first-child .row input{width:100%}
+#panel>.card:first-child{padding:10px}
 header b{font-size:18px}
 header .logo{height:36px;width:auto;background:#fff;border-radius:6px;padding:2px 4px;margin-right:8px;vertical-align:middle}
 .marca{display:block;max-width:240px;width:70%;margin:4px auto 10px}
@@ -56,7 +62,6 @@ svg text{fill:var(--ink);font-size:12px}
 .late td{background:var(--errbg)}
 .hoyp td{background:var(--warnbg)}
 :root{--warnbg:#fff3cd}
-@media (prefers-color-scheme:dark){:root{--warnbg:#3b3217}}
 #detalle{position:fixed;inset:0;background:rgba(0,0,0,.55);overflow:auto;z-index:20;padding:10px}
 #detalle h2{margin-top:14px}
 th.s{cursor:pointer;user-select:none}
@@ -78,13 +83,14 @@ button.chipm{cursor:pointer;font:inherit}
 </style>
 </head>
 <body>
-<header><b><img class="logo" src="marca.png" alt="">Dashboard · Partes diarios</b><span id="nav" class="nav"></span><span id="quien"></span></header>
+<header><b><img class="logo" src="marca.png" alt="">Dashboard · Partes diarios</b><span id="quien"></span></header>
+<div id="nav" class="bar" hidden></div>
 <main>
 <section id="login" class="card">
   <img class="marca" src="logo.png" alt="Consorcio Constructor Sabana Norte">
   <h2>Acceso administradores</h2>
   <div class="small">Solo llaves de administrador o super administrador.</div>
-  <input id="llave" type="password" autocomplete="off" placeholder="Tu llave">
+  <input id="llave" type="text" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Escribe tu llave">
   <button id="entrar" style="width:100%">Entrar</button>
   <div id="loginmsg" class="msg"></div>
 </section>
@@ -107,19 +113,19 @@ button.chipm{cursor:pointer;font:inherit}
       <input id="q" type="search" style="width:100%" placeholder="Ej: PD-20261028-U1 · arena · retroexcavadora · AL-9 · Pedro"></div>
       <button class="sec" id="limpiar">Limpiar filtros</button></div>
     <div class="small">La búsqueda filtra pedidos, partes y consolidados a la vez (varias palabras = todas deben aparecer).</div>
-    <div id="alertas" class="miss" style="margin-top:8px"></div>
   </div>
 
-  <div class="kpis" id="kpis"></div>
+  <div id="alertas" class="miss" data-m="resumen" style="margin:8px 0"></div>
+  <div class="kpis" id="kpis" data-m="resumen"></div>
 
-  <div class="card"><h2>¿Quién no ha creado el parte?</h2><div id="faltan"></div>
+  <div class="card" data-m="resumen"><h2>¿Quién no ha creado el parte?</h2><div id="faltan"></div>
     <h2 style="margin-top:14px">Control por llave y día</h2>
     <div class="small">✔ = parte creado (toca para bajar el PDF) · ✖ = falta · el borde verde es hoy</div>
     <div id="matNota" class="small"></div>
     <div class="tw" style="margin-top:8px"><table class="mx" id="matriz"></table></div>
   </div>
 
-  <div class="card" id="cPed"><h2>Planeación y requerimientos <span id="nSol" class="small"></span></h2>
+  <div class="card" id="cPed" data-m="pedidos"><h2>Planeación y requerimientos <span id="nSol" class="small"></span></h2>
     <div class="row"><div><label>Mostrar</label><select id="fSol"><option value="pend">Por liberar</option><option value="lib">Liberados</option><option value="todos">Todos</option></select></div>
       <div><label>Llave</label><select id="fSolLlave"></select></div>
       <div><label>Qué piden</label><select id="fSolTipo"></select></div>
@@ -128,19 +134,19 @@ button.chipm{cursor:pointer;font:inherit}
     <div class="tw" style="margin-top:8px"><table id="tSol"></table></div>
   </div>
 
-  <div class="card"><h2>Pedidos por llave: solicitado vs liberado</h2>
+  <div class="card" data-m="pedidos"><h2>Pedidos por llave: solicitado vs liberado</h2>
     <div class="leg"><span><i style="background:var(--p1)"></i>Solicitado</span><span><i style="background:var(--p2)"></i>Liberado</span></div>
     <div id="grafico"></div>
   </div>
 
-  <div class="card" id="cPar"><h2>Partes diarios <span id="nPar" class="small"></span></h2>
+  <div class="card" id="cPar" data-m="partes"><h2>Partes diarios <span id="nPar" class="small"></span></h2>
     <div class="row"><div><label>Llave</label><select id="fPar"></select></div>
       <div><label>PDF</label><select id="fPdf"><option value="">Todos</option><option value="no">Solo sin PDF</option></select></div>
       <button class="sec sm" id="todosPdf">Descargar todos los PDF de la lista</button></div>
     <div class="tw" style="margin-top:8px"><table id="tPar"></table></div>
   </div>
 
-  <div class="card" id="cFoto"><h2>Fotos <span id="nFoto" class="small"></span></h2>
+  <div class="card" id="cFoto" data-m="fotos"><h2>Fotos <span id="nFoto" class="small"></span></h2>
     <div class="small">Cada foto lleva la llave, el código del parte y las actividades con que se etiquetó. Solo se ven y se descargan: aquí no se puede borrar ni cambiar nada.</div>
     <div class="row" style="margin-top:8px"><div><label>Llave</label><select id="fFotoLlave"></select></div>
       <div><label>Actividad</label><select id="fFotoAct"></select></div>
@@ -150,7 +156,7 @@ button.chipm{cursor:pointer;font:inherit}
     <div style="margin-top:10px"><button class="sec" id="masFotos" hidden>Ver más</button></div>
   </div>
 
-  <div class="card" id="cCon"><h2>Consolidados <span id="nCon" class="small"></span></h2>
+  <div class="card" id="cCon" data-m="consolidados"><h2>Consolidados <span id="nCon" class="small"></span></h2>
     <div class="small">Cada fila indica la llave y el código del parte. Toca un título de columna para ordenar.</div>
     <div class="tabs" id="tabs"></div>
     <div class="row"><div><label>Llave</label><select id="fCon"></select></div>
@@ -187,7 +193,7 @@ async function api(d) {
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); }
 }
-function salir() { IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
+function salir() { IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
 async function entrar() {
   const l = $('llave').value.trim(); if (!l) return;
   $('loginmsg').textContent = 'Entrando…'; $('entrar').disabled = true;
@@ -207,9 +213,18 @@ async function cargar(primera) {
   D = r; $('quien').textContent = r.nombre; pintar(); cargarFotos(); return true;
 }
 
+const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['consolidados', '📊 Consolidados']];
+let MOD = 'resumen';
+function modulo(m) {
+  MOD = m;
+  document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
+  window.scrollTo(0, 0);
+}
 function navegacion() {
-  const n = $('nav'); if (n.firstChild) return;
-  [['Pedidos', 'cPed'], ['Partes', 'cPar'], ['Fotos', 'cFoto'], ['Consolidados', 'cCon']].forEach(x => n.appendChild(h('button', { onclick: () => ir(x[1]) }, x[0])));
+  const n = $('nav'); n.hidden = false; if (n.firstChild) { modulo(MOD); return; }
+  MODS.forEach(x => { const b = h('button', { onclick: () => modulo(x[0]) }, x[1]); b.dataset.mod = x[0]; n.appendChild(b); });
+  modulo(MOD);
 }
 function llaves() { return D.usuarios.map(u => u.llave); }
 function llenarSel(id, conTodas) {
@@ -240,7 +255,7 @@ function prep() {
 function coincide(r) { return $('q').value.toLowerCase().split(/\s+/).filter(Boolean).every(x => r._h.indexOf(x) >= 0); }
 function uniq(a) { return Array.from(new Set(a.filter(Boolean))).sort(); }
 function llenarOpts(id, todas, vals) { const s = $(id), v = s.value; s.textContent = ''; s.appendChild(h('option', { value: '' }, todas)); vals.forEach(x => s.appendChild(h('option', { value: x }, x))); s.value = vals.indexOf(v) >= 0 ? v : ''; }
-function ir(id) { $(id).scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function ir(id) { modulo({ cPed: 'pedidos', cPar: 'partes', cFoto: 'fotos', cCon: 'consolidados' }[id] || 'resumen'); }
 function rerender() { solicitudes(); partes(); fotos(true); consolidado(); }
 function pintar() {
   prep();
