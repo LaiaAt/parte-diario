@@ -1,5 +1,5 @@
-const CACHE = 'pd-v16';
-const ARCHIVOS = ['./', 'index.html', 'comun.js', 'pdf.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'marca.png',
+const CACHE = 'pd-v17';
+const ARCHIVOS = ['./', 'index.html', 'transportes.html', 'comun.js', 'pdf.js', 'pdf_tr.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'marca.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js'];
 
 self.addEventListener('install', e => {

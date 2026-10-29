@@ -1,0 +1,6 @@
+    else if (d.accion === 'tr_ingresar' || d.accion === 'tr_lista') r = trDatos_(d.llave);
+    else if (d.accion === 'tr_guardar') r = trGuardar_(d.llave, d.viaje);
+    else if (d.accion === 'tr_recibo') r = trRecibo_(d.llave, d.cod, d.foto);
+    else if (d.accion === 'tr_eliminar') r = trEliminar_(d.llave, d.cod);
+    else if (d.accion === 'tr_foto') r = trFoto_(d.llave, d.cod, d.cual);
+    else if (d.accion === 'tr_planilla') r = trPlanilla_(d.llave, d.fecha, d.pdf);
