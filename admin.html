@@ -173,7 +173,7 @@ function pintar() {
 }
 function kpis() {
   const hoy = D.hoy, us = D.usuarios.length;
-  const hechosHoy = new Set(D.partes.filter(p => p.fecha === hoy).map(p => p.llave)).size;
+  const hechosHoy = D.usuarios.filter(u => D.partes.some(p => p.fecha === hoy && p.llave === u.llave)).length;
   const pend = D.SOLICITUD.filter(s => !s.liberado).length;
   const K = (t, v, c) => h('div', { class: 'kpi ' + (c || '') }, h('b', {}, v), t);
   const e = $('kpis'); e.textContent = '';
