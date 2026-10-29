@@ -136,7 +136,16 @@ const kv = (() => {
       t.onerror = () => rej(t.error);
     });
   };
-  return { get: k => tx('readonly', s => s.get(k)), set: (k, v) => tx('readwrite', s => s.put(v, k)), del: k => tx('readwrite', s => s.delete(k)) };
+  // la llave se guarda tambien en localStorage (respaldo) para que no se pierda
+  const LS = 'pd_user';
+  const lsGet = () => { try { return JSON.parse(localStorage.getItem(LS)); } catch (e) { return null; } };
+  const lsSet = v => { try { if (v == null) localStorage.removeItem(LS); else localStorage.setItem(LS, JSON.stringify(v)); } catch (e) {} };
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  return {
+    get: async k => { let v; try { v = await tx('readonly', s => s.get(k)); } catch (e) { if (k !== 'user') throw e; } if (k === 'user' && !v) { v = lsGet(); if (v) { try { await tx('readwrite', s => s.put(v, k)); } catch (e) {} } } return v; },
+    set: async (k, v) => { if (k === 'user') lsSet(v); return tx('readwrite', s => s.put(v, k)); },
+    del: async k => { if (k === 'user') lsSet(null); return tx('readwrite', s => s.delete(k)); }
+  };
 })();
 
 /* ---------- estado ---------- */
@@ -254,6 +263,11 @@ async function pintarBiblio(lista) {
   const K = (f, n) => f + '|' + (n || 1);
   lista.forEach(x => { por[K(x.fecha, x.n)] = { fecha: x.fecha, n: x.n || 1, pdf: x.pdf, rev: x.rev || 1, pend: false }; });
   cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf, rev: e.parte.rev || 1 }); });
+  const bo = await kv.get('borrador');
+  if (bo && bo.llave === user.llave && bo.fecha === h0 && bo.guardado === false && bo.parte) {
+    const bn = bo.parte.n || 1, bk = K(h0, bn);
+    por[bk] = Object.assign(por[bk] || { fecha: h0, n: bn, pdf: false, rev: bo.parte.rev || 1 }, { borr: true });
+  }
   const todos = Object.keys(por).map(k => por[k]);
   const deHoy = todos.filter(x => x.fecha === h0).sort((a, b) => a.n - b.n);
   const otros = todos.filter(x => x.fecha !== h0).sort((a, b) => a.fecha === b.fecha ? b.n - a.n : (a.fecha < b.fecha ? 1 : -1));
@@ -294,7 +308,7 @@ function filaParte(x, esHoy, varios) {
     bs.appendChild(h('button', { class: 'sec', onclick: () => compDe(x.fecha, n) }, 'Compartir'));
   }
   return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), (n > 1 || varios) ? h('span', { class: 'tag' }, 'Informe ' + n) : null, esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
-    x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
+    x.borr ? h('span', { class: 'tag pend' }, 'Borrador sin guardar') : null, x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
 }
 function b64Blob(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Blob([u], { type: 'application/pdf' }); }
 function bajar(blob, nombre) {
@@ -409,8 +423,11 @@ async function editarHoy(n, existe) {
 
 function cambio() {
   clearTimeout(tBorr);
-  tBorr = setTimeout(() => { if (user && P) kv.set('borrador', { fecha: P.fecha, llave: user.llave, parte: P, paso: paso }); }, 600);
+  tBorr = setTimeout(guardarBorrador, 150);
 }
+function guardarBorrador() { if (user && P && !$('app').hidden) return kv.set('borrador', { fecha: P.fecha, llave: user.llave, parte: P, paso: paso, guardado: false }); }
+addEventListener('pagehide', guardarBorrador);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardarBorrador(); });
 
 /* ---------- piezas reutilizables ---------- */
 const REQ = new Set(['localizacion', 'descripcion', 'nombre', 'c_costo', 'cantidad', 'detalle', 'd1', 'd2', 'd3', 'descuentos', 'factor', 'inicio', 'fin', 'fecha']);
@@ -771,7 +788,8 @@ async function guardar() {
   await mutarCola(c => c.filter(x => x.id !== id).concat([entrada]));
   await kv.set('roster', { llave: user.llave, parte: parte });
   ultimoPdf = blob;
-  await kv.set('borrador', { fecha: P.fecha, llave: user.llave, parte: P, paso: paso });
+  clearTimeout(tBorr);
+  await kv.set('borrador', { fecha: P.fecha, llave: user.llave, parte: P, paso: paso, guardado: true });
   aviso('');
   mostrarListo(parte, !!blob);
   sincronizar(false);
