@@ -167,6 +167,20 @@ button.chipm{cursor:pointer;font:inherit}
     <div class="tw"><table id="tCon"></table></div>
   </div>
 </section>
+<div class="card" id="cTr" data-m="transportes" hidden><h2>🚛 Transportes <span id="nTr" class="small"></span></h2>
+  <div class="small">Viajes de volquetas del rango de fechas de arriba. Se actualiza con el botón Actualizar.</div>
+  <div class="kpis" id="trKpis" style="margin-top:8px"></div>
+  <div id="trAlertas" class="miss" style="margin:8px 0"></div>
+  <h3>Por confirmar: volquetas que no estaban en el listado</h3><div class="tw"><table id="trPend"></table></div>
+  <h3>Material por sitio de disposición (m³)</h3><div class="tw"><table id="trRes"></table></div>
+  <h3>Viajes</h3>
+  <div class="buscar"><input id="qTr" type="search" placeholder="🔍 Buscar (vale, placa, conductor, material, destino…)"><button class="sec sm" id="limpTr">Limpiar</button></div>
+  <div class="row"><div><label>Llave</label><select id="fTrLlave"></select></div>
+    <div><label>Mostrar</label><select id="fTrEst"><option value="">Todos</option><option value="alerta">Solo con alertas</option><option value="sinrec">Sin recibo</option><option value="sincarga">Sin foto de carga</option></select></div>
+    <button class="sm" id="trCsv">Descargar viajes (CSV)</button></div>
+  <div class="tw" style="margin-top:8px"><table id="tTr"></table></div>
+  <h3>Planillas diarias (también están en la biblioteca de AppSheet)</h3><div class="tw"><table id="trPlan"></table></div>
+</div>
 <div id="detalle" hidden></div>
 <div id="visor" hidden></div>
 </main>
@@ -192,7 +206,7 @@ async function api(d) {
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); }
 }
-function salir() { IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
+function salir() { TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
 async function entrar() {
   const l = $('llave').value.trim(); if (!l) return;
   $('loginmsg').textContent = 'Entrando…'; $('entrar').disabled = true;
@@ -212,13 +226,70 @@ async function cargar(primera) {
   D = r; $('quien').textContent = r.nombre; pintar(); cargarFotos(); return true;
 }
 
-const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['consolidados', '📊 Consolidados']];
+const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['consolidados', '📊 Consolidados'], ['transportes', '🚛 Transportes']];
 let MOD = 'resumen';
 function modulo(m) {
   MOD = m;
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
   window.scrollTo(0, 0);
+  if (m === 'transportes' && !TR) cargarTr();
+}
+let TR = null;
+async function cargarTr() {
+  $('nTr').textContent = 'Cargando…';
+  try {
+    const r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
+    if (!r.ok) { $('nTr').textContent = r.mensaje || 'No se pudo cargar'; return; }
+    TR = r; pintarTr();
+  } catch (e) { $('nTr').textContent = 'No se pudo conectar.'; }
+}
+const linkF = (u, t) => u ? h('a', { href: u, target: '_blank', rel: 'noopener' }, t) : '—';
+const nf = x => (Math.round((Number(x) || 0) * 100) / 100).toLocaleString('es-CO');
+function pintarTr() {
+  const V = TR.viajes, hoy = TR.hoy;
+  $('nTr').textContent = '(' + V.length + ' viajes)';
+  const conAl = V.filter(v => v.alertas), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(x => String(x.validada).toUpperCase() === 'NO');
+  const K = (t, v, c) => h('div', { class: 'kpi ' + (c || '') }, h('b', {}, v), t);
+  const e = $('trKpis'); e.textContent = '';
+  e.append(K('Viajes', V.length), K('m³ despachados', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas distintas', new Set(V.map(v => v.placa)).size),
+    K('Viajes con alertas', conAl.length, conAl.length ? 'mal' : 'bien'), K('Sin recibo (días cerrados)', sinRec.length, sinRec.length ? 'mal' : 'bien'), K('Volquetas por confirmar', pend.length, pend.length ? 'mal' : 'bien'));
+  const ca = $('trAlertas'); ca.textContent = '';
+  const cnt = {}; conAl.forEach(v => v.alertas.split('; ').forEach(a => { const k = a.replace(/\(.*$/, '').trim(); cnt[k] = (cnt[k] || 0) + 1; }));
+  Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).forEach(k => ca.appendChild(h('button', { class: 'chipm', onclick: () => { $('qTr').value = k; tablaTr(); } }, cnt[k] + ' · ' + k)));
+  // pendientes
+  const tp = $('trPend'); tp.textContent = '';
+  tp.appendChild(h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Capacidad', 'Conductor', 'Registrada por', 'Viajes en el rango'].map(c => h('th', {}, c))));
+  pend.forEach(x => tp.appendChild(h('tr', {}, h('td', {}, x.placa), h('td', {}, x.empresa), h('td', {}, x.tipo), h('td', {}, x.capacidad), h('td', {}, x.conductor), h('td', {}, x.creada_por), h('td', {}, V.filter(v => v.placa === x.placa).length))));
+  if (!pend.length) tp.appendChild(h('tr', {}, h('td', {}, 'Ninguna por confirmar ✔')));
+  // resumen destino x material
+  const sit = {}; V.forEach(v => { const k = (v.destino || '—') + '||' + (v.material || '—'); sit[k] = sit[k] || { d: v.destino || '—', m: v.material || '—', n: 0, q: 0 }; sit[k].n++; sit[k].q += Number(v.cant) || 0; });
+  const tr_ = $('trRes'); tr_.textContent = '';
+  tr_.appendChild(h('tr', {}, ['Destino', 'Material', 'Viajes', 'm³'].map(c => h('th', {}, c))));
+  Object.values(sit).sort((a, b) => a.d.localeCompare(b.d) || b.q - a.q).forEach(x => tr_.appendChild(h('tr', {}, h('td', {}, x.d), h('td', {}, x.m), h('td', {}, x.n), h('td', {}, nf(x.q)))));
+  const s = $('fTrLlave'), sv = s.value; s.textContent = ''; s.appendChild(h('option', { value: '' }, 'Todas')); uniq(V.map(v => v.llave)).forEach(l => s.appendChild(h('option', { value: l }, l))); s.value = sv;
+  tablaTr();
+  const tpl = $('trPlan'); tpl.textContent = '';
+  tpl.appendChild(h('tr', {}, ['Fecha', 'Llave', 'Usuario', 'Viajes del día', 'PDF'].map(c => h('th', {}, c))));
+  TR.planillas.forEach(p => tpl.appendChild(h('tr', {}, h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', {}, V.filter(v => v.fecha === p.fecha && v.llave === p.llave).length), h('td', {}, linkF(p.url, 'Abrir PDF')))));
+  if (!TR.planillas.length) tpl.appendChild(h('tr', {}, h('td', {}, 'Sin planillas en el rango')));
+}
+function viajesTr() {
+  const q = $('qTr').value.trim().toUpperCase(), ll = $('fTrLlave').value, est = $('fTrEst').value, hoy = TR.hoy;
+  return TR.viajes.filter(v => (!ll || v.llave === ll) && (!est || (est === 'alerta' ? v.alertas : est === 'sinrec' ? !v.tiene_recibo : !v.tiene_carga))
+    && (!q || [v.cod, v.placa, v.conductor, v.empresa, v.material, v.origen, v.destino, v.alertas, v.n_valera, v.usuario].join(' ').toUpperCase().indexOf(q) >= 0));
+}
+function tablaTr() {
+  const L = viajesTr(), t = $('tTr'); t.textContent = '';
+  t.appendChild(h('tr', {}, ['Fecha', 'Hora', 'Vale', 'Placa', 'Conductor', 'Material', 'Origen', 'Destino', 'm³', 'Estado', 'Fotos', 'Alertas'].map(c => h('th', {}, c))));
+  L.slice(0, 1500).forEach(v => t.appendChild(h('tr', {}, h('td', {}, fmtF(v.fecha)), h('td', {}, v.hora_salida), h('td', {}, v.cod), h('td', {}, v.placa), h('td', {}, v.conductor), h('td', {}, v.material), h('td', {}, v.origen), h('td', {}, v.destino), h('td', {}, v.cant),
+    h('td', {}, v.estado), h('td', {}, v.fotos_c.map((u, i) => h('span', {}, linkF(u, 'C' + (i + 1)), ' ')), v.fotos_r.map((u, i) => h('span', {}, linkF(u, 'R' + (i + 1)), ' '))), h('td', { class: 'w', style: v.alertas ? 'color:var(--err)' : '' }, v.alertas))));
+  if (!L.length) t.appendChild(h('tr', {}, h('td', {}, 'Sin viajes')));
+}
+function csvTr() {
+  const cols = ['Fecha', 'Hora salida', 'Vale', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'Origen', 'Destino', 'm3', 'Estado', 'N valera', 'Alertas'];
+  const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => [v.fecha, v.hora_salida, v.cod, v.llave, v.placa, v.empresa, v.conductor, v.material, v.origen, v.destino, v.cant, v.estado, v.n_valera, v.alertas].map(csvCelda).join(';')));
+  bajar(new Blob(['\ufeff' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Transportes_' + $('desde').value + '_' + $('hasta').value + '.csv');
 }
 function navegacion() {
   const n = $('nav'); n.hidden = false; if (n.firstChild) { modulo(MOD); return; }
@@ -644,10 +715,11 @@ function descargarXlsx() {
   XLSX.writeFile(wb, 'Consolidado_' + (ll || 'TODAS') + '_' + $('desde').value + '_' + $('hasta').value + '.xlsx');
 }
 
+$('qTr').oninput = () => { if (TR) tablaTr(); }; $('fTrLlave').onchange = $('fTrEst').onchange = () => { if (TR) tablaTr(); }; $('limpTr').onclick = () => { $('qTr').value = ''; $('fTrEst').value = ''; $('fTrLlave').value = ''; if (TR) tablaTr(); }; $('trCsv').onclick = () => { if (TR) csvTr(); };
 $('entrar').onclick = entrar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') entrar(); };
 $('salir').onclick = salir;
-$('act').onclick = () => cargar(false);
+$('act').onclick = async () => { TR = null; await cargar(false); if (MOD === 'transportes') cargarTr(); };
 let qt;
 ['qPed', 'qPar', 'qFot', 'qCon'].forEach(i => { $(i).oninput = () => { clearTimeout(qt); qt = setTimeout(rerender, 200); }; });
 ['fSol', 'fSolLlave', 'fSolTipo'].forEach(i => $(i).onchange = solicitudes);

@@ -77,7 +77,7 @@
     y += H;
     const mitad = (XM - M) / 2;
     celda(M, y, mitad, H, false); etiqueta('HORA DE SALIDA:', M, y, 0, 0); valor(v.hora_salida, M, y + 10.5, mitad, 12);
-    celda(M + mitad, y, mitad, H, false); etiqueta('CANTIDAD RECIBIDA (m3):', M + mitad, y, 0, 0);
+    celda(M + mitad, y, mitad, H, false); etiqueta('CANTIDAD RECIBIDA (m3):', M + mitad, y, 0, 0); valor(f2(v.cant_recibida !== undefined && v.cant_recibida !== '' ? v.cant_recibida : v.cant), M + mitad, y + 10.5, mitad, 12);
     y += H;
     // firmas
     const w3 = W / 3, hf = 17;
