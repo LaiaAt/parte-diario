@@ -176,7 +176,7 @@
     // Materiales
     y = espacio(y, 30);
     y = barra('MATERIALES', y);
-    const mats = (parte.materiales || []).filter(m => m.estado !== 'NO USADO');
+    const mats = (parte.materiales || []).filter(m => m.estado !== 'NO USADO').map(m => m.nombre ? m : Object.assign({}, m, { nombre: 'Según albarán (foto)' }));
     const headMT = [
       [{ content: 'C COSTE', rowSpan: 2 }, { content: 'NOMBRE', rowSpan: 2 }, { content: 'PROCEDENCIA', rowSpan: 2 },
         { content: 'CANT.', rowSpan: 2 }, { content: 'UBICACION', rowSpan: 2 }, { content: 'TRABAJO REALIZADO', colSpan: nA }, { content: 'UND. MEDIDA', rowSpan: 2 }],

@@ -17,9 +17,18 @@
     return isFinite(n) ? n : NaN;
   }
 
-  function dimsDe(cod) {
+  // Medidas que se piden. Una unidad que no está en la lista (la escribió el usuario) pide una sola cantidad.
+  function dimsLabels(cod) {
     const u = UNIDADES.find(x => x.cod === cod);
-    return u ? u.dims.length : 0;
+    return u ? u.dims : (String(cod || '').trim() ? ['Cantidad'] : []);
+  }
+  function dimsDe(cod) { return dimsLabels(cod).length; }
+  // Lo que escribe el usuario -> código de la lista si coincide; si no, el texto en mayúsculas.
+  function normUnidad(t) {
+    const s = String(t || '').trim(); if (!s) return '';
+    const k = s.toUpperCase().replace(/\s+/g, ' ');
+    const u = UNIDADES.find(x => x.cod === k || x.texto.toUpperCase() === k || x.texto.toUpperCase().replace(/\s*\(.*\)\s*$/, '') === k);
+    return u ? u.cod : k;
   }
 
   function undPdf(cod) {
@@ -77,7 +86,7 @@
   // codigo unico y estable del parte (una llave por dia)
   function codigoParte(fecha, llave, n, rev) { return 'PD-' + String(fecha || '').replace(/-/g, '') + '-' + String(llave || '').toUpperCase() + ((n || 1) > 1 ? '-' + n : '') + ((rev || 1) > 1 ? '-R' + rev : ''); }
 
-  const PD = { codigoParte, UNIDADES, num, dimsDe, undPdf, cantidadActividad, fmt, horasEntre, fechaLarga, pkDigitos, formatoPK };
+  const PD = { codigoParte, UNIDADES, num, dimsDe, dimsLabels, normUnidad, undPdf, cantidadActividad, fmt, horasEntre, fechaLarga, pkDigitos, formatoPK };
   if (typeof module !== 'undefined' && module.exports) module.exports = PD;
   else root.PD = PD;
 })(typeof window !== 'undefined' ? window : globalThis);
