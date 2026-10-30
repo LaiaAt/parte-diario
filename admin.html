@@ -81,6 +81,16 @@ button.chipm{cursor:pointer;font:inherit}
 [hidden]{display:none!important}
 #login{max-width:380px;margin:60px auto}
 #login input{width:100%;margin:8px 0}
+#cTr .kpis{margin-bottom:8px;grid-template-columns:repeat(3,1fr);gap:6px}#cTr .kpi{padding:8px}#cTr .kpi b{font-size:24px}#cTr input[type=search],#cTr details input{width:100%;font-size:17px;padding:12px;margin:2px 0 8px}
+.trtabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.trtabs button{padding:14px 6px;font-size:17px;font-weight:700;background:#fff;color:var(--ink);border:2px solid var(--line);border-radius:12px}.trtabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.trav{display:block;width:100%;text-align:left;margin:6px 0;padding:14px;font-size:17px;font-weight:700;background:#fff3cd;color:#664d03;border:2px solid #f0c36d;border-radius:12px}
+.trok{padding:14px;text-align:center;font-size:17px;color:var(--ok);font-weight:600}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}.chip{padding:10px 14px;font-size:16px;background:#fff;color:var(--ink);border:2px solid var(--line);border-radius:20px}.chip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.tcard{border:2px solid var(--line);border-radius:12px;padding:12px;margin:8px 0;background:#fff}.tcard.warn{border-color:#f0c36d;background:#fffaf0}
+.tcard .big{font-size:20px;font-weight:700}.tcard .tag{font-size:12px;background:#ddd;border-radius:8px;padding:2px 8px;margin-left:8px;vertical-align:middle}.tcard .tag.w{background:#f0c36d}
+.tcard .alt{color:var(--err);font-weight:600;margin:4px 0}.tcard .acc{display:flex;gap:8px;margin-top:10px}.tcard .acc button{flex:1;padding:14px;font-size:17px}
+.tcard summary{font-size:18px;font-weight:700;padding:6px 0}.tcard label{display:block;font-size:14px;color:var(--mut)}
+.btnl{display:block;text-align:center;margin-top:8px;padding:12px;background:var(--pri);color:#fff;border-radius:10px;text-decoration:none;font-size:17px}
 </style>
 </head>
 <body>
@@ -167,25 +177,8 @@ button.chipm{cursor:pointer;font:inherit}
     <div class="tw"><table id="tCon"></table></div>
   </div>
 </section>
-<div class="card" id="cTr" data-m="transportes" hidden><h2>🚛 Transportes <span id="nTr" class="small"></span></h2>
-  <div class="small">Viajes de volquetas del rango de fechas de arriba. Se actualiza con el botón Actualizar.</div>
-  <div class="kpis" id="trKpis" style="margin-top:8px"></div>
-  <div id="trAlertas" class="miss" style="margin:8px 0"></div>
-  <h3>Volquetas</h3>
-  <div class="small">Las que llegan y no están en el listado quedan "Por confirmar". Al confirmarlas pasan a ser parte del listado.</div>
-  <div class="row" style="margin:6px 0"><div><label>Mostrar</label><select id="fVol"><option value="pend">Por confirmar</option><option value="act">Activas</option><option value="inact">Inactivas</option><option value="todas">Todas</option></select></div></div>
-  <div class="tw"><table id="trPend"></table></div>
-  <details style="margin-top:8px"><summary>➕ Agregar una volqueta al listado</summary>
-    <div class="row" style="margin-top:8px"><div><label>Placa *</label><input id="nvPlaca" maxlength="7" autocapitalize="characters" style="width:100px"></div><div><label>Empresa</label><input id="nvEmp"></div><div><label>Tipo</label><input id="nvTipo"></div><div><label>Capacidad (m³)</label><input id="nvCap" inputmode="decimal" style="width:90px"></div><div><label>Conductor</label><input id="nvCond"></div><button class="sm" id="nvOk">Agregar</button></div>
-    <div id="nvMsg" class="small"></div></details>
-  <h3>Material por sitio de disposición (m³)</h3><div class="tw"><table id="trRes"></table></div>
-  <h3>Viajes</h3>
-  <div class="buscar"><input id="qTr" type="search" placeholder="🔍 Buscar (vale, placa, conductor, material, destino…)"><button class="sec sm" id="limpTr">Limpiar</button></div>
-  <div class="row"><div><label>Llave</label><select id="fTrLlave"></select></div>
-    <div><label>Mostrar</label><select id="fTrEst"><option value="">Todos</option><option value="alerta">Solo con alertas</option><option value="sinrec">Sin recibo</option><option value="sincarga">Sin foto de carga</option></select></div>
-    <button class="sm" id="trCsv">Descargar viajes (CSV)</button></div>
-  <div class="tw" style="margin-top:8px"><table id="tTr"></table></div>
-  <h3>Planillas diarias (también están en la biblioteca de AppSheet)</h3><div class="tw"><table id="trPlan"></table></div>
+<div class="card" id="cTr" data-m="transportes" hidden><h2>🚛 Transportes</h2>
+  <div id="trTop"></div><div id="trTabs" class="trtabs"></div><div id="trBody"></div>
 </div>
 <div id="detalle" hidden></div>
 <div id="visor" hidden></div>
@@ -241,72 +234,113 @@ function modulo(m) {
   window.scrollTo(0, 0);
   if (m === 'transportes' && !TR) cargarTr();
 }
-let TR = null;
+let TR = null, TRTAB = 'viajes', TRVOL = 'pend', TRFIL = '', TRQ = '';
 async function cargarTr() {
-  $('nTr').textContent = 'Cargando…';
+  $('trBody').textContent = 'Cargando…';
   try {
     const r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
-    if (!r.ok) { $('nTr').textContent = r.mensaje || 'No se pudo cargar'; return; }
+    if (!r.ok) { $('trBody').textContent = r.mensaje || 'No se pudo cargar'; return; }
     TR = r; pintarTr();
-  } catch (e) { $('nTr').textContent = 'No se pudo conectar.'; }
+  } catch (e) { $('trBody').textContent = 'No se pudo conectar.'; }
 }
 const linkF = (u, t) => u ? h('a', { href: u, target: '_blank', rel: 'noopener' }, t) : '—';
 const nf = x => (Math.round((Number(x) || 0) * 100) / 100).toLocaleString('es-CO');
+const esPend = x => String(x.validada).toUpperCase() === 'NO', esIn = x => /INACT/.test(String(x.estado).toUpperCase());
 function pintarTr() {
   const V = TR.viajes, hoy = TR.hoy;
-  $('nTr').textContent = '(' + V.length + ' viajes)';
-  const conAl = V.filter(v => v.alertas), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(x => String(x.validada).toUpperCase() === 'NO');
-  const K = (t, v, c) => h('div', { class: 'kpi ' + (c || '') }, h('b', {}, v), t);
-  const e = $('trKpis'); e.textContent = '';
-  e.append(K('Viajes', V.length), K('m³ despachados', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas distintas', new Set(V.map(v => v.placa)).size),
-    K('Viajes con alertas', conAl.length, conAl.length ? 'mal' : 'bien'), K('Sin recibo (días cerrados)', sinRec.length, sinRec.length ? 'mal' : 'bien'), K('Volquetas por confirmar', pend.length, pend.length ? 'mal' : 'bien'));
-  const ca = $('trAlertas'); ca.textContent = '';
-  const cnt = {}; conAl.forEach(v => v.alertas.split('; ').forEach(a => { const k = a.replace(/\(.*$/, '').trim(); cnt[k] = (cnt[k] || 0) + 1; }));
-  Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).forEach(k => ca.appendChild(h('button', { class: 'chipm', onclick: () => { $('qTr').value = k; tablaTr(); } }, cnt[k] + ' · ' + k)));
-  tablaVol();
-  // resumen destino x material
-  const sit = {}; V.forEach(v => { const k = (v.destino || '—') + '||' + (v.material || '—'); sit[k] = sit[k] || { d: v.destino || '—', m: v.material || '—', n: 0, q: 0 }; sit[k].n++; sit[k].q += Number(v.cant) || 0; });
-  const tr_ = $('trRes'); tr_.textContent = '';
-  tr_.appendChild(h('tr', {}, ['Destino', 'Material', 'Viajes', 'm³'].map(c => h('th', {}, c))));
-  Object.values(sit).sort((a, b) => a.d.localeCompare(b.d) || b.q - a.q).forEach(x => tr_.appendChild(h('tr', {}, h('td', {}, x.d), h('td', {}, x.m), h('td', {}, x.n), h('td', {}, nf(x.q)))));
-  const s = $('fTrLlave'), sv = s.value; s.textContent = ''; s.appendChild(h('option', { value: '' }, 'Todas')); uniq(V.map(v => v.llave)).forEach(l => s.appendChild(h('option', { value: l }, l))); s.value = sv;
-  tablaTr();
-  const tpl = $('trPlan'); tpl.textContent = '';
-  tpl.appendChild(h('tr', {}, ['Fecha', 'Llave', 'Usuario', 'Viajes del día', 'PDF'].map(c => h('th', {}, c))));
-  TR.planillas.forEach(p => tpl.appendChild(h('tr', {}, h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', {}, V.filter(v => v.fecha === p.fecha && v.llave === p.llave).length), h('td', {}, linkF(p.url, 'Abrir PDF')))));
-  if (!TR.planillas.length) tpl.appendChild(h('tr', {}, h('td', {}, 'Sin planillas en el rango')));
+  const conAl = V.filter(v => v.alertas), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend);
+  const top = $('trTop'); top.textContent = '';
+  const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
+  top.appendChild(h('div', { class: 'kpis' }, K('Viajes', V.length), K('m³', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas', new Set(V.map(v => v.placa)).size)));
+  const aviso = (n, txt, fn) => n ? h('button', { class: 'trav', onclick: fn }, '⚠️ ' + n + ' ' + txt) : null;
+  top.append(...[
+    aviso(pend.length, pend.length === 1 ? 'volqueta nueva por confirmar' : 'volquetas nuevas por confirmar', () => { TRVOL = 'pend'; TRTAB = 'volquetas'; pintarTr(); }),
+    aviso(conAl.length, conAl.length === 1 ? 'viaje con alerta' : 'viajes con alertas', () => { TRFIL = 'alerta'; TRTAB = 'viajes'; pintarTr(); }),
+    aviso(sinRec.length, 'sin recibo', () => { TRFIL = 'sinrec'; TRTAB = 'viajes'; pintarTr(); })].filter(Boolean));
+  if (!pend.length && !conAl.length && !sinRec.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
+  const tb = $('trTabs'); tb.textContent = '';
+  [['viajes', '📋 Viajes'], ['volquetas', '🚛 Volquetas'], ['resumen', '📊 Resumen'], ['planillas', '📄 Planillas']].forEach(([k, t]) =>
+    tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; pintarTr(); } }, t)));
+  const c = $('trBody'); c.textContent = '';
+  ({ viajes: vistaViajes, volquetas: vistaVol, resumen: vistaRes, planillas: vistaPlan })[TRTAB](c);
 }
-async function cambioVol(d, msg) {
+function chips(opts, val, fn) {
+  return h('div', { class: 'chips' }, opts.map(([k, t]) => h('button', { class: 'chip' + (val === k ? ' on' : ''), onclick: () => fn(k) }, t)));
+}
+async function cambioVol(d) {
   const r = await api(Object.assign({ accion: 'admin_tr_vol', llave: LLAVE }, d));
   if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return false; }
   TR.volquetas = r.volquetas; pintarTr(); return true;
 }
-function tablaVol() {
-  const f = $('fVol').value, V = TR.viajes, t = $('trPend'); t.textContent = '';
-  const esPend = x => String(x.validada).toUpperCase() === 'NO', esIn = x => /INACT/.test(String(x.estado).toUpperCase());
-  const L = TR.volquetas.filter(x => f === 'pend' ? esPend(x) : f === 'act' ? !esIn(x) : f === 'inact' ? esIn(x) : true);
-  t.appendChild(h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'm³', 'Conductor', 'Estado', 'Confirmada', 'Viajes (rango)', 'Acciones'].map(c => h('th', {}, c))));
-  L.forEach(x => t.appendChild(h('tr', {}, h('td', {}, x.placa), h('td', {}, x.empresa), h('td', {}, x.tipo), h('td', {}, x.capacidad), h('td', {}, x.conductor), h('td', {}, esIn(x) ? 'Inactiva' : 'Activa'), h('td', {}, esPend(x) ? 'Por confirmar' : 'Sí'), h('td', {}, V.filter(v => v.placa === x.placa).length),
-    h('td', {}, esPend(x) ? h('button', { class: 'sm', onclick: () => cambioVol({ cambio: 'confirmar', placa: x.placa }) }, '✔ Confirmar') : null, ' ',
-      h('button', { class: 'sec sm', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? 'Activar' : 'Desactivar')))));
-  if (!L.length) t.appendChild(h('tr', {}, h('td', {}, f === 'pend' ? 'Ninguna por confirmar ✔' : 'Sin volquetas')));
+function vistaVol(c) {
+  const V = TR.viajes;
+  c.appendChild(chips([['pend', 'Por confirmar'], ['act', 'Activas'], ['inact', 'Inactivas'], ['todas', 'Todas']], TRVOL, k => { TRVOL = k; pintarTr(); }));
+  const L = TR.volquetas.filter(x => TRVOL === 'pend' ? esPend(x) : TRVOL === 'act' ? !esIn(x) : TRVOL === 'inact' ? esIn(x) : true);
+  L.forEach(x => {
+    const n = V.filter(v => v.placa === x.placa).length;
+    c.appendChild(h('div', { class: 'tcard' + (esPend(x) ? ' warn' : '') },
+      h('div', { class: 'big' }, x.placa, esPend(x) ? h('span', { class: 'tag w' }, 'Nueva') : null, esIn(x) ? h('span', { class: 'tag' }, 'Inactiva') : null),
+      h('div', { class: 'small' }, [x.empresa, x.tipo, x.capacidad ? x.capacidad + ' m³' : '', x.conductor].filter(Boolean).join(' · ') || 'Sin datos'),
+      h('div', { class: 'small' }, n + (n === 1 ? ' viaje' : ' viajes') + ' en estas fechas'),
+      h('div', { class: 'acc' },
+        esPend(x) ? h('button', { onclick: () => cambioVol({ cambio: 'confirmar', placa: x.placa }) }, '✔ Confirmar') : null,
+        h('button', { class: 'sec', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? 'Activar' : 'Desactivar'))));
+  });
+  if (!L.length) c.appendChild(h('div', { class: 'trok' }, TRVOL === 'pend' ? '✅ No hay volquetas por confirmar' : 'No hay volquetas'));
+  const f = h('details', { class: 'tcard' }, h('summary', {}, '➕ Agregar volqueta'));
+  const inp = (id, lab, extra) => h('div', {}, h('label', {}, lab), h('input', Object.assign({ id }, extra || {})));
+  const msg = h('div', { class: 'small' });
+  f.append(inp('nvPlaca', 'Placa *', { maxlength: 7, autocapitalize: 'characters' }), inp('nvEmp', 'Empresa'), inp('nvTipo', 'Tipo'), inp('nvCap', 'Capacidad (m³)', { inputmode: 'decimal' }), inp('nvCond', 'Conductor'),
+    h('div', { class: 'acc' }, h('button', {
+      onclick: async () => {
+        const p = $('nvPlaca').value.trim(); msg.textContent = '';
+        if (!p) { msg.textContent = 'Escribe la placa.'; return; }
+        if (!await cambioVol({ cambio: 'crear', placa: p, empresa: $('nvEmp').value, tipo: $('nvTipo').value, capacidad: $('nvCap').value, conductor: $('nvCond').value })) msg.textContent = 'No se guardó.';
+      } }, 'Guardar')), msg);
+  c.appendChild(f);
 }
 function viajesTr() {
-  const q = $('qTr').value.trim().toUpperCase(), ll = $('fTrLlave').value, est = $('fTrEst').value, hoy = TR.hoy;
-  return TR.viajes.filter(v => (!ll || v.llave === ll) && (!est || (est === 'alerta' ? v.alertas : est === 'sinrec' ? !v.tiene_recibo : !v.tiene_carga))
-    && (!q || [v.cod, v.placa, v.conductor, v.empresa, v.material, v.origen, v.destino, v.alertas, v.n_valera, v.usuario].join(' ').toUpperCase().indexOf(q) >= 0));
+  const q = TRQ.trim().toUpperCase();
+  return TR.viajes.filter(v => (!TRFIL || (TRFIL === 'alerta' ? v.alertas : !v.tiene_recibo && v.fecha < TR.hoy))
+    && (!q || [v.cod, v.placa, v.conductor, v.empresa, v.material, v.origen, v.destino, v.alertas, v.usuario].join(' ').toUpperCase().indexOf(q) >= 0));
 }
-function tablaTr() {
-  const L = viajesTr(), t = $('tTr'); t.textContent = '';
-  t.appendChild(h('tr', {}, ['Fecha', 'Hora', 'Vale', 'Placa', 'Conductor', 'Material', 'Origen', 'Destino', 'm³', 'Estado', 'Fotos', 'Alertas'].map(c => h('th', {}, c))));
-  L.slice(0, 1500).forEach(v => t.appendChild(h('tr', {}, h('td', {}, fmtF(v.fecha)), h('td', {}, v.hora_salida), h('td', {}, v.cod), h('td', {}, v.placa), h('td', {}, v.conductor), h('td', {}, v.material), h('td', {}, v.origen), h('td', {}, v.destino), h('td', {}, v.cant),
-    h('td', {}, v.estado), h('td', {}, v.fotos_c.map((u, i) => h('span', {}, linkF(u, 'C' + (i + 1)), ' ')), v.fotos_r.map((u, i) => h('span', {}, linkF(u, 'R' + (i + 1)), ' '))), h('td', { class: 'w', style: v.alertas ? 'color:var(--err)' : '' }, v.alertas))));
-  if (!L.length) t.appendChild(h('tr', {}, h('td', {}, 'Sin viajes')));
+function vistaViajes(c) {
+  const lista = h('div', {});
+  const bus = h('input', { type: 'search', placeholder: '🔍 Buscar placa, material, destino…', value: TRQ });
+  bus.oninput = () => { TRQ = bus.value; pintaLista(); };
+  c.append(bus, chips([['', 'Todos'], ['alerta', '⚠️ Con alerta'], ['sinrec', 'Sin recibo']], TRFIL, k => { TRFIL = k; pintarTr(); }), lista,
+    h('button', { class: 'sec', style: 'margin-top:10px', onclick: csvTr }, '⬇ Descargar en Excel (CSV)'));
+  function pintaLista() {
+    const L = viajesTr(); lista.textContent = '';
+    L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (v.alertas ? ' warn' : '') },
+      h('div', { class: 'big' }, v.placa, ' · ', nf(v.cant) + ' m³'),
+      h('div', {}, v.material || '—'),
+      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—')),
+      h('div', { class: 'small' }, (v.conductor || '') + ' · ' + v.cod),
+      v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
+      h('div', { class: 'small' }, v.tiene_recibo ? '✅ Con recibo' : 'Sin recibo', ' ', (v.fotos_c || []).map((u, i) => h('span', {}, linkF(u, '📷C' + (i + 1)), ' ')), (v.fotos_r || []).map((u, i) => h('span', {}, linkF(u, '📷R' + (i + 1)), ' '))))));
+    if (!L.length) lista.appendChild(h('div', { class: 'trok' }, 'No hay viajes'));
+    if (L.length > 300) lista.appendChild(h('div', { class: 'small' }, 'Se muestran 300 de ' + L.length + '. Usa la búsqueda o descarga el CSV.'));
+  }
+  pintaLista();
+}
+function vistaRes(c) {
+  const g = {}; TR.viajes.forEach(v => { const d = v.destino || '—', m = v.material || '—'; g[d] = g[d] || { n: 0, q: 0, m: {} }; g[d].n++; g[d].q += Number(v.cant) || 0; g[d].m[m] = g[d].m[m] || { n: 0, q: 0 }; g[d].m[m].n++; g[d].m[m].q += Number(v.cant) || 0; });
+  Object.keys(g).sort().forEach(d => c.appendChild(h('div', { class: 'tcard' },
+    h('div', { class: 'big' }, '📍 ' + d), h('div', { class: 'small' }, g[d].n + ' viajes · ' + nf(g[d].q) + ' m³'),
+    Object.keys(g[d].m).sort((a, b) => g[d].m[b].q - g[d].m[a].q).map(m => h('div', {}, m + ': ', h('b', {}, nf(g[d].m[m].q) + ' m³'), ' (' + g[d].m[m].n + ')')))));
+  if (!Object.keys(g).length) c.appendChild(h('div', { class: 'trok' }, 'No hay viajes'));
+}
+function vistaPlan(c) {
+  TR.planillas.forEach(p => c.appendChild(h('div', { class: 'tcard' },
+    h('div', { class: 'big' }, fmtF(p.fecha)), h('div', { class: 'small' }, p.llave + ' · ' + p.usuario + ' · ' + TR.viajes.filter(v => v.fecha === p.fecha && v.llave === p.llave).length + ' viajes'),
+    p.url ? h('a', { class: 'btnl', href: p.url, target: '_blank', rel: 'noopener' }, '📄 Abrir PDF') : null)));
+  if (!TR.planillas.length) c.appendChild(h('div', { class: 'trok' }, 'No hay planillas en estas fechas'));
 }
 function csvTr() {
   const cols = ['Fecha', 'Hora salida', 'Vale', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'Origen', 'Destino', 'm3', 'Estado', 'N valera', 'Alertas'];
   const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => [v.fecha, v.hora_salida, v.cod, v.llave, v.placa, v.empresa, v.conductor, v.material, v.origen, v.destino, v.cant, v.estado, v.n_valera, v.alertas].map(csvCelda).join(';')));
-  bajar(new Blob(['\ufeff' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Transportes_' + $('desde').value + '_' + $('hasta').value + '.csv');
+  bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Transportes_' + $('desde').value + '_' + $('hasta').value + '.csv');
 }
 function navegacion() {
   const n = $('nav'); n.hidden = false; if (n.firstChild) { modulo(MOD); return; }
@@ -732,13 +766,6 @@ function descargarXlsx() {
   XLSX.writeFile(wb, 'Consolidado_' + (ll || 'TODAS') + '_' + $('desde').value + '_' + $('hasta').value + '.xlsx');
 }
 
-$('fVol').onchange = () => { if (TR) tablaVol(); };
-$('nvOk').onclick = async () => {
-  const p = $('nvPlaca').value.trim(); $('nvMsg').textContent = '';
-  if (!p) { $('nvMsg').textContent = 'Escribe la placa.'; return; }
-  if (await cambioVol({ cambio: 'crear', placa: p, empresa: $('nvEmp').value, tipo: $('nvTipo').value, capacidad: $('nvCap').value, conductor: $('nvCond').value })) { ['nvPlaca', 'nvEmp', 'nvTipo', 'nvCap', 'nvCond'].forEach(i => $(i).value = ''); $('nvMsg').textContent = '✔ Agregada'; }
-};
-$('qTr').oninput = () => { if (TR) tablaTr(); }; $('fTrLlave').onchange = $('fTrEst').onchange = () => { if (TR) tablaTr(); }; $('limpTr').onclick = () => { $('qTr').value = ''; $('fTrEst').value = ''; $('fTrLlave').value = ''; if (TR) tablaTr(); }; $('trCsv').onclick = () => { if (TR) csvTr(); };
 $('entrar').onclick = entrar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') entrar(); };
 $('salir').onclick = salir;
