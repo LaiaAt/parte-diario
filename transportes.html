@@ -334,7 +334,7 @@ async function verFoto(v, cual) {
 }
 
 /* ---------- formulario de viaje ---------- */
-let editandoCod = null, fotoCargaNueva = [];
+let editandoCod = null, fotoCargaNueva = [], fotoReciboNueva = [];
 function llenarListas() {
   const lst = (id, arr) => { const e = $(id); e.textContent = ''; (arr || []).forEach(x => e.appendChild(h('option', { value: x }))); };
   lst('dl-placa', DATOS.volquetas.map(x => x.placa));
@@ -438,7 +438,7 @@ function chipsPara(campo, id) {
 }
 function abrirForm(v, base) {
   llenarListas();
-  editandoCod = v ? v.cod : null; fotoCargaNueva = [];
+  editandoCod = v ? v.cod : null; fotoCargaNueva = []; fotoReciboNueva = [];
   const F = $('form'); F.textContent = '';
   const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'cant'];
   const val = (k, d) => v ? (v[k] === undefined || v[k] === null ? '' : v[k]) : (base && BK.indexOf(k) >= 0 && base[k] !== undefined && base[k] !== null ? base[k] : (d === undefined ? '' : d));
@@ -466,11 +466,13 @@ function abrirForm(v, base) {
   turno.value = v ? v.turno : ((hh >= 6 && hh < 18) ? 'DIA' : 'NOCHE');
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
-  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Otros datos'), h('p', { class: 'sub' }, 'La hora de salida es obligatoria. Lo demás es opcional.'),
-    h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida *', val('hora_salida', hm()), { type: 'time' }), campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' })),
-    h('div', { class: 'row' }, campo('n_valera', 'N° de valera', val('n_valera')), h('div', {}, h('label', {}, 'La valera es'), vd)),
-    h('div', { class: 'row' }, campo('centro', 'Centro de costos', val('centro'), { list: 'dl-centro' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' }), campo('km', 'Kilómetros', val('km'), { inputmode: 'decimal' })),
-    h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs'))));
+  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Datos del vale'), h('p', { class: 'sub' }, 'Los que tienen * son obligatorios.'),
+    h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida *', val('hora_salida', hm()), { type: 'time' })),
+    h('div', { class: 'row' }, campo('n_valera', 'N° de valera *', val('n_valera'), { inputmode: 'numeric' }), h('div', {}, h('label', {}, 'La valera es'), vd)),
+    h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos *', val('centro'), { list: 'dl-centro' }), chipsPara('centro', 'centro')),
+    h('details', { style: 'margin-top:10px' }, h('summary', {}, 'Más datos (opcional)'),
+      h('div', { class: 'row', style: 'margin-top:8px' }, campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' }), campo('km', 'Kilómetros', val('km'), { inputmode: 'decimal' })),
+      h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs')))));
   // paso 4: fotos
   const prev = h('div', { id: 'prevCarga', class: 'fotos', style: 'margin-top:10px' });
   const cuenta = h('p', { class: 'sub', style: 'margin:8px 0 0' }, v && v.tiene_carga ? '✔ Ya tiene fotos. Las que agregues se suman.' : 'Puedes tomar la foto o elegir varias de tu galería.');
@@ -479,9 +481,18 @@ function abrirForm(v, base) {
     fotoCargaNueva.forEach((d, i) => prev.appendChild(h('div', {}, h('img', { src: d }), h('button', { type: 'button', class: 'rojo x', onclick: () => { fotoCargaNueva.splice(i, 1); pintarPrev(); } }, '✕'))));
     if (fotoCargaNueva.length) cuenta.textContent = fotoCargaNueva.length + ' foto(s) lista(s) para guardar.';
   };
-  const c4 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '4'), 'Fotos de la volqueta cargada'),
+  const c4 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '4'), '📷 Fotos de la volqueta cargada'),
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Tomar foto', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoCargaNueva = fotoCargaNueva.concat(arr).slice(0, 10); pintarPrev(); } })), cuenta, prev);
-  F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(c4);
+  const prevR = h('div', { id: 'prevRecibo', class: 'fotos', style: 'margin-top:10px' });
+  const cuentaR = h('p', { class: 'sub', style: 'margin:8px 0 0' }, v && v.tiene_recibo ? '✔ Ya tiene recibo. Las que agregues se suman.' : 'Si ya tienes el recibo sellado, súbelo aquí. Si no, lo subes después desde la lista.');
+  const pintarPrevR = () => {
+    prevR.textContent = '';
+    fotoReciboNueva.forEach((d, i) => prevR.appendChild(h('div', {}, h('img', { src: d }), h('button', { type: 'button', class: 'rojo x', onclick: () => { fotoReciboNueva.splice(i, 1); pintarPrevR(); } }, '✕'))));
+    if (fotoReciboNueva.length) cuentaR.textContent = fotoReciboNueva.length + ' foto(s) del recibo lista(s) para guardar.';
+  };
+  const c5 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '5'), '🧾 Foto del recibo (opcional)'),
+    h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Foto del recibo', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoReciboNueva = fotoReciboNueva.concat(arr).slice(0, 10); pintarPrevR(); } })), cuentaR, prevR);
+  F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(c4); F.appendChild(c5);
   F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ GUARDAR Y CREAR VALE'));
   pantalla('form'); alertaForm();
   const pl = $('placa');
@@ -518,6 +529,8 @@ async function guardarViaje() {
   if (!g('origen')) M('origen', 'de dónde sale');
   if (!g('destino')) M('destinoSel', 'adónde va');
   if (!g('hora_salida')) M('hora_salida', 'la hora de salida');
+  if (!g('n_valera')) M('n_valera', 'el N° de valera');
+  if (!g('centro')) M('centro', 'el centro de costos');
   const cant = num(g('cant')); if (!(cant > 0 && cant <= 60)) M('cant', 'la cantidad (m³)');
   if (g('peso') && !(num(g('peso')) >= 0)) M('peso', 'el peso');
   if (g('km') && !(num(g('km')) >= 0)) M('km', 'los kilómetros');
@@ -533,7 +546,7 @@ async function guardarViaje() {
     cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
     placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: g('origen'), destino: g('destino'),
     cant: cant, peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
-    tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo), estado: antes ? antes.estado : 'DESPACHADO', nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
+    tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'RECIBIDO' : (antes ? antes.estado : 'DESPACHADO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
   });
   const i = VIAJES.findIndex(x => x.cod === cod); if (i >= 0) VIAJES[i] = v; else VIAJES.push(v);
   // catalogo local: que aparezcan ya los valores nuevos
@@ -543,8 +556,13 @@ async function guardarViaje() {
   if (fotoCargaNueva.length) { const ya = previo && previo.fotoNueva ? asArr(await kv.get('f_' + cod + '_c')) : []; await kv.set('f_' + cod + '_c', ya.concat(fotoCargaNueva).slice(0, 10)); }
   const op = { id: Date.now() + Math.random(), t: 'g', llave: user.llave, cod: cod, viaje: v, ed: hoy(), fotoNueva: fotoCargaNueva.length > 0 || !!(previo && previo.fotoNueva) };
   COLA = COLA.filter(o => !(o.t === 'g' && o.cod === cod)); COLA.push(op);
+  if (fotoReciboNueva.length) {
+    const pr = COLA.some(o => o.t === 'r' && o.cod === cod); const yaR = pr ? asArr(await kv.get('f_' + cod + '_r')) : [];
+    await kv.set('f_' + cod + '_r', yaR.concat(fotoReciboNueva).slice(0, 10)); v.recibo_local = true;
+    COLA = COLA.filter(o => !(o.t === 'r' && o.cod === cod)); COLA.push({ id: Date.now() + Math.random(), t: 'r', llave: user.llave, cod: cod });
+  }
   await guardarViajes(); await guardarCola(); await guardarDatos();
-  fotoCargaNueva = []; editandoCod = null;
+  fotoCargaNueva = []; fotoReciboNueva = []; editandoCod = null;
   mostrarListo(v); sincronizar();
 }
 function mostrarListo(v) {
