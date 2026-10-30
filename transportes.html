@@ -31,6 +31,7 @@ button.sec{background:#dde2e6;color:var(--ink)}
 button.link{background:none;color:var(--ink);text-decoration:underline;width:auto;padding:4px;font-weight:400;font-size:15px}
 .chk{display:flex;align-items:center;gap:10px;font-size:18px;color:var(--ink);margin:0;font-weight:700}
 .chk input{width:28px;height:28px}
+.malcampo{border:3px solid #b00020!important;background:#fff0f0!important}.malmsg{color:#b00020;font-weight:700;margin-top:4px}
 .aviso{padding:10px 12px;border-radius:6px;margin:0 0 12px;font-size:16px;border:1px solid var(--line);background:#fff}
 .aviso.ok{border-color:var(--ok);color:var(--ok)}.aviso.err{border-color:var(--err);color:var(--err)}
 .off{opacity:.5}
@@ -507,18 +508,25 @@ function abrirForm(v, base) {
 async function guardarViaje() {
   const g = id => $(id).value.trim();
   const placa = normPlaca(g('placa'));
-  const err = [];
-  if (!/^[A-Z0-9]{5,7}$/.test(placa)) err.push('la placa');
-  if (!g('empresa')) { err.push('la empresa de la volqueta'); $('datosVol').hidden = false; }
-  if (!g('conductor')) { err.push('el conductor'); $('datosVol').hidden = false; }
-  if (!g('material')) err.push('el material');
-  if (!g('origen')) err.push('de dónde sale');
-  if (!g('destino')) err.push('adónde va');
-  if (!g('hora_salida')) err.push('la hora de salida');
-  const cant = num(g('cant')); if (!(cant > 0 && cant <= 60)) err.push('la cantidad (m³)');
-  if (g('peso') && !(num(g('peso')) >= 0)) err.push('el peso');
-  if (g('km') && !(num(g('km')) >= 0)) err.push('los kilómetros');
-  if (err.length) { aviso('Falta completar: ' + err.join(', ') + '.', 'err'); return; }
+  const err = [], mal = [];
+  document.querySelectorAll('.malcampo').forEach(e => e.classList.remove('malcampo')); document.querySelectorAll('.malmsg').forEach(e => e.remove());
+  const M = (id, t) => { err.push(t); mal.push(id); };
+  if (!/^[A-Z0-9]{5,7}$/.test(placa)) M('placa', 'la placa');
+  if (!g('empresa')) { M('empresa', 'la empresa de la volqueta'); $('datosVol').hidden = false; }
+  if (!g('conductor')) { M('conductor', 'el conductor'); $('datosVol').hidden = false; }
+  if (!g('material')) M('materialSel', 'el material');
+  if (!g('origen')) M('origen', 'de dónde sale');
+  if (!g('destino')) M('destinoSel', 'adónde va');
+  if (!g('hora_salida')) M('hora_salida', 'la hora de salida');
+  const cant = num(g('cant')); if (!(cant > 0 && cant <= 60)) M('cant', 'la cantidad (m³)');
+  if (g('peso') && !(num(g('peso')) >= 0)) M('peso', 'el peso');
+  if (g('km') && !(num(g('km')) >= 0)) M('km', 'los kilómetros');
+  if (err.length) {
+    aviso('Falta completar: ' + err.join(', ') + '.', 'err');
+    mal.forEach((id, i) => { const el = $(id); if (!el) return; el.classList.add('malcampo'); el.addEventListener('input', () => el.classList.remove('malcampo'), { once: true }); el.addEventListener('change', () => el.classList.remove('malcampo'), { once: true }); const w = el.parentNode; if (w) w.appendChild(h('div', { class: 'malmsg' }, '⬆ Falta: ' + err[i])); });
+    const p = $(mal[0]); if (p) { p.scrollIntoView({ block: 'center' }); if (p.focus) p.focus(); }
+    return;
+  }
   const antes = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
   const cod = antes ? antes.cod : nuevoCod();
   const v = Object.assign({}, antes || {}, {
