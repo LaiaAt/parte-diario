@@ -440,7 +440,7 @@ function abrirForm(v, base) {
   llenarListas();
   editandoCod = v ? v.cod : null; fotoCargaNueva = []; fotoReciboNueva = [];
   const F = $('form'); F.textContent = '';
-  const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'cant'];
+  const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'km', 'cant'];
   const val = (k, d) => v ? (v[k] === undefined || v[k] === null ? '' : v[k]) : (base && BK.indexOf(k) >= 0 && base[k] !== undefined && base[k] !== null ? base[k] : (d === undefined ? '' : d));
   const hh = new Date().getHours();
   const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta), h('input', { id: id, class: o.cls, type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
@@ -460,6 +460,8 @@ function abrirForm(v, base) {
     h('div', { style: 'height:10px' }),
     campoDestino(val('destino')),
     h('div', { style: 'height:10px' }),
+    campo('km', 'Distancia de recogida a destino (km) *', val('km'), { inputmode: 'decimal', ph: 'Ej: 12.5' }), h('small', { id: 'kmAyuda', class: 'sub' }, 'Obligatoria, sobre todo si el material sale de la obra.'),
+    h('div', { style: 'height:10px' }),
     campo('cant', 'Cantidad que lleva (m³) *', val('cant'), { inputmode: 'decimal', cls: 'cant' }));
   // paso 3: otros datos (siempre visibles)
   const turno = h('select', { id: 'turno' }, h('option', { value: 'DIA' }, 'Día'), h('option', { value: 'NOCHE' }, 'Noche'));
@@ -471,7 +473,7 @@ function abrirForm(v, base) {
     h('div', { class: 'row' }, campo('n_valera', 'N° de valera *', val('n_valera'), { inputmode: 'numeric' }), h('div', {}, h('label', {}, 'La valera es'), vd)),
     h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos *', val('centro'), { list: 'dl-centro' }), chipsPara('centro', 'centro')),
     h('details', { style: 'margin-top:10px' }, h('summary', {}, 'Más datos (opcional)'),
-      h('div', { class: 'row', style: 'margin-top:8px' }, campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' }), campo('km', 'Kilómetros', val('km'), { inputmode: 'decimal' })),
+      h('div', { class: 'row', style: 'margin-top:8px' }, campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' })),
       h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs')))));
   // paso 4: fotos
   const prev = h('div', { id: 'prevCarga', class: 'fotos', style: 'margin-top:10px' });
@@ -513,8 +515,15 @@ function abrirForm(v, base) {
       info.textContent = p.length >= 5 ? 'Esta volqueta es nueva. Completa sus datos.' : '';
     }
   };
-  pl.oninput = alPlaca; pl.onchange = alPlaca;
-  if (v) { $('datosVol').hidden = false; } else if (pl.value) alPlaca();
+  const sugerirKm = () => {
+    if ($('km').value.trim()) return;
+    const o = $('origen').value.trim().toUpperCase(), d = $('destino').value.trim().toUpperCase(); if (!o || !d) return;
+    const u = VIAJES.filter(x => String(x.origen || '').toUpperCase() === o && String(x.destino || '').toUpperCase() === d && num(x.km) > 0).sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || '')))[0];
+    if (u) { $('km').value = u.km; $('kmAyuda').textContent = 'Sugerida del último viaje igual. Corrígela si cambió.'; }
+  };
+  $('origen').addEventListener('change', sugerirKm); $('destinoSel').addEventListener('change', () => setTimeout(sugerirKm, 0)); $('destino').addEventListener('change', sugerirKm);
+  pl.oninput = () => { alPlaca(); sugerirKm(); }; pl.onchange = pl.oninput;
+  if (v) { $('datosVol').hidden = false; } else if (pl.value) { alPlaca(); sugerirKm(); }
 }
 async function guardarViaje() {
   const g = id => $(id).value.trim();
@@ -533,7 +542,7 @@ async function guardarViaje() {
   if (!g('centro')) M('centro', 'el centro de costos');
   const cant = num(g('cant')); if (!(cant > 0 && cant <= 60)) M('cant', 'la cantidad (m³)');
   if (g('peso') && !(num(g('peso')) >= 0)) M('peso', 'el peso');
-  if (g('km') && !(num(g('km')) >= 0)) M('km', 'los kilómetros');
+  if (!(num(g('km')) > 0)) M('km', 'la distancia en km (origen a destino)');
   if (err.length) {
     aviso('Falta completar: ' + err.join(', ') + '.', 'err');
     mal.forEach((id, i) => { const el = $(id); if (!el) return; el.classList.add('malcampo'); el.addEventListener('input', () => el.classList.remove('malcampo'), { once: true }); el.addEventListener('change', () => el.classList.remove('malcampo'), { once: true }); const w = el.parentNode; if (w) w.appendChild(h('div', { class: 'malmsg' }, '⬆ Falta: ' + err[i])); });
