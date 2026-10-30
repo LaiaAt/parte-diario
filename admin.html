@@ -742,7 +742,8 @@ $('qTr').oninput = () => { if (TR) tablaTr(); }; $('fTrLlave').onchange = $('fTr
 $('entrar').onclick = entrar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') entrar(); };
 $('salir').onclick = salir;
-$('act').onclick = async () => { TR = null; await cargar(false); if (MOD === 'transportes') cargarTr(); };
+$('act').onclick = async () => {
+  if ($('desde').value && $('hasta').value && (new Date($('hasta').value) - new Date($('desde').value)) / 86400000 > 31) { $('err').textContent = 'Elige máximo un mes (31 días) para que cargue rápido.'; return; } TR = null; await cargar(false); if (MOD === 'transportes') cargarTr(); };
 let qt;
 ['qPed', 'qPar', 'qFot', 'qCon'].forEach(i => { $(i).oninput = () => { clearTimeout(qt); qt = setTimeout(rerender, 200); }; });
 ['fSol', 'fSolLlave', 'fSolTipo'].forEach(i => $(i).onchange = solicitudes);
@@ -759,15 +760,16 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
 (function () {
   const hy = bogota(), M = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   let y = Number(hy.slice(0, 4)), m = Number(hy.slice(5, 7));
-  const s = $('mes'); s.appendChild(h('option', { value: '' }, 'Rango propio'));
+  const s = $('mes'); s.appendChild(h('option', { value: '__rec' }, 'Reciente (hoy y 2 días antes)')); s.appendChild(h('option', { value: '' }, 'Rango propio (máx. 31 días)'));
   for (let i = 0; i < 24; i++) { s.appendChild(h('option', { value: y + '-' + String(m).padStart(2, '0') }, M[m - 1] + ' ' + y)); m--; if (!m) { m = 12; y--; } }
   s.onchange = () => {
     if (!s.value) return;
+    if (s.value === '__rec') { $('desde').value = sumDias(hy, -2); $('hasta').value = hy; if (LLAVE) cargar(false); return; }
     const [yy, mm] = s.value.split('-').map(Number), fin = new Date(Date.UTC(yy, mm, 0)).toISOString().slice(0, 10);
     $('desde').value = s.value + '-01'; $('hasta').value = fin > hy ? hy : fin;
     if (LLAVE) cargar(false);
   };
-  s.value = hy.slice(0, 7); $('desde').value = hy.slice(0, 7) + '-01'; $('hasta').value = hy;
+  s.value = '__rec'; $('desde').value = sumDias(hy, -2); $('hasta').value = hy;
   ['desde', 'hasta'].forEach(i => $(i).onchange = () => { s.value = ''; });
 })();
 (function () { let l = ''; try { l = sessionStorage.getItem('adm') || ''; } catch (e) {} if (l) { $('llave').value = l; entrar(); } })();
