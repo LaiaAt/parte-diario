@@ -340,7 +340,7 @@ function llenarListas() {
   lst('dl-material', DATOS.catalogos.MATERIAL); lst('dl-origen', DATOS.catalogos.ORIGEN); lst('dl-destino', DATOS.catalogos.DESTINO); lst('dl-centro', DATOS.catalogos.CENTRO_COSTOS);
 }
 const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
-const MATERIALES_BASE = ['Material de excavación', 'Escombro', 'Material de relleno seleccionado', 'Recebo', 'Subbase granular', 'Base granular tipo A', 'Base granular tipo B', 'Base granular tipo C', 'Base PA', 'Rajón', 'Rajoncillo', 'Arena', 'Arena de trituración', 'Arena de peña', 'Gravilla', 'Triturado', 'Mezcla asfáltica'];
+const MATERIALES_BASE = ['Material de excavación', 'Escombro', 'Material de relleno seleccionado', 'Recebo', 'Subbase granular', 'Base granular tipo A', 'Base granular tipo B', 'Base granular tipo C', 'Base PA', 'Rajón', 'Rajoncillo', 'Arena', 'Arena de trituración', 'Arena de peña', 'Gravilla', 'Triturado', 'Mezcla asfáltica', 'Descapote', 'RCD (demolición)'];
 function listaMateriales() {
   const out = MATERIALES_BASE.slice();
   ((DATOS.catalogos && DATOS.catalogos.MATERIAL) || []).forEach(m => { if (m && !out.some(x => x.toUpperCase() === String(m).toUpperCase())) out.push(m); });
@@ -357,10 +357,54 @@ function campoMaterial(valor) {
   const sel = h('select', { id: 'materialSel' }, h('option', { value: '' }, '— Elige el material —'), listaMateriales().map(m => h('option', { value: m }, m)), h('option', { value: '__otro' }, '✏️ Otro (escribir)'));
   const inp = h('input', { id: 'material', type: 'text', autocomplete: 'off', placeholder: 'Escribe el material', value: valor });
   const otro = h('div', { id: 'materialOtro', style: 'margin-top:8px', hidden: true }, inp);
-  sel.onchange = () => { if (sel.value === '__otro') { inp.value = ''; otro.hidden = false; inp.focus(); } else { inp.value = sel.value; otro.hidden = true; } };
-  const w = h('div', { id: 'c_material' }, h('label', { for: 'materialSel' }, 'Material'), sel, otro);
+  sel.onchange = () => { if (sel.value === '__otro') { inp.value = ''; otro.hidden = false; inp.focus(); } else { inp.value = sel.value; otro.hidden = true; } alertaForm(); };
+  inp.oninput = alertaForm;
+  const w = h('div', { id: 'c_material' }, h('label', { for: 'materialSel' }, 'Material *'), sel, otro);
   setMaterial(valor, { sel: sel, inp: inp, wrap: otro });
   return w;
+}
+const SITIOS = [
+  { n: 'DISPOAMBIENTAL', t: ['EXC'], d: 'excavación, arenas, limos, arcillas, tierras negras' },
+  { n: 'Arenas y gravas Villamaría', t: ['RCD'], d: 'RCD' },
+  { n: 'Reciclados Industriales de Colombia', t: ['RCD'], d: 'RCD' },
+  { n: 'MINERSA', t: ['RCD'], d: 'RCD' },
+  { n: 'VECOAGREINT', t: ['RCD'], d: 'RCD' }];
+function tipoResiduo(m) {
+  const t = String(m || '').toUpperCase();
+  if (/ESCOMBRO|RCD|DEMOLICI/.test(t)) return 'RCD';
+  if (/EXCAVA|DESCAPOTE|LIMO|ARCILLA|TIERRA NEGRA/.test(t)) return 'EXC';
+  return '';
+}
+function alertaSitio(mat, dest) {
+  const tr = tipoResiduo(mat), d = String(dest || '').trim().toUpperCase();
+  const si = SITIOS.find(x => x.n.toUpperCase() === d);
+  if (si) return (tr && si.t.indexOf(tr) < 0) ? si.n + ' NO recibe ' + (tr === 'RCD' ? 'RCD' : 'material de excavación o descapote') + '. Recibe: ' + si.d + '.' : '';
+  return tr && d ? 'Sitio de disposición NO autorizado: ' + dest : '';
+}
+function setDestino(val, r) {
+  const sel = r ? r.sel : $('destinoSel'), inp = r ? r.inp : $('destino'), wrap = r ? r.wrap : $('destinoOtro');
+  const m = SITIOS.find(x => x.n.toUpperCase() === String(val || '').toUpperCase());
+  if (m) { sel.value = m.n; inp.value = m.n; wrap.hidden = true; }
+  else if (val) { sel.value = '__otro'; inp.value = val; wrap.hidden = false; }
+  else { sel.value = ''; inp.value = ''; wrap.hidden = true; }
+}
+function campoDestino(valor) {
+  const sel = h('select', { id: 'destinoSel' }, h('option', { value: '' }, '— Elige el destino —'),
+    h('optgroup', { label: 'Sitios de disposición autorizados' }, SITIOS.map(x => h('option', { value: x.n }, x.n))),
+    h('option', { value: '__otro' }, '✏️ Otro destino (escribir)'));
+  const inp = h('input', { id: 'destino', type: 'text', autocomplete: 'off', placeholder: 'Escribe el destino', value: valor, list: 'dl-destino' });
+  const otro = h('div', { id: 'destinoOtro', style: 'margin-top:8px', hidden: true }, inp);
+  sel.onchange = () => { if (sel.value === '__otro') { inp.value = ''; otro.hidden = false; inp.focus(); } else { inp.value = sel.value; otro.hidden = true; } alertaForm(); };
+  inp.oninput = alertaForm;
+  const w = h('div', { id: 'c_destino' }, h('label', { for: 'destinoSel' }, 'Va a (destino) *'), sel, otro,
+    h('div', { id: 'alertaSitio', style: 'color:#b00020;font-weight:700;margin-top:8px', hidden: true }));
+  setDestino(valor, { sel: sel, inp: inp, wrap: otro });
+  return w;
+}
+function alertaForm() {
+  const a = $('alertaSitio'); if (!a) return;
+  const t = alertaSitio($('material') && $('material').value, $('destino') && $('destino').value);
+  a.hidden = !t; a.textContent = t ? '⚠ ' + t + ' Revisa antes de guardar.' : '';
 }
 function selectorFotos(o) {
   const mk = (texto, cam) => {
@@ -404,25 +448,25 @@ function abrirForm(v, base) {
   const res = h('div', { id: 'resVol', class: 'resumen', hidden: true });
   const dat = h('div', { id: 'datosVol', hidden: true },
     h('div', { class: 'row' }, campo('empresa', 'Empresa', val('empresa')), campo('tipo', 'Tipo de volqueta', val('tipo'), { ph: 'Doble troque…' })),
-    h('div', { class: 'row' }, campo('capacidad', 'Capacidad (m³)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor', val('conductor'))));
+    h('div', { class: 'row' }, campo('capacidad', 'Capacidad (m³)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor *', val('conductor'))));
   const c1 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '1'), '¿Qué volqueta es?'),
-    campo('placa', 'Placa', val('placa'), { list: 'dl-placa', cap: 'characters', cls: 'placa', ph: 'ABC123' }), h('div', { id: 'infoPlaca', style: 'color:#b36b00;font-weight:700;margin-top:6px' }), res, dat);
+    campo('placa', 'Placa *', val('placa'), { list: 'dl-placa', cap: 'characters', cls: 'placa', ph: 'ABC123' }), h('div', { id: 'infoPlaca', style: 'color:#b36b00;font-weight:700;margin-top:6px' }), res, dat);
   // paso 2
   const c2 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '2'), '¿Qué lleva y adónde va?'),
     campoMaterial(val('material')),
     h('div', { style: 'height:10px' }),
-    campo('origen', 'Sale de (origen)', val('origen'), { list: 'dl-origen' }), chipsPara('origen', 'origen'),
+    campo('origen', 'Sale de (origen) *', val('origen'), { list: 'dl-origen' }), chipsPara('origen', 'origen'),
     h('div', { style: 'height:10px' }),
-    campo('destino', 'Va a (destino)', val('destino'), { list: 'dl-destino' }), chipsPara('destino', 'destino'),
+    campoDestino(val('destino')),
     h('div', { style: 'height:10px' }),
-    campo('cant', 'Cantidad que lleva (m³)', val('cant'), { inputmode: 'decimal', cls: 'cant' }));
+    campo('cant', 'Cantidad que lleva (m³) *', val('cant'), { inputmode: 'decimal', cls: 'cant' }));
   // paso 3: otros datos (siempre visibles)
   const turno = h('select', { id: 'turno' }, h('option', { value: 'DIA' }, 'Día'), h('option', { value: 'NOCHE' }, 'Noche'));
   turno.value = v ? v.turno : ((hh >= 6 && hh < 18) ? 'DIA' : 'NOCHE');
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
-  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Otros datos'), h('p', { class: 'sub' }, 'Revisa las horas. Lo demás es opcional.'),
-    h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida', val('hora_salida', hm()), { type: 'time' }), campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' })),
+  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Otros datos'), h('p', { class: 'sub' }, 'La hora de salida es obligatoria. Lo demás es opcional.'),
+    h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida *', val('hora_salida', hm()), { type: 'time' }), campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' })),
     h('div', { class: 'row' }, campo('n_valera', 'N° de valera', val('n_valera')), h('div', {}, h('label', {}, 'La valera es'), vd)),
     h('div', { class: 'row' }, campo('centro', 'Centro de costos', val('centro'), { list: 'dl-centro' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' }), campo('km', 'Kilómetros', val('km'), { inputmode: 'decimal' })),
     h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs'))));
@@ -438,14 +482,14 @@ function abrirForm(v, base) {
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Tomar foto', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoCargaNueva = fotoCargaNueva.concat(arr).slice(0, 10); pintarPrev(); } })), cuenta, prev);
   F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(c4);
   F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ GUARDAR Y CREAR VALE'));
-  pantalla('form');
+  pantalla('form'); alertaForm();
   const pl = $('placa');
   const alPlaca = () => {
     const p = normPlaca(pl.value), vo = DATOS.volquetas.find(x => x.placa === p), info = $('infoPlaca'), r = $('resVol'), d = $('datosVol');
     if (vo) {
       $('empresa').value = vo.empresa || ''; $('tipo').value = vo.tipo || ''; $('capacidad').value = vo.capacidad === undefined ? '' : vo.capacidad; if (!$('conductor').value || !v) $('conductor').value = vo.conductor || '';
       if (!$('cant').value && vo.capacidad !== '' && vo.capacidad !== undefined) $('cant').value = vo.capacidad;
-      if (!v) { const u = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + b.hora_salida).localeCompare(a.fecha + a.hora_salida))[0]; if (u) ['material', 'centro', 'origen', 'destino'].forEach(k => { if (!$(k).value) { if (k === 'material') setMaterial(u[k] || ''); else $(k).value = u[k] || ''; } }); }
+      if (!v) { const u = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + b.hora_salida).localeCompare(a.fecha + a.hora_salida))[0]; if (u) ['material', 'centro', 'origen', 'destino'].forEach(k => { if (!$(k).value) { if (k === 'material') setMaterial(u[k] || ''); else if (k === 'destino') setDestino(u[k] || ''); else $(k).value = u[k] || ''; } }); }
       info.textContent = '';
       r.hidden = false; r.textContent = '';
       r.appendChild(h('b', {}, '✔ ' + [vo.empresa, vo.tipo, (vo.capacidad !== '' && vo.capacidad !== undefined ? vo.capacidad + ' m³' : '')].filter(Boolean).join(' · ')));
@@ -466,9 +510,11 @@ async function guardarViaje() {
   const err = [];
   if (!/^[A-Z0-9]{5,7}$/.test(placa)) err.push('la placa');
   if (!g('empresa')) { err.push('la empresa de la volqueta'); $('datosVol').hidden = false; }
+  if (!g('conductor')) { err.push('el conductor'); $('datosVol').hidden = false; }
   if (!g('material')) err.push('el material');
   if (!g('origen')) err.push('de dónde sale');
   if (!g('destino')) err.push('adónde va');
+  if (!g('hora_salida')) err.push('la hora de salida');
   const cant = num(g('cant')); if (!(cant > 0 && cant <= 60)) err.push('la cantidad (m³)');
   if (g('peso') && !(num(g('peso')) >= 0)) err.push('el peso');
   if (g('km') && !(num(g('km')) >= 0)) err.push('los kilómetros');
