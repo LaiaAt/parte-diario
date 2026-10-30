@@ -77,6 +77,11 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
 .hecho{font-size:64px;text-align:center;margin:0}
 .gr{display:flex;flex-direction:column;gap:10px}
 [hidden]{display:none!important}
+.bs{display:flex;gap:8px;flex-wrap:wrap}
+.bs button{flex:1;min-width:130px}
+.fotos>div{position:relative}
+.fotos .x{position:absolute;top:4px;right:4px;width:auto;min-height:0;padding:4px 12px;font-size:18px;border-radius:20px}
+.sub{color:var(--mut);font-size:15px;margin:-4px 0 10px}
 </style>
 </head>
 <body>
@@ -265,12 +270,12 @@ function filaViaje(v) {
   const falta = !v.tiene_recibo && puedeRecibo(v);
   const mas = h('div', { class: 'bs', hidden: true, style: 'margin-top:8px' });
   if (puedeEditar(v)) { mas.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); }
-  if (v.tiene_carga) mas.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🖼 Foto de carga'));
-  if (v.tiene_recibo) mas.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🖼 Foto del recibo'));
-  if (v.tiene_recibo && puedeRecibo(v)) mas.appendChild(botonFoto('🔁 Cambiar foto del recibo', f => fotoRecibo(v, f)));
+  if (v.tiene_carga) mas.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🖼 Ver fotos de carga'));
+  if (v.tiene_recibo) mas.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🖼 Ver fotos del recibo'));
+  if (v.tiene_recibo && puedeRecibo(v)) mas.appendChild(selectorFotos({ camara: '📷 Otra foto del recibo', galeria: '🖼 Otras de la galería', alAgregar: f => fotoRecibo(v, f) }));
   if (puedeEditar(v)) mas.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje'));
   const bs = h('div', { class: 'bs' });
-  if (falta && !v.tiene_recibo) bs.appendChild(botonFoto('📷 Foto del recibo', f => fotoRecibo(v, f), 'verde'));
+  if (falta && !v.tiene_recibo) bs.appendChild(selectorFotos({ camara: '📷 Foto del recibo', galeria: '🖼 Desde galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) }));
   bs.appendChild(h('button', { class: 'sec', onclick: () => compartirVale(v) }, '📄 Vale'));
   if (mas.children.length) bs.appendChild(h('button', { class: 'sec', onclick: () => { mas.hidden = !mas.hidden; } }, '⋯ Más'));
   return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
@@ -304,7 +309,9 @@ function botonFoto(texto, alAgregar, clase) {
   return h('span', { style: 'display:inline-block' }, inp, h('button', { class: clase || 'sec', type: 'button', onclick: () => inp.click() }, texto));
 }
 async function fotoRecibo(v, data, quedarse) {
-  await kv.set('f_' + v.cod + '_r', data);
+  const pendiente = COLA.some(o => o.t === 'r' && o.cod === v.cod);
+  const previas = pendiente ? asArr(await kv.get('f_' + v.cod + '_r')) : [];
+  await kv.set('f_' + v.cod + '_r', previas.concat(asArr(data)).slice(0, 10));
   v.tiene_recibo = true; v.recibo_local = true; v.estado = 'RECIBIDO';
   COLA = COLA.filter(o => !(o.t === 'r' && o.cod === v.cod));
   COLA.push({ id: Date.now() + Math.random(), t: 'r', llave: user.llave, cod: v.cod });
@@ -312,25 +319,66 @@ async function fotoRecibo(v, data, quedarse) {
   if (!quedarse) volver(); aviso('✔ Foto del recibo guardada.', 'ok'); sincronizar();
 }
 async function verFoto(v, cual) {
-  let data = await kv.get('f_' + v.cod + '_' + (cual === 'carga' ? 'c' : 'r'));
-  if (!data) {
+  let datas = asArr(await kv.get('f_' + v.cod + '_' + (cual === 'carga' ? 'c' : 'r')));
+  if (!datas.length) {
     if (!navigator.onLine) { aviso('Para ver esta foto necesitas señal.', 'err'); return; }
     aviso('Abriendo…');
-    try { const r = await api({ accion: 'tr_foto', llave: user.llave, cod: v.cod, cual: cual }); if (!r.ok) { aviso(r.mensaje || 'No se pudo abrir.', 'err'); return; } data = r.data; aviso(''); }
+    try { const r = await api({ accion: 'tr_foto', llave: user.llave, cod: v.cod, cual: cual }); if (!r.ok) { aviso(r.mensaje || 'No se pudo abrir.', 'err'); return; } datas = r.datas || (r.data ? [r.data] : []); aviso(''); }
     catch (e) { aviso('No se pudo abrir. Intenta de nuevo.', 'err'); return; }
   }
   const V = $('visor'); V.textContent = '';
-  V.appendChild(h('div', { class: 'card' }, h('b', {}, (cual === 'carga' ? 'Foto de la volqueta cargada' : 'Recibo sellado') + ' · ' + v.cod), h('br'), h('img', { src: data, style: 'width:100%;margin-top:8px;border-radius:4px' }),
+  V.appendChild(h('div', { class: 'card' }, h('b', {}, (cual === 'carga' ? 'Fotos de la volqueta cargada' : 'Fotos del recibo') + ' · ' + v.cod), h('br'), datas.map(d => h('img', { src: d, style: 'width:100%;margin-top:8px;border-radius:4px' })),
     h('div', { class: 'row' }, h('button', { class: 'verde', onclick: volver }, 'Cerrar'))));
   pantalla('visor');
 }
 
 /* ---------- formulario de viaje ---------- */
-let editandoCod = null, fotoCargaNueva = null;
+let editandoCod = null, fotoCargaNueva = [];
 function llenarListas() {
   const lst = (id, arr) => { const e = $(id); e.textContent = ''; (arr || []).forEach(x => e.appendChild(h('option', { value: x }))); };
   lst('dl-placa', DATOS.volquetas.map(x => x.placa));
   lst('dl-material', DATOS.catalogos.MATERIAL); lst('dl-origen', DATOS.catalogos.ORIGEN); lst('dl-destino', DATOS.catalogos.DESTINO); lst('dl-centro', DATOS.catalogos.CENTRO_COSTOS);
+}
+const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
+const MATERIALES_BASE = ['Material de excavación', 'Escombro', 'Material de relleno seleccionado', 'Recebo', 'Subbase granular', 'Base granular tipo A', 'Base granular tipo B', 'Base granular tipo C', 'Base PA', 'Rajón', 'Rajoncillo', 'Arena', 'Arena de trituración', 'Arena de peña', 'Gravilla', 'Triturado', 'Mezcla asfáltica'];
+function listaMateriales() {
+  const out = MATERIALES_BASE.slice();
+  ((DATOS.catalogos && DATOS.catalogos.MATERIAL) || []).forEach(m => { if (m && !out.some(x => x.toUpperCase() === String(m).toUpperCase())) out.push(m); });
+  return out;
+}
+function setMaterial(val, r) {
+  const sel = r ? r.sel : $('materialSel'), inp = r ? r.inp : $('material'), wrap = r ? r.wrap : $('materialOtro');
+  const m = listaMateriales().find(x => x.toUpperCase() === String(val || '').toUpperCase());
+  if (m) { sel.value = m; inp.value = m; wrap.hidden = true; }
+  else if (val) { sel.value = '__otro'; inp.value = val; wrap.hidden = false; }
+  else { sel.value = ''; inp.value = ''; wrap.hidden = true; }
+}
+function campoMaterial(valor) {
+  const sel = h('select', { id: 'materialSel' }, h('option', { value: '' }, '— Elige el material —'), listaMateriales().map(m => h('option', { value: m }, m)), h('option', { value: '__otro' }, '✏️ Otro (escribir)'));
+  const inp = h('input', { id: 'material', type: 'text', autocomplete: 'off', placeholder: 'Escribe el material', value: valor });
+  const otro = h('div', { id: 'materialOtro', style: 'margin-top:8px', hidden: true }, inp);
+  sel.onchange = () => { if (sel.value === '__otro') { inp.value = ''; otro.hidden = false; inp.focus(); } else { inp.value = sel.value; otro.hidden = true; } };
+  const w = h('div', { id: 'c_material' }, h('label', { for: 'materialSel' }, 'Material'), sel, otro);
+  setMaterial(valor, { sel: sel, inp: inp, wrap: otro });
+  return w;
+}
+function selectorFotos(o) {
+  const mk = (texto, cam) => {
+    const inp = h('input', { type: 'file', accept: 'image/*', hidden: true });
+    if (cam) inp.setAttribute('capture', 'environment'); else inp.multiple = true;
+    inp.onchange = async () => {
+      const fs = Array.from(inp.files || []); inp.value = ''; if (!fs.length) return;
+      aviso('Preparando ' + (fs.length > 1 ? fs.length + ' fotos…' : 'la foto…'));
+      const out = [];
+      for (const f of fs) { try { out.push(await comprimir(f)); } catch (e) {} }
+      aviso(out.length < fs.length ? 'No se pudieron leer ' + (fs.length - out.length) + ' foto(s).' : '', out.length < fs.length ? 'err' : '');
+      if (out.length) o.alAgregar(out);
+    };
+    return h('span', { style: 'display:contents' }, inp, h('button', { class: o.clase || 'sec', type: 'button', onclick: () => inp.click() }, texto));
+  };
+  const fr = document.createDocumentFragment();
+  fr.appendChild(mk(o.camara || '📷 Tomar foto', true)); fr.appendChild(mk(o.galeria || '🖼 Elegir de la galería', false));
+  return fr;
 }
 const normPlaca = p => String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 function recientes(campo) {
@@ -345,7 +393,7 @@ function chipsPara(campo, id) {
 }
 function abrirForm(v, base) {
   llenarListas();
-  editandoCod = v ? v.cod : null; fotoCargaNueva = null;
+  editandoCod = v ? v.cod : null; fotoCargaNueva = [];
   const F = $('form'); F.textContent = '';
   const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'cant'];
   const val = (k, d) => v ? (v[k] === undefined || v[k] === null ? '' : v[k]) : (base && BK.indexOf(k) >= 0 && base[k] !== undefined && base[k] !== null ? base[k] : (d === undefined ? '' : d));
@@ -361,28 +409,34 @@ function abrirForm(v, base) {
     campo('placa', 'Placa', val('placa'), { list: 'dl-placa', cap: 'characters', cls: 'placa', ph: 'ABC123' }), h('div', { id: 'infoPlaca', style: 'color:#b36b00;font-weight:700;margin-top:6px' }), res, dat);
   // paso 2
   const c2 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '2'), '¿Qué lleva y adónde va?'),
-    campo('material', 'Material', val('material'), { list: 'dl-material' }), chipsPara('material', 'material'),
+    campoMaterial(val('material')),
     h('div', { style: 'height:10px' }),
     campo('origen', 'Sale de (origen)', val('origen'), { list: 'dl-origen' }), chipsPara('origen', 'origen'),
     h('div', { style: 'height:10px' }),
     campo('destino', 'Va a (destino)', val('destino'), { list: 'dl-destino' }), chipsPara('destino', 'destino'),
     h('div', { style: 'height:10px' }),
     campo('cant', 'Cantidad que lleva (m³)', val('cant'), { inputmode: 'decimal', cls: 'cant' }));
-  // paso 3
-  const prev = h('div', { id: 'prevCarga', style: 'margin-top:8px' }, v && v.tiene_carga ? h('small', {}, '✔ Ya tiene foto') : null);
-  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Foto de la volqueta cargada'),
-    botonFoto(v && v.tiene_carga ? '🔁 Cambiar foto' : '📷 Tomar foto', d => { fotoCargaNueva = d; prev.textContent = ''; prev.appendChild(h('img', { src: d, style: 'width:60%;border-radius:4px' })); }, 'verde'), prev);
-  // mas datos
+  // paso 3: otros datos (siempre visibles)
   const turno = h('select', { id: 'turno' }, h('option', { value: 'DIA' }, 'Día'), h('option', { value: 'NOCHE' }, 'Noche'));
   turno.value = v ? v.turno : ((hh >= 6 && hh < 18) ? 'DIA' : 'NOCHE');
-  const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '—'), h('option', { value: 'NUESTRA' }, 'Nuestra valera'), h('option', { value: 'VOLQUETERO' }, 'Valera del volquetero'));
+  const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
-  const mas = h('details', { class: 'mas' }, h('summary', {}, '➕ Más datos (si los necesitas)'),
+  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Otros datos'), h('p', { class: 'sub' }, 'Revisa las horas. Lo demás es opcional.'),
     h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida', val('hora_salida', hm()), { type: 'time' }), campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' })),
-    h('div', { class: 'row' }, campo('n_valera', 'N° de valera', val('n_valera')), h('div', {}, h('label', {}, 'La valera es de'), vd)),
+    h('div', { class: 'row' }, campo('n_valera', 'N° de valera', val('n_valera')), h('div', {}, h('label', {}, 'La valera es'), vd)),
     h('div', { class: 'row' }, campo('centro', 'Centro de costos', val('centro'), { list: 'dl-centro' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' }), campo('km', 'Kilómetros', val('km'), { inputmode: 'decimal' })),
     h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs'))));
-  F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(mas);
+  // paso 4: fotos
+  const prev = h('div', { id: 'prevCarga', class: 'fotos', style: 'margin-top:10px' });
+  const cuenta = h('p', { class: 'sub', style: 'margin:8px 0 0' }, v && v.tiene_carga ? '✔ Ya tiene fotos. Las que agregues se suman.' : 'Puedes tomar la foto o elegir varias de tu galería.');
+  const pintarPrev = () => {
+    prev.textContent = '';
+    fotoCargaNueva.forEach((d, i) => prev.appendChild(h('div', {}, h('img', { src: d }), h('button', { type: 'button', class: 'rojo x', onclick: () => { fotoCargaNueva.splice(i, 1); pintarPrev(); } }, '✕'))));
+    if (fotoCargaNueva.length) cuenta.textContent = fotoCargaNueva.length + ' foto(s) lista(s) para guardar.';
+  };
+  const c4 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '4'), 'Fotos de la volqueta cargada'),
+    h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Tomar foto', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoCargaNueva = fotoCargaNueva.concat(arr).slice(0, 10); pintarPrev(); } })), cuenta, prev);
+  F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(c4);
   F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ GUARDAR Y CREAR VALE'));
   pantalla('form');
   const pl = $('placa');
@@ -391,7 +445,7 @@ function abrirForm(v, base) {
     if (vo) {
       $('empresa').value = vo.empresa || ''; $('tipo').value = vo.tipo || ''; $('capacidad').value = vo.capacidad === undefined ? '' : vo.capacidad; if (!$('conductor').value || !v) $('conductor').value = vo.conductor || '';
       if (!$('cant').value && vo.capacidad !== '' && vo.capacidad !== undefined) $('cant').value = vo.capacidad;
-      if (!v) { const u = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + b.hora_salida).localeCompare(a.fecha + a.hora_salida))[0]; if (u) ['material', 'centro', 'origen', 'destino'].forEach(k => { if (!$(k).value) $(k).value = u[k] || ''; }); }
+      if (!v) { const u = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + b.hora_salida).localeCompare(a.fecha + a.hora_salida))[0]; if (u) ['material', 'centro', 'origen', 'destino'].forEach(k => { if (!$(k).value) { if (k === 'material') setMaterial(u[k] || ''); else $(k).value = u[k] || ''; } }); }
       info.textContent = '';
       r.hidden = false; r.textContent = '';
       r.appendChild(h('b', {}, '✔ ' + [vo.empresa, vo.tipo, (vo.capacidad !== '' && vo.capacidad !== undefined ? vo.capacidad + ' m³' : '')].filter(Boolean).join(' · ')));
@@ -425,18 +479,18 @@ async function guardarViaje() {
     cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
     placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: g('origen'), destino: g('destino'),
     cant: cant, peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
-    tiene_carga: !!(antes && antes.tiene_carga) || !!fotoCargaNueva, tiene_recibo: !!(antes && antes.tiene_recibo), estado: antes ? antes.estado : 'DESPACHADO', nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
+    tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo), estado: antes ? antes.estado : 'DESPACHADO', nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
   });
-  if (fotoCargaNueva) await kv.set('f_' + cod + '_c', fotoCargaNueva);
   const i = VIAJES.findIndex(x => x.cod === cod); if (i >= 0) VIAJES[i] = v; else VIAJES.push(v);
   // catalogo local: que aparezcan ya los valores nuevos
   if (!DATOS.volquetas.some(x => x.placa === placa)) DATOS.volquetas.push({ placa: placa, empresa: v.empresa, tipo: v.tipo, capacidad: v.capacidad, conductor: v.conductor });
   [['MATERIAL', v.material], ['ORIGEN', v.origen], ['DESTINO', v.destino], ['CENTRO_COSTOS', v.centro]].forEach(p => { if (p[1] && !DATOS.catalogos[p[0]].some(x => x.toUpperCase() === p[1].toUpperCase())) DATOS.catalogos[p[0]].push(p[1]); });
   const previo = COLA.find(o => o.t === 'g' && o.cod === cod);
-  const op = { id: Date.now() + Math.random(), t: 'g', llave: user.llave, cod: cod, viaje: v, ed: hoy(), fotoNueva: !!fotoCargaNueva || !!(previo && previo.fotoNueva) };
+  if (fotoCargaNueva.length) { const ya = previo && previo.fotoNueva ? asArr(await kv.get('f_' + cod + '_c')) : []; await kv.set('f_' + cod + '_c', ya.concat(fotoCargaNueva).slice(0, 10)); }
+  const op = { id: Date.now() + Math.random(), t: 'g', llave: user.llave, cod: cod, viaje: v, ed: hoy(), fotoNueva: fotoCargaNueva.length > 0 || !!(previo && previo.fotoNueva) };
   COLA = COLA.filter(o => !(o.t === 'g' && o.cod === cod)); COLA.push(op);
   await guardarViajes(); await guardarCola(); await guardarDatos();
-  fotoCargaNueva = null; editandoCod = null;
+  fotoCargaNueva = []; editandoCod = null;
   mostrarListo(v); sincronizar();
 }
 function mostrarListo(v) {
@@ -446,7 +500,7 @@ function mostrarListo(v) {
     h('p', {}, v.placa + ' · ' + v.material + ' · ' + r2(num(v.cant)) + ' m³'), h('p', { id: 'estadoEnvio' }, 'Guardado en el teléfono.')));
   const bs = h('div', { class: 'gr' });
   bs.appendChild(h('button', { class: 'verde', onclick: () => compartirVale(v) }, '📄 Ver o enviar el vale'));
-  if (puedeRecibo(v)) bs.appendChild(botonFoto('📷 Foto del recibo (cuando llegue al destino)', f => fotoRecibo(v, f, true).then(() => mostrarListo(v)), 'sec'));
+  if (puedeRecibo(v)) { bs.appendChild(h('p', { class: 'sub', style: 'margin:8px 0 0' }, 'Cuando llegue al destino, sube la foto del recibo sellado:')); const fr = h('div', { class: 'bs' }); fr.appendChild(selectorFotos({ camara: '📷 Foto del recibo', galeria: '🖼 Desde galería', alAgregar: f => fotoRecibo(v, f, true).then(() => mostrarListo(v)) })); bs.appendChild(fr); }
   bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(null, v) }, '🔁 Otro viaje igual a este'));
   bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(null) }, '➕ Otro viaje nuevo'));
   bs.appendChild(h('button', { class: 'sec', onclick: abrirInicio }, '🏠 Volver al inicio'));
@@ -522,13 +576,13 @@ async function sincronizar() {
       let r;
       if (op.t === 'g') {
         const viaje = Object.assign({}, op.viaje, { ed: op.ed });
-        if (op.fotoNueva) viaje.foto_carga = await kv.get('f_' + op.cod + '_c');
+        if (op.fotoNueva) viaje.foto_carga = asArr(await kv.get('f_' + op.cod + '_c'));
         delete viaje.nuevo; delete viaje.llave;
         r = await api({ accion: 'tr_guardar', llave: op.llave, viaje: viaje });
         if (!r.ok && r.codigo === 'DUP') { await renombrar(op, nuevoCod()); continue; }
       } else if (op.t === 'r') {
         const foto = await kv.get('f_' + op.cod + '_r');
-        if (!foto) { COLA = COLA.filter(o => o !== op); await guardarCola(); continue; }
+        if (!asArr(foto).length) { COLA = COLA.filter(o => o !== op); await guardarCola(); continue; }
         r = await api({ accion: 'tr_recibo', llave: op.llave, cod: op.cod, foto: foto });
       } else r = await api({ accion: 'tr_eliminar', llave: op.llave, cod: op.cod });
       if (!r.ok) { op.error = r.mensaje || 'La oficina no aceptó el cambio'; await guardarCola(); continue; }
