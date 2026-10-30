@@ -171,7 +171,13 @@ button.chipm{cursor:pointer;font:inherit}
   <div class="small">Viajes de volquetas del rango de fechas de arriba. Se actualiza con el botón Actualizar.</div>
   <div class="kpis" id="trKpis" style="margin-top:8px"></div>
   <div id="trAlertas" class="miss" style="margin:8px 0"></div>
-  <h3>Por confirmar: volquetas que no estaban en el listado</h3><div class="tw"><table id="trPend"></table></div>
+  <h3>Volquetas</h3>
+  <div class="small">Las que llegan y no están en el listado quedan "Por confirmar". Al confirmarlas pasan a ser parte del listado.</div>
+  <div class="row" style="margin:6px 0"><div><label>Mostrar</label><select id="fVol"><option value="pend">Por confirmar</option><option value="act">Activas</option><option value="inact">Inactivas</option><option value="todas">Todas</option></select></div></div>
+  <div class="tw"><table id="trPend"></table></div>
+  <details style="margin-top:8px"><summary>➕ Agregar una volqueta al listado</summary>
+    <div class="row" style="margin-top:8px"><div><label>Placa *</label><input id="nvPlaca" maxlength="7" autocapitalize="characters" style="width:100px"></div><div><label>Empresa</label><input id="nvEmp"></div><div><label>Tipo</label><input id="nvTipo"></div><div><label>Capacidad (m³)</label><input id="nvCap" inputmode="decimal" style="width:90px"></div><div><label>Conductor</label><input id="nvCond"></div><button class="sm" id="nvOk">Agregar</button></div>
+    <div id="nvMsg" class="small"></div></details>
   <h3>Material por sitio de disposición (m³)</h3><div class="tw"><table id="trRes"></table></div>
   <h3>Viajes</h3>
   <div class="buscar"><input id="qTr" type="search" placeholder="🔍 Buscar (vale, placa, conductor, material, destino…)"><button class="sec sm" id="limpTr">Limpiar</button></div>
@@ -257,11 +263,7 @@ function pintarTr() {
   const ca = $('trAlertas'); ca.textContent = '';
   const cnt = {}; conAl.forEach(v => v.alertas.split('; ').forEach(a => { const k = a.replace(/\(.*$/, '').trim(); cnt[k] = (cnt[k] || 0) + 1; }));
   Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).forEach(k => ca.appendChild(h('button', { class: 'chipm', onclick: () => { $('qTr').value = k; tablaTr(); } }, cnt[k] + ' · ' + k)));
-  // pendientes
-  const tp = $('trPend'); tp.textContent = '';
-  tp.appendChild(h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Capacidad', 'Conductor', 'Registrada por', 'Viajes en el rango'].map(c => h('th', {}, c))));
-  pend.forEach(x => tp.appendChild(h('tr', {}, h('td', {}, x.placa), h('td', {}, x.empresa), h('td', {}, x.tipo), h('td', {}, x.capacidad), h('td', {}, x.conductor), h('td', {}, x.creada_por), h('td', {}, V.filter(v => v.placa === x.placa).length))));
-  if (!pend.length) tp.appendChild(h('tr', {}, h('td', {}, 'Ninguna por confirmar ✔')));
+  tablaVol();
   // resumen destino x material
   const sit = {}; V.forEach(v => { const k = (v.destino || '—') + '||' + (v.material || '—'); sit[k] = sit[k] || { d: v.destino || '—', m: v.material || '—', n: 0, q: 0 }; sit[k].n++; sit[k].q += Number(v.cant) || 0; });
   const tr_ = $('trRes'); tr_.textContent = '';
@@ -273,6 +275,21 @@ function pintarTr() {
   tpl.appendChild(h('tr', {}, ['Fecha', 'Llave', 'Usuario', 'Viajes del día', 'PDF'].map(c => h('th', {}, c))));
   TR.planillas.forEach(p => tpl.appendChild(h('tr', {}, h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', {}, V.filter(v => v.fecha === p.fecha && v.llave === p.llave).length), h('td', {}, linkF(p.url, 'Abrir PDF')))));
   if (!TR.planillas.length) tpl.appendChild(h('tr', {}, h('td', {}, 'Sin planillas en el rango')));
+}
+async function cambioVol(d, msg) {
+  const r = await api(Object.assign({ accion: 'admin_tr_vol', llave: LLAVE }, d));
+  if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return false; }
+  TR.volquetas = r.volquetas; pintarTr(); return true;
+}
+function tablaVol() {
+  const f = $('fVol').value, V = TR.viajes, t = $('trPend'); t.textContent = '';
+  const esPend = x => String(x.validada).toUpperCase() === 'NO', esIn = x => /INACT/.test(String(x.estado).toUpperCase());
+  const L = TR.volquetas.filter(x => f === 'pend' ? esPend(x) : f === 'act' ? !esIn(x) : f === 'inact' ? esIn(x) : true);
+  t.appendChild(h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'm³', 'Conductor', 'Estado', 'Confirmada', 'Viajes (rango)', 'Acciones'].map(c => h('th', {}, c))));
+  L.forEach(x => t.appendChild(h('tr', {}, h('td', {}, x.placa), h('td', {}, x.empresa), h('td', {}, x.tipo), h('td', {}, x.capacidad), h('td', {}, x.conductor), h('td', {}, esIn(x) ? 'Inactiva' : 'Activa'), h('td', {}, esPend(x) ? 'Por confirmar' : 'Sí'), h('td', {}, V.filter(v => v.placa === x.placa).length),
+    h('td', {}, esPend(x) ? h('button', { class: 'sm', onclick: () => cambioVol({ cambio: 'confirmar', placa: x.placa }) }, '✔ Confirmar') : null, ' ',
+      h('button', { class: 'sec sm', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? 'Activar' : 'Desactivar')))));
+  if (!L.length) t.appendChild(h('tr', {}, h('td', {}, f === 'pend' ? 'Ninguna por confirmar ✔' : 'Sin volquetas')));
 }
 function viajesTr() {
   const q = $('qTr').value.trim().toUpperCase(), ll = $('fTrLlave').value, est = $('fTrEst').value, hoy = TR.hoy;
@@ -715,6 +732,12 @@ function descargarXlsx() {
   XLSX.writeFile(wb, 'Consolidado_' + (ll || 'TODAS') + '_' + $('desde').value + '_' + $('hasta').value + '.xlsx');
 }
 
+$('fVol').onchange = () => { if (TR) tablaVol(); };
+$('nvOk').onclick = async () => {
+  const p = $('nvPlaca').value.trim(); $('nvMsg').textContent = '';
+  if (!p) { $('nvMsg').textContent = 'Escribe la placa.'; return; }
+  if (await cambioVol({ cambio: 'crear', placa: p, empresa: $('nvEmp').value, tipo: $('nvTipo').value, capacidad: $('nvCap').value, conductor: $('nvCond').value })) { ['nvPlaca', 'nvEmp', 'nvTipo', 'nvCap', 'nvCond'].forEach(i => $(i).value = ''); $('nvMsg').textContent = '✔ Agregada'; }
+};
 $('qTr').oninput = () => { if (TR) tablaTr(); }; $('fTrLlave').onchange = $('fTrEst').onchange = () => { if (TR) tablaTr(); }; $('limpTr').onclick = () => { $('qTr').value = ''; $('fTrEst').value = ''; $('fTrLlave').value = ''; if (TR) tablaTr(); }; $('trCsv').onclick = () => { if (TR) csvTr(); };
 $('entrar').onclick = entrar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') entrar(); };
