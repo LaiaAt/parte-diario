@@ -11,7 +11,7 @@
 <style>
 :root{--ink:#14202b;--hv:#0a7f2e;--navy:#1f2d3d;--paper:#eef0f2;--line:#c9d0d6;--ok:#1f7a3d;--err:#b3261e;--mut:#51606d}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:17px;padding-bottom:84px}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:19px;padding-bottom:30px}
 header{background:var(--hv);color:#fff;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:4px solid var(--navy)}
 header .logo{height:38px;width:auto;background:#fff;border-radius:6px;padding:2px 4px}
 header h1{font-size:18px;margin:0;flex:1}
@@ -23,10 +23,10 @@ h2{font-size:20px;margin:6px 0 4px}
 .card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:12px}
 .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:flex-end}
 .row>*{flex:1;min-width:120px}
-label{font-size:14px;color:var(--mut);display:block;margin-bottom:3px}
-input,select{width:100%;padding:12px;font-size:17px;border:1px solid #8794a0;border-radius:6px;background:#fff;color:var(--ink)}
+label{font-size:16px;color:var(--mut);display:block;margin-bottom:3px}
+input,select{width:100%;padding:14px;font-size:20px;border:1px solid #8794a0;border-radius:6px;background:#fff;color:var(--ink)}
 input:focus,select:focus,button:focus-visible{outline:3px solid var(--hv);outline-offset:1px}
-button{padding:14px 16px;font-size:17px;font-weight:700;border:0;border-radius:6px;background:var(--ink);color:#fff;width:100%}
+button{padding:16px 16px;min-height:56px;font-size:19px;font-weight:700;border:0;border-radius:6px;background:var(--ink);color:#fff;width:100%}
 button.sec{background:#dde2e6;color:var(--ink)}
 button.link{background:none;color:var(--ink);text-decoration:underline;width:auto;padding:4px;font-weight:400;font-size:15px}
 .chk{display:flex;align-items:center;gap:10px;font-size:18px;color:var(--ink);margin:0;font-weight:700}
@@ -57,6 +57,25 @@ small{color:var(--mut)}
 .tag{font-size:12px;color:#fff;background:var(--mut);border-radius:4px;padding:2px 6px;margin-left:6px}
 .tag.hoy{background:var(--ok)}.tag.pend{background:#b36b00}
 .li button{width:auto;padding:10px 12px;font-size:15px}
+button.verde{background:var(--hv)}
+button.grande{background:var(--hv);font-size:24px;padding:22px 16px;min-height:76px;border-radius:12px;box-shadow:0 3px 0 #06551e}
+button.rojo{background:#fff;color:var(--err);border:2px solid var(--err)}
+h3{font-size:21px;margin:0 0 10px}
+.paso{border-left:6px solid var(--hv)}
+input.placa{font-size:32px;font-weight:800;text-align:center;letter-spacing:3px;text-transform:uppercase}
+input.cant{font-size:28px;font-weight:800;text-align:center}
+.resumen{background:#e8f5ec;border:2px solid var(--ok);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:18px}
+details.mas{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:12px}
+details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
+.viaje{background:#fff;border:1px solid var(--line);border-left:6px solid var(--hv);border-radius:8px;padding:12px;margin-bottom:10px}
+.viaje.falta{border-left-color:#b36b00}
+.viaje .t{font-size:22px;font-weight:800}
+.viaje .s{font-size:16px;color:var(--mut);margin:2px 0 8px}
+.viaje .bs{display:flex;gap:8px;flex-wrap:wrap}
+.viaje .bs>*{flex:1;min-width:110px}
+.viaje .bs button{padding:12px 10px;font-size:17px;min-height:48px}
+.hecho{font-size:64px;text-align:center;margin:0}
+.gr{display:flex;flex-direction:column;gap:10px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -66,9 +85,9 @@ small{color:var(--mut)}
   <div id="aviso" class="aviso" hidden></div>
   <section id="login" class="card" hidden>
     <img class="marca" src="logo.png" alt="Consorcio Constructor Sabana Norte">
-    <label for="llave">Escribe tu llave</label>
+    <label for="llave" style="font-size:20px;color:var(--ink)">🔑 Escribe tu llave</label>
     <input id="llave" type="text" autocapitalize="characters" autocomplete="off">
-    <div class="row"><button id="btnIngresar">Entrar</button></div>
+    <div class="row"><button id="btnIngresar" class="grande">Entrar</button></div>
     <p><small>La primera vez necesitas señal. Después funciona sin internet.</small></p>
   </section>
   <section id="inicio" hidden></section>
@@ -192,59 +211,77 @@ async function cerrarSesion(msg) {
   $('llave').value = ''; pantalla('login'); aviso(msg || '', msg ? 'err' : '');
 }
 
-/* ---------- inicio: biblioteca por dia ---------- */
+/* ---------- inicio ---------- */
 let diaActual = null;
-function abrirInicio() { diaActual = null; pintarInicio(); pantalla('inicio'); refrescar(); }
+function volver() { if (diaActual) abrirDia(diaActual); else abrirInicio(); }
+function abrirInicio() { diaActual = null; aviso(''); pintarInicio(); pantalla('inicio'); refrescar(); }
+function ultimoViaje() { return VIAJES.slice().sort((a, b) => (b.fecha + (b.hora_salida || '') + b.cod).localeCompare(a.fecha + (a.hora_salida || '') + a.cod))[0]; }
 function pintarInicio() {
   const B = $('inicio'); B.textContent = '';
-  B.appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + user.nombre), h('br'), h('small', {}, fmtF(hoy())), h('br'),
-    h('button', { onclick: () => cerrarSesion(), style: 'margin-top:8px;background:#fff;color:#b00020;border:2px solid #b00020' }, '🚪 Cerrar sesión (cambiar llave)')));
-  B.appendChild(h('button', { onclick: () => abrirForm(null) }, '➕ Nuevo viaje (generar vale)'));
-  const dias = {};
-  dias[hoy()] = [];
-  VIAJES.forEach(v => (dias[v.fecha] = dias[v.fecha] || []).push(v));
-  const card = h('div', { class: 'card', style: 'margin-top:12px' }, h('b', {}, 'Mis días'));
-  Object.keys(dias).sort().reverse().forEach(f => {
-    const vs = dias[f], vol = vs.reduce((s, v) => s + (isNaN(num(v.cant)) ? 0 : num(v.cant)), 0), pend = vs.filter(v => COLA.some(o => o.cod === v.cod)).length;
-    card.appendChild(h('div', { class: 'li' }, h('div', {}, h('b', {}, fmtF(f), f === hoy() ? h('span', { class: 'tag hoy' }, 'HOY') : null, pend ? h('span', { class: 'tag pend' }, pend + ' sin enviar') : null),
-      h('small', {}, vs.length + ' viaje(s) · ' + r2(vol) + ' m3')),
-      h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, h('button', { onclick: () => abrirDia(f) }, 'Abrir'), h('button', { class: 'sec', onclick: () => planilla(f) }, '📄 Planilla'))));
-  });
-  B.appendChild(card);
+  const hoyV = VIAJES.filter(v => v.fecha === hoy()).sort((a, b) => String(a.hora_salida || '').localeCompare(String(b.hora_salida || '')) || a.cod.localeCompare(b.cod));
+  const vol = hoyV.reduce((s, v) => s + (isNaN(num(v.cant)) ? 0 : num(v.cant)), 0);
+  B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()))));
+  B.appendChild(h('div', { class: 'gr', style: 'margin-bottom:14px' },
+    h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO VIAJE'),
+    ultimoViaje() ? h('button', { class: 'sec', onclick: () => abrirForm(null, ultimoViaje()) }, '🔁 Repetir el último viaje (' + ultimoViaje().placa + ')') : null));
+  // recibos pendientes de ayer
+  const ayer = sumDias(hoy(), -1);
+  const faltan = VIAJES.filter(v => v.fecha === ayer && !v.tiene_recibo && puedeRecibo(v));
+  if (faltan.length) { B.appendChild(h('h3', {}, '📷 Falta la foto del recibo (ayer)')); faltan.forEach(v => B.appendChild(filaViaje(v))); }
+  B.appendChild(h('h3', { style: 'margin-top:14px' }, 'Viajes de hoy' + (hoyV.length ? ' · ' + hoyV.length + ' · ' + r2(vol) + ' m³' : '')));
+  if (!hoyV.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay viajes hoy. Toca el botón verde para empezar.'));
+  hoyV.forEach(v => B.appendChild(filaViaje(v)));
+  if (hoyV.length) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:14px', onclick: () => planilla(hoy()) }, '📄 Planilla de hoy'));
+  const dias = {}; VIAJES.forEach(v => { if (v.fecha !== hoy()) (dias[v.fecha] = dias[v.fecha] || []).push(v); });
+  const ks = Object.keys(dias).sort().reverse();
+  if (ks.length) {
+    const card = h('div', { class: 'card' }, h('b', {}, 'Días anteriores'));
+    ks.forEach(f => {
+      const vs = dias[f], v2 = vs.reduce((s, v) => s + (isNaN(num(v.cant)) ? 0 : num(v.cant)), 0);
+      card.appendChild(h('div', { class: 'li' }, h('div', {}, h('b', {}, fmtF(f)), h('small', {}, vs.length + ' viaje(s) · ' + r2(v2) + ' m³')),
+        h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, h('button', { onclick: () => abrirDia(f) }, 'Abrir'), h('button', { class: 'sec', onclick: () => planilla(f) }, '📄 Planilla'))));
+    });
+    B.appendChild(card);
+  }
+  B.appendChild(h('div', { style: 'text-align:center;margin-top:10px' }, h('button', { class: 'link', onclick: () => cerrarSesion() }, 'Cerrar sesión (cambiar llave)')));
 }
 
-/* ---------- dia: lista de viajes ---------- */
+/* ---------- dia anterior: lista de viajes ---------- */
 function abrirDia(f) {
-  diaActual = f;
+  diaActual = f; aviso('');
   const D = $('dia'); D.textContent = '';
   const vs = VIAJES.filter(v => v.fecha === f).sort((a, b) => String(a.hora_salida || '').localeCompare(String(b.hora_salida || '')) || a.cod.localeCompare(b.cod));
-  D.appendChild(h('div', { class: 'card' }, h('b', {}, fmtF(f) + (f === hoy() ? ' (hoy)' : '')), h('br'),
-    h('small', {}, f === hoy() ? 'Hoy puedes crear, editar y eliminar viajes. Mañana solo podrás subir la foto del recibo.' : (puedeRecibo({ fecha: f }) ? 'Día cerrado. Aún puedes subir la foto del recibo sellado.' : 'Día cerrado.')),
-    h('div', { class: 'row' }, h('button', { class: 'sec', onclick: abrirInicio }, '← Inicio'), h('button', { onclick: () => planilla(f) }, '📄 Planilla del día'))));
-  if (f === hoy()) D.appendChild(h('button', { onclick: () => abrirForm(null) }, '➕ Nuevo viaje'));
-  const card = h('div', { class: 'card', style: 'margin-top:12px' }, h('b', {}, 'Viajes del día'));
-  if (!vs.length) card.appendChild(h('p', {}, h('small', {}, 'Todavía no hay viajes.')));
-  vs.forEach(v => card.appendChild(filaViaje(v)));
-  D.appendChild(card);
+  D.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', onclick: abrirInicio }, '← Volver al inicio'),
+    h('h3', { style: 'margin:6px 0 0' }, fmtF(f) + (f === hoy() ? ' (hoy)' : '')),
+    h('small', {}, puedeRecibo({ fecha: f }) ? 'Este día ya cerró. Aún puedes subir la foto del recibo.' : 'Este día ya cerró.'),
+    h('button', { class: 'verde', onclick: () => planilla(f) }, '📄 Planilla del día')));
+  if (!vs.length) D.appendChild(h('div', { class: 'card' }, 'No hay viajes este día.'));
+  vs.forEach(v => D.appendChild(filaViaje(v)));
   pantalla('dia');
 }
 function filaViaje(v) {
   const op = COLA.find(o => o.cod === v.cod && o.error);
   const pend = COLA.some(o => o.cod === v.cod && !o.error);
-  const bs = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' });
+  const falta = !v.tiene_recibo && puedeRecibo(v);
+  const mas = h('div', { class: 'bs', hidden: true, style: 'margin-top:8px' });
+  if (puedeEditar(v)) { mas.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); }
+  if (v.tiene_carga) mas.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🖼 Foto de carga'));
+  if (v.tiene_recibo) mas.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🖼 Foto del recibo'));
+  if (v.tiene_recibo && puedeRecibo(v)) mas.appendChild(botonFoto('🔁 Cambiar foto del recibo', f => fotoRecibo(v, f)));
+  if (puedeEditar(v)) mas.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje'));
+  const bs = h('div', { class: 'bs' });
+  if (falta && !v.tiene_recibo) bs.appendChild(botonFoto('📷 Foto del recibo', f => fotoRecibo(v, f), 'verde'));
   bs.appendChild(h('button', { class: 'sec', onclick: () => compartirVale(v) }, '📄 Vale'));
-  if (puedeRecibo(v)) bs.appendChild(botonFoto(v.tiene_recibo ? '🔁 Recibo' : '📷 Recibo', f => fotoRecibo(v, f)));
-  if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🖼 Carga'));
-  if (v.tiene_recibo) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🖼 Sello'));
-  if (puedeEditar(v)) { bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, 'Editar')); bs.appendChild(h('button', { class: 'sec', style: 'color:#b00020', onclick: () => eliminar(v) }, '🗑')); }
-  return h('div', { class: 'li' }, h('div', { style: 'flex:1;min-width:200px' },
-    h('b', {}, v.placa, ' · ', v.material, v.turno === 'NOCHE' ? h('span', { class: 'tag' }, 'Noche') : null,
-      pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null, v.tiene_recibo ? h('span', { class: 'tag hoy' }, 'Recibido') : h('span', { class: 'tag' }, 'Sin recibo')),
-    h('small', {}, v.cod + (v.n_valera ? ' · Valera ' + v.n_valera : '') + ' · ' + r2(num(v.cant) || 0) + ' m3 · ' + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '')),
-    v.alertas ? h('small', { style: 'color:#b36b00;display:block' }, '⚠ ' + v.alertas) : null,
-    op ? h('small', { style: 'color:#b3261e;display:block' }, '⚠ No se pudo enviar: ' + op.error + ' ', h('button', { class: 'link', onclick: () => quitarOp(op) }, 'Descartar cambio')) : null), bs);
+  if (mas.children.length) bs.appendChild(h('button', { class: 'sec', onclick: () => { mas.hidden = !mas.hidden; } }, '⋯ Más'));
+  return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
+    h('div', { class: 't' }, v.placa, ' · ', v.material),
+    h('div', { class: 's' }, r2(num(v.cant) || 0) + ' m³ · ' + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
+    h('div', { style: 'margin-bottom:8px' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null, h('span', { class: 'tag' }, v.cod)),
+    bs, mas,
+    v.alertas ? h('small', { style: 'color:#b36b00;display:block;margin-top:6px' }, '⚠ ' + v.alertas) : null,
+    op ? h('small', { style: 'color:#b3261e;display:block;margin-top:6px' }, '⚠ No se pudo enviar: ' + op.error + ' ', h('button', { class: 'link', onclick: () => quitarOp(op) }, 'Descartar cambio')) : null);
 }
-async function quitarOp(op) { COLA = COLA.filter(o => o !== op); await guardarCola(); if (op.t === 'g' && op.viaje && op.viaje.nuevo) { VIAJES = VIAJES.filter(v => v.cod !== op.cod); await guardarViajes(); } abrirDia(diaActual); }
+async function quitarOp(op) { COLA = COLA.filter(o => o !== op); await guardarCola(); if (op.t === 'g' && op.viaje && op.viaje.nuevo) { VIAJES = VIAJES.filter(v => v.cod !== op.cod); await guardarViajes(); } volver(); }
 
 /* ---------- fotos ---------- */
 function comprimir(file) {
@@ -266,13 +303,13 @@ function botonFoto(texto, alAgregar, clase) {
   inp.onchange = async () => { const f = inp.files && inp.files[0]; inp.value = ''; if (!f) return; try { alAgregar(await comprimir(f)); } catch (e) { aviso('No se pudo leer la foto.', 'err'); } };
   return h('span', { style: 'display:inline-block' }, inp, h('button', { class: clase || 'sec', type: 'button', onclick: () => inp.click() }, texto));
 }
-async function fotoRecibo(v, data) {
+async function fotoRecibo(v, data, quedarse) {
   await kv.set('f_' + v.cod + '_r', data);
   v.tiene_recibo = true; v.recibo_local = true; v.estado = 'RECIBIDO';
   COLA = COLA.filter(o => !(o.t === 'r' && o.cod === v.cod));
   COLA.push({ id: Date.now() + Math.random(), t: 'r', llave: user.llave, cod: v.cod });
   await guardarViajes(); await guardarCola();
-  aviso('Foto del recibo guardada.', 'ok'); abrirDia(diaActual || v.fecha); sincronizar();
+  if (!quedarse) volver(); aviso('✔ Foto del recibo guardada.', 'ok'); sincronizar();
 }
 async function verFoto(v, cual) {
   let data = await kv.get('f_' + v.cod + '_' + (cual === 'carga' ? 'c' : 'r'));
@@ -284,7 +321,7 @@ async function verFoto(v, cual) {
   }
   const V = $('visor'); V.textContent = '';
   V.appendChild(h('div', { class: 'card' }, h('b', {}, (cual === 'carga' ? 'Foto de la volqueta cargada' : 'Recibo sellado') + ' · ' + v.cod), h('br'), h('img', { src: data, style: 'width:100%;margin-top:8px;border-radius:4px' }),
-    h('div', { class: 'row' }, h('button', { onclick: () => { if (diaActual) abrirDia(diaActual); else abrirInicio(); } }, 'Cerrar'))));
+    h('div', { class: 'row' }, h('button', { class: 'verde', onclick: volver }, 'Cerrar'))));
   pantalla('visor');
 }
 
@@ -296,64 +333,92 @@ function llenarListas() {
   lst('dl-material', DATOS.catalogos.MATERIAL); lst('dl-origen', DATOS.catalogos.ORIGEN); lst('dl-destino', DATOS.catalogos.DESTINO); lst('dl-centro', DATOS.catalogos.CENTRO_COSTOS);
 }
 const normPlaca = p => String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-function abrirForm(v) {
+function recientes(campo) {
+  const seen = [];
+  VIAJES.slice().sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || ''))).forEach(x => { const t = String(x[campo] || '').trim(); if (t && !seen.some(y => y.toUpperCase() === t.toUpperCase())) seen.push(t); });
+  return seen.slice(0, 4);
+}
+function chipsPara(campo, id) {
+  const box = h('div', { class: 'chips' });
+  recientes(campo).forEach(t => box.appendChild(h('button', { type: 'button', class: 'chip', onclick: () => { $(id).value = t; } }, t)));
+  return box;
+}
+function abrirForm(v, base) {
   llenarListas();
   editandoCod = v ? v.cod : null; fotoCargaNueva = null;
   const F = $('form'); F.textContent = '';
-  const val = (k, d) => v ? (v[k] === undefined || v[k] === null ? '' : v[k]) : (d === undefined ? '' : d);
+  const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'cant'];
+  const val = (k, d) => v ? (v[k] === undefined || v[k] === null ? '' : v[k]) : (base && BK.indexOf(k) >= 0 && base[k] !== undefined && base[k] !== null ? base[k] : (d === undefined ? '' : d));
   const hh = new Date().getHours();
-  const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta, o.req ? h('span', { class: 'req' }, ' *') : null), h('input', { id: id, type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
-  F.appendChild(h('div', { class: 'card' }, h('b', {}, v ? 'Editar viaje ' + v.cod : 'Nuevo viaje'), h('br'), h('small', {}, fmtF(hoy())),
-    h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => (diaActual ? abrirDia(diaActual) : abrirInicio()) }, '← Cancelar'))));
-  const c1 = h('div', { class: 'card' },
-    campo('placa', 'Placa de la volqueta', val('placa'), { req: true, list: 'dl-placa', cap: 'characters' }), h('small', { id: 'infoPlaca' }),
-    h('div', { class: 'row' }, campo('empresa', 'Empresa', val('empresa'), { req: true }), campo('tipo', 'Tipo', val('tipo'), { ph: 'Doble troque…' })),
-    h('div', { class: 'row' }, campo('capacidad', 'Capacidad (m3)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor', val('conductor'))));
-  const c2 = h('div', { class: 'card' },
-    h('div', { class: 'row' }, campo('material', 'Tipo de material', val('material'), { req: true, list: 'dl-material' }), campo('centro', 'Centro de costos', val('centro'), { list: 'dl-centro' })),
-    h('div', { class: 'row' }, campo('origen', 'Origen', val('origen'), { req: true, list: 'dl-origen' }), campo('destino', 'Destino', val('destino'), { req: true, list: 'dl-destino' })),
-    h('div', { class: 'row' }, campo('cant', 'Cantidad despachada (m3)', val('cant'), { req: true, inputmode: 'decimal' }), campo('peso', 'Peso (ton) opcional', val('peso'), { inputmode: 'decimal' })));
+  const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta), h('input', { id: id, class: o.cls, type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
+  F.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', onclick: volver }, '← Volver'), h('h3', { style: 'margin:6px 0 0' }, v ? '✏️ Corregir viaje' : '➕ Nuevo viaje')));
+  // paso 1
+  const res = h('div', { id: 'resVol', class: 'resumen', hidden: true });
+  const dat = h('div', { id: 'datosVol', hidden: true },
+    h('div', { class: 'row' }, campo('empresa', 'Empresa', val('empresa')), campo('tipo', 'Tipo de volqueta', val('tipo'), { ph: 'Doble troque…' })),
+    h('div', { class: 'row' }, campo('capacidad', 'Capacidad (m³)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor', val('conductor'))));
+  const c1 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '1'), '¿Qué volqueta es?'),
+    campo('placa', 'Placa', val('placa'), { list: 'dl-placa', cap: 'characters', cls: 'placa', ph: 'ABC123' }), h('div', { id: 'infoPlaca', style: 'color:#b36b00;font-weight:700;margin-top:6px' }), res, dat);
+  // paso 2
+  const c2 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '2'), '¿Qué lleva y adónde va?'),
+    campo('material', 'Material', val('material'), { list: 'dl-material' }), chipsPara('material', 'material'),
+    h('div', { style: 'height:10px' }),
+    campo('origen', 'Sale de (origen)', val('origen'), { list: 'dl-origen' }), chipsPara('origen', 'origen'),
+    h('div', { style: 'height:10px' }),
+    campo('destino', 'Va a (destino)', val('destino'), { list: 'dl-destino' }), chipsPara('destino', 'destino'),
+    h('div', { style: 'height:10px' }),
+    campo('cant', 'Cantidad que lleva (m³)', val('cant'), { inputmode: 'decimal', cls: 'cant' }));
+  // paso 3
+  const prev = h('div', { id: 'prevCarga', style: 'margin-top:8px' }, v && v.tiene_carga ? h('small', {}, '✔ Ya tiene foto') : null);
+  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Foto de la volqueta cargada'),
+    botonFoto(v && v.tiene_carga ? '🔁 Cambiar foto' : '📷 Tomar foto', d => { fotoCargaNueva = d; prev.textContent = ''; prev.appendChild(h('img', { src: d, style: 'width:60%;border-radius:4px' })); }, 'verde'), prev);
+  // mas datos
   const turno = h('select', { id: 'turno' }, h('option', { value: 'DIA' }, 'Día'), h('option', { value: 'NOCHE' }, 'Noche'));
   turno.value = v ? v.turno : ((hh >= 6 && hh < 18) ? 'DIA' : 'NOCHE');
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '—'), h('option', { value: 'NUESTRA' }, 'Nuestra valera'), h('option', { value: 'VOLQUETERO' }, 'Valera del volquetero'));
   vd.value = val('valera_de');
-  const c3 = h('div', { class: 'card' },
+  const mas = h('details', { class: 'mas' }, h('summary', {}, '➕ Más datos (si los necesitas)'),
     h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida', val('hora_salida', hm()), { type: 'time' }), campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' })),
-    h('div', { class: 'row' }, campo('n_valera', 'N° de valera (opcional)', val('n_valera')), h('div', {}, h('label', {}, 'Valera de'), vd)),
-    h('div', { class: 'row' }, campo('km', 'Kilómetros (opcional)', val('km'), { inputmode: 'decimal' })),
-    campo('obs', 'Observaciones', val('obs')));
-  const prev = h('div', { id: 'prevCarga', style: 'margin-top:8px' }, v && v.tiene_carga ? h('small', {}, '✔ Ya tiene foto de carga') : null);
-  const c4 = h('div', { class: 'card' }, h('b', {}, 'Foto de la volqueta cargada'), h('br'),
-    botonFoto(v && v.tiene_carga ? '🔁 Cambiar foto' : '📷 Tomar foto', d => { fotoCargaNueva = d; prev.textContent = ''; prev.appendChild(h('img', { src: d, style: 'width:60%;border-radius:4px' })); }), prev);
-  F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(c4);
-  F.appendChild(h('div', { class: 'row' }, h('button', { onclick: guardarViaje }, v ? 'Guardar cambios' : 'Guardar y generar vale')));
+    h('div', { class: 'row' }, campo('n_valera', 'N° de valera', val('n_valera')), h('div', {}, h('label', {}, 'La valera es de'), vd)),
+    h('div', { class: 'row' }, campo('centro', 'Centro de costos', val('centro'), { list: 'dl-centro' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' }), campo('km', 'Kilómetros', val('km'), { inputmode: 'decimal' })),
+    h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs'))));
+  F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(mas);
+  F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ GUARDAR Y CREAR VALE'));
   pantalla('form');
   const pl = $('placa');
   const alPlaca = () => {
-    const p = normPlaca(pl.value), vo = DATOS.volquetas.find(x => x.placa === p), info = $('infoPlaca');
+    const p = normPlaca(pl.value), vo = DATOS.volquetas.find(x => x.placa === p), info = $('infoPlaca'), r = $('resVol'), d = $('datosVol');
     if (vo) {
       $('empresa').value = vo.empresa || ''; $('tipo').value = vo.tipo || ''; $('capacidad').value = vo.capacidad === undefined ? '' : vo.capacidad; if (!$('conductor').value || !v) $('conductor').value = vo.conductor || '';
-      if (!$('cant').value && vo.capacidad !== '') $('cant').value = vo.capacidad;
-      info.textContent = '✔ Volqueta registrada';
+      if (!$('cant').value && vo.capacidad !== '' && vo.capacidad !== undefined) $('cant').value = vo.capacidad;
       if (!v) { const u = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + b.hora_salida).localeCompare(a.fecha + a.hora_salida))[0]; if (u) ['material', 'centro', 'origen', 'destino'].forEach(k => { if (!$(k).value) $(k).value = u[k] || ''; }); }
-    } else info.textContent = p.length >= 5 ? 'Placa nueva: completa empresa, tipo y capacidad. Quedará por validar.' : '';
+      info.textContent = '';
+      r.hidden = false; r.textContent = '';
+      r.appendChild(h('b', {}, '✔ ' + [vo.empresa, vo.tipo, (vo.capacidad !== '' && vo.capacidad !== undefined ? vo.capacidad + ' m³' : '')].filter(Boolean).join(' · ')));
+      if ($('conductor').value) r.appendChild(h('div', {}, 'Conductor: ' + $('conductor').value));
+      r.appendChild(h('button', { type: 'button', class: 'link', onclick: () => { d.hidden = !d.hidden; } }, 'Cambiar estos datos'));
+      d.hidden = true;
+    } else {
+      r.hidden = true; d.hidden = p.length < 5;
+      info.textContent = p.length >= 5 ? 'Esta volqueta es nueva. Completa sus datos.' : '';
+    }
   };
-  pl.onchange = alPlaca; pl.oninput = () => { if (DATOS.volquetas.some(x => x.placa === normPlaca(pl.value))) alPlaca(); };
-  if (v) $('infoPlaca').textContent = '';
+  pl.oninput = alPlaca; pl.onchange = alPlaca;
+  if (v) { $('datosVol').hidden = false; } else if (pl.value) alPlaca();
 }
 async function guardarViaje() {
   const g = id => $(id).value.trim();
   const placa = normPlaca(g('placa'));
   const err = [];
   if (!/^[A-Z0-9]{5,7}$/.test(placa)) err.push('la placa');
-  if (!g('empresa')) err.push('la empresa');
+  if (!g('empresa')) { err.push('la empresa de la volqueta'); $('datosVol').hidden = false; }
   if (!g('material')) err.push('el material');
-  if (!g('origen')) err.push('el origen');
-  if (!g('destino')) err.push('el destino');
-  const cant = num(g('cant')); if (!(cant > 0 && cant <= 60)) err.push('la cantidad despachada');
+  if (!g('origen')) err.push('de dónde sale');
+  if (!g('destino')) err.push('adónde va');
+  const cant = num(g('cant')); if (!(cant > 0 && cant <= 60)) err.push('la cantidad (m³)');
   if (g('peso') && !(num(g('peso')) >= 0)) err.push('el peso');
   if (g('km') && !(num(g('km')) >= 0)) err.push('los kilómetros');
-  if (err.length) { aviso('Revisa: ' + err.join(', ') + '.', 'err'); return; }
+  if (err.length) { aviso('Falta completar: ' + err.join(', ') + '.', 'err'); return; }
   const antes = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
   const cod = antes ? antes.cod : nuevoCod();
   const v = Object.assign({}, antes || {}, {
@@ -376,21 +441,26 @@ async function guardarViaje() {
 }
 function mostrarListo(v) {
   const L = $('listo'); L.textContent = '';
-  L.appendChild(h('div', { class: 'card' }, h('h2', {}, '✔ Vale generado'), h('p', { style: 'font-family:monospace;font-size:22px;font-weight:700;color:#b00000;margin:4px 0' }, v.cod),
-    h('p', {}, v.placa + ' · ' + v.material + ' · ' + r2(num(v.cant)) + ' m3'), h('p', { id: 'estadoEnvio' }, 'Guardado en el teléfono.')));
-  L.appendChild(h('div', { class: 'row' }, h('button', { onclick: () => compartirVale(v) }, '📄 Ver / compartir vale (PDF)')));
-  if (puedeRecibo(v)) L.appendChild(h('div', { class: 'row' }, botonFoto('📷 Foto del recibo sellado', f => fotoRecibo(v, f).then(() => mostrarListo(v)), 'sec')));
-  L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => abrirForm(null) }, '➕ Otro viaje'), h('button', { class: 'sec', onclick: abrirInicio }, '🏠 Volver al inicio')));
+  L.appendChild(h('div', { class: 'card', style: 'text-align:center' }, h('p', { class: 'hecho' }, '✅'), h('h2', {}, '¡Viaje guardado!'),
+    h('p', { style: 'font-family:monospace;font-size:24px;font-weight:700;color:#b00000;margin:4px 0' }, v.cod),
+    h('p', {}, v.placa + ' · ' + v.material + ' · ' + r2(num(v.cant)) + ' m³'), h('p', { id: 'estadoEnvio' }, 'Guardado en el teléfono.')));
+  const bs = h('div', { class: 'gr' });
+  bs.appendChild(h('button', { class: 'verde', onclick: () => compartirVale(v) }, '📄 Ver o enviar el vale'));
+  if (puedeRecibo(v)) bs.appendChild(botonFoto('📷 Foto del recibo (cuando llegue al destino)', f => fotoRecibo(v, f, true).then(() => mostrarListo(v)), 'sec'));
+  bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(null, v) }, '🔁 Otro viaje igual a este'));
+  bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(null) }, '➕ Otro viaje nuevo'));
+  bs.appendChild(h('button', { class: 'sec', onclick: abrirInicio }, '🏠 Volver al inicio'));
+  L.appendChild(bs);
   pantalla('listo');
 }
 async function eliminar(v) {
-  if (!confirm('¿Eliminar el viaje ' + v.cod + '? No se puede deshacer.')) return;
+  if (!confirm('¿Borrar este viaje (' + v.placa + ')? No se puede deshacer.')) return;
   COLA = COLA.filter(o => o.cod !== v.cod);
   if (!v.nuevo) COLA.push({ id: Date.now() + Math.random(), t: 'e', llave: user.llave, cod: v.cod });
   VIAJES = VIAJES.filter(x => x.cod !== v.cod);
   await kv.del('f_' + v.cod + '_c'); await kv.del('f_' + v.cod + '_r');
   await guardarViajes(); await guardarCola();
-  abrirDia(diaActual || v.fecha); sincronizar();
+  volver(); sincronizar();
 }
 
 /* ---------- PDF: vale y planilla ---------- */
