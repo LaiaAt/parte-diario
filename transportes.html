@@ -102,7 +102,7 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
   <section id="listo" hidden></section>
   <section id="visor" hidden></section>
 </main>
-<datalist id="dl-placa"></datalist><datalist id="dl-material"></datalist><datalist id="dl-origen"></datalist><datalist id="dl-destino"></datalist><datalist id="dl-centro"></datalist>
+<datalist id="dl-placa"></datalist><datalist id="dl-material"></datalist><datalist id="dl-origen"></datalist><datalist id="dl-destino"></datalist><datalist id="dl-centro"></datalist><datalist id="dl-tipo"></datalist><datalist id="dl-empresa"></datalist>
 <script src="vendor/jspdf.umd.min.js"></script>
 <script src="pdf_tr.js"></script>
 <script>
@@ -335,9 +335,17 @@ async function verFoto(v, cual) {
 
 /* ---------- formulario de viaje ---------- */
 let editandoCod = null, fotoCargaNueva = [], fotoReciboNueva = [];
+// Tipos de volqueta y volumen sugerido (m³ sueltos). Se puede escribir otro tipo y corregir el volumen.
+const TIPOS_VOL = [{ n: 'SENCILLA', m3: 7 }, { n: 'DOBLETROQUE', m3: 15 }, { n: 'ARTICULADA', m3: 24 }];
+const tipoDe = t => {
+  const k = String(t || '').toUpperCase().replace(/[^A-Z]/g, ''); if (k.length < 3) return null;
+  if (/^DOBLE|^TROQUE|^DT/.test(k)) return TIPOS_VOL[1];
+  return TIPOS_VOL.find(x => x.n.indexOf(k) === 0) || null;
+};
 function llenarListas() {
   const lst = (id, arr) => { const e = $(id); e.textContent = ''; (arr || []).forEach(x => e.appendChild(h('option', { value: x }))); };
   lst('dl-placa', DATOS.volquetas.map(x => x.placa));
+  lst('dl-tipo', TIPOS_VOL.map(t => t.n)); lst('dl-empresa', Array.from(new Set(DATOS.volquetas.map(x => x.empresa).filter(Boolean))).sort());
   lst('dl-material', DATOS.catalogos.MATERIAL); lst('dl-origen', DATOS.catalogos.ORIGEN); lst('dl-destino', DATOS.catalogos.DESTINO); lst('dl-centro', DATOS.catalogos.CENTRO_COSTOS);
 }
 const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
@@ -443,12 +451,12 @@ function abrirForm(v, base) {
   const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'km', 'cant'];
   const val = (k, d) => v ? (v[k] === undefined || v[k] === null ? '' : v[k]) : (base && BK.indexOf(k) >= 0 && base[k] !== undefined && base[k] !== null ? base[k] : (d === undefined ? '' : d));
   const hh = new Date().getHours();
-  const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta), h('input', { id: id, class: o.cls, type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
+  const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta), h('input', { id: id, class: o.cls || '', type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
   F.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', onclick: volver }, '← Volver'), h('h3', { style: 'margin:6px 0 0' }, v ? '✏️ Corregir viaje' : '➕ Nuevo viaje')));
   // paso 1
   const res = h('div', { id: 'resVol', class: 'resumen', hidden: true });
   const dat = h('div', { id: 'datosVol', hidden: true },
-    h('div', { class: 'row' }, campo('empresa', 'Empresa', val('empresa')), campo('tipo', 'Tipo de volqueta', val('tipo'), { ph: 'Doble troque…' })),
+    h('div', { class: 'row' }, campo('empresa', 'Empresa *', val('empresa'), { list: 'dl-empresa' }), campo('tipo', 'Tipo de volqueta', val('tipo'), { list: 'dl-tipo', ph: 'Elige o escribe…' })),
     h('div', { class: 'row' }, campo('capacidad', 'Capacidad (m³)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor *', val('conductor'))));
   const c1 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '1'), '¿Qué volqueta es?'),
     campo('placa', 'Placa *', val('placa'), { list: 'dl-placa', cap: 'characters', cls: 'placa', ph: 'ABC123' }), h('div', { id: 'infoPlaca', style: 'color:#b36b00;font-weight:700;margin-top:6px' }), res, dat);
@@ -509,7 +517,7 @@ function abrirForm(v, base) {
       r.appendChild(h('b', {}, '✔ ' + [vo.empresa, vo.tipo, (vo.capacidad !== '' && vo.capacidad !== undefined ? vo.capacidad + ' m³' : '')].filter(Boolean).join(' · ')));
       if ($('conductor').value) r.appendChild(h('div', {}, 'Conductor: ' + $('conductor').value));
       r.appendChild(h('button', { type: 'button', class: 'link', onclick: () => { d.hidden = !d.hidden; } }, 'Cambiar estos datos'));
-      d.hidden = true;
+      d.hidden = !!$('conductor').value;
     } else {
       r.hidden = true; d.hidden = p.length < 5;
       info.textContent = p.length >= 5 ? 'Esta volqueta es nueva. Completa sus datos.' : '';
@@ -522,6 +530,15 @@ function abrirForm(v, base) {
     if (u) { $('km').value = u.km; $('kmAyuda').textContent = 'Sugerida del último viaje igual. Corrígela si cambió.'; }
   };
   $('origen').addEventListener('change', sugerirKm); $('destinoSel').addEventListener('change', () => setTimeout(sugerirKm, 0)); $('destino').addEventListener('change', sugerirKm);
+  const alTipo = () => {
+    const t = tipoDe($('tipo').value); if (!t) return;
+    $('tipo').value = t.n;
+    const cp = $('capacidad'); if (!cp.value.trim() || cp.dataset.auto === '1') { cp.value = t.m3; cp.dataset.auto = '1'; }
+    if (!v && (!$('cant').value.trim() || $('cant').dataset.auto === '1')) { $('cant').value = cp.value; $('cant').dataset.auto = '1'; }
+  };
+  $('tipo').addEventListener('change', alTipo);
+  $('capacidad').addEventListener('input', () => { $('capacidad').dataset.auto = ''; });
+  $('cant').addEventListener('input', () => { $('cant').dataset.auto = ''; });
   pl.oninput = () => { alPlaca(); sugerirKm(); }; pl.onchange = pl.oninput;
   if (v) { $('datosVol').hidden = false; } else if (pl.value) { alPlaca(); sugerirKm(); }
 }

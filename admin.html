@@ -290,7 +290,7 @@ function vistaVol(c) {
   const f = h('details', { class: 'tcard' }, h('summary', {}, '➕ Agregar volqueta'));
   const inp = (id, lab, extra) => h('div', {}, h('label', {}, lab), h('input', Object.assign({ id }, extra || {})));
   const msg = h('div', { class: 'small' });
-  f.append(inp('nvPlaca', 'Placa *', { maxlength: 7, autocapitalize: 'characters' }), inp('nvEmp', 'Empresa'), inp('nvTipo', 'Tipo'), inp('nvCap', 'Capacidad (m³)', { inputmode: 'decimal' }), inp('nvCond', 'Conductor'),
+  f.append(inp('nvPlaca', 'Placa *', { maxlength: 7, autocapitalize: 'characters' }), inp('nvEmp', 'Empresa', { list: 'dl-nvemp' }), inp('nvTipo', 'Tipo (elige o escribe)', { list: 'dl-nvtipo' }), inp('nvCap', 'Capacidad (m³ sueltos)', { inputmode: 'decimal' }), inp('nvCond', 'Conductor'),
     h('div', { class: 'acc' }, h('button', {
       onclick: async () => {
         const p = $('nvPlaca').value.trim(); msg.textContent = '';
@@ -298,6 +298,15 @@ function vistaVol(c) {
         if (!await cambioVol({ cambio: 'crear', placa: p, empresa: $('nvEmp').value, tipo: $('nvTipo').value, capacidad: $('nvCap').value, conductor: $('nvCond').value })) msg.textContent = 'No se guardó.';
       } }, 'Guardar')), msg);
   c.appendChild(f);
+  const TV = [['SENCILLA', 7], ['DOBLETROQUE', 15], ['ARTICULADA', 24]];
+  const dl = (id, vals) => { const d = h('datalist', { id: id }); vals.forEach(v => d.appendChild(h('option', { value: v }))); c.appendChild(d); };
+  dl('dl-nvtipo', TV.map(x => x[0])); dl('dl-nvemp', uniq(TR.volquetas.map(x => x.empresa).filter(Boolean)).sort());
+  $('nvTipo').addEventListener('change', () => {
+    const k = $('nvTipo').value.toUpperCase().replace(/[^A-Z]/g, ''); if (k.length < 3) return;
+    const t = /^DOBLE|^TROQUE|^DT/.test(k) ? TV[1] : TV.find(x => x[0].indexOf(k) === 0); if (!t) return;
+    $('nvTipo').value = t[0]; if (!$('nvCap').value.trim() || $('nvCap').dataset.auto === '1') { $('nvCap').value = t[1]; $('nvCap').dataset.auto = '1'; }
+  });
+  $('nvCap').addEventListener('input', () => { $('nvCap').dataset.auto = ''; });
 }
 function viajesTr() {
   const q = TRQ.trim().toUpperCase();
@@ -315,7 +324,7 @@ function vistaViajes(c) {
     L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (v.alertas ? ' warn' : '') },
       h('div', { class: 'big' }, v.placa, ' · ', nf(v.cant) + ' m³'),
       h('div', {}, v.material || '—'),
-      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—')),
+      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + (v.km ? ' · ' + nf(v.km) + ' km' : '')),
       h('div', { class: 'small' }, (v.conductor || '') + ' · ' + v.cod),
       v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
       h('div', { class: 'small' }, v.tiene_recibo ? '✅ Con recibo' : 'Sin recibo', ' ', (v.fotos_c || []).map((u, i) => h('span', {}, linkF(u, '📷C' + (i + 1)), ' ')), (v.fotos_r || []).map((u, i) => h('span', {}, linkF(u, '📷R' + (i + 1)), ' '))))));
@@ -338,8 +347,8 @@ function vistaPlan(c) {
   if (!TR.planillas.length) c.appendChild(h('div', { class: 'trok' }, 'No hay planillas en estas fechas'));
 }
 function csvTr() {
-  const cols = ['Fecha', 'Hora salida', 'Vale', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'Origen', 'Destino', 'm3', 'Estado', 'N valera', 'Alertas'];
-  const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => [v.fecha, v.hora_salida, v.cod, v.llave, v.placa, v.empresa, v.conductor, v.material, v.origen, v.destino, v.cant, v.estado, v.n_valera, v.alertas].map(csvCelda).join(';')));
+  const cols = ['Fecha', 'Hora salida', 'Vale', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'Origen', 'Destino', 'Km', 'm3', 'Estado', 'N valera', 'Alertas'];
+  const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => [v.fecha, v.hora_salida, v.cod, v.llave, v.placa, v.empresa, v.conductor, v.material, v.origen, v.destino, v.km, v.cant, v.estado, v.n_valera, v.alertas].map(csvCelda).join(';')));
   bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Transportes_' + $('desde').value + '_' + $('hasta').value + '.csv');
 }
 function navegacion() {

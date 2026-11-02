@@ -158,8 +158,8 @@ const nuevoParte = () => ({ n: 1, rev: 0, fecha: hoy(), encabezado: { localizaci
   personal: [], maquinas: [], materiales: [], fotos: [], solicitudes: [] });
 const ultimoCC = () => { const t = [].concat(P.personal, P.maquinas, P.materiales); for (let i = t.length - 1; i >= 0; i--) if (t[i].c_costo) return t[i].c_costo; return ''; };
 const nuevaActividad = () => ({ n: P.actividades.length + 1, descripcion: '', unidad: '', d1: '', d2: '', d3: '', descuentos: '0', factor: '1', obs: '' });
-const nuevaPersona = () => ({ c_costo: ultimoCC(), nombre: '', cargo: '', inicio: '07:00', fin: '16:00', estado: 'PRESENTE', acts: [] });
-const nuevaMaquina = () => ({ c_costo: ultimoCC(), nombre: '', recibo: '', inicio: '07:00', fin: '16:00', estado: 'OPERANDO', obs: '', acts: [] });
+const nuevaPersona = () => ({ c_costo: ultimoCC(), nombre: '', cargo: '', inicio: '07:00', fin: '17:00', estado: 'PRESENTE', acts: [] });
+const nuevaMaquina = () => ({ c_costo: ultimoCC(), nombre: '', recibo: '', inicio: '07:00', fin: '17:00', estado: 'OPERANDO', obs: '', acts: [] });
 const nuevoMaterial = () => ({ c_costo: ultimoCC(), nombre: '', procedencia: 'Almacén', albaran: '', cantidad: '', unidad: 'M3', ubicacion: '', acts: [], fotos_ids: [], estado: 'USADO' });
 const nuevaSolicitud = () => ({ tipo: 'Combustible', detalle: '', cantidad: '', unidad: '', cuando: 'MANANA', fecha: '', obs: '' });
 let verErr = false, ERR = new WeakMap(), ultId = null;
@@ -183,9 +183,9 @@ function base(p, reiniciar) {
     o.clima_sel = p.clima_sel || null; o.clima = L(p.clima); o.actividades = L(p.actividades);
     o.fotos = L(p.fotos).map(f => Object.assign({}, f, { acts: L(f.acts) })); o.solicitudes = L(p.solicitudes).map(q => Object.assign({ cuando: 'MANANA', fecha: '' }, q));
   }
-  o.personal = L(p.personal).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', cargo: x.cargo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
+  o.personal = L(p.personal).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', cargo: x.cargo || '', inicio: x.inicio || '07:00', fin: x.fin || '17:00',
     estado: x.estado || 'PRESENTE', acts: L(x.acts).slice() }));
-  o.maquinas = L(p.maquinas).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', recibo: x.recibo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
+  o.maquinas = L(p.maquinas).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', recibo: x.recibo || '', inicio: x.inicio || '07:00', fin: x.fin || '17:00',
     estado: x.estado || 'OPERANDO', obs: x.obs || '', acts: L(x.acts).slice() }));
   o.materiales = L(p.materiales).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', procedencia: x.procedencia || 'Almacén', albaran: x.albaran || '', unidad: x.unidad || 'M3', ubicacion: x.ubicacion || '',
     cantidad: x.cantidad === undefined ? '' : x.cantidad, acts: L(x.acts).slice(), fotos_ids: reiniciar ? [] : L(x.fotos_ids), estado: x.estado || 'USADO' }));
@@ -265,14 +265,18 @@ async function abrir(r) {
   sincronizar(false);
 }
 
+const ELIM = {};
+const elimKey = (f, n) => f + '|' + (n || 1);
+const estaElim = (f, n) => (ELIM[elimKey(f, n)] || 0) > Date.now();
 async function pintarBiblio(lista) {
-  const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave);
+  lista = lista.filter(x => !estaElim(x.fecha, x.n));
+  const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave && !estaElim(e.parte.fecha, e.parte.n));
   const h0 = hoy(), por = {};
   const K = (f, n) => f + '|' + (n || 1);
   lista.forEach(x => { por[K(x.fecha, x.n)] = { fecha: x.fecha, n: x.n || 1, pdf: x.pdf, rev: x.rev || 1, pend: false }; });
   cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf, rev: e.parte.rev || 1 }); });
   const bo = await kv.get('borrador');
-  if (bo && bo.llave === user.llave && bo.fecha === h0 && bo.guardado === false && bo.parte) {
+  if (bo && bo.llave === user.llave && bo.fecha === h0 && bo.guardado === false && bo.parte && !estaElim(h0, bo.parte.n)) {
     const bn = bo.parte.n || 1, bk = K(h0, bn);
     por[bk] = Object.assign(por[bk] || { fecha: h0, n: bn, pdf: false, rev: bo.parte.rev || 1 }, { borr: true });
   }
@@ -365,10 +369,13 @@ async function eliminarHoy(n) {
   n = typeof n === 'number' ? n : 1;
   if (!confirm('¿Eliminar este informe de hoy' + (n > 1 ? ' (Informe ' + n + ')' : '') + '? Se borra del sistema y de la biblioteca. No se puede deshacer.')) return;
   if (!navigator.onLine) { aviso('Para eliminar necesitas señal.', 'err'); return; }
+  ELIM[elimKey(hoy(), n)] = Date.now() + 60000;
+  if (!$('biblio').hidden) await pintarBiblio((await kv.get('bib_' + user.llave)) || []);
   aviso('Eliminando…');
+  const deshacer = async () => { delete ELIM[elimKey(hoy(), n)]; if (!$('biblio').hidden) await pintarBiblio((await kv.get('bib_' + user.llave)) || []); };
   try {
     const r = await api({ accion: 'eliminar', llave: user.llave, fecha: hoy(), n: n });
-    if (!r.ok) { aviso(r.mensaje || 'No se pudo eliminar.', 'err'); return; }
+    if (!r.ok) { await deshacer(); aviso(r.mensaje || 'No se pudo eliminar.', 'err'); return; }
     await mutarCola(c => c.filter(x => !(x.llave === user.llave && x.parte.fecha === hoy() && (x.parte.n || 1) === n)));
     const bo = await kv.get('borrador');
     if (bo && bo.llave === user.llave && bo.fecha === hoy() && ((bo.parte && bo.parte.n) || 1) === n) await kv.del('borrador');
@@ -377,7 +384,7 @@ async function eliminarHoy(n) {
     await kv.set(k, ((await kv.get(k)) || []).filter(x => !(x.fecha === hoy() && (x.n || 1) === n)));
     await biblioteca();
     aviso('Informe eliminado.', 'ok');
-  } catch (e) { aviso('No se pudo eliminar. Intenta de nuevo.', 'err'); }
+  } catch (e) { await deshacer(); aviso('No se pudo eliminar. Intenta de nuevo.', 'err'); }
 }
 let editando = false;
 function menuEdicion() {
