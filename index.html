@@ -158,8 +158,14 @@ const nuevoParte = () => ({ n: 1, rev: 0, fecha: hoy(), encabezado: { localizaci
   personal: [], maquinas: [], materiales: [], fotos: [], solicitudes: [] });
 const ultimoCC = () => { const t = [].concat(P.personal, P.maquinas, P.materiales); for (let i = t.length - 1; i >= 0; i--) if (t[i].c_costo) return t[i].c_costo; return ''; };
 const nuevaActividad = () => ({ n: P.actividades.length + 1, descripcion: '', unidad: '', d1: '', d2: '', d3: '', descuentos: '0', factor: '1', obs: '' });
-const nuevaPersona = () => ({ c_costo: ultimoCC(), nombre: '', cargo: '', inicio: '07:00', fin: '17:00', estado: 'PRESENTE', acts: [] });
-const nuevaMaquina = () => ({ c_costo: ultimoCC(), nombre: '', recibo: '', inicio: '07:00', fin: '17:00', estado: 'OPERANDO', obs: '', acts: [] });
+let ULT = { ref: null, per: null, maq: null };
+const ultimoHorario = (lista, k) => {
+  if (ULT.ref === P && ULT[k]) return ULT[k];
+  const u = (Array.isArray(lista) ? lista : []).filter(x => x && x.inicio && x.fin).pop();
+  return u ? { inicio: u.inicio, fin: u.fin } : { inicio: '07:00', fin: '17:00' };
+};
+const nuevaPersona = () => { const hh = ultimoHorario(P && P.personal, 'per'); return { c_costo: ultimoCC(), nombre: '', cargo: '', inicio: hh.inicio, fin: hh.fin, estado: 'PRESENTE', acts: [] }; };
+const nuevaMaquina = () => { const hh = ultimoHorario(P && P.maquinas, 'maq'); return { c_costo: ultimoCC(), nombre: '', recibo: '', inicio: hh.inicio, fin: hh.fin, estado: 'OPERANDO', obs: '', acts: [] }; };
 const nuevoMaterial = () => ({ c_costo: ultimoCC(), nombre: '', procedencia: 'Almacén', albaran: '', cantidad: '', unidad: 'M3', ubicacion: '', acts: [], fotos_ids: [], estado: 'USADO' });
 const nuevaSolicitud = () => ({ tipo: 'Combustible', detalle: '', cantidad: '', unidad: '', cuando: 'MANANA', fecha: '', obs: '' });
 let verErr = false, ERR = new WeakMap(), ultId = null;
@@ -183,9 +189,9 @@ function base(p, reiniciar) {
     o.clima_sel = p.clima_sel || null; o.clima = L(p.clima); o.actividades = L(p.actividades);
     o.fotos = L(p.fotos).map(f => Object.assign({}, f, { acts: L(f.acts) })); o.solicitudes = L(p.solicitudes).map(q => Object.assign({ cuando: 'MANANA', fecha: '' }, q));
   }
-  o.personal = L(p.personal).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', cargo: x.cargo || '', inicio: x.inicio || '07:00', fin: x.fin || '17:00',
+  o.personal = L(p.personal).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', cargo: x.cargo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
     estado: x.estado || 'PRESENTE', acts: L(x.acts).slice() }));
-  o.maquinas = L(p.maquinas).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', recibo: x.recibo || '', inicio: x.inicio || '07:00', fin: x.fin || '17:00',
+  o.maquinas = L(p.maquinas).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', recibo: x.recibo || '', inicio: x.inicio || '07:00', fin: x.fin || '16:00',
     estado: x.estado || 'OPERANDO', obs: x.obs || '', acts: L(x.acts).slice() }));
   o.materiales = L(p.materiales).map(x => ({ c_costo: x.c_costo || '', nombre: x.nombre || '', procedencia: x.procedencia || 'Almacén', albaran: x.albaran || '', unidad: x.unidad || 'M3', ubicacion: x.ubicacion || '',
     cantidad: x.cantidad === undefined ? '' : x.cantidad, acts: L(x.acts).slice(), fotos_ids: reiniciar ? [] : L(x.fotos_ids), estado: x.estado || 'USADO' }));
@@ -648,7 +654,10 @@ function pasoActividades(c) {
 }
 
 function horas(o, top) {
-  return h('div', { class: 'row' }, campo('Entró', o, 'inicio', { type: 'time' }), campo('Salió', o, 'fin', { type: 'time' }));
+  const fila = h('div', { class: 'row' }, campo('Entró', o, 'inicio', { type: 'time' }), campo('Salió', o, 'fin', { type: 'time' }));
+  const guardaHor = () => { if (!o.inicio || !o.fin) return; const k = (P.maquinas || []).includes(o) ? 'maq' : (P.personal || []).includes(o) ? 'per' : null; if (k) { if (ULT.ref !== P) ULT = { ref: P, per: null, maq: null }; ULT[k] = { inicio: o.inicio, fin: o.fin }; } };
+  fila.addEventListener('input', guardaHor); fila.addEventListener('change', guardaHor);
+  return fila;
 }
 function pasoPersonal(c) {
   c.appendChild(h('h2', {}, 'Personal'));
