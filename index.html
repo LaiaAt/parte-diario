@@ -734,7 +734,7 @@ function chipsFoto(f) {
       onclick: () => { const i = f.acts.indexOf(a.n); if (i >= 0) f.acts.splice(i, 1); else f.acts.push(a.n); b.classList.toggle('on'); cambio(); } }, 'Act. ' + a.n);
     c.appendChild(b);
   });
-  return h('div', {}, h('label', {}, '¿De qué actividad es? (opcional)'), c);
+  return h('div', {}, h('label', {}, '¿De qué actividad es?'), c);
 }
 function pasoFotos(c) {
   c.appendChild(h('h2', {}, 'Fotos del trabajo'));
@@ -813,6 +813,9 @@ function validar() {
     if (!(PD.num(x.cantidad) > 0)) m(4, 'Falta la cantidad de ' + x.nombre + '.', x, 'cantidad', 'Escribe la cantidad');
     if (!x.c_costo.trim()) m(4, 'Falta el centro de costos de ' + x.nombre + '.', x, 'c_costo');
     if (P.actividades.length && !x.acts.length) m(4, '¿En qué actividad se usó ' + x.nombre + '?', x, 'acts', 'Toca una actividad');
+  });
+  P.fotos.forEach((f, i) => {
+    if (f.tipo !== 'ALBARAN' && P.actividades.length && !(f.acts || []).length) m(5, 'La foto ' + (P.fotos.filter(x => x.tipo !== 'ALBARAN').indexOf(f) + 1) + ' no tiene actividad.', f, 'acts', 'Toca una actividad');
   });
   P.solicitudes.forEach(q => {
     if (!q.detalle.trim()) m(6, 'Hay un pedido sin explicar.', q, 'detalle');
