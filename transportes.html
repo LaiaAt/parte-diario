@@ -444,7 +444,21 @@ function chipsPara(campo, id) {
   recientes(campo).forEach(t => box.appendChild(h('button', { type: 'button', class: 'chip', onclick: () => { $(id).value = t; } }, t)));
   return box;
 }
+let gps = null;
+function cajaGps() {
+  const info = h('div', { id: 'gpsInfo', class: 'sub', style: 'margin-top:6px' });
+  const pintar = () => { info.textContent = gps ? '📍 Ubicación guardada (±' + (gps.prec || '?') + ' m)' : 'Sin ubicación (opcional)'; };
+  const b = h('button', { type: 'button', class: 'sec', style: 'margin-top:8px', onclick: () => {
+    if (!navigator.geolocation) { info.textContent = 'Este celular no permite ubicación.'; return; }
+    info.textContent = 'Buscando ubicación…';
+    navigator.geolocation.getCurrentPosition(p => { gps = { lat: Math.round(p.coords.latitude * 1e6) / 1e6, lon: Math.round(p.coords.longitude * 1e6) / 1e6, prec: Math.round(p.coords.accuracy || 0) }; pintar(); },
+      () => { info.textContent = 'No se pudo obtener la ubicación. Revisa el permiso de ubicación del navegador.'; }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  } }, '📍 Marcar mi ubicación (origen)');
+  const q = h('button', { type: 'button', class: 'sec', style: 'margin:8px 0 0 8px', onclick: () => { gps = null; pintar(); } }, 'Quitar');
+  pintar(); return h('div', {}, b, q, info);
+}
 function abrirForm(v, base) {
+  gps = v && v.lat !== undefined && v.lat !== '' && v.lat !== null ? { lat: v.lat, lon: v.lon, prec: v.prec } : null;
   llenarListas();
   editandoCod = v ? v.cod : null; fotoCargaNueva = []; fotoReciboNueva = [];
   const F = $('form'); F.textContent = '';
@@ -464,7 +478,8 @@ function abrirForm(v, base) {
   const c2 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '2'), '¿Qué lleva y adónde va?'),
     campoMaterial(val('material')),
     h('div', { style: 'height:10px' }),
-    campo('origen', 'Sale de (origen) *', val('origen'), { list: 'dl-origen' }), chipsPara('origen', 'origen'),
+    campo('origen', 'Sale de (origen) *', val('origen'), { list: 'dl-origen', ph: 'Elige de la lista o escribe uno nuevo' }), chipsPara('origen', 'origen'),
+    cajaGps(),
     h('div', { style: 'height:10px' }),
     campoDestino(val('destino')),
     h('div', { style: 'height:10px' }),
@@ -571,6 +586,7 @@ async function guardarViaje() {
   const v = Object.assign({}, antes || {}, {
     cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
     placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: g('origen'), destino: g('destino'),
+    lat: gps ? gps.lat : '', lon: gps ? gps.lon : '', prec: gps ? gps.prec : '',
     cant: cant, peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
     tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'RECIBIDO' : (antes ? antes.estado : 'DESPACHADO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
   });

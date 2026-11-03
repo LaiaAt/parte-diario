@@ -326,6 +326,7 @@ function vistaViajes(c) {
       h('div', {}, v.material || '—'),
       h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + (v.km ? ' · ' + nf(v.km) + ' km' : '')),
       h('div', { class: 'small' }, (v.conductor || '') + ' · ' + v.cod),
+      (v.lat !== '' && v.lat !== undefined && v.lat !== null) ? h('div', { class: 'small' }, h('a', { href: 'https://www.google.com/maps?q=' + v.lat + ',' + v.lon, target: '_blank', rel: 'noopener' }, '📍 Ver origen en el mapa')) : null,
       v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
       h('div', { class: 'small' }, v.tiene_recibo ? '✅ Con recibo' : 'Sin recibo', ' ', (v.fotos_c || []).map((u, i) => h('span', {}, linkF(u, '📷C' + (i + 1)), ' ')), (v.fotos_r || []).map((u, i) => h('span', {}, linkF(u, '📷R' + (i + 1)), ' '))))));
     if (!L.length) lista.appendChild(h('div', { class: 'trok' }, 'No hay viajes'));
@@ -347,8 +348,8 @@ function vistaPlan(c) {
   if (!TR.planillas.length) c.appendChild(h('div', { class: 'trok' }, 'No hay planillas en estas fechas'));
 }
 function csvTr() {
-  const cols = ['Fecha', 'Hora salida', 'Vale', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'Origen', 'Destino', 'Km', 'm3', 'Estado', 'N valera', 'Alertas'];
-  const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => [v.fecha, v.hora_salida, v.cod, v.llave, v.placa, v.empresa, v.conductor, v.material, v.origen, v.destino, v.km, v.cant, v.estado, v.n_valera, v.alertas].map(csvCelda).join(';')));
+  const cols = ['Fecha', 'Hora salida', 'Vale', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'Origen', 'Destino', 'Km', 'm3', 'Estado', 'N valera', 'Alertas', 'Lat origen', 'Lon origen', 'Precision GPS (m)'];
+  const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => [v.fecha, v.hora_salida, v.cod, v.llave, v.placa, v.empresa, v.conductor, v.material, v.origen, v.destino, v.km, v.cant, v.estado, v.n_valera, v.alertas, v.lat, v.lon, v.prec].map(csvCelda).join(';')));
   bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Transportes_' + $('desde').value + '_' + $('hasta').value + '.csv');
 }
 function navegacion() {
