@@ -946,7 +946,15 @@ async function sincronizar(manual) {
         if (!r2.ok && r2.codigo !== 'PASADO') { aviso(r2.mensaje || 'No se pudo subir el PDF.', 'err'); break; }
         e.pdfOk = true;
       }
-      if (e.datosOk && e.pdfOk) await mutarCola(c => c.filter(x => !(x.id === e.id && x.ts === e.ts)));
+      if (e.datosOk && e.pdfOk) {
+        await mutarCola(c => c.filter(x => !(x.id === e.id && x.ts === e.ts)));
+        try {
+          const kb = 'bib_' + e.llave, nb = e.parte.n || 1;
+          const lb = ((await kv.get(kb)) || []).filter(x => !(x.fecha === e.parte.fecha && (x.n || 1) === nb));
+          lb.unshift({ fecha: e.parte.fecha, n: nb, pdf: true, rev: e.parte.rev || 1 });
+          await kv.set(kb, lb);
+        } catch (e2) {}
+      }
     }
     if (manual) aviso('');
   } catch (err) { if (manual) aviso('No se pudo enviar. Se reintentará cuando haya señal.', 'err'); }
