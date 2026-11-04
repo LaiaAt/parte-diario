@@ -206,11 +206,15 @@ async function api(d) {
   finally { clearTimeout(t); }
 }
 function salir() { TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
+try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
 async function entrar() {
   const l = $('llave').value.trim(); if (!l) return;
   $('loginmsg').textContent = 'Entrando…'; $('entrar').disabled = true;
   try {
     LLAVE = l;
+    const v = await api({ accion: 'validar', llave: l, app: 'admin' });
+    if (!v.ok) { $('loginmsg').textContent = v.mensaje || 'Llave no válida'; LLAVE = ''; try { localStorage.removeItem('adm'); } catch (e) {} $('entrar').disabled = false; return; }
+    $('loginmsg').textContent = 'Cargando datos…';
     const ok = await cargar(true);
     if (ok) { try { localStorage.setItem('adm', l); } catch (e) {} $('login').hidden = true; $('panel').hidden = false; $('loginmsg').textContent = ''; }
     else { LLAVE = ''; try { localStorage.removeItem('adm'); } catch (e) {} }

@@ -175,18 +175,18 @@ async function cargarLocal() {
   VIAJES = (await kv.get('viajes_' + user.llave)) || [];
   COLA = (await kv.get('cola')) || [];
 }
+try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
 async function ingresar() {
   const l = $('llave').value.trim();
   if (!l) { aviso('Escribe tu llave.', 'err'); return; }
   if (!navigator.onLine) { aviso('La primera vez necesitas señal.', 'err'); return; }
   aviso('Entrando…');
   try {
-    const r = await api({ accion: 'tr_ingresar', llave: l });
-    if (!r.ok) { aviso(r.mensaje || 'Llave no válida', 'err'); return; }
+    const r = await api({ accion: 'validar', llave: l }, 30000);
+    if (!r.ok) { aviso(r.admin ? 'Las llaves de administrador no registran viajes. Usa el dashboard.' : (r.mensaje || 'Llave no válida'), 'err'); return; }
     user = { llave: r.llave, nombre: r.nombre };
     await kv.set('user', user);
     await cargarLocal();
-    await aplicarServidor(r);
     aviso('');
     abrirInicio();
     sincronizar();
