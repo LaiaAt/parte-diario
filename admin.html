@@ -560,7 +560,7 @@ function detalle(p) {
       h('button', { class: 'sec', onclick: () => { try { navigator.clipboard.writeText(p._cod); } catch (e) {} } }, 'Copiar código'),
       h('button', { class: 'sec', onclick: () => { o.hidden = true; $('qFot').value = p._cod; rerender(); ir('cFoto'); } }, 'Ver fotos'),
       h('button', { class: 'sec', onclick: () => { o.hidden = true; } }, 'Cerrar')),
-    tabla('Actividades', ['N°', 'Actividad', 'Unidad', 'Cantidad', 'Obs.'], del('ACTIVIDAD').map(r => [r.n, r.descripcion, r.unidad, r.cantidad, r.obs])),
+    tabla('Actividades', ['N°', 'Actividad', 'Unidad', 'Cantidad', 'Obs.'], del('ACTIVIDAD').map(r => [r.an || r.n, r.descripcion, r.unidad, r.cantidad, r.obs])),
     tabla('Personal', ['C. costo', 'Nombre', 'Cargo', 'Inicio', 'Fin', 'Horas', 'Estado'], del('PERSONAL').map(r => [r.c_costo, r.nombre, r.cargo, r.inicio, r.fin, r.horas, r.estado])),
     tabla('Máquinas', ['C. costo', 'Máquina', 'Recibo', 'Inicio', 'Fin', 'Horas', 'Estado', 'Obs.'], del('MAQUINA').map(r => [r.c_costo, r.nombre, r.recibo, r.inicio, r.fin, r.horas, r.estado, r.obs])),
     tabla('Materiales', ['C. costo', 'Material', 'Almacén', 'Albarán', 'Cantidad', 'Unidad', 'Estado'], del('MATERIAL').map(r => [r.c_costo, r.nombre, r.almacen, r.albaran, r.cantidad, r.unidad, r.estado])),
@@ -579,7 +579,7 @@ async function cargarFotos() {
   FOK = true; kpis(); partes(); fotos();
 }
 function prepFotos() {
-  const ad = {}; D.ACTIVIDAD.forEach(a => { ad[a.id + '#' + a.n] = a.descripcion; });
+  const ad = {}; D.ACTIVIDAD.forEach(a => { ad[a.id + '#' + (a.an || a.n)] = a.descripcion; });
   FT.forEach(f => {
     f._cod = COD(f.fecha, f.llave, (String(f.id).match(/_n(\d+)$/) || [0, 1])[1]);
     f._ad = f.acts.map(n => ({ n: n, t: ad[f.id + '#' + n] })).filter(x => x.t);
@@ -700,7 +700,7 @@ function fotos(reset) {
 
 /* ---- consolidados ---- */
 const DEF = {
-  ACTIVIDAD: { nombre: 'Actividades', est: ['Unidad', 'unidad'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['N°', 'n'], ['Actividad', 'descripcion'], ['Unidad', 'unidad'], ['Cantidad', 'cantidad'], ['Observación', 'obs']] },
+  ACTIVIDAD: { nombre: 'Actividades', est: ['Unidad', 'unidad'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['N°', 'an'], ['Actividad', 'descripcion'], ['Unidad', 'unidad'], ['Cantidad', 'cantidad'], ['Observación', 'obs']] },
   PERSONAL: { nombre: 'Personal', est: ['Estado', 'estado'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Nombre', 'nombre'], ['Cargo', 'cargo'], ['Inicio', 'inicio'], ['Fin', 'fin'], ['Horas', 'horas'], ['Estado', 'estado'], ['Actividades', 'acts']] },
   MAQUINA: { nombre: 'Máquinas', est: ['Estado', 'estado'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Máquina', 'nombre'], ['Recibo', 'recibo'], ['Inicio', 'inicio'], ['Fin', 'fin'], ['Horas', 'horas'], ['Estado', 'estado'], ['Actividades', 'acts'], ['Observación', 'obs']] },
   MATERIAL: { nombre: 'Materiales', est: ['Estado', 'estado'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Material', 'nombre'], ['Almacén', 'almacen'], ['Albarán', 'albaran'], ['Cantidad', 'cantidad'], ['Unidad', 'unidad'], ['Ubicación', 'ubicacion'], ['Estado', 'estado'], ['Actividades', 'acts']] },
