@@ -222,6 +222,7 @@ async function cargar(primera) {
   const r = await api({ accion: 'admin', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
   $('estado').textContent = '';
   if (!r.ok) { (primera ? $('loginmsg') : $('err')).textContent = r.mensaje || 'No se pudo cargar'; if (!primera && /administradores/.test(r.mensaje || '')) salir(); return false; }
+  { const c = {}; (r.ACTIVIDAD || []).forEach(x => { c[x.id] = (c[x.id] || 0) + 1; if (!x.an) x.an = c[x.id]; }); } // numero real de la actividad (1..N en orden); el servidor nuevo ya lo manda
   D = r; $('quien').textContent = r.nombre; pintar(); cargarFotos(); return true;
 }
 
