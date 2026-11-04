@@ -205,15 +205,15 @@ async function api(d) {
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); }
 }
-function salir() { TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
+function salir() { TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
 async function entrar() {
   const l = $('llave').value.trim(); if (!l) return;
   $('loginmsg').textContent = 'Entrando…'; $('entrar').disabled = true;
   try {
     LLAVE = l;
     const ok = await cargar(true);
-    if (ok) { try { sessionStorage.setItem('adm', l); } catch (e) {} $('login').hidden = true; $('panel').hidden = false; $('loginmsg').textContent = ''; }
-    else { LLAVE = ''; }
+    if (ok) { try { localStorage.setItem('adm', l); } catch (e) {} $('login').hidden = true; $('panel').hidden = false; $('loginmsg').textContent = ''; }
+    else { LLAVE = ''; try { localStorage.removeItem('adm'); } catch (e) {} }
   } catch (e) { $('loginmsg').textContent = 'No se pudo conectar.'; LLAVE = ''; }
   $('entrar').disabled = false;
 }
@@ -818,7 +818,7 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
   s.value = '__rec'; $('desde').value = sumDias(hy, -2); $('hasta').value = hy;
   ['desde', 'hasta'].forEach(i => $(i).onchange = () => { s.value = ''; });
 })();
-(function () { let l = ''; try { l = sessionStorage.getItem('adm') || ''; } catch (e) {} if (l) { $('llave').value = l; entrar(); } })();
+(function () { let l = ''; try { l = localStorage.getItem('adm') || sessionStorage.getItem('adm') || ''; } catch (e) {} if (l) { $('llave').value = l; entrar(); } })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 </body>
