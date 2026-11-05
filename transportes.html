@@ -649,6 +649,7 @@ function abrirForm(v, base) {
   const pl = $('placa');
   const alPlaca = () => {
     const p = normPlaca(pl.value), vo = DATOS.volquetas.find(x => x.placa === p);
+    const lk = document.querySelector('label[for=km]'); if (lk) lk.textContent = vo ? 'Distancia del recorrido (km) *' : 'Distancia del recorrido (km)';
     if (!vo) return;
     // datos de la volqueta: salen solos del catálogo (no se le piden a quien registra)
     if (!v || !$('empresa').value) $('empresa').value = vo.empresa || '';
@@ -681,7 +682,8 @@ async function guardarViaje() {
   if (!/^[A-Z0-9]{5,7}$/.test(placa)) M('placa', 'la placa');
   const pct = num($('pct').value), cant = num($('cant').value);
   if (g('peso') && !(num(g('peso')) >= 0)) M('peso', 'el peso');
-  if (g('km') && !(num(g('km')) >= 0)) M('km', 'la distancia en km');
+  const conocida = DATOS.volquetas.some(x => x.placa === placa);
+  if (g('km') ? !(num(g('km')) >= 0) : conocida) M('km', 'la distancia en km (obligatoria para placas registradas)');
   if (err.length) {
     aviso('Falta completar: ' + err.join(', ') + '.', 'err');
     mal.forEach((id, i) => { const el = $(id); if (!el) return; el.classList.add('malcampo'); el.addEventListener('input', () => el.classList.remove('malcampo'), { once: true }); el.addEventListener('change', () => el.classList.remove('malcampo'), { once: true }); const w = el.parentNode; if (w) w.appendChild(h('div', { class: 'malmsg' }, '⬆ Falta: ' + err[i])); });
