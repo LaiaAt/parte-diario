@@ -325,8 +325,7 @@ function filaParte(x, esHoy, varios) {
     bs.appendChild(h('button', { class: 'sec', onclick: () => verDe(x.fecha, n) }, 'Ver'));
     bs.appendChild(h('button', { class: 'sec', onclick: () => compDe(x.fecha, n) }, 'Compartir'));
   }
-  if (esHoy) bs.appendChild(h('div', { style: 'flex:0 0 100%;margin-top:14px;padding-top:10px;border-top:1px dashed #cfd8dc;text-align:right' }, h('button', { class: 'sec', style: 'color:#b00020;font-size:13px', onclick: () => eliminarHoy(n) }, '🗑 Eliminar este informe')));
-  return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), (n > 1 || varios) ? h('span', { class: 'tag' }, 'Informe ' + n) : null, esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
+  return h('div', { class: 'li' }, h('div', {}, esHoy ? h('a', { href: '#', style: 'float:right;font-size:12px;color:#9aa5ab;text-decoration:underline', onclick: ev => { ev.preventDefault(); eliminarHoy(n); } }, 'Eliminar') : null, h('b', {}, PD.fechaLarga(x.fecha), (n > 1 || varios) ? h('span', { class: 'tag' }, 'Informe ' + n) : null, esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
     x.borr ? h('span', { class: 'tag pend' }, 'Borrador sin guardar') : null, x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
 }
 function b64Blob(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Blob([u], { type: 'application/pdf' }); }
