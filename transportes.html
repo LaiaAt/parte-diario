@@ -618,6 +618,7 @@ function abrirForm(v, base) {
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
   const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Datos del vale'), h('p', { class: 'sub' }, 'Solo la placa es obligatoria. Lo demás ayuda, pero puedes dejarlo vacío.'),
+    h('div', {}, h('label', { for: 'fecha_vale' }, 'Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Si el vale es de un día anterior, cámbiala (hasta 3 días atrás).')),
     h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida', val('hora_salida', hm()), { type: 'time' })),
     h('div', { class: 'row' }, campo('n_valera', 'N° de valera', val('n_valera'), { inputmode: 'numeric' }), h('div', {}, h('label', {}, 'La valera es'), vd)),
     h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos', val('centro')), chipsPara('centro', 'centro')),
@@ -694,7 +695,7 @@ async function guardarViaje() {
   const antes = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
   const cod = antes ? antes.cod : nuevoCod();
   const v = Object.assign({}, antes || {}, {
-    cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
+    cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : ($('fecha_vale').value || hoy()), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
     placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
     lat: '', lon: '', prec: '',
     uf: $('uf').value, pct: pct > 0 ? pct : '', cant: cant > 0 ? cant : '', peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
