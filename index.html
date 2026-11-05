@@ -321,11 +321,11 @@ function filaParte(x, esHoy, varios) {
   const n = x.n || 1;
   const bs = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' });
   if (esHoy) bs.appendChild(h('button', { onclick: () => editarHoy(n, !x.pend || !x.local) }, 'Editar'));
-  if (esHoy) bs.appendChild(h('button', { class: 'sec', style: 'color:#b00020', onclick: () => eliminarHoy(n) }, '🗑 Eliminar'));
   if (x.pdf || x.local) {
     bs.appendChild(h('button', { class: 'sec', onclick: () => verDe(x.fecha, n) }, 'Ver'));
     bs.appendChild(h('button', { class: 'sec', onclick: () => compDe(x.fecha, n) }, 'Compartir'));
   }
+  if (esHoy) bs.appendChild(h('div', { style: 'flex:0 0 100%;margin-top:14px;padding-top:10px;border-top:1px dashed #cfd8dc;text-align:right' }, h('button', { class: 'sec', style: 'color:#b00020;font-size:13px', onclick: () => eliminarHoy(n) }, '🗑 Eliminar este informe')));
   return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), (n > 1 || varios) ? h('span', { class: 'tag' }, 'Informe ' + n) : null, esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
     x.borr ? h('span', { class: 'tag pend' }, 'Borrador sin guardar') : null, x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
 }
@@ -371,9 +371,22 @@ async function cargarFotos() {
   } catch (e) {}
 }
 
+function confirmarElim(msg) {
+  return new Promise(res => {
+    const f = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px' });
+    const fin = v => { f.remove(); res(v); };
+    f.appendChild(h('div', { style: 'background:#fff;border-radius:12px;padding:18px;max-width:340px;width:100%' },
+      h('div', { style: 'font-weight:bold;font-size:17px;color:#b00020;margin-bottom:8px' }, '⚠ Eliminar informe'),
+      h('div', { style: 'margin-bottom:16px' }, msg),
+      h('div', { style: 'display:flex;gap:10px' },
+        h('button', { style: 'flex:1', onclick: () => fin(false) }, 'No, cancelar'),
+        h('button', { class: 'sec', style: 'flex:1;color:#b00020', onclick: () => fin(true) }, 'Sí, eliminar'))));
+    document.body.appendChild(f);
+  });
+}
 async function eliminarHoy(n) {
   n = typeof n === 'number' ? n : 1;
-  if (!confirm('¿Eliminar este informe de hoy' + (n > 1 ? ' (Informe ' + n + ')' : '') + '? Se borra del sistema y de la biblioteca. No se puede deshacer.')) return;
+  if (!(await confirmarElim('¿Eliminar este informe de hoy' + (n > 1 ? ' (Informe ' + n + ')' : '') + '? Se borra del sistema y de la biblioteca. No se puede deshacer.'))) return;
   if (!navigator.onLine) { aviso('Para eliminar necesitas señal.', 'err'); return; }
   ELIM[elimKey(hoy(), n)] = Date.now() + 60000;
   if (!$('biblio').hidden) await pintarBiblio((await kv.get('bib_' + user.llave)) || []);
