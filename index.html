@@ -643,8 +643,12 @@ function tarjetaActividad(a, i) {
     const s = sugerencias.find(x => x.descripcion.toUpperCase() === a.descripcion.trim().toUpperCase());
     if (s && !a.unidad) { a.unidad = s.unidad; mostrar(); }
   } }));
-  card.appendChild(h('div', { class: 'row' }, campo('¿En qué se mide?', a, 'unidad', { list: 'dl-und', req: true, ph: 'Elige o escribe: M3, M2, UND…', ayuda: 'Toca la flecha para ver la lista. Si es otra medida, escríbela.',
-    alTerminar: () => { a.unidad = PD.normUnidad(a.unidad); mostrar(); } })));
+  card.appendChild(h('div', { class: 'row' }, campo('¿En qué se mide?', a, 'unidad', { list: 'dl-und', req: true, ph: 'Elige: M3, M2, ML, UND…', ayuda: 'Toca la flecha y elige de la lista (M3, M2, ML, UND, KG, TON, GL). No se aceptan otras unidades.',
+    alTerminar: () => {
+      const antes = a.unidad; a.unidad = PD.normUnidad(a.unidad);
+      if (a.unidad && !PD.unidadValida(a.unidad)) { a.unidad = ''; aviso('La unidad "' + antes + '" no es válida. Elige una de la lista: M3, M2, ML, UND, KG, TON o GL.', 'err'); }
+      mostrar();
+    } })));
   const labels = PD.dimsLabels(a.unidad);
   if (labels.length) {
     const f = h('div', { class: 'row' });
@@ -797,6 +801,7 @@ function validar() {
   P.actividades.forEach(a => {
     if (!a.descripcion.trim()) m(1, 'La actividad ' + a.n + ' no tiene nombre.', a, 'descripcion');
     if (!a.unidad) m(1, 'Elige en qué se mide la actividad ' + a.n + '.', a, 'unidad', 'Elige una opción');
+    else if (!PD.unidadValida(a.unidad)) m(1, 'La unidad "' + a.unidad + '" de la actividad ' + a.n + ' no es válida. Elige una de la lista: M3, M2, ML, UND, KG, TON o GL.', a, 'unidad', 'Unidad no válida: elige de la lista');
     else if (isNaN(PD.cantidadActividad(a))) {
       const ks = [];
       for (let i = 1; i <= PD.dimsDe(a.unidad); i++) if (!(PD.num(a['d' + i]) > 0)) ks.push('d' + i);
@@ -807,6 +812,7 @@ function validar() {
   });
   P.personal.forEach(p => {
     if (!p.nombre.trim()) return m(2, 'Hay una persona sin nombre.', p, 'nombre');
+    if (!String(p.cargo || '').trim()) return m(2, 'Falta el cargo de ' + p.nombre + '.', p, 'cargo');
     if (p.estado === 'AUSENTE') return;
     if (!p.c_costo.trim()) m(2, 'Falta el centro de costos de ' + p.nombre + '.', p, 'c_costo');
     if (!hh(p.inicio, p.fin)) m(2, 'Revisa las horas de ' + p.nombre + '.', p, ['inicio', 'fin'], 'Revisa la hora');
@@ -855,7 +861,8 @@ function pasoRevisar(c) {
 
 /* ---------- guardar, PDF y envío ---------- */
 function copia(o) { return JSON.parse(JSON.stringify(o)); }
-function conPdf(parte) { return PD.generarParteDoc(parte, { llave: user.llave, encargado: user.nombre, residente: 'INGENIERO RESIDENTE AUXILIAR', control: 'CONTROL DE GESTION' }, window.jspdf.jsPDF); }
+function unidadMala(parte) { return (parte.actividades || []).find(a => !PD.unidadValida(a.unidad)); }
+function conPdf(parte) { const mal = unidadMala(parte); if (mal) throw new Error('Unidad no válida: ' + mal.unidad); return PD.generarParteDoc(parte, { llave: user.llave, encargado: user.nombre, residente: 'INGENIERO RESIDENTE AUXILIAR', control: 'CONTROL DE GESTION' }, window.jspdf.jsPDF); }
 
 async function guardar() {
   verErr = true;
@@ -950,6 +957,8 @@ async function sincronizar(manual) {
   try {
     for (const e of cola) {
       if (!e.datosOk) {
+        const mal = unidadMala(e.parte);
+        if (mal) { aviso('El parte del ' + PD.fechaLarga(e.parte.fecha) + ' tiene una unidad no válida ("' + mal.unidad + '" en la actividad ' + mal.n + '). Ábrelo, elige la unidad de la lista y guarda de nuevo.', 'err'); break; }
         const r = await api({ accion: 'guardar', llave: e.llave, parte: payload(e.parte) });
         if (!r.ok && r.codigo !== 'PASADO') { aviso(r.mensaje || 'La oficina no aceptó el parte.', 'err'); break; }
         e.parte.fotos.forEach(f => { if (r.fotos && r.fotos[f.id]) f.url = r.fotos[f.id]; });

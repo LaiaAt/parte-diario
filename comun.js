@@ -11,6 +11,9 @@
     { cod: 'GL', texto: 'Global', pdf: 'GL', dims: ['Cantidad'] }
   ];
 
+  const SINONIMOS = { 'MTRS': 'ML', 'MTS': 'ML', 'MT': 'ML', 'MTR': 'ML', 'M': 'ML', 'METRO': 'ML', 'METROS': 'ML', 'MTRS2': 'M2', 'M²': 'M2', 'METROS CUADRADOS': 'M2', 'M³': 'M3', 'METROS CUBICOS': 'M3', 'METROS CÚBICOS': 'M3',
+    'UNIDAD': 'UND', 'UNIDADES': 'UND', 'UN': 'UND', 'UNID': 'UND', 'UNDS': 'UND', 'KILO': 'KG', 'KILOS': 'KG', 'KGS': 'KG', 'TONELADA': 'TON', 'TONELADAS': 'TON', 'TONS': 'TON', 'TN': 'TON', 'GLOBAL': 'GL' };
+
   function num(v) {
     if (v === null || v === undefined || v === '') return NaN;
     const n = Number(String(v).trim().replace(',', '.'));
@@ -26,10 +29,13 @@
   // Lo que escribe el usuario -> código de la lista si coincide; si no, el texto en mayúsculas.
   function normUnidad(t) {
     const s = String(t || '').trim(); if (!s) return '';
-    const k = s.toUpperCase().replace(/\s+/g, ' ');
-    const u = UNIDADES.find(x => x.cod === k || x.texto.toUpperCase() === k || x.texto.toUpperCase().replace(/\s*\(.*\)\s*$/, '') === k);
+    const k = s.toUpperCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
+    const sin = SINONIMOS[k];
+    const u = UNIDADES.find(x => x.cod === (sin || k) || x.texto.toUpperCase() === k || x.texto.toUpperCase().replace(/\s*\(.*\)\s*$/, '') === k);
     return u ? u.cod : k;
   }
+  // Solo se aceptan las unidades de la lista (el servidor tambien las exige).
+  function unidadValida(t) { const k = normUnidad(t); return !!k && UNIDADES.some(x => x.cod === k); }
 
   function undPdf(cod) {
     const u = UNIDADES.find(x => x.cod === cod);
@@ -86,7 +92,7 @@
   // codigo unico y estable del parte (una llave por dia)
   function codigoParte(fecha, llave, n, rev) { return 'PD-' + String(fecha || '').replace(/-/g, '') + '-' + String(llave || '').toUpperCase() + ((n || 1) > 1 ? '-' + n : '') + ((rev || 1) > 1 ? '-R' + rev : ''); }
 
-  const PD = { codigoParte, UNIDADES, num, dimsDe, dimsLabels, normUnidad, undPdf, cantidadActividad, fmt, horasEntre, fechaLarga, pkDigitos, formatoPK };
+  const PD = { codigoParte, UNIDADES, num, dimsDe, dimsLabels, normUnidad, unidadValida, undPdf, cantidadActividad, fmt, horasEntre, fechaLarga, pkDigitos, formatoPK };
   if (typeof module !== 'undefined' && module.exports) module.exports = PD;
   else root.PD = PD;
 })(typeof window !== 'undefined' ? window : globalThis);
