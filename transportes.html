@@ -377,24 +377,24 @@ function campoMaterial(valor) {
   return w;
 }
 let SITIOS = [
-  { n: 'DISPOAMBIENTAL', t: ['EXC'], d: 'excavación, arenas, limos, arcillas, tierras negras' },
-  { n: 'Arenas y gravas Villamaría', t: ['RCD'], d: 'RCD' },
-  { n: 'Reciclados Industriales de Colombia', t: ['RCD'], d: 'RCD' },
-  { n: 'MINERSA', t: ['RCD'], d: 'RCD' },
-  { n: 'VECOAGREINT', t: ['RCD'], d: 'RCD' }];
+  { n: 'DISPOAMBIENTAL', t: ['EXC'], d: 'solo descapote' },
+  { n: 'Arenas y gravas Villamaría', t: ['RCD'], d: 'excavación, demolición, escombros y demás residuos (no descapote)' },
+  { n: 'Reciclados Industriales de Colombia', t: ['RCD'], d: 'excavación, demolición, escombros y demás residuos (no descapote)' },
+  { n: 'MINERSA', t: ['RCD'], d: 'excavación, demolición, escombros y demás residuos (no descapote)' },
+  { n: 'VECOAGREINT', t: ['RCD'], d: 'excavación, demolición, escombros y demás residuos (no descapote)' }];
 function aplicarSitios() {
   if (DATOS.sitios && DATOS.sitios.length) SITIOS = DATOS.sitios.map(x => ({ n: x.n, t: x.t && x.t.length ? x.t : ['EXC', 'RCD'], d: x.d || '', lat: x.lat, lon: x.lon }));
 }
 function tipoResiduo(m) {
   const t = String(m || '').toUpperCase();
-  if (/ESCOMBRO|RCD|DEMOLICI/.test(t)) return 'RCD';
-  if (/EXCAVA|DESCAPOTE|LIMO|ARCILLA|TIERRA NEGRA/.test(t)) return 'EXC';
+  if (/DESCAPOTE/.test(t)) return 'EXC';
+  if (/ESCOMBRO|RCD|DEMOLICI|EXCAVA|LIMO|ARCILLA|TIERRA NEGRA/.test(t)) return 'RCD';
   return '';
 }
 function alertaSitio(mat, dest) {
   const tr = tipoResiduo(mat), d = String(dest || '').trim().toUpperCase();
   const si = SITIOS.find(x => x.n.toUpperCase() === d);
-  if (si) return (tr && si.t.indexOf(tr) < 0) ? si.n + ' NO recibe ' + (tr === 'RCD' ? 'RCD' : 'material de excavación o descapote') + '. Recibe: ' + si.d + '.' : '';
+  if (si) return (tr && si.t.indexOf(tr) < 0) ? si.n + ' NO recibe ' + (tr === 'RCD' ? 'excavación, demolición ni escombros (solo descapote)' : 'descapote (solo va a DISPOAMBIENTAL)') + '. Recibe: ' + si.d + '.' : '';
   return tr && d ? 'Sitio de disposición NO autorizado: ' + dest : '';
 }
 function setDestino(val, r) {
