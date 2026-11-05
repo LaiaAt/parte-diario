@@ -20,7 +20,7 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-s
 header{background:var(--hv);color:#fff;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:4px solid var(--navy)}
 header .logo{height:38px;width:auto;background:#fff;border-radius:6px;padding:2px 4px}
 header h1{font-size:18px;margin:0;flex:1}
-#red{font-size:13px;font-weight:700}
+#red{font-size:13px;font-weight:700;text-align:right;line-height:1.3}#red .pen{display:inline-block;margin-top:3px;background:#f59e0b;color:#1f2937;border-radius:10px;padding:2px 9px}
 .marca{display:block;max-width:240px;width:70%;margin:4px auto 10px}
 main{max-width:640px;margin:auto;padding:14px}
 h2{font-size:20px;margin:6px 0 4px}
@@ -808,7 +808,12 @@ async function sincronizar() {
 }
 
 /* ---------- arranque ---------- */
-function estadoRed() { $('red').textContent = navigator.onLine ? 'Con señal' : 'Sin señal'; }
+async function estadoRed() {
+  let n = 0; try { const c = (await kv.get('cola')) || []; n = c.filter(o => !user || o.llave === user.llave).length; } catch (x) {}
+  const r = $('red'); r.textContent = navigator.onLine ? 'Con señal' : 'Sin señal';
+  if (n) { const b = document.createElement('div'); b.className = 'pen'; b.textContent = '⏳ ' + n + (n === 1 ? ' pendiente de enviar' : ' pendientes de enviar'); r.appendChild(b); }
+}
+setInterval(estadoRed, 3000);
 $('btnIngresar').onclick = ingresar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') ingresar(); };
 window.addEventListener('online', () => { estadoRed(); sincronizar(); refrescar(true); });
