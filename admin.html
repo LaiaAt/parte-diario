@@ -812,9 +812,40 @@ function partes() {
   const b = h('tbody');
   L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, p._cod), h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
     h('td', {}, p._n.ACTIVIDAD), h('td', {}, p._n.PERSONAL), h('td', {}, p._n.MAQUINA), h('td', {}, p._n.MATERIAL), h('td', {}, p._n.SOLICITUD), h('td', {}, nFotos(p.id) ? h('button', { class: 'sm sec', onclick: () => { $('qFot').value = p._cod; rerender(); ir('cFoto'); } }, '📷 ' + nFotos(p.id)) : '0'),
-    h('td', {}, h('button', { class: 'sm sec', onclick: () => detalle(p) }, 'Detalle'), ' ', p.pdf ? h('button', { class: 'sm', onclick: () => bajarPdf(p) }, 'PDF') : h('span', { class: 'tag r' }, 'sin PDF')))));
+    h('td', {}, h('button', { class: 'sm sec', onclick: () => detalle(p) }, 'Detalle'), ' ', p.pdf ? h('button', { class: 'sm', onclick: () => bajarPdf(p) }, 'PDF') : h('button', { class: 'sm', onclick: e => crearPdf(p, e.target) }, 'Crear PDF')))));
   if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 13 }, 'No hay partes con esos filtros')));
   t.appendChild(b);
+}
+/* ---- crear el PDF de un parte que no lo tiene (se arma aquí con los datos guardados) ---- */
+let PDFG = null;
+function cargarPdfGen() {
+  if (PDFG) return PDFG;
+  PDFG = new Promise((ok, mal) => {
+    const f = document.createElement('iframe'); f.style.display = 'none'; f.src = 'pdfgen.html';
+    f.onload = () => { const w = f.contentWindow; (w.PD && w.jspdf) ? ok(w) : mal(new Error('No cargó el generador de PDF')); };
+    f.onerror = () => mal(new Error('No cargó el generador de PDF'));
+    document.body.appendChild(f);
+  });
+  PDFG.catch(() => { PDFG = null; });
+  return PDFG;
+}
+async function crearPdf(p, btn) {
+  const t0 = btn.textContent; btn.disabled = true; btn.textContent = 'Creando…';
+  try {
+    const w = await cargarPdfGen();
+    const r = await api({ accion: 'admin_parte', llave: LLAVE, id: p.id }, 60000);
+    if (!r.ok) throw new Error(r.mensaje || 'No se pudo leer el parte');
+    const parte = r.parte;
+    for (const f of parte.fotos || []) {
+      try { const x = await api({ accion: 'admin_foto', llave: LLAVE, id: p.id, foto: f.id }, 60000); if (x.ok) f.data = 'data:' + x.tipo + ';base64,' + x.data; } catch (e) {}
+    }
+    const doc = w.PD.generarParteDoc(parte, { llave: r.llave, encargado: r.usuario, residente: 'INGENIERO RESIDENTE AUXILIAR', control: 'CONTROL DE GESTION' }, w.jspdf.jsPDF);
+    const b64 = doc.output('datauristring').split(',')[1];
+    const s = await api({ accion: 'admin_crear_pdf', llave: LLAVE, id: p.id, pdf: b64 }, 120000);
+    if (!s.ok) throw new Error(s.mensaje || 'No se pudo guardar el PDF');
+    p.pdf = s.nombre; btn.textContent = '✔ Listo';
+    try { partes(); kpis(); } catch (e) {}
+  } catch (e) { btn.disabled = false; btn.textContent = t0; alert('No se pudo crear el PDF: ' + (e.message || e)); }
 }
 async function todosPdf() {
   const L = partesVisibles().filter(p => p.pdf); if (!L.length) return;
@@ -829,7 +860,7 @@ function detalle(p) {
   const tabla = (tit, cols, rows) => rows.length ? h('div', {}, h('h2', {}, tit + ' (' + rows.length + ')'), h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, cols.map(c => h('th', {}, c)))), h('tbody', {}, rows.map(r => h('tr', {}, r.map(v => h('td', { class: 'w' }, v)))))))) : null;
   o.appendChild(h('div', { class: 'card', style: 'max-width:1000px;margin:20px auto' },
     h('div', { class: 'row' }, h('div', {}, h('h2', { style: 'margin:0' }, p._cod), h('div', { class: 'small' }, [fmtF(p.fecha), p.llave, p.usuario, p.localizacion, p.pk].join(' · '))),
-      p.pdf ? h('button', { onclick: () => bajarPdf(p) }, 'Descargar PDF') : h('span', { class: 'tag r' }, 'sin PDF'),
+      p.pdf ? h('button', { onclick: () => bajarPdf(p) }, 'Descargar PDF') : h('button', { onclick: e => crearPdf(p, e.target) }, 'Crear PDF'),
       h('button', { class: 'sec', onclick: () => { try { navigator.clipboard.writeText(p._cod); } catch (e) {} } }, 'Copiar código'),
       h('button', { class: 'sec', onclick: () => { o.hidden = true; $('qFot').value = p._cod; rerender(); ir('cFoto'); } }, 'Ver fotos'),
       h('button', { class: 'sec', onclick: () => { o.hidden = true; } }, 'Cerrar')),
