@@ -147,6 +147,7 @@ const kv = (() => {
   return {
     get: async k => { let v; try { v = await tx('readonly', s => s.get(k)); } catch (e) { if (k !== 'user') throw e; } if (k === 'user' && !v) { v = lsGet(); if (v) { try { await tx('readwrite', s => s.put(v, k)); } catch (e) {} } } return v; },
     set: async (k, v) => { if (k === 'user') lsSet(v); return tx('readwrite', s => s.put(v, k)); },
+    limpiar: async () => tx('readwrite', st => st.clear()),
     del: async k => { if (k === 'user') lsSet(null); return tx('readwrite', s => s.delete(k)); }
   };
 })();
@@ -176,6 +177,7 @@ function nuevoCod() {
 
 /* ---------- ingreso ---------- */
 async function cargarLocal() {
+  try { if (localStorage.getItem('tr_reset') !== 'v51') { await kv.limpiar(); await kv.set('user', user); localStorage.setItem('tr_reset', 'v51'); } } catch (e) {} // limpieza única: borra viajes/cola de pruebas guardados en el celular
   const d = await kv.get('datos'); if (d) DATOS = d;
   aplicarSitios();
   VIAJES = (await kv.get('viajes_' + user.llave)) || [];
