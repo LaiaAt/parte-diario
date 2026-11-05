@@ -1,0 +1,19 @@
+name: Recordatorio 5 PM parte diario (hora Colombia)
+on:
+  schedule:
+    - cron: '0 22 * * 1-6'   # 5:00 PM Bogotá (UTC-5), lunes a sábado
+  workflow_dispatch:
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/checkout@v4
+      - run: npm i --no-save web-push@3
+      - run: node scripts/aviso5pm.js
+        env:
+          APPS_URL: ${{ secrets.APPS_URL }}
+          PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          VAPID_PUBLIC: ${{ secrets.VAPID_PUBLIC }}
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}

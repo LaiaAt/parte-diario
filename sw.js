@@ -1,4 +1,4 @@
-const CACHE = 'pd-v47';
+const CACHE = 'pd-v48';
 const ARCHIVOS = ['./', 'index.html', 'transportes.html', 'comun.js', 'pdf.js', 'pdf_tr.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'marca.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js'];
 
@@ -27,4 +27,16 @@ self.addEventListener('fetch', e => {
       })
       .catch(() => caches.match(e.request).then(hit => hit || caches.match('index.html')))
   );
+});
+
+self.addEventListener('push', e => {
+  let d = {}; try { d = e.data.json(); } catch (x) {}
+  e.waitUntil(self.registration.showNotification(d.titulo || 'Parte diario', { body: d.texto || 'Aún no has enviado el parte de hoy.', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'parte-5pm', renotify: true, data: { url: d.url || './' } }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+    for (const c of cs) if ('focus' in c) return c.focus();
+    return self.clients.openWindow((e.notification.data && e.notification.data.url) || './');
+  }));
 });

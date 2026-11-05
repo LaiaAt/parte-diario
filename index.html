@@ -253,6 +253,35 @@ async function salir() {
   $('login').hidden = false; $('llave').value = '';
 }
 
+// Aviso de las 5 PM (notificación push)
+const VAPID_PUB = 'BJtIpibpHSjJYhK3bJFTDcQz82oqPbW_sGRLGcw4CVoUYBhgw8i700w3-b_YjG_4EyGvd6GX_JnXtwc_p1HrWuk';
+const b64u = t => { const b = atob((t + '='.repeat((4 - t.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+const avisosOk = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+async function suscribirAvisos(pedir) {
+  if (!avisosOk() || !user) return false;
+  if (Notification.permission === 'default' && pedir) await Notification.requestPermission();
+  if (Notification.permission !== 'granted') return false;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUB) });
+  const r = await api({ accion: 'push_sub', llave: user.llave, sub: sub.toJSON() }, 20000);
+  if (r && r.ok) { await kv.set('avisos', user.llave); return true; }
+  return false;
+}
+function cajaAvisos() {
+  const c = h('div', { class: 'card', style: 'margin-top:12px' }), t = h('div', { style: 'font-size:14px;margin-bottom:6px' });
+  c.appendChild(t);
+  if (!avisosOk()) { t.textContent = '🔔 Para recibir el aviso de las 5 PM instala la app en la pantalla de inicio (en iPhone: Compartir → Añadir a pantalla de inicio).'; return c; }
+  const pint = async () => {
+    const ok = Notification.permission === 'granted' && (await kv.get('avisos')) === user.llave;
+    t.textContent = ok ? '🔔 Aviso de las 5 PM activado: si no has enviado el parte, te llegará un recordatorio.' : (Notification.permission === 'denied' ? '🔕 Las notificaciones están bloqueadas en este celular. Actívalas en los ajustes del navegador para esta app.' : '🔔 Activa el aviso de las 5 PM si aún no has enviado el parte.');
+    b.hidden = ok || Notification.permission === 'denied';
+  };
+  const b = h('button', { onclick: async () => { b.disabled = true; try { if (!(await suscribirAvisos(true))) t.textContent = 'No se pudo activar. Revisa la señal y que permitas las notificaciones.'; else await pint(); } catch (e) { t.textContent = 'No se pudo activar el aviso.'; } b.disabled = false; } }, '🔔 Activar aviso de las 5 PM');
+  c.appendChild(b); pint();
+  if (Notification.permission === 'granted') suscribirAvisos(false).then(pint).catch(() => {});
+  return c;
+}
+
 let ult = null;
 async function abrir(r) {
   ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
@@ -294,6 +323,7 @@ async function pintarBiblio(lista) {
   B.textContent = '';
   B.appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + user.nombre), h('br'), h('small', {}, PD.fechaLarga(h0)), h('br'),
     h('button', { onclick: salir, style: 'margin-top:8px;background:#fff;color:#b00020;border:2px solid #b00020' }, '🚪 Cerrar sesión (cambiar llave)')));
+  B.appendChild(cajaAvisos());
   if (sig <= 9) B.appendChild(h('button', { onclick: () => editarHoy(sig) }, deHoy.length ? '➕ Crear otro informe de hoy (Informe ' + sig + ')' : '➕ Crear el parte de hoy'));
   const card = h('div', { class: 'card', style: 'margin-top:12px' }, h('b', {}, 'Mis partes'));
   deHoy.forEach(x => card.appendChild(filaParte(x, true, deHoy.length > 1)));
