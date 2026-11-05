@@ -20,6 +20,7 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-s
 header{background:var(--hv);color:#fff;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:4px solid var(--navy)}
 header .logo{height:38px;width:auto;background:#fff;border-radius:6px;padding:2px 4px}
 header h1{font-size:18px;margin:0;flex:1}
+input.lista{background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><path d='M3 5l5 6 5-6z' fill='%23555'/></svg>") no-repeat right 12px center;padding-right:36px;cursor:pointer}
 #red{font-size:13px;font-weight:700;text-align:right;line-height:1.3}#red .pen{display:inline-block;margin-top:3px;background:#f59e0b;color:#1f2937;border-radius:10px;padding:2px 9px}
 .marca{display:block;max-width:240px;width:70%;margin:4px auto 10px}
 main{max-width:640px;margin:auto;padding:14px}
@@ -510,6 +511,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 /* ---------- piezas reutilizables ---------- */
 const REQ = new Set(['localizacion', 'descripcion', 'nombre', 'c_costo', 'cantidad', 'detalle', 'd1', 'd2', 'd3', 'descuentos', 'factor', 'inicio', 'fin', 'fecha']);
 function E(o, k) { return verErr && o && ERR.has(o) ? (ERR.get(o)[k] || '') : ''; }
+const ACT_OTRA = false; // pasa a true cuando el servidor acepte unidades distintas en actividades
 function campo(etiqueta, obj, clave, o) {
   o = o || {};
   const er = E(obj, clave);
@@ -520,8 +522,43 @@ function campo(etiqueta, obj, clave, o) {
   const inp = h('input', { type: o.type || 'text', inputmode: o.inputmode, placeholder: o.ph, list: o.list, autocomplete: 'off', value: obj[clave] == null ? '' : obj[clave],
     oninput: () => { obj[clave] = inp.value; if (o.alCambiar) o.alCambiar(); caja.classList.remove('err-c'); msg.hidden = true; cambio(); },
     onchange: () => { if (o.alTerminar) o.alTerminar(); } });
+  if (o.desplegable) ponerLista(inp, o.desplegable, o.tituloLista || etiqueta, o.libre);
   [h('label', {}, etiqueta, req ? h('span', { class: 'req' }, ' *') : null), inp, msg, o.ayuda ? h('small', {}, o.ayuda) : null].forEach(x => { if (x) caja.appendChild(x); });
   return caja;
+}
+// Lista que se abre al tocar la celda (en vez de sugerencias sobre el teclado). Siempre permite escribir otro valor.
+function abrirLista(titulo, opciones, alElegir, libreTxt) {
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-end;justify-content:center' });
+  const hoja = h('div', { style: 'background:#fff;width:min(100%,560px);max-height:85vh;border-radius:14px 14px 0 0;display:flex;flex-direction:column;padding:12px' });
+  const q = h('input', { type: 'search', placeholder: 'Buscar…', autocomplete: 'off', style: 'font-size:18px;margin:8px 0' });
+  const lista = h('div', { style: 'overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px' });
+  const cerrar = () => ov.remove();
+  const pintar = () => {
+    lista.textContent = '';
+    const t = q.value.trim().toUpperCase();
+    opciones.filter(o => !t || String(o).toUpperCase().indexOf(t) >= 0).forEach(o => lista.appendChild(h('button', { type: 'button', class: 'sec', style: 'text-align:left;font-size:18px;padding:14px', onclick: () => { cerrar(); alElegir(String(o)); } }, String(o))));
+    if (libreTxt) lista.appendChild(h('button', { type: 'button', class: 'sec', style: 'font-size:17px;padding:14px;font-weight:700', onclick: () => { cerrar(); alElegir(q.value.trim() || null, true); } }, q.value.trim() ? 'Usar «' + q.value.trim() + '»' : '✏️ ' + libreTxt));
+  };
+  q.oninput = pintar; pintar();
+  hoja.appendChild(h('div', { style: 'display:flex;justify-content:space-between;align-items:center' }, h('b', { style: 'font-size:18px' }, titulo), h('button', { type: 'button', class: 'sec', style: 'padding:8px 18px;width:auto;flex:none', onclick: cerrar }, '✕')));
+  hoja.appendChild(q); hoja.appendChild(lista);
+  ov.appendChild(hoja); ov.addEventListener('click', e => { if (e.target === ov) cerrar(); });
+  document.body.appendChild(ov);
+  if (opciones.length > 12) setTimeout(() => q.focus(), 50);
+}
+function ponerLista(inp, getOpts, titulo, libreTxt) {
+  inp.classList.add('lista'); inp.readOnly = true;
+  const escribir = () => { inp.readOnly = false; inp.focus(); };
+  inp.addEventListener('blur', () => { inp.readOnly = true; });
+  inp.addEventListener('click', () => {
+    if (!inp.readOnly) return;
+    const ops = getOpts() || [];
+    if (!ops.length) { escribir(); return; }
+    abrirLista(titulo, ops, (v, libre) => {
+      if (v) { inp.value = libre ? v : v.split(' — ')[0]; inp.dispatchEvent(new Event('input')); inp.dispatchEvent(new Event('change')); }
+      if (libre && !v) setTimeout(escribir, 50);
+    }, libreTxt);
+  });
 }
 function pkCampo() {
   const er = E(P.encabezado, 'pk');
@@ -683,7 +720,7 @@ function tarjetaActividad(a, i) {
     const s = sugerencias.find(x => x.descripcion.toUpperCase() === a.descripcion.trim().toUpperCase());
     if (s && !a.unidad) { a.unidad = s.unidad; mostrar(); }
   } }));
-  card.appendChild(h('div', { class: 'row' }, campo('¿En qué se mide?', a, 'unidad', { list: 'dl-und', req: true, ph: 'Elige: M3, M2, ML, UND…', ayuda: 'Toca la flecha y elige de la lista (M3, M2, ML, UND, KG, TON, GL). No se aceptan otras unidades.',
+  card.appendChild(h('div', { class: 'row' }, campo('¿En qué se mide?', a, 'unidad', { desplegable: () => PD.UNIDADES.map(u => u.cod + ' — ' + u.texto), tituloLista: '¿En qué se mide?', libre: ACT_OTRA ? 'Escribir otra unidad' : '', req: true, ph: 'Toca y elige', ayuda: 'Toca y elige de la lista.',
     alTerminar: () => {
       const antes = a.unidad; a.unidad = PD.normUnidad(a.unidad);
       if (a.unidad && !PD.unidadValida(a.unidad)) { a.unidad = ''; aviso('La unidad "' + antes + '" no es válida. Elige una de la lista: M3, M2, ML, UND, KG, TON o GL.', 'err'); }
@@ -765,7 +802,7 @@ function pasoMateriales(c) {
     card.appendChild(h('div', { class: 'row' }, campo('Material retirado', m, 'nombre', { list: 'dl-mat', req: !m.fotos_ids.length }), campo('Almacén', m, 'procedencia', { list: 'dl-alm' }), campo('Centro de costos', m, 'c_costo', { list: 'dl-cc' })));
     if (usado) card.appendChild(h('div', { class: 'row' }, campo('No. de albarán (si lo tiene)', m, 'albaran')));
     if (usado) {
-      card.appendChild(h('div', { class: 'row' }, decimal('Cantidad', m, 'cantidad', { req: !m.fotos_ids.length }), campo('Unidad', m, 'unidad', { list: 'dl-und', req: false, ph: 'M3, KG…', alTerminar: () => { m.unidad = PD.normUnidad(m.unidad); cambio(); } }), campo('Dónde se usó', m, 'ubicacion', { list: 'dl-ubic' })));
+      card.appendChild(h('div', { class: 'row' }, decimal('Cantidad', m, 'cantidad', { req: !m.fotos_ids.length }), campo('Unidad', m, 'unidad', { desplegable: () => PD.UNIDADES.map(u => u.cod + ' — ' + u.texto), tituloLista: 'Unidad', libre: 'Escribir otra unidad', req: false, ph: 'Toca y elige', alTerminar: () => { m.unidad = PD.normUnidad(m.unidad); cambio(); } }), campo('Dónde se usó', m, 'ubicacion', { list: 'dl-ubic' })));
       card.appendChild(chips(m));
       const gal = h('div', { class: 'fotos' });
       fotosDe(m.fotos_ids).forEach(f => gal.appendChild(miniFoto(f, () => { P.fotos = P.fotos.filter(x => x.id !== f.id); m.fotos_ids = m.fotos_ids.filter(x => x !== f.id); mostrar(); })));
@@ -818,7 +855,7 @@ function pasoPedidos(c) {
       h('button', { class: 'sec', style: 'flex:0 0 90px', onclick: () => { P.solicitudes.splice(i, 1); mostrar(); } }, 'Quitar')),
       h('div', { class: 'row' }, h('div', {}, h('label', {}, '¿Para cuándo?'), cu), s.cuando === 'FECHA' ? campo('¿Qué día?', s, 'fecha', { type: 'date' }) : null),
       h('div', { class: 'row' }, campo('Qué necesitan', s, 'detalle', { ph: 'Ej: ACPM para la retroexcavadora' })),
-      h('div', { class: 'row' }, decimal('Cantidad', s, 'cantidad', { req: false }), campo('Unidad', s, 'unidad', { ph: 'galones, personas…', list: 'dl-und-sol' })),
+      h('div', { class: 'row' }, decimal('Cantidad', s, 'cantidad', { req: false }), campo('Unidad', s, 'unidad', { ph: 'Toca y elige', desplegable: () => ['galones','personas','unidades','horas','kilos','m³'], tituloLista: 'Unidad', libre: 'Escribir otra unidad' })),
       h('div', { class: 'row' }, campo('Observación (opcional)', s, 'obs'))));
   });
   c.appendChild(h('button', { class: 'sec', onclick: () => { P.solicitudes.push(nuevaSolicitud()); foco = true; mostrar(); } }, '+ Agregar pedido'));
