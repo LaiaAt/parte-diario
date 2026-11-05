@@ -290,7 +290,7 @@ function filaViaje(v) {
   if (mas.children.length) bs.appendChild(h('button', { class: 'sec', onclick: () => { mas.hidden = !mas.hidden; } }, '⋯ Más'));
   return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
     h('div', { class: 't' }, v.placa, ' · ', v.material),
-    h('div', { class: 's' }, r2(num(v.cant) || 0) + ' m³ · ' + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
+    h('div', { class: 's' }, r2(num(v.cant) || 0) + ' m³ · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
     h('div', { style: 'margin-bottom:8px' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null, h('span', { class: 'tag' }, v.cod)),
     bs, mas,
     v.alertas ? h('small', { style: 'color:#b36b00;display:block;margin-top:6px' }, '⚠ ' + v.alertas) : null,
@@ -410,21 +410,21 @@ function setDestino(val, r) {
   else { sel.value = ''; inp.value = ''; wrap.hidden = true; }
 }
 function campoDestino(valor) {
-  const sel = h('select', { id: 'destinoSel' }, h('option', { value: '' }, '— Elige el destino —'),
-    h('optgroup', { label: 'Sitios de disposición autorizados' }, SITIOS.map(x => h('option', { value: x.n }, x.n))),
-    h('option', { value: '__otro' }, '✏️ Otro destino (escribir)'));
+  const sel = h('select', { id: 'destinoSel' }, h('option', { value: '' }, '— Elige el sitio —'),
+    h('optgroup', { label: 'Sitios conocidos' }, SITIOS.map(x => h('option', { value: x.n }, x.n))),
+    h('option', { value: '__otro' }, '✏️ Otro sitio o empresa (escribir)'));
   const inp = h('input', { id: 'destino', type: 'text', autocomplete: 'off', placeholder: 'Escribe el destino', value: valor, list: 'dl-destino' });
   const otro = h('div', { id: 'destinoOtro', style: 'margin-top:8px', hidden: true }, inp);
   sel.onchange = () => { if (sel.value === '__otro') { inp.value = ''; otro.hidden = false; inp.focus(); } else { inp.value = sel.value; otro.hidden = true; } alertaForm(); };
   inp.oninput = alertaForm;
-  const w = h('div', { id: 'c_destino' }, h('label', { for: 'destinoSel' }, 'Va a (destino) *'), sel, otro,
+  const w = h('div', { id: 'c_destino' }, h('label', { for: 'destinoSel', id: 'lblDest' }, 'Va a (destino)'), sel, otro,
     h('div', { id: 'alertaSitio', style: 'color:#b00020;font-weight:700;margin-top:8px', hidden: true }));
   setDestino(valor, { sel: sel, inp: inp, wrap: otro });
   return w;
 }
 function alertaForm() {
   const a = $('alertaSitio'); if (!a) return;
-  const t = alertaSitio($('material') && $('material').value, $('destino') && $('destino').value);
+  const t = ($('mov') && $('mov').value === 'RECIBE') ? '' : alertaSitio($('material') && $('material').value, $('destino') && $('destino').value);
   a.hidden = !t; a.textContent = t ? '⚠ ' + t + ' Revisa antes de guardar.' : '';
 }
 function confirmarFoto(data) {
@@ -472,6 +472,7 @@ function chipsPara(campo, id) {
   recientes(campo).forEach(t => box.appendChild(h('button', { type: 'button', class: 'chip', onclick: () => { $(id).value = t; } }, t)));
   return box;
 }
+const contra = v => (v && v.mov === 'RECIBE') ? (v.origen || '') : (v.destino || '');
 const nrm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
 const kTxt = n => 'K' + String(Math.floor(n / 1000)).padStart(2, '0') + '+' + String(n % 1000).padStart(3, '0');
 function partesOrigen(t) { const m = /^K(\d{2,3})\+(\d{3})\s*(?:·\s*(.*))?$/.exec(String(t || '').trim()); return m ? { abs: String(Number(m[1]) * 1000 + Number(m[2])), eje: m[3] || '' } : { abs: '', eje: String(t || '') }; }
@@ -482,11 +483,27 @@ function campoOrigen(valor) {
   const info = h('div', { id: 'absInfo', class: 'sub', style: 'margin-top:4px;font-weight:700' });
   const pint = () => { abs.value = abs.value.replace(/\D/g, '').slice(0, 6); info.textContent = abs.value ? '= ' + kTxt(Number(abs.value)) : 'Solo números, en metros (ej. 3200 = K03+200)'; };
   abs.addEventListener('input', pint); pint();
-  return h('div', { id: 'c_origen' }, h('label', { for: 'abs' }, 'Sale de: abscisa (solo números) *'), abs, info,
-    h('div', { style: 'height:8px' }), h('label', { for: 'eje' }, 'Eje, fase o descripción del sitio *'), eje);
+  return h('div', { id: 'c_origen' }, h('label', { for: 'abs', id: 'lblAbs' }, 'Sale de: abscisa (solo números)'), abs, info,
+    h('div', { style: 'height:8px' }), h('label', { for: 'eje', id: 'lblEje' }, 'Eje, fase o descripción del sitio'), eje);
 }
 const origenTxt = () => { const a = $('abs').value.trim(), e = $('eje').value.trim(); return a ? kTxt(Number(a)) + (e ? ' · ' + e : '') : ''; };
 const kmTabla = (uf, dest) => { const f = (DATOS.dist || []).find(x => nrm(x.uf) === 'UF' + String(uf) && nrm(x.d) === nrm(dest)); return f ? Number(f.km) : null; };
+function aplicarMov() {
+  const rec = $('mov') && $('mov').value === 'RECIBE';
+  const T = (id, t) => { const e = $(id); if (e) e.textContent = t; };
+  T('lblUF', rec ? '¿A qué UF llega?' : '¿De qué UF sale?');
+  T('lblAbs', rec ? 'Llega a: abscisa (solo números)' : 'Sale de: abscisa (solo números)');
+  T('lblDest', rec ? 'Viene de (empresa o proveedor)' : 'Va a (destino)');
+  if ($('movChips')) Array.from($('movChips').children).forEach(b => b.classList.toggle('on', b.dataset.k === (rec ? 'RECIBE' : 'ENTREGA')));
+  alertaForm(); sugerirKm();
+}
+function campoMov(valor) {
+  const inp = h('input', { id: 'mov', type: 'hidden', value: valor === 'RECIBE' ? 'RECIBE' : 'ENTREGA' });
+  const box = h('div', { class: 'chips', id: 'movChips' });
+  [['ENTREGA', '📤 ENTREGA (sale de la obra)'], ['RECIBE', '📥 RECIBE (llega a la obra)']].forEach(([k, t]) =>
+    box.appendChild(h('button', { type: 'button', class: 'chip' + (inp.value === k ? ' on' : ''), 'data-k': k, style: 'font-size:16px;padding:14px 12px;flex:1', onclick: () => { inp.value = k; aplicarMov(); } }, t)));
+  return h('div', { id: 'c_mov' }, h('label', {}, '¿El viaje entrega o recibe material?'), box, inp);
+}
 function campoUF(valor) {
   const inp = h('input', { id: 'uf', type: 'hidden', value: valor || '' });
   const box = h('div', { class: 'chips', id: 'ufChips' });
@@ -494,7 +511,7 @@ function campoUF(valor) {
     const b = h('button', { type: 'button', class: 'chip' + (String(valor) === k ? ' on' : ''), style: 'min-width:72px;font-size:20px;padding:14px 12px', onclick: () => { inp.value = k; inp.dispatchEvent(new Event('change')); Array.from(box.children).forEach(c => c.classList.toggle('on', c === b)); box.parentNode.classList.remove('malcampo'); sugerirKm(); } }, k === 'OTRO' ? 'Otro' : 'UF ' + k);
     box.appendChild(b);
   });
-  return h('div', { id: 'c_uf' }, h('label', {}, '¿De qué UF sale? *'), box, inp);
+  return h('div', { id: 'c_uf' }, h('label', { id: 'lblUF' }, '¿De qué UF sale?'), box, inp);
 }
 function recalcCant() {
   const cap = num($('capacidad').value), pct = num($('pct').value), i = $('cantInfo');
@@ -518,11 +535,11 @@ const sugerirKm = () => {
   const k = $('km'); if (!k) return;
   const ufv = $('uf') && $('uf').value, dn = $('destino') && $('destino').value.trim();
   const t = ufv && dn && ufv !== 'OTRO' ? kmTabla(ufv, dn) : null;
-  if (t !== null) { k.value = t; k.readOnly = true; k.dataset.auto = '1'; $('kmAyuda').textContent = '✔ Automática: UF ' + ufv + ' → ' + dn + ' (ruta más corta en Google Maps).'; }
+  if (t !== null) { k.value = t; k.readOnly = true; k.dataset.auto = '1'; $('kmAyuda').textContent = '✔ Automática: UF ' + ufv + ' ↔ ' + dn + ' (ruta más corta en Google Maps).'; }
   else {
     if (k.dataset.auto === '1') { k.value = ''; }
     k.readOnly = false; k.dataset.auto = '';
-    $('kmAyuda').textContent = ufv && dn ? 'Destino o UF sin distancia en la tabla: escribe los km. Quedará "por validar" en el dashboard.' : 'Elige la UF y el destino: los km salen solos.';
+    $('kmAyuda').textContent = ufv && dn ? 'Esta UF y sitio no están en la tabla: escribe los km (obligatorio). Quedará "por validar" en el dashboard.' : 'Elige la UF y el sitio: los km salen solos. Si no, escríbelos (obligatorio).';
   }
 };
 
@@ -530,9 +547,10 @@ function abrirForm(v, base) {
   llenarListas();
   editandoCod = v ? v.cod : null; fotoCargaNueva = []; fotoReciboNueva = [];
   const F = $('form'); F.textContent = '';
-  const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'km', 'cant', 'uf', 'pct'];
+  const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'km', 'cant', 'uf', 'pct', 'mov'];
   const val = (k, d) => v ? (v[k] === undefined || v[k] === null ? '' : v[k]) : (base && BK.indexOf(k) >= 0 && base[k] !== undefined && base[k] !== null ? base[k] : (d === undefined ? '' : d));
   const hh = new Date().getHours();
+  const esRec = (v ? v.mov : (base && base.mov)) === 'RECIBE';
   const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta), h('input', { id: id, class: o.cls || '', type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
   F.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', onclick: volver }, '← Volver'), h('h3', { style: 'margin:6px 0 0' }, v ? '✏️ Corregir viaje' : '➕ Nuevo viaje')));
   // paso 1
@@ -544,15 +562,17 @@ function abrirForm(v, base) {
     campo('placa', 'Placa *', val('placa'), { list: 'dl-placa', cap: 'characters', cls: 'placa', ph: 'ABC123' }), h('div', { id: 'infoPlaca', style: 'color:#b36b00;font-weight:700;margin-top:6px' }), res, dat);
   // paso 2
   const c2 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '2'), '¿Qué lleva y adónde va?'),
+    campoMov(v ? v.mov : (base && base.mov)),
+    h('div', { style: 'height:10px' }),
     campoMaterial(val('material')),
     h('div', { style: 'height:10px' }),
     campoUF(val('uf')),
     h('div', { style: 'height:10px' }),
-    campoOrigen(val('origen')),
+    campoOrigen(esRec ? val('destino') : val('origen')),
     h('div', { style: 'height:10px' }),
-    campoDestino(val('destino')),
+    campoDestino(esRec ? val('origen') : val('destino')),
     h('div', { style: 'height:10px' }),
-    campo('km', 'Distancia de recogida a destino (km) *', val('km'), { inputmode: 'decimal', ph: 'Automática' }), h('small', { id: 'kmAyuda', class: 'sub' }, 'Elige la UF y el destino: los km salen solos.'),
+    campo('km', 'Distancia del recorrido (km) *', val('km'), { inputmode: 'decimal', ph: 'Automática' }), h('small', { id: 'kmAyuda', class: 'sub' }, 'Elige la UF y el destino: los km salen solos.'),
     h('div', { style: 'height:10px' }),
     campoCarga(v, val('pct') !== '' ? val('pct') : (v && num(v.capacidad) > 0 && num(v.cant) > 0 ? Math.round(num(v.cant) / num(v.capacidad) * 100) : '')));
   // paso 3: otros datos (siempre visibles)
@@ -588,7 +608,7 @@ function abrirForm(v, base) {
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Foto del recibo', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoReciboNueva = fotoReciboNueva.concat(arr).slice(0, 10); pintarPrevR(); } })), cuentaR, prevR);
   F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(c4); F.appendChild(c5);
   F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ GUARDAR Y CREAR VALE'));
-  pantalla('form'); alertaForm(); recalcCant(); sugerirKm();
+  pantalla('form'); alertaForm(); recalcCant(); aplicarMov();
   const pl = $('placa');
   const alPlaca = () => {
     const p = normPlaca(pl.value), vo = DATOS.volquetas.find(x => x.placa === p), info = $('infoPlaca'), r = $('resVol'), d = $('datosVol');
@@ -610,7 +630,7 @@ function abrirForm(v, base) {
   const sugerirKmHist = () => {
     if ($('km').value.trim() || $('km').readOnly) return;
     const o = $('uf').value, d = $('destino').value.trim().toUpperCase(); if (!o || !d) return;
-    const u = VIAJES.filter(x => String(x.uf || '') === o && String(x.destino || '').toUpperCase() === d && num(x.km) > 0).sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || '')))[0];
+    const u = VIAJES.filter(x => String(x.uf || '') === o && String(contra(x)).toUpperCase() === d && num(x.km) > 0).sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || '')))[0];
     if (u) { $('km').value = u.km; $('kmAyuda').textContent = 'Sugerida del último viaje igual a este. Corrígela si cambió. Quedará "por validar".'; }
   };
   const sugerirKm2 = () => { sugerirKm(); sugerirKmHist(); };
@@ -637,12 +657,9 @@ async function guardarViaje() {
   if (!g('empresa')) { M('empresa', 'la empresa de la volqueta'); $('datosVol').hidden = false; }
   if (!g('conductor')) { M('conductor', 'el conductor'); $('datosVol').hidden = false; }
   if (!g('material')) M('materialSel', 'el material');
-  if (!$('abs').value.trim()) M('abs', 'la abscisa de donde sale'); if (!$('eje').value.trim()) M('eje', 'el eje, fase o descripción del sitio');
-  if (!g('destino')) M('destinoSel', 'adónde va');
   if (!g('hora_salida')) M('hora_salida', 'la hora de salida');
   if (!g('n_valera')) M('n_valera', 'el N° de valera');
   if (!g('centro')) M('centro', 'el centro de costos');
-  if (!$('uf').value) M('c_uf', 'la UF de origen');
   const pct = num($('pct').value); if (!(pct > 0 && pct <= 120)) M('c_pct', 'qué tan llena va la tolva (%)');
   const cant = num($('cant').value); if (!(cant > 0 && cant <= 60)) M('c_pct', 'la capacidad de la volqueta y el % de carga');
   if (g('peso') && !(num(g('peso')) >= 0)) M('peso', 'el peso');
@@ -653,11 +670,12 @@ async function guardarViaje() {
     const p = $(mal[0]); if (p) { p.scrollIntoView({ block: 'center' }); if (p.focus) p.focus(); }
     return;
   }
+  const rec = $('mov').value === 'RECIBE';
   const antes = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
   const cod = antes ? antes.cod : nuevoCod();
   const v = Object.assign({}, antes || {}, {
     cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
-    placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: origenTxt(), destino: g('destino'),
+    placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
     lat: '', lon: '', prec: '',
     uf: $('uf').value, pct: pct, cant: cant, peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
     tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'RECIBIDO' : (antes ? antes.estado : 'DESPACHADO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
@@ -665,7 +683,7 @@ async function guardarViaje() {
   const i = VIAJES.findIndex(x => x.cod === cod); if (i >= 0) VIAJES[i] = v; else VIAJES.push(v);
   // catalogo local: que aparezcan ya los valores nuevos
   if (!DATOS.volquetas.some(x => x.placa === placa)) DATOS.volquetas.push({ placa: placa, empresa: v.empresa, tipo: v.tipo, capacidad: v.capacidad, conductor: v.conductor });
-  [['MATERIAL', v.material], ['DESTINO', v.destino], ['CENTRO_COSTOS', v.centro]].forEach(p => { if (p[1] && !DATOS.catalogos[p[0]].some(x => x.toUpperCase() === p[1].toUpperCase())) DATOS.catalogos[p[0]].push(p[1]); });
+  [['MATERIAL', v.material], ['DESTINO', contra(v)], ['CENTRO_COSTOS', v.centro]].forEach(p => { if (p[1] && !DATOS.catalogos[p[0]].some(x => x.toUpperCase() === p[1].toUpperCase())) DATOS.catalogos[p[0]].push(p[1]); });
   const previo = COLA.find(o => o.t === 'g' && o.cod === cod);
   if (fotoCargaNueva.length) { const ya = previo && previo.fotoNueva ? asArr(await kv.get('f_' + cod + '_c')) : []; await kv.set('f_' + cod + '_c', ya.concat(fotoCargaNueva).slice(0, 10)); }
   const op = { id: Date.now() + Math.random(), t: 'g', llave: user.llave, cod: cod, viaje: v, ed: hoy(), fotoNueva: fotoCargaNueva.length > 0 || !!(previo && previo.fotoNueva) };

@@ -318,7 +318,7 @@ function sospechosos() {
   const pares = {}; V.forEach(v => { if (Number(v.km) > 0) { const k = (v.origen || '') + '→' + (v.destino || ''); (pares[k] = pares[k] || []).push(v); } });
   Object.keys(pares).forEach(k => { const L = pares[k]; if (L.length < 3) return; const s = L.map(v => Number(v.km)).sort((a, b) => a - b), med = s[Math.floor(s.length / 2)]; L.forEach(v => { const x = Number(v.km); if (x > med * 2 || x < med * 0.5) add('Distancia atípica', v.placa + ': ' + nf1(x) + ' km en ' + k + ' (lo normal ≈ ' + nf1(med) + ' km)', [v]); }); });
   const ufs = TR.ufs || [], sit = TR.sitios || [];
-  V.forEach(v => { const uf = ufs.find(u => String(u.uf) === String(v.uf)), si = sit.find(x => x.n.toUpperCase() === String(v.destino).toUpperCase()); if (uf && si && uf.lat !== '' && si.lat !== '' && si.lat !== undefined && Number(v.km) > 0) { const est = kmLinea(uf, si) * 1.3; if (Number(v.km) > est * 1.8 + 2 || Number(v.km) < est * 0.4 - 2) add('Distancia vs UF', v.placa + ': declaró ' + nf1(v.km) + ' km; UF ' + v.uf + ' → ' + v.destino + ' ≈ ' + nf1(est) + ' km', [v]); } });
+  V.forEach(v => { const uf = ufs.find(u => String(u.uf) === String(v.uf)), si = sit.find(x => x.n.toUpperCase() === String(sitioDe(v)).toUpperCase()); if (uf && si && uf.lat !== '' && si.lat !== '' && si.lat !== undefined && Number(v.km) > 0) { const est = kmLinea(uf, si) * 1.3; if (Number(v.km) > est * 1.8 + 2 || Number(v.km) < est * 0.4 - 2) add('Distancia vs UF', v.placa + ': declaró ' + nf1(v.km) + ' km; UF ' + v.uf + ' → ' + v.destino + ' ≈ ' + nf1(est) + ' km', [v]); } });
   return S;
 }
 function vistaSosp(c) {
@@ -353,7 +353,7 @@ function pintaAlb() {
     box.appendChild(h('div', { class: 'tcard' + (v.alertas ? ' warn' : '') },
       h('div', { class: 'big' }, 'Valera ' + (v.n_valera || '—'), h('span', { class: 'tag' }, v.valera_de || '—')),
       h('div', {}, v.placa + ' · ' + (v.conductor || '') + ' · ' + (v.empresa || '')),
-      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.material || '—') + ' · ' + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—')),
+      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + (v.material || '—') + ' · ' + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—')),
       h('div', { class: 'small' }, nf(v.cant) + ' m³' + (pctV(v) !== null ? ' (' + pctV(v) + ' % de la tolva)' : '') + ' · ' + v.cod + ' · ' + v.usuario),
       v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
       fo));
@@ -399,13 +399,13 @@ function vistaRes(c) {
   const pd = agrupa(V, v => v.fecha).sort((a, b) => a.k.localeCompare(b.k)).map(x => Object.assign(x, { k: fmtF(x.k).slice(0, 5) }));
   c.appendChild(tablaBarras('📅 m³ por día', pd, '#0277bd', true, 40));
   // UF x destino
-  const ufs = Array.from(new Set(V.map(ufTxt))).sort(), des = agrupa(V, v => v.destino || '—').map(x => x.k);
-  const M = {}; V.forEach(v => { const k = ufTxt(v) + '|' + (v.destino || '—'); M[k] = (M[k] || 0) + (Number(v.cant) || 0); });
+  const ufs = Array.from(new Set(V.map(ufTxt))).sort(), des = agrupa(V, v => sitioDe(v) || '—').map(x => x.k);
+  const M = {}; V.forEach(v => { const k = ufTxt(v) + '|' + (sitioDe(v) || '—'); M[k] = (M[k] || 0) + (Number(v.cant) || 0); });
   const mx = Math.max.apply(null, Object.keys(M).map(k => M[k]).concat([1]));
   const tb = h('table', { style: 'border-collapse:collapse;min-width:100%' }, h('tr', {}, h('th', { style: 'text-align:left;padding:6px' }, 'm³  (UF ↓ / destino →)'), des.map(d => h('th', { style: 'padding:6px;font-size:13px' }, d)), h('th', { style: 'padding:6px' }, 'Total')));
   ufs.forEach(u => { let tot = 0; const r = h('tr', {}, h('td', { style: 'padding:6px;font-weight:700;white-space:nowrap' }, u)); des.forEach(d => { const x = M[u + '|' + d] || 0; tot += x; r.appendChild(h('td', { style: 'padding:6px;text-align:right;background:rgba(10,127,46,' + (x ? (0.12 + 0.55 * x / mx).toFixed(2) : 0) + ')' }, x ? nf1(x) : '')); }); r.appendChild(h('td', { style: 'padding:6px;text-align:right;font-weight:700' }, nf1(tot))); tb.appendChild(r); });
   c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🧭 Cuánto va de cada UF a cada destino'), h('div', { class: 'tw' }, tb)));
-  c.appendChild(tablaBarras('📍 Por destino', agrupa(V, v => v.destino || '—'), '#0277bd', true));
+  c.appendChild(tablaBarras('📍 Por destino', agrupa(V, v => sitioDe(v) || '—'), '#0277bd', true));
   c.appendChild(tablaBarras('🛣 Por UF de origen', agrupa(V, ufTxt), '#2e7d32', true));
   c.appendChild(tablaBarras('🚛 Ranking de volquetas', agrupa(V, v => v.placa), '#6a1b9a', true, 15));
   c.appendChild(tablaBarras('🏢 Por empresa', agrupa(V, v => v.empresa || '—'), '#00838f', true));
@@ -429,7 +429,7 @@ function vistaMapa(c) {
   const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
   const k = Math.min((W - 2 * pad) / Math.max(x1 - x0, 1e-6), (H - 2 * pad) / Math.max(y1 - y0, 1e-6));
   const P = {}; pts.forEach((p, i) => { P[p.k] = { x: pad + (xs[i] - x0) * k, y: pad + (ys[i] - y0) * k, p: p }; });
-  const flujo = {}; V.forEach(v => { const a = v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : '', b = v.destino; if (P[a] && P[b]) { const key = a + '>' + b; flujo[key] = (flujo[key] || 0) + (Number(v.cant) || 0); } });
+  const flujo = {}; V.forEach(v => { const a = v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : '', b = sitioDe(v); if (P[a] && P[b]) { const key = a + '>' + b; flujo[key] = (flujo[key] || 0) + (Number(v.cant) || 0); } });
   const mx = Math.max.apply(null, Object.keys(flujo).map(x => flujo[x]).concat([1]));
   const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('style', 'width:100%;background:#f4f7f4;border-radius:10px;border:1px solid var(--line)');
   const el = (n, a, t) => { const e = document.createElementNS(NS, n); for (const q in a) e.setAttribute(q, a[q]); if (t) e.textContent = t; svg.appendChild(e); return e; };
@@ -512,7 +512,7 @@ function vistaViajes(c) {
     L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (v.alertas ? ' warn' : '') },
       h('div', { class: 'big' }, v.placa, ' · ', nf(v.cant) + ' m³', pctV(v) !== null ? h('span', { class: 'tag' + (pctV(v) < 70 ? ' w' : '') }, pctV(v) + ' %') : null),
       h('div', {}, v.material || '—'),
-      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + (v.km ? ' · ' + nf(v.km) + ' km' : '')),
+      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + (v.km ? ' · ' + nf(v.km) + ' km' : '')),
       h('div', { class: 'small' }, (v.conductor || '') + ' · valera ' + (v.n_valera || '—') + ' · ' + v.cod),
       tieneGps(v) ? h('div', { class: 'small' }, h('a', { href: mapaUrl(v), target: '_blank', rel: 'noopener' }, '📍 Ver origen en el mapa')) : null,
       v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
@@ -522,8 +522,8 @@ function vistaViajes(c) {
   }
   pintaLista();
 }
-const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3', 'Estado', 'Alertas'];
-const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), v.origen, v.destino, v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas];
+const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3', 'Estado', 'Alertas', 'Movimiento'];
+const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), v.origen, v.destino, v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'];
 function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen']);
   const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => filaTr(v).concat([tieneGps(v) ? mapaUrl(v) : '']).map(csvCelda).join(';')));
@@ -588,6 +588,7 @@ function vistaPlan(c) {
   if (!TR.planillas.length) c.appendChild(h('div', { class: 'trok' }, 'No hay planillas en estas fechas'));
 }
 
+const sitioDe = v => v.mov === 'RECIBE' ? (v.origen || '') : (v.destino || '');
 async function validarDist(x) {
   const t = prompt('Distancia validada en km para ' + x.uf + ' → ' + x.d + ' (Google Maps, ruta más corta):', x.km);
   if (t === null) return; const km = Number(String(t).replace(',', '.'));
