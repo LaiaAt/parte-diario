@@ -115,6 +115,7 @@ button.chipm{cursor:pointer;font:inherit}
       <div><label>Desde</label><input type="date" id="desde"></div>
       <div><label>Hasta</label><input type="date" id="hasta"></div>
       <button id="act">Actualizar</button>
+      <button class="sec" id="infSem">📄 Informe semanal</button>
       <button class="sec" id="salir">Salir</button>
       <span id="estado" class="small"></span>
     </div>
@@ -201,8 +202,8 @@ const bogota = () => new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10
 
 let LLAVE = '', D = null, tab = 'ACTIVIDAD';
 
-async function api(d) {
-  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 90000);
+async function api(d, ms) {
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms || 90000);
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); }
 }
@@ -1030,6 +1031,17 @@ function descargarXlsx() {
 $('entrar').onclick = entrar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') entrar(); };
 $('salir').onclick = salir; $('salirTop').onclick = salir;
+$('infSem').onclick = async () => {
+  const d = $('desde').value, hh = $('hasta').value, e = $('estado'), bt = $('infSem');
+  if (!d || !hh || d > hh) { e.textContent = 'Revisa las fechas del periodo.'; return; }
+  bt.disabled = true; e.textContent = 'Generando informe… puede tardar un minuto.';
+  try {
+    const r = await api({ accion: 'admin_informe_semanal', llave: LLAVE, desde: d, hasta: hh }, 300000);
+    if (!r.ok) { e.textContent = r.mensaje || 'No se pudo generar.'; }
+    else { bajarB64(r.pdf, r.nombre || 'Informe.pdf'); e.textContent = 'Listo: ' + r.partes + ' partes. Quedó en la biblioteca.'; }
+  } catch (er) { e.textContent = 'No se pudo conectar. Intenta de nuevo.'; }
+  bt.disabled = false;
+};
 $('act').onclick = async () => {
   if ($('desde').value && $('hasta').value && (new Date($('hasta').value) - new Date($('desde').value)) / 86400000 > 31) { $('err').textContent = 'Elige máximo un mes (31 días) para que cargue rápido.'; return; } TR = null; await cargar(false); if (MOD === 'transportes') cargarTr(); };
 let qt;
