@@ -203,7 +203,7 @@ function base(p, reiniciar) {
 }
 
 /* ---------- avisos y red ---------- */
-function aviso(t, c) { const a = $('aviso'); a.textContent = t || ''; a.className = 'aviso ' + (c || ''); a.hidden = !t; if (t) window.scrollTo(0, 0); }
+function aviso(t, c, quieto) { const a = $('aviso'); a.textContent = t || ''; a.className = 'aviso ' + (c || ''); a.hidden = !t; if (t && !quieto) window.scrollTo(0, 0); }
 async function estadoRed() {
   let n = 0; try { const c = (await kv.get('cola')) || []; n = c.filter(e => !user || e.llave === user.llave).length; } catch (x) {}
   const r = $('red'); r.textContent = navigator.onLine ? 'Con señal' : 'Sin señal';
@@ -576,8 +576,9 @@ function botonFoto(texto, multiple, capture, alAgregar) {
   if (multiple) inp.multiple = true;
   if (capture) inp.setAttribute('capture', 'environment');
   inp.onchange = async () => {
-    aviso('Preparando foto…');
-    try { for (const f of Array.from(inp.files)) { const c = await comprimir(f); alAgregar(c); } aviso(''); }
+    aviso('Preparando foto…', '', true); // sin subir al inicio: la persona sigue donde estaba
+    const y0 = window.scrollY;
+    try { for (const f of Array.from(inp.files)) { const c = await comprimir(f); alAgregar(c); } aviso('', '', true); window.scrollTo(0, y0); }
     catch (e) { aviso('No se pudo leer la foto.', 'err'); }
     inp.value = '';
   };

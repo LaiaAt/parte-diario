@@ -20,6 +20,7 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-s
 header{background:var(--hv);color:#fff;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:4px solid var(--navy)}
 header .logo{height:38px;width:auto;background:#fff;border-radius:6px;padding:2px 4px}
 header h1{font-size:18px;margin:0;flex:1}
+input.lista{background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><path d='M3 5l5 6 5-6z' fill='%23555'/></svg>") no-repeat right 12px center;padding-right:36px;cursor:pointer}
 #red{font-size:13px;font-weight:700;text-align:right;line-height:1.3}#red .pen{display:inline-block;margin-top:3px;background:#f59e0b;color:#1f2937;border-radius:10px;padding:2px 9px}
 .marca{display:block;max-width:240px;width:70%;margin:4px auto 10px}
 main{max-width:640px;margin:auto;padding:14px}
@@ -379,7 +380,7 @@ function campoMaterial(valor) {
   const otro = h('div', { id: 'materialOtro', style: 'margin-top:8px', hidden: true }, inp);
   sel.onchange = () => { if (sel.value === '__otro') { inp.value = ''; otro.hidden = false; inp.focus(); } else { inp.value = sel.value; otro.hidden = true; } alertaForm(); };
   inp.oninput = alertaForm;
-  const w = h('div', { id: 'c_material' }, h('label', { for: 'materialSel' }, 'Material *'), sel, otro);
+  const w = h('div', { id: 'c_material' }, h('label', { for: 'materialSel' }, 'Material'), sel, otro);
   setMaterial(valor, { sel: sel, inp: inp, wrap: otro });
   return w;
 }
@@ -415,7 +416,7 @@ function campoDestino(valor) {
   const sel = h('select', { id: 'destinoSel' }, h('option', { value: '' }, '— Elige el sitio —'),
     h('optgroup', { label: 'Sitios conocidos' }, SITIOS.map(x => h('option', { value: x.n }, x.n))),
     h('option', { value: '__otro' }, '✏️ Otro sitio o empresa (escribir)'));
-  const inp = h('input', { id: 'destino', type: 'text', autocomplete: 'off', placeholder: 'Escribe el destino', value: valor, list: 'dl-destino' });
+  const inp = h('input', { id: 'destino', type: 'text', autocomplete: 'off', placeholder: 'Escribe el destino', value: valor });
   const otro = h('div', { id: 'destinoOtro', style: 'margin-top:8px', hidden: true }, inp);
   sel.onchange = () => { if (sel.value === '__otro') { inp.value = ''; otro.hidden = false; inp.focus(); } else { inp.value = sel.value; otro.hidden = true; } alertaForm(); };
   inp.oninput = alertaForm;
@@ -462,6 +463,40 @@ function selectorFotos(o) {
   const fr = document.createDocumentFragment();
   fr.appendChild(mk(o.camara || '📷 Tomar foto', true)); fr.appendChild(mk(o.galeria || '🖼 Elegir de la galería', false));
   return fr;
+}
+// Lista que se abre al tocar la celda (en vez de sugerencias sobre el teclado). Siempre permite escribir otro valor.
+function abrirLista(titulo, opciones, alElegir, libreTxt) {
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-end;justify-content:center' });
+  const hoja = h('div', { style: 'background:#fff;width:min(100%,560px);max-height:85vh;border-radius:14px 14px 0 0;display:flex;flex-direction:column;padding:12px' });
+  const q = h('input', { type: 'search', placeholder: 'Buscar…', autocomplete: 'off', style: 'font-size:18px;margin:8px 0' });
+  const lista = h('div', { style: 'overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px' });
+  const cerrar = () => ov.remove();
+  const pintar = () => {
+    lista.textContent = '';
+    const t = q.value.trim().toUpperCase();
+    opciones.filter(o => !t || String(o).toUpperCase().indexOf(t) >= 0).forEach(o => lista.appendChild(h('button', { type: 'button', class: 'sec', style: 'text-align:left;font-size:18px;padding:14px', onclick: () => { cerrar(); alElegir(String(o)); } }, String(o))));
+    if (libreTxt) lista.appendChild(h('button', { type: 'button', class: 'verde', style: 'font-size:17px;padding:14px', onclick: () => { cerrar(); alElegir(q.value.trim() || null, true); } }, q.value.trim() ? 'Usar «' + q.value.trim() + '»' : '✏️ ' + libreTxt));
+  };
+  q.oninput = pintar; pintar();
+  hoja.appendChild(h('div', { style: 'display:flex;justify-content:space-between;align-items:center' }, h('b', { style: 'font-size:18px' }, titulo), h('button', { type: 'button', class: 'sec', style: 'padding:8px 18px;width:auto;flex:none', onclick: cerrar }, '✕')));
+  hoja.appendChild(q); hoja.appendChild(lista);
+  ov.appendChild(hoja); ov.addEventListener('click', e => { if (e.target === ov) cerrar(); });
+  document.body.appendChild(ov);
+  if (opciones.length > 12) setTimeout(() => q.focus(), 50);
+}
+function ponerLista(inp, getOpts, titulo, libreTxt) {
+  inp.classList.add('lista'); inp.readOnly = true;
+  const escribir = () => { inp.readOnly = false; inp.focus(); };
+  inp.addEventListener('blur', () => { inp.readOnly = true; });
+  inp.addEventListener('click', () => {
+    if (!inp.readOnly) return;
+    const ops = getOpts() || [];
+    if (!ops.length) { escribir(); return; }
+    abrirLista(titulo, ops, (v, libre) => {
+      if (v) { inp.value = v; inp.dispatchEvent(new Event('input')); inp.dispatchEvent(new Event('change')); }
+      if (libre && !v) setTimeout(escribir, 50);
+    }, libreTxt);
+  });
 }
 const normPlaca = p => String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 function recientes(campo) {
@@ -519,7 +554,7 @@ function recalcCant() {
   const cap = num($('capacidad').value), pct = num($('pct').value), i = $('cantInfo');
   const c = cap > 0 && pct > 0 ? Math.round(cap * pct) / 100 : '';
   $('cant').value = c;
-  i.textContent = !(cap > 0) ? 'Primero la capacidad de la volqueta (paso 1).' : (c === '' ? 'Toca cuánto va llena la tolva.' : '= ' + c + ' m³ de ' + cap + ' m³');
+  i.textContent = !(cap > 0) ? '' : (c === '' ? 'Toca cuánto va llena la tolva.' : '= ' + c + ' m³ de ' + cap + ' m³');
 }
 function campoCarga(v, valor) {
   const inp = h('input', { id: 'pct', type: 'hidden', value: valor === undefined || valor === null ? '' : valor });
@@ -531,7 +566,7 @@ function campoCarga(v, valor) {
   otro.oninput = () => { inp.value = otro.value; marcar(); recalcCant(); };
   if (valor && [25, 50, 75, 90, 100].indexOf(Number(valor)) < 0) otro.value = valor;
   setTimeout(marcar, 0);
-  return h('div', { id: 'c_pct' }, h('label', {}, '¿Qué tan llena va la tolva? *'), box, inp, h('input', { id: 'cant', type: 'hidden' }), h('div', { id: 'cantInfo', class: 'sub', style: 'margin-top:6px;font-weight:700' }));
+  return h('div', { id: 'c_pct' }, h('label', {}, '¿Qué tan llena va la tolva? (opcional)'), box, inp, h('input', { id: 'cant', type: 'hidden' }), h('div', { id: 'cantInfo', class: 'sub', style: 'margin-top:6px;font-weight:700' }));
 }
 const sugerirKm = () => {
   const k = $('km'); if (!k) return;
@@ -556,12 +591,12 @@ function abrirForm(v, base) {
   const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta), h('input', { id: id, class: o.cls || '', type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
   F.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', onclick: volver }, '← Volver'), h('h3', { style: 'margin:6px 0 0' }, v ? '✏️ Corregir viaje' : '➕ Nuevo viaje')));
   // paso 1
-  const res = h('div', { id: 'resVol', class: 'resumen', hidden: true });
-  const dat = h('div', { id: 'datosVol', hidden: true },
-    h('div', { class: 'row' }, campo('empresa', 'Empresa *', val('empresa'), { list: 'dl-empresa' }), campo('tipo', 'Tipo de volqueta', val('tipo'), { list: 'dl-tipo', ph: 'Elige o escribe…' })),
-    h('div', { class: 'row' }, campo('capacidad', 'Capacidad (m³)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor *', val('conductor'))));
+  const res = h('div', { id: 'resVol', class: 'resumen', hidden: true, style: 'display:none' });
+  const dat = h('div', { id: 'datosVol', hidden: true, style: 'display:none' },
+    h('div', { class: 'row' }, campo('empresa', 'Empresa', val('empresa')), campo('tipo', 'Tipo de volqueta', val('tipo'))),
+    h('div', { class: 'row' }, campo('capacidad', 'Capacidad (m³)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor', val('conductor'))));
   const c1 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '1'), '¿Qué volqueta es?'),
-    campo('placa', 'Placa *', val('placa'), { list: 'dl-placa', cap: 'characters', cls: 'placa', ph: 'ABC123' }), h('div', { id: 'infoPlaca', style: 'color:#b36b00;font-weight:700;margin-top:6px' }), res, dat);
+    campo('placa', 'Placa *', val('placa'), { cap: 'characters', cls: 'placa', ph: 'Elegir…' }), res, dat);
   // paso 2
   const c2 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '2'), '¿Qué lleva y adónde va?'),
     campoMov(v ? v.mov : (base && base.mov)),
@@ -574,7 +609,7 @@ function abrirForm(v, base) {
     h('div', { style: 'height:10px' }),
     campoDestino(esRec ? val('origen') : val('destino')),
     h('div', { style: 'height:10px' }),
-    campo('km', 'Distancia del recorrido (km) *', val('km'), { inputmode: 'decimal', ph: 'Automática' }), h('small', { id: 'kmAyuda', class: 'sub' }, 'Elige la UF y el destino: los km salen solos.'),
+    campo('km', 'Distancia del recorrido (km)', val('km'), { inputmode: 'decimal', ph: 'Automática' }), h('small', { id: 'kmAyuda', class: 'sub' }, 'Elige la UF y el destino: los km salen solos.'),
     h('div', { style: 'height:10px' }),
     campoCarga(v, val('pct') !== '' ? val('pct') : (v && num(v.capacidad) > 0 && num(v.cant) > 0 ? Math.round(num(v.cant) / num(v.capacidad) * 100) : '')));
   // paso 3: otros datos (siempre visibles)
@@ -582,10 +617,10 @@ function abrirForm(v, base) {
   turno.value = v ? v.turno : ((hh >= 6 && hh < 18) ? 'DIA' : 'NOCHE');
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
-  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Datos del vale'), h('p', { class: 'sub' }, 'Los que tienen * son obligatorios.'),
-    h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida *', val('hora_salida', hm()), { type: 'time' })),
-    h('div', { class: 'row' }, campo('n_valera', 'N° de valera *', val('n_valera'), { inputmode: 'numeric' }), h('div', {}, h('label', {}, 'La valera es'), vd)),
-    h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos *', val('centro'), { list: 'dl-centro' }), chipsPara('centro', 'centro')),
+  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Datos del vale'), h('p', { class: 'sub' }, 'Solo la placa es obligatoria. Lo demás ayuda, pero puedes dejarlo vacío.'),
+    h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida', val('hora_salida', hm()), { type: 'time' })),
+    h('div', { class: 'row' }, campo('n_valera', 'N° de valera', val('n_valera'), { inputmode: 'numeric' }), h('div', {}, h('label', {}, 'La valera es'), vd)),
+    h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos', val('centro')), chipsPara('centro', 'centro')),
     h('details', { style: 'margin-top:10px' }, h('summary', {}, 'Más datos (opcional)'),
       h('div', { class: 'row', style: 'margin-top:8px' }, campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' })),
       h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs')))));
@@ -613,21 +648,15 @@ function abrirForm(v, base) {
   pantalla('form'); alertaForm(); recalcCant(); aplicarMov();
   const pl = $('placa');
   const alPlaca = () => {
-    const p = normPlaca(pl.value), vo = DATOS.volquetas.find(x => x.placa === p), info = $('infoPlaca'), r = $('resVol'), d = $('datosVol');
-    if (vo) {
-      $('empresa').value = vo.empresa || ''; $('tipo').value = vo.tipo || ''; $('capacidad').value = vo.capacidad === undefined ? '' : vo.capacidad; if (!$('conductor').value || !v) $('conductor').value = vo.conductor || '';
-      recalcCant();
-      if (!v) { const u = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + b.hora_salida).localeCompare(a.fecha + a.hora_salida))[0]; if (u) ['material', 'centro', 'destino'].forEach(k => { if (!$(k).value) { if (k === 'material') setMaterial(u[k] || ''); else if (k === 'destino') setDestino(u[k] || ''); else $(k).value = u[k] || ''; } }); }
-      info.textContent = '';
-      r.hidden = false; r.textContent = '';
-      r.appendChild(h('b', {}, '✔ ' + [vo.empresa, vo.tipo, (vo.capacidad !== '' && vo.capacidad !== undefined ? vo.capacidad + ' m³' : '')].filter(Boolean).join(' · ')));
-      if ($('conductor').value) r.appendChild(h('div', {}, 'Conductor: ' + $('conductor').value));
-      r.appendChild(h('button', { type: 'button', class: 'link', onclick: () => { d.hidden = !d.hidden; } }, 'Cambiar estos datos'));
-      d.hidden = !!$('conductor').value;
-    } else {
-      r.hidden = true; d.hidden = p.length < 5;
-      info.textContent = p.length >= 5 ? 'Esta volqueta es nueva. Completa sus datos.' : '';
-    }
+    const p = normPlaca(pl.value), vo = DATOS.volquetas.find(x => x.placa === p);
+    if (!vo) return;
+    // datos de la volqueta: salen solos del catálogo (no se le piden a quien registra)
+    if (!v || !$('empresa').value) $('empresa').value = vo.empresa || '';
+    if (!v || !$('tipo').value) $('tipo').value = vo.tipo || '';
+    if (!v || !$('capacidad').value) $('capacidad').value = vo.capacidad === undefined ? '' : vo.capacidad;
+    if (!v || !$('conductor').value) $('conductor').value = vo.conductor || '';
+    recalcCant();
+    if (!v) { const u = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + b.hora_salida).localeCompare(a.fecha + a.hora_salida))[0]; if (u) ['material', 'centro', 'destino'].forEach(k => { if (!$(k).value) { if (k === 'material') setMaterial(u[k] || ''); else if (k === 'destino') setDestino(u[k] || ''); else $(k).value = u[k] || ''; } }); }
   };
   const sugerirKmHist = () => {
     if ($('km').value.trim() || $('km').readOnly) return;
@@ -638,16 +667,10 @@ function abrirForm(v, base) {
   const sugerirKm2 = () => { sugerirKm(); sugerirKmHist(); };
   $('uf').addEventListener('change', sugerirKm2);
   $('destinoSel').addEventListener('change', () => setTimeout(sugerirKm2, 0)); $('destino').addEventListener('change', sugerirKm2);
-  const alTipo = () => {
-    const t = tipoDe($('tipo').value); if (!t) return;
-    $('tipo').value = t.n;
-    const cp = $('capacidad'); if (!cp.value.trim() || cp.dataset.auto === '1') { cp.value = t.m3; cp.dataset.auto = '1'; }
-    recalcCant();
-  };
-  $('tipo').addEventListener('change', alTipo);
-  $('capacidad').addEventListener('input', () => { $('capacidad').dataset.auto = ''; recalcCant(); });
   pl.oninput = () => { alPlaca(); sugerirKm2(); }; pl.onchange = pl.oninput;
-  if (v) { $('datosVol').hidden = false; } else if (pl.value) { alPlaca(); sugerirKm2(); }
+  ponerLista(pl, () => DATOS.volquetas.map(x => x.placa), 'Elige la placa', 'Escribir otra placa');
+  ponerLista($('centro'), () => { const o = (DATOS.catalogos.CENTRO_COSTOS || []).slice(); recientes('centro').forEach(t => { if (!o.some(x => x.toUpperCase() === t.toUpperCase())) o.push(t); }); return o; }, 'Centro de costos', 'Escribir otro centro de costos');
+  if (!v && pl.value) { alPlaca(); sugerirKm2(); }
 }
 async function guardarViaje() {
   const g = id => $(id).value.trim();
@@ -656,16 +679,9 @@ async function guardarViaje() {
   document.querySelectorAll('.malcampo').forEach(e => e.classList.remove('malcampo')); document.querySelectorAll('.malmsg').forEach(e => e.remove());
   const M = (id, t) => { err.push(t); mal.push(id); };
   if (!/^[A-Z0-9]{5,7}$/.test(placa)) M('placa', 'la placa');
-  if (!g('empresa')) { M('empresa', 'la empresa de la volqueta'); $('datosVol').hidden = false; }
-  if (!g('conductor')) { M('conductor', 'el conductor'); $('datosVol').hidden = false; }
-  if (!g('material')) M('materialSel', 'el material');
-  if (!g('hora_salida')) M('hora_salida', 'la hora de salida');
-  if (!g('n_valera')) M('n_valera', 'el N° de valera');
-  if (!g('centro')) M('centro', 'el centro de costos');
-  const pct = num($('pct').value); if (!(pct > 0 && pct <= 120)) M('c_pct', 'qué tan llena va la tolva (%)');
-  const cant = num($('cant').value); if (!(cant > 0 && cant <= 60)) M('c_pct', 'la capacidad de la volqueta y el % de carga');
+  const pct = num($('pct').value), cant = num($('cant').value);
   if (g('peso') && !(num(g('peso')) >= 0)) M('peso', 'el peso');
-  if (!(num(g('km')) > 0)) M('km', 'la distancia en km (origen a destino)');
+  if (g('km') && !(num(g('km')) >= 0)) M('km', 'la distancia en km');
   if (err.length) {
     aviso('Falta completar: ' + err.join(', ') + '.', 'err');
     mal.forEach((id, i) => { const el = $(id); if (!el) return; el.classList.add('malcampo'); el.addEventListener('input', () => el.classList.remove('malcampo'), { once: true }); el.addEventListener('change', () => el.classList.remove('malcampo'), { once: true }); const w = el.parentNode; if (w) w.appendChild(h('div', { class: 'malmsg' }, '⬆ Falta: ' + err[i])); });
@@ -679,7 +695,7 @@ async function guardarViaje() {
     cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
     placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
     lat: '', lon: '', prec: '',
-    uf: $('uf').value, pct: pct, cant: cant, peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
+    uf: $('uf').value, pct: pct > 0 ? pct : '', cant: cant > 0 ? cant : '', peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
     tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'RECIBIDO' : (antes ? antes.estado : 'DESPACHADO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
   });
   const i = VIAJES.findIndex(x => x.cod === cod); if (i >= 0) VIAJES[i] = v; else VIAJES.push(v);

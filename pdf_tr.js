@@ -96,10 +96,17 @@
   const FILAS = 15;
   const COLS = [['No', 8], ['Número remisión\no consecutivo', 40], ['Placa\nVehículo', 24], ['Tipo de\nMaterial', 32], ['Centro de\ncostos', 24], ['Peso\n(Ton)', 18], ['Volumen\n(m3)', 18], ['Origen', 30], ['Destino', 30], ['Kilómetros\nrecorridos', 17], ['Hora de\nLlegada', 18.4]];
 
+  // Una sola planilla por día: todos los viajes en una tabla continua (se parte en hojas de FILAS filas).
   function grupos(viajes) {
-    const o = {};
-    viajes.forEach(v => { const k = (v.turno === 'NOCHE' ? '2' : '1') + '|' + (v.empresa || ''); (o[k] = o[k] || { turno: v.turno === 'NOCHE' ? 'NOCHE' : 'DIA', empresa: v.empresa || '', v: [] }).v.push(v); });
-    return Object.keys(o).sort().map(k => { o[k].v.sort((a, b) => String(a.hora_salida || '99').localeCompare(String(b.hora_salida || '99')) || String(a.cod).localeCompare(String(b.cod))); return o[k]; });
+    const v = viajes.slice().sort((a, b) => String(a.hora_salida || '99').localeCompare(String(b.hora_salida || '99')) || String(a.cod).localeCompare(String(b.cod)));
+    if (!v.length) return [];
+    const noche = v.filter(x => x.turno === 'NOCHE').length;
+    const emp = Array.from(new Set(v.map(x => String(x.empresa || '').trim()).filter(Boolean)));
+    return [{ turno: noche === 0 ? 'DIA' : (noche === v.length ? 'NOCHE' : 'AMBOS'), empresa: emp.length > 3 ? 'VARIAS EMPRESAS' : emp.join(' / '), v: v }];
+  }
+  // resumen por turno (Día / Noche)
+  function porTurno(viajes) {
+    return ['DIA', 'NOCHE'].map(t => ({ turno: t, v: viajes.filter(x => (x.turno === 'NOCHE' ? 'NOCHE' : 'DIA') === t) })).filter(g => g.v.length);
   }
 
   function generarPlanilla(fecha, viajes, ctx, jsPDF, logo) {
@@ -130,7 +137,7 @@
         doc.setFont('helvetica', 'bold'); tx('FECHA:', M + 152, 38); doc.setFont('helvetica', 'normal'); tx(fmt(fecha), M + 166, 38);
         doc.setFont('helvetica', 'bold'); tx('TURNO:', M + 197, 36); tx('DÍA', M + 197, 40.5); tx('NOCHE', M + 220, 40.5);
         doc.rect(M + 207, 37.7, 3.6, 3.6); doc.rect(M + 235, 37.7, 3.6, 3.6);
-        tx('X', g.turno === 'DIA' ? M + 207.9 : M + 235.9, 40.7);
+        if (g.turno !== 'NOCHE') tx('X', M + 207.9, 40.7); if (g.turno !== 'DIA') tx('X', M + 235.9, 40.7);
         // cabecera de tabla
         let y = 44; const hh = 10;
         let x = M;
@@ -141,7 +148,7 @@
         let vol = 0, viajesN = 0;
         for (let i = 0; i < FILAS; i++) {
           const r = filas[i]; x = M;
-          const celdas = r ? [String(pg * FILAS + i + 1), null, r.placa, r.material, r.centro, f2(r.peso), f2(r.cant), r.origen, r.destino, f2(r.km), r.hora_llegada] : [String(pg * FILAS + i + 1), '', '', '', '', '', '', '', '', '', ''];
+          const celdas = r ? [String(pg * FILAS + i + 1), null, r.placa, r.material, r.centro, f2(r.peso), f2(r.cant), r.origen, r.destino, f2(r.km), r.hora_llegada].map(c => c === undefined || c === null ? '' : c) : [String(pg * FILAS + i + 1), '', '', '', '', '', '', '', '', '', ''];
           if (r) { const c = num(r.cant); if (!isNaN(c)) vol += c; viajesN++; }
           COLS.forEach((c, j) => {
             doc.rect(x, y, c[1], rh);
@@ -166,7 +173,8 @@
         const obs = g.v.map(r => r.obs).filter(Boolean).join(' | ');
         doc.setFont('helvetica', 'normal'); doc.setFontSize(7); tx(obs, M + 132, y + 9, { maxWidth: AN - 134 });
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        tx('VOLUMEN TOTAL: ' + (Math.round(vol * 100) / 100) + ' m3', M + 2, y + 11); tx('TOTAL DE VIAJES: ' + viajesN, M + 2, y + 17);
+        tx('VOLUMEN DE LA HOJA: ' + (Math.round(vol * 100) / 100) + ' m3', M + 2, y + 11); tx('VIAJES DE LA HOJA: ' + viajesN, M + 2, y + 17);
+        if (pg === paginas - 1) { const tv0 = g.v.reduce((a, r) => a + (isNaN(num(r.cant)) ? 0 : num(r.cant)), 0); tx('TOTAL DEL DÍA: ' + g.v.length + ' viajes · ' + (Math.round(tv0 * 100) / 100) + ' m3', M + 62, y + 17); }
         y += 22;
         doc.rect(M, y, AN / 2, 17); doc.rect(M + AN / 2, y, AN / 2, 17);
         doc.setFontSize(8); doc.setFont('helvetica', 'normal');
@@ -175,26 +183,9 @@
         doc.setFontSize(6.5); doc.setTextColor(GRIS[0]); tx('Hoja ' + (pg + 1) + ' de ' + paginas, W - M, 211, { align: 'right' });
       }
     });
-    // resumen del día
-    doc.addPage();
-    doc.setTextColor(0); doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
-    tx('RESUMEN DEL DÍA ' + fmt(fecha), M, 18);
-    doc.setFontSize(9); tx('Usuario: ' + (ctx.nombre || ''), M, 25);
-    let y = 32; doc.setFontSize(8.5);
-    const cab = [['Turno', 25], ['Empresa', 80], ['Viajes', 25], ['Volumen total (m3)', 45]];
-    let x = M; doc.setFillColor(215, 224, 232);
-    cab.forEach(c => { doc.setFillColor(215, 224, 232); doc.rect(x, y, c[1], 7, 'FD'); tx(c[0], x + 2, y + 5); x += c[1]; });
-    y += 7; let tv = 0, tn = 0; doc.setFont('helvetica', 'normal');
-    grupos(viajes).forEach(g => {
-      const vol = g.v.reduce((s, r) => s + (isNaN(num(r.cant)) ? 0 : num(r.cant)), 0); tv += vol; tn += g.v.length;
-      x = M; [g.turno === 'DIA' ? 'Día' : 'Noche', g.empresa || '(sin empresa)', String(g.v.length), String(Math.round(vol * 100) / 100)].forEach((t, i) => { doc.rect(x, y, cab[i][1], 7); tx(t, x + 2, y + 5, { maxWidth: cab[i][1] - 4 }); x += cab[i][1]; });
-      y += 7;
-    });
-    doc.setFont('helvetica', 'bold'); x = M;
-    ['TOTAL', '', String(tn), String(Math.round(tv * 100) / 100)].forEach((t, i) => { doc.rect(x, y, cab[i][1], 7); tx(t, x + 2, y + 5); x += cab[i][1]; });
     return doc;
   }
 
-  const PDT = { generarVale, generarPlanilla, grupos };
+  const PDT = { generarVale, generarPlanilla, grupos, porTurno };
   if (typeof module !== 'undefined' && module.exports) module.exports = PDT; else root.PDT = PDT;
 })(typeof window !== 'undefined' ? window : globalThis);
