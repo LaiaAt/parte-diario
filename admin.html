@@ -583,6 +583,14 @@ function vistaPlan(c) {
   if (!TR.planillas.length) c.appendChild(h('div', { class: 'trok' }, 'No hay planillas en estas fechas'));
 }
 
+async function validarDist(x) {
+  const t = prompt('Distancia validada en km para ' + x.uf + ' → ' + x.d + ' (Google Maps, ruta más corta):', x.km);
+  if (t === null) return; const km = Number(String(t).replace(',', '.'));
+  if (!(km > 0 && km <= 500)) { alert('Distancia no válida'); return; }
+  const r = await api({ accion: 'admin_tr_dist', llave: LLAVE, uf: x.uf, destino: x.d, km: km });
+  if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return; }
+  TR = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (TR.ok) pintarTr();
+}
 function pintarTr() {
   const V = TR.viajes, hoy = TR.hoy;
   const conAl = V.filter(v => v.alertas), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend);
@@ -594,7 +602,14 @@ function pintarTr() {
     aviso(pend.length, pend.length === 1 ? 'volqueta nueva por confirmar' : 'volquetas nuevas por confirmar', () => { TRVOL = 'pend'; TRTAB = 'volquetas'; pintarTr(); }),
     aviso(conAl.length, conAl.length === 1 ? 'viaje con alerta' : 'viajes con alertas', () => { TRFIL = 'alerta'; TRTAB = 'viajes'; pintarTr(); }),
     aviso(sinRec.length, 'sin albarán', () => { TRFIL = 'sinrec'; TRTAB = 'viajes'; pintarTr(); })].filter(Boolean));
-  if (!pend.length && !conAl.length && !sinRec.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
+  const dp = (TR.dist || []).filter(x => x.pv);
+  if (dp.length) {
+    const cj = h('div', { class: 'trav', style: 'display:block;text-align:left;cursor:default' }, h('b', {}, '📏 ' + dp.length + (dp.length === 1 ? ' distancia por validar' : ' distancias por validar') + ' (destino o UF nuevos)'));
+    dp.forEach(x => cj.appendChild(h('div', { style: 'margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, h('span', {}, x.uf + ' → ' + x.d + ': ' + x.km + ' km'),
+      h('button', { onclick: () => validarDist(x) }, 'Validar / corregir'))));
+    top.appendChild(cj);
+  }
+  if (!pend.length && !conAl.length && !sinRec.length && !dp.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
   const tb = $('trTabs'); tb.textContent = '';
   [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🗺 Mapa'], ['volquetas', '🚛 Volquetas'], ['planillas', '📑 Cierre y planillas']].forEach(([k, t]) =>
     tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; pintarTr(); } }, t)));
