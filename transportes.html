@@ -596,7 +596,7 @@ function abrirForm(v, base) {
   const hh = new Date().getHours();
   const esRec = (v ? v.mov : (base && base.mov)) === 'RECIBE';
   const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta), h('input', { id: id, class: o.cls || '', type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
-  F.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', onclick: volver }, '← Volver'), h('h3', { style: 'margin:6px 0 0' }, v ? '✏️ Corregir viaje' : '➕ Nuevo viaje')));
+  F.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;box-shadow:0 2px 6px rgba(0,0,0,.35)', onclick: volver }, '← VOLVER'), h('h3', { style: 'margin:6px 0 0' }, v ? '✏️ Corregir viaje' : '➕ Nuevo viaje')));
   // paso 1
   const res = h('div', { id: 'resVol', class: 'resumen', hidden: true, style: 'display:none' });
   const dat = h('div', { id: 'datosVol', hidden: true, style: 'display:none' },
