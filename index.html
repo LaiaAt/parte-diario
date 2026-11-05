@@ -625,7 +625,7 @@ function pasoDatos(c) {
   clima.appendChild(fila);
   if (P.clima_sel === 'si') {
     P.clima.forEach((e, i) => {
-      clima.appendChild(h('div', { class: 'row' }, campo('Qué pasó', e, 'tipo', { list: 'dl-clima', req: false }), campo('Desde', e, 'inicio', { type: 'time' }), campo('Hasta', e, 'fin', { type: 'time' }),
+      clima.appendChild(h('div', { class: 'row' }, campo('Qué pasó', e, 'tipo', { list: 'dl-clima' }), campo('Desde', e, 'inicio', { type: 'time' }), campo('Hasta', e, 'fin', { type: 'time' }),
         h('button', { class: 'sec', style: 'flex:0 0 80px;padding:12px', onclick: () => { P.clima.splice(i, 1); mostrar(); } }, 'Quitar')));
     });
     clima.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { P.clima.push({ tipo: 'Lluvia', inicio: '', fin: '', obs: '' }); mostrar(); } }, '+ Otra vez que llovió')));
@@ -796,7 +796,7 @@ function validar() {
   if (!e0.localizacion.trim()) m(0, 'Falta el lugar.', e0, 'localizacion');
   if (!/^\d{1,6}$/.test(e0.pk)) m(0, 'Falta el PK (solo números).', e0, 'pk', 'Escribe solo números');
   if (!P.clima_sel) m(0, 'Responde si hubo mal clima.', P, 'clima_sel', 'Elige Sí o No');
-  if (P.clima_sel === 'si') P.clima.forEach(e => { if (!hh(e.inicio, e.fin)) m(0, 'Revisa la hora del clima.', e, ['inicio', 'fin'], 'Revisa la hora'); });
+  if (P.clima_sel === 'si') P.clima.forEach(e => { if (!String(e.tipo || '').trim()) m(0, 'Falta decir qué pasó con el clima (lluvia, tormenta…).', e, 'tipo'); if (!hh(e.inicio, e.fin)) m(0, 'Revisa la hora del clima.', e, ['inicio', 'fin'], 'Revisa la hora'); });
   if (!P.actividades.length) m(1, 'Agrega al menos una actividad.');
   P.actividades.forEach(a => {
     if (!a.descripcion.trim()) m(1, 'La actividad ' + a.n + ' no tiene nombre.', a, 'descripcion');
