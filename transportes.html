@@ -89,6 +89,7 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
 .fotos>div{position:relative}
 .fotos .x{position:absolute;top:4px;right:4px;width:auto;min-height:0;padding:4px 12px;font-size:18px;border-radius:20px}
 .sub{color:var(--mut);font-size:15px;margin:-4px 0 10px}
+#form label{font-size:18px;font-weight:700}#form input,#form select{font-size:20px;padding:14px}#form .card h3{font-size:22px}#form .grande{font-size:24px;padding:20px}
 </style>
 </head>
 <body>
@@ -521,22 +522,22 @@ function campoOrigen(valor) {
   const pint = () => { abs.value = abs.value.replace(/\D/g, '').slice(0, 6); info.textContent = abs.value ? '= ' + kTxt(Number(abs.value)) : 'Solo números, en metros (ej. 3200 = K03+200)'; };
   abs.addEventListener('input', pint); pint();
   return h('div', { id: 'c_origen' }, h('label', { for: 'abs', id: 'lblAbs' }, 'Sale de: abscisa (solo números)'), abs, info,
-    h('div', { style: 'height:8px' }), h('label', { for: 'eje', id: 'lblEje' }, 'Eje, fase o descripción del sitio'), eje);
+    h('div', { style: 'height:8px' }), h('label', { for: 'eje', id: 'lblEje' }, 'Nombre del sitio (opcional)'), eje);
 }
 const origenTxt = () => { const a = $('abs').value.trim(), e = $('eje').value.trim(); return a ? kTxt(Number(a)) + (e ? ' · ' + e : '') : e; };
 function ajustarOrigen() {
   const otro = $('uf') && $('uf').value === 'OTRO', rec = $('mov') && $('mov').value === 'RECIBE';
   const T = (id, t) => { const e = $(id); if (e) e.textContent = t; };
-  T('lblAbs', (rec ? 'Llega a: abscisa' : 'Sale de: abscisa') + (otro ? ' (opcional)' : ' (solo números)'));
-  T('lblEje', otro ? (rec ? 'Escribe a dónde llega *' : 'Escribe de dónde sale *') : 'Eje, fase o descripción del sitio');
+  T('lblAbs', 'Punto de la vía' + (otro ? ' (opcional)' : ' (número)'));
+  T('lblEje', otro ? (rec ? 'Escribe a dónde llega *' : 'Escribe de dónde sale *') : 'Nombre del sitio (opcional)');
 }
 const kmTabla = (uf, dest) => { const f = (DATOS.dist || []).find(x => nrm(x.uf) === 'UF' + String(uf) && nrm(x.d) === nrm(dest)); return f ? Number(f.km) : null; };
 function aplicarMov() {
   const rec = $('mov') && $('mov').value === 'RECIBE';
   const T = (id, t) => { const e = $(id); if (e) e.textContent = t; };
   T('lblUF', rec ? '¿A qué UF llega?' : '¿De qué UF sale?');
-  T('lblAbs', rec ? 'Llega a: abscisa (solo números)' : 'Sale de: abscisa (solo números)');
-  T('lblDest', rec ? 'Viene de (empresa o proveedor)' : 'Va a (destino)');
+  T('lblAbs', 'Punto de la vía (solo números)');
+  T('lblDest', rec ? '¿De dónde viene? (empresa o proveedor)' : '¿Adónde va?');
   if ($('movChips')) Array.from($('movChips').children).forEach(b => b.classList.toggle('on', b.dataset.k === (rec ? 'RECIBE' : 'ENTREGA')));
   ajustarOrigen(); alertaForm(); sugerirKm();
 }
@@ -601,36 +602,35 @@ function abrirForm(v, base) {
   const dat = h('div', { id: 'datosVol', hidden: true, style: 'display:none' },
     h('div', { class: 'row' }, campo('empresa', 'Empresa', val('empresa')), campo('tipo', 'Tipo de volqueta', val('tipo'))),
     h('div', { class: 'row' }, campo('capacidad', 'Capacidad (m³)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor', val('conductor'))));
-  const c1 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '1'), '¿Qué volqueta es?'),
-    campo('placa', 'Placa *', val('placa'), { cap: 'characters', cls: 'placa', ph: 'Elegir…' }), res, dat);
+  const c1 = h('div', { class: 'card paso' }, h('h3', {}, '🚛 ¿Cuál volqueta es?'),
+    campo('placa', 'Placa', val('placa'), { cap: 'characters', cls: 'placa', ph: 'Elegir…' }), res, dat);
   // paso 2
-  const c2 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '2'), '¿Qué lleva y adónde va?'),
+  const cMov = h('div', { class: 'card paso' }, h('h3', {}, '📦 ¿Qué lleva?'),
     campoMov(v ? v.mov : (base && base.mov)),
     h('div', { style: 'height:10px' }),
-    campoMaterial(val('material')),
-    h('div', { style: 'height:10px' }),
+    campoMaterial(val('material')));
+  const cRuta = h('div', { class: 'card paso' }, h('h3', {}, '📍 ¿De dónde a dónde?'),
     campoUF(val('uf')),
     h('div', { style: 'height:10px' }),
     campoOrigen(esRec ? val('destino') : val('origen')),
     h('div', { style: 'height:10px' }),
-    campoDestino(esRec ? val('origen') : val('destino')),
-    h('div', { style: 'height:10px' }),
-    campo('km', 'Distancia del recorrido (km)', val('km'), { inputmode: 'decimal', ph: 'Automática' }), h('small', { id: 'kmAyuda', class: 'sub' }, 'Elige la UF y el destino: los km salen solos.'),
-    h('div', { style: 'height:10px' }),
+    campoDestino(esRec ? val('origen') : val('destino')));
+  const cCarga = h('div', { class: 'card paso' }, h('h3', {}, '🔢 La carga'),
     campoCarga(v, val('pct') !== '' ? val('pct') : (v && num(v.capacidad) > 0 && num(v.cant) > 0 ? Math.round(num(v.cant) / num(v.capacidad) * 100) : '')));
   // paso 3: otros datos (siempre visibles)
   const turno = h('select', { id: 'turno' }, h('option', { value: 'DIA' }, 'Día'), h('option', { value: 'NOCHE' }, 'Noche'));
   turno.value = v ? v.turno : ((hh >= 6 && hh < 18) ? 'DIA' : 'NOCHE');
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
-  const c3 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '3'), 'Datos del vale'), h('p', { class: 'sub' }, 'Obligatorios: la placa, el origen y el destino. Lo demás ayuda, pero puedes dejarlo vacío.'),
-    h('div', {}, h('label', { for: 'fecha_vale' }, 'Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Si el vale es de un día anterior, cámbiala (hasta 3 días atrás).')),
+  const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
+  const masDatos = h('details', { class: 'card paso', style: 'padding:12px 14px' }, h('summary', { style: 'font-size:19px;font-weight:700;cursor:pointer' }, '➕ Más datos (si los tienes)'),
+    h('div', { style: 'height:10px' }),
     h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida', val('hora_salida', hm()), { type: 'time' })),
     h('div', { class: 'row' }, campo('n_valera', 'N° de valera', val('n_valera'), { inputmode: 'numeric' }), h('div', {}, h('label', {}, 'La valera es'), vd)),
     h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos', val('centro')), chipsPara('centro', 'centro')),
-    h('details', { style: 'margin-top:10px' }, h('summary', {}, 'Más datos (opcional)'),
-      h('div', { class: 'row', style: 'margin-top:8px' }, campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' })),
-      h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs')))));
+    h('div', { style: 'margin-top:10px' }, campo('km', 'Distancia del recorrido (km)', val('km'), { inputmode: 'decimal', ph: 'Automática' }), h('small', { id: 'kmAyuda', class: 'sub' }, 'Elige la UF y el destino: los km salen solos.')),
+    h('div', { class: 'row', style: 'margin-top:10px' }, campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' })),
+    h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs'))));
   // paso 4: fotos
   const prev = h('div', { id: 'prevCarga', class: 'fotos', style: 'margin-top:10px' });
   const cuenta = h('p', { class: 'sub', style: 'margin:8px 0 0' }, v && v.tiene_carga ? '✔ Ya tiene fotos. Las que agregues se suman.' : 'Puedes tomar la foto o elegir varias de tu galería.');
@@ -639,7 +639,7 @@ function abrirForm(v, base) {
     fotoCargaNueva.forEach((d, i) => prev.appendChild(h('div', {}, h('img', { src: d }), h('button', { type: 'button', class: 'rojo x', onclick: () => { fotoCargaNueva.splice(i, 1); pintarPrev(); } }, '✕'))));
     if (fotoCargaNueva.length) cuenta.textContent = fotoCargaNueva.length + ' foto(s) lista(s) para guardar.';
   };
-  const c4 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '4'), '📷 Fotos de la volqueta cargada'),
+  const c4 = h('div', { class: 'card paso' }, h('h3', {}, '📷 Foto de la volqueta cargada'),
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Tomar foto', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoCargaNueva = fotoCargaNueva.concat(arr).slice(0, 10); pintarPrev(); } })), cuenta, prev);
   const prevR = h('div', { id: 'prevRecibo', class: 'fotos', style: 'margin-top:10px' });
   const cuentaR = h('p', { class: 'sub', style: 'margin:8px 0 0' }, v && v.tiene_recibo ? '✔ Ya tiene recibo. Las que agregues se suman.' : 'Si ya tienes el recibo sellado, súbelo aquí. Si no, lo subes después desde la lista.');
@@ -648,10 +648,11 @@ function abrirForm(v, base) {
     fotoReciboNueva.forEach((d, i) => prevR.appendChild(h('div', {}, h('img', { src: d }), h('button', { type: 'button', class: 'rojo x', onclick: () => { fotoReciboNueva.splice(i, 1); pintarPrevR(); } }, '✕'))));
     if (fotoReciboNueva.length) cuentaR.textContent = fotoReciboNueva.length + ' foto(s) del recibo lista(s) para guardar.';
   };
-  const c5 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '5'), '🧾 Foto del recibo (opcional)'),
+  const c5 = h('div', { style: 'margin-top:14px' }, h('h4', { style: 'margin:0 0 6px;font-size:18px' }, '🧾 Foto del recibo (opcional)'),
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Foto del recibo', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoReciboNueva = fotoReciboNueva.concat(arr).slice(0, 10); pintarPrevR(); } })), cuentaR, prevR);
-  F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(c4); F.appendChild(c5);
-  F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ GUARDAR Y CREAR VALE'));
+  masDatos.appendChild(c5);
+  F.appendChild(filaFecha); F.appendChild(c1); F.appendChild(cMov); F.appendChild(cRuta); F.appendChild(cCarga); F.appendChild(c4); F.appendChild(masDatos);
+  F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ LISTO, GUARDAR'));
   pantalla('form'); alertaForm(); recalcCant(); aplicarMov();
   const pl = $('placa');
   const alPlaca = () => {
