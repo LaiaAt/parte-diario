@@ -623,14 +623,12 @@ function abrirForm(v, base) {
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
   const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
-  const masDatos = h('details', { class: 'card paso', style: 'padding:12px 14px' }, h('summary', { style: 'font-size:19px;font-weight:700;cursor:pointer' }, '➕ Más datos (si los tienes)'),
-    h('div', { style: 'height:10px' }),
-    h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('hora_salida', 'Hora de salida', val('hora_salida', hm()), { type: 'time' })),
-    h('div', { class: 'row' }, campo('n_valera', 'N° de valera', val('n_valera'), { inputmode: 'numeric' }), h('div', {}, h('label', {}, 'La valera es'), vd)),
+  const masDatos = h('div', { class: 'card paso' }, h('h3', {}, '🧾 Datos del vale'),
+    h('div', { class: 'row' }, h('div', {}, h('label', {}, 'Turno'), turno), campo('n_valera', 'N° de valera', val('n_valera'), { inputmode: 'numeric' })),
+    h('div', { style: 'margin-top:10px' }, h('label', {}, '¿De quién es la valera?'), vd),
     h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos', val('centro')), chipsPara('centro', 'centro')),
     h('div', { style: 'margin-top:10px' }, campo('km', 'Distancia del recorrido (km)', val('km'), { inputmode: 'decimal', ph: 'Automática' }), h('small', { id: 'kmAyuda', class: 'sub' }, 'Elige la UF y el destino: los km salen solos.')),
-    h('div', { class: 'row', style: 'margin-top:10px' }, campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' })),
-    h('div', { style: 'margin-top:10px' }, campo('obs', 'Observaciones', val('obs'))));
+    h('div', { style: 'display:none' }, campo('hora_salida', 'Hora de salida', val('hora_salida', hm()), { type: 'time' }), campo('hora_llegada', 'Hora de llegada', val('hora_llegada'), { type: 'time' }), campo('peso', 'Peso (ton)', val('peso'), { inputmode: 'decimal' }), campo('obs', 'Observaciones', val('obs'))));
   // paso 4: fotos
   const prev = h('div', { id: 'prevCarga', class: 'fotos', style: 'margin-top:10px' });
   const cuenta = h('p', { class: 'sub', style: 'margin:8px 0 0' }, v && v.tiene_carga ? '✔ Ya tiene fotos. Las que agregues se suman.' : 'Puedes tomar la foto o elegir varias de tu galería.');
@@ -650,8 +648,7 @@ function abrirForm(v, base) {
   };
   const c5 = h('div', { style: 'margin-top:14px' }, h('h4', { style: 'margin:0 0 6px;font-size:18px' }, '🧾 Foto del recibo (opcional)'),
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Foto del recibo', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoReciboNueva = fotoReciboNueva.concat(arr).slice(0, 10); pintarPrevR(); } })), cuentaR, prevR);
-  masDatos.appendChild(c5);
-  F.appendChild(filaFecha); F.appendChild(c1); F.appendChild(cMov); F.appendChild(cRuta); F.appendChild(cCarga); F.appendChild(c4); F.appendChild(masDatos);
+  F.appendChild(filaFecha); F.appendChild(c1); F.appendChild(cMov); F.appendChild(cRuta); F.appendChild(cCarga); F.appendChild(masDatos); F.appendChild(c4); F.appendChild(h('div', { class: 'card paso' }, c5));
   F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ LISTO, GUARDAR'));
   pantalla('form'); alertaForm(); recalcCant(); aplicarMov();
   const pl = $('placa');
