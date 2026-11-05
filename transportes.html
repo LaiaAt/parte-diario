@@ -127,7 +127,7 @@ function h(tag, props, ...kids) {
   kids.flat().forEach(c => { if (c === null || c === undefined || c === false) return; e.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c))); });
   return e;
 }
-function aviso(t, c) { const a = $('aviso'); a.textContent = t || ''; a.className = 'aviso ' + (c || ''); a.hidden = !t; if (t) window.scrollTo(0, 0); }
+function aviso(t, c, quieto) { const a = $('aviso'); a.textContent = t || ''; a.className = 'aviso ' + (c || ''); a.hidden = !t; if (t && !quieto) window.scrollTo(0, 0); }
 function pantalla(id) { ['login', 'inicio', 'dia', 'form', 'listo', 'visor'].forEach(i => $(i).hidden = i !== id); window.scrollTo(0, 0); }
 
 /* ---------- almacenamiento en el telefono ---------- */
@@ -172,6 +172,7 @@ function nuevoCod() {
 /* ---------- ingreso ---------- */
 async function cargarLocal() {
   const d = await kv.get('datos'); if (d) DATOS = d;
+  aplicarSitios();
   VIAJES = (await kv.get('viajes_' + user.llave)) || [];
   COLA = (await kv.get('cola')) || [];
 }
@@ -184,7 +185,7 @@ async function ingresar() {
   try {
     const r = await api({ accion: 'validar', llave: l }, 30000);
     if (!r.ok) { aviso(r.admin ? 'Las llaves de administrador no registran viajes. Usa el dashboard.' : (r.mensaje || 'Llave no válida'), 'err'); return; }
-    user = { llave: r.llave, nombre: r.nombre };
+    user = { llave: r.llave, nombre: r.nombre }; ULT_REF = 0;
     await kv.set('user', user);
     await cargarLocal();
     aviso('');
@@ -193,7 +194,8 @@ async function ingresar() {
   } catch (e) { aviso('No se pudo conectar. Intenta de nuevo.', 'err'); }
 }
 async function aplicarServidor(r) {
-  DATOS = { volquetas: r.volquetas || [], catalogos: r.catalogos || DATOS.catalogos, planillas: r.planillas || [] };
+  DATOS = { volquetas: r.volquetas || [], catalogos: r.catalogos || DATOS.catalogos, planillas: r.planillas || [], sitios: r.sitios || DATOS.sitios || [], ufs: r.ufs || DATOS.ufs || [] };
+  aplicarSitios();
   await guardarDatos();
   const pend = new Set(COLA.filter(o => o.llave === user.llave).map(o => o.cod));
   const locales = VIAJES.filter(v => pend.has(v.cod));
@@ -201,13 +203,15 @@ async function aplicarServidor(r) {
   VIAJES = nuevos.concat(locales);
   await guardarViajes();
 }
-async function refrescar() {
+let ULT_REF = 0; // evita pedir al servidor la lista completa cada vez que se abre el inicio (máx. 1 vez cada 45 s)
+async function refrescar(forzar) {
   if (!user || !navigator.onLine || sincronizando || COLA.some(o => !o.error)) return;
+  if (!forzar && Date.now() - ULT_REF < 45000) return;
   const g = GEN;
   try {
     const r = await api({ accion: 'tr_ingresar', llave: user.llave }, 20000);
     if (g !== GEN || sincronizando || COLA.some(o => !o.error)) return;
-    if (r.ok) { await aplicarServidor(r); if (!$('inicio').hidden) pintarInicio(); else if (!$('dia').hidden && diaActual) abrirDia(diaActual); }
+    if (r.ok) { ULT_REF = Date.now(); await aplicarServidor(r); if (!$('inicio').hidden) pintarInicio(); else if (!$('dia').hidden && diaActual) abrirDia(diaActual); }
     else if (/no v[aá]lida/i.test(r.mensaje || '')) { await cerrarSesion(r.mensaje); }
   } catch (e) {}
 }
@@ -372,12 +376,15 @@ function campoMaterial(valor) {
   setMaterial(valor, { sel: sel, inp: inp, wrap: otro });
   return w;
 }
-const SITIOS = [
+let SITIOS = [
   { n: 'DISPOAMBIENTAL', t: ['EXC'], d: 'excavación, arenas, limos, arcillas, tierras negras' },
   { n: 'Arenas y gravas Villamaría', t: ['RCD'], d: 'RCD' },
   { n: 'Reciclados Industriales de Colombia', t: ['RCD'], d: 'RCD' },
   { n: 'MINERSA', t: ['RCD'], d: 'RCD' },
   { n: 'VECOAGREINT', t: ['RCD'], d: 'RCD' }];
+function aplicarSitios() {
+  if (DATOS.sitios && DATOS.sitios.length) SITIOS = DATOS.sitios.map(x => ({ n: x.n, t: x.t && x.t.length ? x.t : ['EXC', 'RCD'], d: x.d || '', lat: x.lat, lon: x.lon }));
+}
 function tipoResiduo(m) {
   const t = String(m || '').toUpperCase();
   if (/ESCOMBRO|RCD|DEMOLICI/.test(t)) return 'RCD';
@@ -415,17 +422,33 @@ function alertaForm() {
   const t = alertaSitio($('material') && $('material').value, $('destino') && $('destino').value);
   a.hidden = !t; a.textContent = t ? '⚠ ' + t + ' Revisa antes de guardar.' : '';
 }
+function confirmarFoto(data) {
+  return new Promise(res => {
+    const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px' },
+      h('img', { src: data, style: 'max-width:96vw;max-height:62vh;border-radius:8px' }),
+      h('button', { class: 'verde grande', style: 'width:min(92vw,420px)', onclick: () => { ov.remove(); res('ok'); } }, '✔ USAR ESTA FOTO'),
+      h('button', { class: 'sec', style: 'width:min(92vw,420px)', onclick: () => { ov.remove(); res('retry'); } }, '🔄 Reintentar (tomar otra)'),
+      h('button', { class: 'rojo', style: 'width:min(92vw,420px)', onclick: () => { ov.remove(); res('no'); } }, '✕ Descartar'));
+    document.body.appendChild(ov);
+  });
+}
 function selectorFotos(o) {
   const mk = (texto, cam) => {
     const inp = h('input', { type: 'file', accept: 'image/*', hidden: true });
     if (cam) inp.setAttribute('capture', 'environment'); else inp.multiple = true;
     inp.onchange = async () => {
       const fs = Array.from(inp.files || []); inp.value = ''; if (!fs.length) return;
-      aviso('Preparando ' + (fs.length > 1 ? fs.length + ' fotos…' : 'la foto…'));
+      aviso('Preparando ' + (fs.length > 1 ? fs.length + ' fotos…' : 'la foto…'), '', true);
       const out = [];
       for (const f of fs) { try { out.push(await comprimir(f)); } catch (e) {} }
-      aviso(out.length < fs.length ? 'No se pudieron leer ' + (fs.length - out.length) + ' foto(s).' : '', out.length < fs.length ? 'err' : '');
-      if (out.length) o.alAgregar(out);
+      aviso(out.length < fs.length ? 'No se pudieron leer ' + (fs.length - out.length) + ' foto(s).' : '', out.length < fs.length ? 'err' : '', true);
+      if (!out.length) return;
+      if (cam) { // la foto solo se usa si la persona la acepta; si reintenta, la anterior se descarta
+        const r = await confirmarFoto(out[0]);
+        if (r === 'retry') { inp.click(); return; }
+        if (r !== 'ok') return;
+      }
+      o.alAgregar(out);
     };
     return h('span', { style: 'display:contents' }, inp, h('button', { class: o.clase || 'sec', type: 'button', onclick: () => inp.click() }, texto));
   };
@@ -445,24 +468,63 @@ function chipsPara(campo, id) {
   return box;
 }
 let gps = null;
+function obtenerGps() {
+  const info = $('gpsInfo'); if (!info) return;
+  if (!navigator.geolocation) { info.textContent = 'Este celular no permite ubicación.'; return; }
+  info.textContent = 'Buscando ubicación…';
+  navigator.geolocation.getCurrentPosition(p => { gps = { lat: Math.round(p.coords.latitude * 1e6) / 1e6, lon: Math.round(p.coords.longitude * 1e6) / 1e6, prec: Math.round(p.coords.accuracy || 0) }; pintarGps(); },
+    () => { const i = $('gpsInfo'); if (i) i.textContent = 'No se pudo obtener la ubicación (puedes guardar igual). Revisa el permiso de ubicación del navegador.'; }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+}
+function pintarGps() { const i = $('gpsInfo'); if (i) i.textContent = gps ? '📍 Ubicación tomada automáticamente (±' + (gps.prec || '?') + ' m)' : 'Sin ubicación'; }
 function cajaGps() {
   const info = h('div', { id: 'gpsInfo', class: 'sub', style: 'margin-top:6px' });
-  const pintar = () => { info.textContent = gps ? '📍 Ubicación guardada (±' + (gps.prec || '?') + ' m)' : 'Sin ubicación (opcional)'; };
-  const b = h('button', { type: 'button', class: 'sec', style: 'margin-top:8px', onclick: () => {
-    if (!navigator.geolocation) { info.textContent = 'Este celular no permite ubicación.'; return; }
-    info.textContent = 'Buscando ubicación…';
-    navigator.geolocation.getCurrentPosition(p => { gps = { lat: Math.round(p.coords.latitude * 1e6) / 1e6, lon: Math.round(p.coords.longitude * 1e6) / 1e6, prec: Math.round(p.coords.accuracy || 0) }; pintar(); },
-      () => { info.textContent = 'No se pudo obtener la ubicación. Revisa el permiso de ubicación del navegador.'; }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-  } }, '📍 Marcar mi ubicación (origen)');
-  const q = h('button', { type: 'button', class: 'sec', style: 'margin:8px 0 0 8px', onclick: () => { gps = null; pintar(); } }, 'Quitar');
-  pintar(); return h('div', {}, b, q, info);
+  const b = h('button', { type: 'button', class: 'sec', style: 'margin-top:8px', onclick: obtenerGps }, '📍 Actualizar mi ubicación');
+  return h('div', {}, info, b);
 }
+function campoUF(valor) {
+  const inp = h('input', { id: 'uf', type: 'hidden', value: valor || '' });
+  const box = h('div', { class: 'chips', id: 'ufChips' });
+  ['1', '2', '3', '4', '5', '6', '7', 'OTRO'].forEach(k => {
+    const b = h('button', { type: 'button', class: 'chip' + (String(valor) === k ? ' on' : ''), style: 'min-width:72px;font-size:20px;padding:14px 12px', onclick: () => { inp.value = k; Array.from(box.children).forEach(c => c.classList.toggle('on', c === b)); box.parentNode.classList.remove('malcampo'); sugerirKm(); } }, k === 'OTRO' ? 'Otro' : 'UF ' + k);
+    box.appendChild(b);
+  });
+  return h('div', { id: 'c_uf' }, h('label', {}, '¿De qué UF sale? *'), box, inp);
+}
+function recalcCant() {
+  const cap = num($('capacidad').value), pct = num($('pct').value), i = $('cantInfo');
+  const c = cap > 0 && pct > 0 ? Math.round(cap * pct) / 100 : '';
+  $('cant').value = c;
+  i.textContent = !(cap > 0) ? 'Primero la capacidad de la volqueta (paso 1).' : (c === '' ? 'Toca cuánto va llena la tolva.' : '= ' + c + ' m³ de ' + cap + ' m³');
+}
+function campoCarga(v, valor) {
+  const inp = h('input', { id: 'pct', type: 'hidden', value: valor === undefined || valor === null ? '' : valor });
+  const box = h('div', { class: 'chips', id: 'pctChips' });
+  const otro = h('input', { id: 'pctOtro', type: 'number', inputmode: 'numeric', min: '1', max: '120', placeholder: 'Otro %', style: 'width:110px;font-size:20px;text-align:center' });
+  const marcar = () => { Array.from(box.querySelectorAll('button')).forEach(c => c.classList.toggle('on', c.dataset.p === String(inp.value))); };
+  [25, 50, 75, 90, 100].forEach(k => box.appendChild(h('button', { type: 'button', 'data-p': String(k), class: 'chip', style: 'min-width:72px;font-size:20px;padding:14px 12px', onclick: () => { inp.value = k; otro.value = ''; marcar(); recalcCant(); $('c_pct').classList.remove('malcampo'); } }, k + ' %')));
+  box.appendChild(otro);
+  otro.oninput = () => { inp.value = otro.value; marcar(); recalcCant(); };
+  if (valor && [25, 50, 75, 90, 100].indexOf(Number(valor)) < 0) otro.value = valor;
+  setTimeout(marcar, 0);
+  return h('div', { id: 'c_pct' }, h('label', {}, '¿Qué tan llena va la tolva? *'), box, inp, h('input', { id: 'cant', type: 'hidden' }), h('div', { id: 'cantInfo', class: 'sub', style: 'margin-top:6px;font-weight:700' }));
+}
+const sugerirKm = () => {
+  const k = $('km'); if (!k || k.value.trim() && k.dataset.auto !== '1') return;
+  const ufv = $('uf') && $('uf').value, dn = $('destino') && $('destino').value.trim().toUpperCase();
+  const uf = (DATOS.ufs || []).find(x => String(x.uf) === ufv), si = SITIOS.find(x => x.n.toUpperCase() === dn);
+  if (uf && si && uf.lat !== '' && uf.lon !== '' && si.lat !== '' && si.lat !== undefined && si.lon !== '') {
+    const R = 6371, rad = Math.PI / 180, dLa = (si.lat - uf.lat) * rad, dLo = (si.lon - uf.lon) * rad;
+    const a = Math.sin(dLa / 2) ** 2 + Math.cos(uf.lat * rad) * Math.cos(si.lat * rad) * Math.sin(dLo / 2) ** 2;
+    const km = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3 * 10) / 10;
+    k.value = km; k.dataset.auto = '1'; $('kmAyuda').textContent = 'Sugerida (UF → destino). Corrígela si cambió.';
+  }
+};
 function abrirForm(v, base) {
   gps = v && v.lat !== undefined && v.lat !== '' && v.lat !== null ? { lat: v.lat, lon: v.lon, prec: v.prec } : null;
   llenarListas();
   editandoCod = v ? v.cod : null; fotoCargaNueva = []; fotoReciboNueva = [];
   const F = $('form'); F.textContent = '';
-  const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'km', 'cant'];
+  const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'km', 'cant', 'uf', 'pct'];
   const val = (k, d) => v ? (v[k] === undefined || v[k] === null ? '' : v[k]) : (base && BK.indexOf(k) >= 0 && base[k] !== undefined && base[k] !== null ? base[k] : (d === undefined ? '' : d));
   const hh = new Date().getHours();
   const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta), h('input', { id: id, class: o.cls || '', type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
@@ -478,6 +540,8 @@ function abrirForm(v, base) {
   const c2 = h('div', { class: 'card paso' }, h('h3', {}, h('span', { class: 'n' }, '2'), '¿Qué lleva y adónde va?'),
     campoMaterial(val('material')),
     h('div', { style: 'height:10px' }),
+    campoUF(val('uf')),
+    h('div', { style: 'height:10px' }),
     campo('origen', 'Sale de (origen) *', val('origen'), { list: 'dl-origen', ph: 'Elige de la lista o escribe uno nuevo' }), chipsPara('origen', 'origen'),
     cajaGps(),
     h('div', { style: 'height:10px' }),
@@ -485,7 +549,7 @@ function abrirForm(v, base) {
     h('div', { style: 'height:10px' }),
     campo('km', 'Distancia de recogida a destino (km) *', val('km'), { inputmode: 'decimal', ph: 'Ej: 12.5' }), h('small', { id: 'kmAyuda', class: 'sub' }, 'Obligatoria, sobre todo si el material sale de la obra.'),
     h('div', { style: 'height:10px' }),
-    campo('cant', 'Cantidad que lleva (m³) *', val('cant'), { inputmode: 'decimal', cls: 'cant' }));
+    campoCarga(v, val('pct') !== '' ? val('pct') : (v && num(v.capacidad) > 0 && num(v.cant) > 0 ? Math.round(num(v.cant) / num(v.capacidad) * 100) : '')));
   // paso 3: otros datos (siempre visibles)
   const turno = h('select', { id: 'turno' }, h('option', { value: 'DIA' }, 'Día'), h('option', { value: 'NOCHE' }, 'Noche'));
   turno.value = v ? v.turno : ((hh >= 6 && hh < 18) ? 'DIA' : 'NOCHE');
@@ -519,13 +583,13 @@ function abrirForm(v, base) {
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Foto del recibo', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoReciboNueva = fotoReciboNueva.concat(arr).slice(0, 10); pintarPrevR(); } })), cuentaR, prevR);
   F.appendChild(c1); F.appendChild(c2); F.appendChild(c3); F.appendChild(c4); F.appendChild(c5);
   F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ GUARDAR Y CREAR VALE'));
-  pantalla('form'); alertaForm();
+  pantalla('form'); alertaForm(); recalcCant(); pintarGps(); if (!v && !gps) obtenerGps();
   const pl = $('placa');
   const alPlaca = () => {
     const p = normPlaca(pl.value), vo = DATOS.volquetas.find(x => x.placa === p), info = $('infoPlaca'), r = $('resVol'), d = $('datosVol');
     if (vo) {
       $('empresa').value = vo.empresa || ''; $('tipo').value = vo.tipo || ''; $('capacidad').value = vo.capacidad === undefined ? '' : vo.capacidad; if (!$('conductor').value || !v) $('conductor').value = vo.conductor || '';
-      if (!$('cant').value && vo.capacidad !== '' && vo.capacidad !== undefined) $('cant').value = vo.capacidad;
+      recalcCant();
       if (!v) { const u = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + b.hora_salida).localeCompare(a.fecha + a.hora_salida))[0]; if (u) ['material', 'centro', 'origen', 'destino'].forEach(k => { if (!$(k).value) { if (k === 'material') setMaterial(u[k] || ''); else if (k === 'destino') setDestino(u[k] || ''); else $(k).value = u[k] || ''; } }); }
       info.textContent = '';
       r.hidden = false; r.textContent = '';
@@ -538,24 +602,24 @@ function abrirForm(v, base) {
       info.textContent = p.length >= 5 ? 'Esta volqueta es nueva. Completa sus datos.' : '';
     }
   };
-  const sugerirKm = () => {
+  const sugerirKmHist = () => {
     if ($('km').value.trim()) return;
     const o = $('origen').value.trim().toUpperCase(), d = $('destino').value.trim().toUpperCase(); if (!o || !d) return;
     const u = VIAJES.filter(x => String(x.origen || '').toUpperCase() === o && String(x.destino || '').toUpperCase() === d && num(x.km) > 0).sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || '')))[0];
     if (u) { $('km').value = u.km; $('kmAyuda').textContent = 'Sugerida del último viaje igual. Corrígela si cambió.'; }
   };
-  $('origen').addEventListener('change', sugerirKm); $('destinoSel').addEventListener('change', () => setTimeout(sugerirKm, 0)); $('destino').addEventListener('change', sugerirKm);
+  const sugerirKm2 = () => { sugerirKmHist(); sugerirKm(); };
+  $('origen').addEventListener('change', sugerirKm2); $('destinoSel').addEventListener('change', () => setTimeout(sugerirKm2, 0)); $('destino').addEventListener('change', sugerirKm2);
   const alTipo = () => {
     const t = tipoDe($('tipo').value); if (!t) return;
     $('tipo').value = t.n;
     const cp = $('capacidad'); if (!cp.value.trim() || cp.dataset.auto === '1') { cp.value = t.m3; cp.dataset.auto = '1'; }
-    if (!v && (!$('cant').value.trim() || $('cant').dataset.auto === '1')) { $('cant').value = cp.value; $('cant').dataset.auto = '1'; }
+    recalcCant();
   };
   $('tipo').addEventListener('change', alTipo);
-  $('capacidad').addEventListener('input', () => { $('capacidad').dataset.auto = ''; });
-  $('cant').addEventListener('input', () => { $('cant').dataset.auto = ''; });
-  pl.oninput = () => { alPlaca(); sugerirKm(); }; pl.onchange = pl.oninput;
-  if (v) { $('datosVol').hidden = false; } else if (pl.value) { alPlaca(); sugerirKm(); }
+  $('capacidad').addEventListener('input', () => { $('capacidad').dataset.auto = ''; recalcCant(); });
+  pl.oninput = () => { alPlaca(); sugerirKm2(); }; pl.onchange = pl.oninput;
+  if (v) { $('datosVol').hidden = false; } else if (pl.value) { alPlaca(); sugerirKm2(); }
 }
 async function guardarViaje() {
   const g = id => $(id).value.trim();
@@ -572,7 +636,9 @@ async function guardarViaje() {
   if (!g('hora_salida')) M('hora_salida', 'la hora de salida');
   if (!g('n_valera')) M('n_valera', 'el N° de valera');
   if (!g('centro')) M('centro', 'el centro de costos');
-  const cant = num(g('cant')); if (!(cant > 0 && cant <= 60)) M('cant', 'la cantidad (m³)');
+  if (!$('uf').value) M('c_uf', 'la UF de origen');
+  const pct = num($('pct').value); if (!(pct > 0 && pct <= 120)) M('c_pct', 'qué tan llena va la tolva (%)');
+  const cant = num($('cant').value); if (!(cant > 0 && cant <= 60)) M('c_pct', 'la capacidad de la volqueta y el % de carga');
   if (g('peso') && !(num(g('peso')) >= 0)) M('peso', 'el peso');
   if (!(num(g('km')) > 0)) M('km', 'la distancia en km (origen a destino)');
   if (err.length) {
@@ -587,7 +653,7 @@ async function guardarViaje() {
     cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
     placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: g('origen'), destino: g('destino'),
     lat: gps ? gps.lat : '', lon: gps ? gps.lon : '', prec: gps ? gps.prec : '',
-    cant: cant, peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
+    uf: $('uf').value, pct: pct, cant: cant, peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
     tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'RECIBIDO' : (antes ? antes.estado : 'DESPACHADO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
   });
   const i = VIAJES.findIndex(x => x.cod === cod); if (i >= 0) VIAJES[i] = v; else VIAJES.push(v);
@@ -711,7 +777,7 @@ async function sincronizar() {
   finally {
     sincronizando = false;
     if (user) { if (!$('inicio').hidden) pintarInicio(); else if (!$('dia').hidden && diaActual) abrirDia(diaActual); }
-    if (otraVez) { otraVez = false; setTimeout(sincronizar, 300); } else refrescar();
+    if (otraVez) { otraVez = false; setTimeout(sincronizar, 300); } else refrescar(true);
   }
 }
 
@@ -719,7 +785,7 @@ async function sincronizar() {
 function estadoRed() { $('red').textContent = navigator.onLine ? 'Con señal' : 'Sin señal'; }
 $('btnIngresar').onclick = ingresar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') ingresar(); };
-window.addEventListener('online', () => { estadoRed(); sincronizar(); refrescar(); });
+window.addEventListener('online', () => { estadoRed(); sincronizar(); refrescar(true); });
 window.addEventListener('offline', estadoRed);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && user && !$('inicio').hidden) { pintarInicio(); refrescar(); } });
 estadoRed();
