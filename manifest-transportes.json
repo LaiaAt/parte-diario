@@ -1,0 +1,25 @@
+{
+  "id": "transportes",
+  "name": "Registro de transportes",
+  "short_name": "Transportes",
+  "start_url": "./transportes.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef0f2",
+  "theme_color": "#0a7f2e",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

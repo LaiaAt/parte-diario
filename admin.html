@@ -93,6 +93,11 @@ button.chipm{cursor:pointer;font:inherit}
 #cTr .kpis2{grid-template-columns:repeat(2,1fr)}
 .btnl{display:block;text-align:center;margin-top:8px;padding:12px;background:var(--pri);color:#fff;border-radius:10px;text-decoration:none;font-size:17px}
 </style>
+<link rel="manifest" href="manifest-admin.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dashboard">
 </head>
 <body>
 <header><b><img class="logo" src="marca.png" alt="">Dashboard · Partes diarios</b><span style="display:flex;align-items:center;gap:10px"><span id="quien"></span><button id="salirTop" hidden style="background:#d32f2f;color:#fff;font-weight:700;padding:8px 14px;border:2px solid #fff;border-radius:8px">Cerrar sesión</button></span></header>
@@ -1097,6 +1102,7 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
 })();
 (function () { let l = ''; try { l = localStorage.getItem('adm') || sessionStorage.getItem('adm') || ''; } catch (e) {} if (l) { $('llave').value = l; entrar(); } })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
 </body>
 </html>
