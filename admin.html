@@ -415,7 +415,7 @@ function vistaRes(c) {
     lb.length ? lb.map(x => h('div', {}, h('b', {}, x.k), ' · ' + Math.round(pctProm(x)) + ' % en ' + x.n + ' viajes · ' + nf1(x.q) + ' m³')) : h('div', { class: 'trok' }, '✅ Ninguna volqueta con carga baja')));
 }
 
-/* ----- mapa (esquema propio, sin Google ni internet extra) ----- */
+/* ----- mapa (Leaflet + OpenStreetMap) ----- */
 function vistaMapa(c) {
   const dias = Array.from(new Set(TR.viajes.map(v => v.fecha))).sort().reverse();
   if (!TRDIA || dias.indexOf(TRDIA) < 0) TRDIA = dias[0] || '';
@@ -423,22 +423,38 @@ function vistaMapa(c) {
   const V = TR.viajes.filter(v => TRDIA === '*' || v.fecha === TRDIA);
   const ufs = (TR.ufs || []).filter(u => u.lat !== '' && u.lon !== ''), sit = (TR.sitios || []).filter(s => s.lat !== '' && s.lat !== undefined && s.lon !== '');
   if (!ufs.length && !sit.length) { c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '🗺 Faltan coordenadas'), h('div', {}, 'El mapa se dibuja cuando estén las coordenadas de las UF (hoja "UF") y de los destinos (hoja "Destinos").'), h('div', { class: 'small' }, V.length + ' viajes ese día · ' + nf1(V.reduce((a, v) => a + (Number(v.cant) || 0), 0)) + ' m³'))); return; }
-  const pts = ufs.map(u => ({ t: 'uf', n: 'UF ' + u.uf, k: 'UF ' + u.uf, lat: u.lat, lon: u.lon })).concat(sit.map(s => ({ t: 'ds', n: s.n, k: s.n, lat: s.lat, lon: s.lon })));
-  const la0 = pts.reduce((a, p) => a + p.lat, 0) / pts.length, cs = Math.cos(la0 * Math.PI / 180);
-  const xs = pts.map(p => p.lon * cs), ys = pts.map(p => -p.lat), W = 760, H = 480, pad = 50;
-  const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-  const k = Math.min((W - 2 * pad) / Math.max(x1 - x0, 1e-6), (H - 2 * pad) / Math.max(y1 - y0, 1e-6));
-  const P = {}; pts.forEach((p, i) => { P[p.k] = { x: pad + (xs[i] - x0) * k, y: pad + (ys[i] - y0) * k, p: p }; });
-  const flujo = {}; V.forEach(v => { const a = v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : '', b = sitioDe(v); if (P[a] && P[b]) { const key = a + '>' + b; flujo[key] = (flujo[key] || 0) + (Number(v.cant) || 0); } });
-  const mx = Math.max.apply(null, Object.keys(flujo).map(x => flujo[x]).concat([1]));
-  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('style', 'width:100%;background:#f4f7f4;border-radius:10px;border:1px solid var(--line)');
-  const el = (n, a, t) => { const e = document.createElementNS(NS, n); for (const q in a) e.setAttribute(q, a[q]); if (t) e.textContent = t; svg.appendChild(e); return e; };
-  Object.keys(flujo).forEach(key => { const [a, b] = key.split('>'); el('line', { x1: P[a].x, y1: P[a].y, x2: P[b].x, y2: P[b].y, stroke: '#0277bd', 'stroke-opacity': '.55', 'stroke-width': 2 + 10 * flujo[key] / mx, 'stroke-linecap': 'round' }); el('text', { x: (P[a].x + P[b].x) / 2, y: (P[a].y + P[b].y) / 2 - 6, 'font-size': 13, 'text-anchor': 'middle', fill: '#01579b', 'font-weight': 700 }, nf1(flujo[key]) + ' m³'); });
-  pts.forEach(p => { const q = P[p.k]; el('circle', { cx: q.x, cy: q.y, r: p.t === 'uf' ? 9 : 11, fill: p.t === 'uf' ? '#2e7d32' : '#c62828', stroke: '#fff', 'stroke-width': 2 }); el('text', { x: q.x, y: q.y + 26, 'font-size': 13, 'text-anchor': 'middle', 'font-weight': 700, fill: '#16202b' }, p.n); });
-  c.appendChild(h('div', { class: 'small' }, '🟢 UF (centro de gravedad) → 🔴 destino. El grosor de la línea es el volumen.'));
-  c.appendChild(svg);
-  c.appendChild(h('div', { class: 'small', style: 'margin-top:6px' }, V.length + ' viajes · ' + nf1(V.reduce((a, v) => a + (Number(v.cant) || 0), 0)) + ' m³'));
-  sit.forEach(s => c.appendChild(h('a', { class: 'btnl', href: 'https://www.google.com/maps/search/?api=1&query=' + s.lat + ',' + s.lon, target: '_blank', rel: 'noopener' }, '📍 ' + s.n + ' en Google Maps')));
+  const flujo = {}, sinDibujar = [];
+  const ufP = {}; ufs.forEach(u => { ufP['UF ' + u.uf] = u; });
+  const stP = {}; sit.forEach(x => { stP[x.n] = x; });
+  V.forEach(v => { const a = v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : '', b = sitioDe(v); if (ufP[a] && stP[b]) { const key = a + '>' + b; flujo[key] = flujo[key] || { v: 0, n: 0 }; flujo[key].v += Number(v.cant) || 0; flujo[key].n++; } else sinDibujar.push(v); });
+  const caja = h('div', { id: 'mapaLeaf', style: 'height:480px;border-radius:10px;border:1px solid var(--line);background:#eef2ee' });
+  c.appendChild(h('div', { class: 'small' }, '🟢 UF → 🔴 destino. El grosor de la línea es el volumen. Se puede acercar y mover el mapa.'));
+  c.appendChild(caja);
+  c.appendChild(h('div', { class: 'small', style: 'margin-top:6px' }, V.length + ' viajes · ' + nf1(V.reduce((a, v) => a + (Number(v.cant) || 0), 0)) + ' m³ · ' + (V.length - sinDibujar.length) + ' dibujados en el mapa'));
+  if (sinDibujar.length) c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'small' }, '⚠️ ' + sinDibujar.length + ' viaje(s) no se dibujan porque la UF es "Otro" / no tiene coordenadas, o el destino no está en la hoja "Destinos": ' + Array.from(new Set(sinDibujar.map(v => (v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : (v.origen || 'sin origen')) + ' → ' + (sitioDe(v) || v.destino || 'sin destino')))).slice(0, 8).join(' · '))));
+  sit.forEach(x => c.appendChild(h('a', { class: 'btnl', href: 'https://www.google.com/maps/search/?api=1&query=' + x.lat + ',' + x.lon, target: '_blank', rel: 'noopener' }, '📍 ' + x.n + ' en Google Maps')));
+  cargarLeaflet().then(L => {
+    if (!document.body.contains(caja)) return;
+    const mp = L.map(caja, { scrollWheelZoom: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(mp);
+    const todos = [], mx = Math.max.apply(null, Object.keys(flujo).map(k => flujo[k].v).concat([1]));
+    Object.keys(flujo).forEach(key => { const [a, b] = key.split('>'), f = flujo[key];
+      L.polyline([[ufP[a].lat, ufP[a].lon], [stP[b].lat, stP[b].lon]], { color: '#0277bd', opacity: .7, weight: 3 + 10 * f.v / mx }).addTo(mp).bindPopup('<b>' + a + ' → ' + b + '</b><br>' + f.n + ' viaje(s) · ' + nf1(f.v) + ' m³'); });
+    ufs.forEach(u => { todos.push([u.lat, u.lon]); L.circleMarker([u.lat, u.lon], { radius: 8, color: '#fff', weight: 2, fillColor: '#2e7d32', fillOpacity: 1 }).addTo(mp).bindTooltip('UF ' + u.uf, { permanent: true, direction: 'top', offset: [0, -6] }); });
+    sit.forEach(x => { todos.push([x.lat, x.lon]); L.circleMarker([x.lat, x.lon], { radius: 9, color: '#fff', weight: 2, fillColor: '#c62828', fillOpacity: 1 }).addTo(mp).bindTooltip(x.n, { permanent: true, direction: 'bottom', offset: [0, 6] }); });
+    mp.fitBounds(todos, { padding: [30, 30] });
+    setTimeout(() => mp.invalidateSize(), 200);
+  }).catch(() => { caja.textContent = 'No se pudo cargar el mapa. Revisa la conexión a internet.'; caja.style.padding = '16px'; });
+}
+let LEAF = null;
+function cargarLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (LEAF) return LEAF;
+  LEAF = new Promise((ok, mal) => {
+    const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(l);
+    const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'; sc.onload = () => ok(window.L); sc.onerror = () => { LEAF = null; mal(new Error('leaflet')); }; document.head.appendChild(sc);
+  });
+  return LEAF;
 }
 
 /* ----- volquetas (crear, editar, activar / inactivar) ----- */

@@ -647,9 +647,9 @@ function abrirForm(v, base) {
     fotoReciboNueva.forEach((d, i) => prevR.appendChild(h('div', {}, h('img', { src: d }), h('button', { type: 'button', class: 'rojo x', onclick: () => { fotoReciboNueva.splice(i, 1); pintarPrevR(); } }, '✕'))));
     if (fotoReciboNueva.length) cuentaR.textContent = fotoReciboNueva.length + ' foto(s) del recibo lista(s) para guardar.';
   };
-  const c5 = h('div', { style: 'margin-top:14px' }, h('h3', {}, '8️⃣ 🧾 Foto del albarán'),
+  const c5 = h('div', { style: 'margin-top:14px' }, h('h3', {}, '8️⃣ 🧾 Foto del albarán *'),
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Foto del albarán', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoReciboNueva = fotoReciboNueva.concat(arr).slice(0, 10); pintarPrevR(); } })), cuentaR, prevR);
-  F.appendChild(filaFecha); F.appendChild(c1); F.appendChild(cMov); F.appendChild(cRuta); F.appendChild(cCarga); F.appendChild(masDatos); F.appendChild(c4); F.appendChild(h('div', { class: 'card paso' }, c5));
+  F.appendChild(filaFecha); F.appendChild(c1); F.appendChild(cMov); F.appendChild(cRuta); F.appendChild(cCarga); F.appendChild(masDatos); F.appendChild(c4); F.appendChild(h('div', { id: 'cAlbaran', class: 'card paso' }, c5));
   F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ LISTO, GUARDAR'));
   pantalla('form'); alertaForm(); recalcCant(); aplicarMov();
   const pl = $('placa');
@@ -693,6 +693,8 @@ async function guardarViaje() {
   if (uf0 === 'OTRO' && !g('eje')) M('eje', rec0 ? 'a dónde llega (escríbelo)' : 'de dónde sale (escríbelo)');
   else if (!uf0 && !origenTxt()) M('abs', rec0 ? 'la UF o dónde llega' : 'la UF o de dónde sale');
   if (!g('destino')) M('destino', rec0 ? 'de dónde viene' : 'el destino');
+  { const ya = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
+    if (!fotoReciboNueva.length && !(ya && ya.tiene_recibo)) M('cAlbaran', 'la foto del albarán'); }
   if (err.length) {
     aviso('Falta completar: ' + err.join(', ') + '.', 'err');
     mal.forEach((id, i) => { const el = $(id); if (!el) return; el.classList.add('malcampo'); el.addEventListener('input', () => el.classList.remove('malcampo'), { once: true }); el.addEventListener('change', () => el.classList.remove('malcampo'), { once: true }); const w = el.parentNode; if (w) w.appendChild(h('div', { class: 'malmsg' }, '⬆ Falta: ' + err[i])); });

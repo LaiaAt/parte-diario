@@ -3,6 +3,12 @@
   const VERDE = [21, 115, 52], VERDE_CLARO = [228, 242, 230], ROJO = [176, 0, 0], GRIS = [150, 150, 150];
   const fmt = f => { const p = String(f || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(f || ''); };
   const num = v => { const x = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return isFinite(x) && String(v).trim() !== '' ? x : NaN; };
+  function lugarTr(v, lado) {
+    const uf = v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : '', rec = v.mov === 'RECIBE';
+    const t = lado === 'o' ? String(v.origen || '') : String(v.destino || '');
+    const conUF = (lado === 'o') !== rec; // en ENTREGA la UF es el origen; en RECIBE es el destino
+    return conUF && uf ? (t ? uf + ' · ' + t : uf) : t;
+  }
   const f2 = v => { const x = num(v); return isNaN(x) ? '' : String(Math.round(x * 100) / 100); };
 
   // logo: { data: 'data:image/png;base64,...', w: px, h: px } o null
@@ -64,8 +70,8 @@
     celda(M, y, XM - M, H, false); etiqueta('TIPO DE MATERIAL:', M, y, 0, 0); valor(v.material, M, y + 10.5, XM - M, 12);
     celda(XM, y, X1 - XM, H, false); etiqueta('CANTIDAD DESPACHADA (m3):', XM, y, 0, 0); valor(f2(v.cant), XM, y + 10.5, X1 - XM, 12);
     y += H;
-    celda(M, y, XM - M, H, false); etiqueta('ORIGEN:', M, y, 0, 0); valor(v.origen, M, y + 10.5, XM - M, 11);
-    celda(XM, y, X1 - XM, H, false); etiqueta('DESTINO:', XM, y, 0, 0); valor(v.destino, XM, y + 10.5, X1 - XM, 11);
+    celda(M, y, XM - M, H, false); etiqueta('ORIGEN:', M, y, 0, 0); valor(lugarTr(v, 'o'), M, y + 10.5, XM - M, 11);
+    celda(XM, y, X1 - XM, H, false); etiqueta('DESTINO:', XM, y, 0, 0); valor(lugarTr(v, 'd'), XM, y + 10.5, X1 - XM, 11);
     y += H;
     celda(M, y, XM - M, H, false); etiqueta('HORA DE ENTRADA:', M, y, 0, 0); valor(v.hora_llegada, M, y + 10.5, XM - M, 12);
     celda(XM, y, X1 - XM, H * 2, false); etiqueta('PLACA VEHÍCULO:', XM, y, 0, 0);
@@ -148,7 +154,7 @@
         let vol = 0, viajesN = 0;
         for (let i = 0; i < FILAS; i++) {
           const r = filas[i]; x = M;
-          const celdas = r ? [String(pg * FILAS + i + 1), null, r.placa, r.material, r.centro, f2(r.peso), f2(r.cant), r.origen, r.destino, f2(r.km), r.hora_llegada].map(c => c === undefined || c === null ? '' : c) : [String(pg * FILAS + i + 1), '', '', '', '', '', '', '', '', '', ''];
+          const celdas = r ? [String(pg * FILAS + i + 1), null, r.placa, r.material, r.centro, f2(r.peso), f2(r.cant), lugarTr(r, 'o'), lugarTr(r, 'd'), f2(r.km), r.hora_llegada].map(c => c === undefined || c === null ? '' : c) : [String(pg * FILAS + i + 1), '', '', '', '', '', '', '', '', '', ''];
           if (r) { const c = num(r.cant); if (!isNaN(c)) vol += c; viajesN++; }
           COLS.forEach((c, j) => {
             doc.rect(x, y, c[1], rh);
