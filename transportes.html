@@ -625,7 +625,7 @@ function abrirForm(v, base) {
   vd.value = val('valera_de');
   const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '1️⃣ 📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
   const masDatos = h('div', { class: 'card paso' }, h('h3', {}, '6️⃣ 🧾 Datos del vale'),
-    campo('n_valera', 'N° de valera', val('n_valera'), { inputmode: 'numeric' }),
+    campo('n_valera', 'N° del albarán / valera *', val('n_valera'), { inputmode: 'numeric' }),
     h('div', { style: 'margin-top:10px' }, h('label', {}, '¿De quién es la valera?'), vd),
     h('div', { style: 'margin-top:10px' }, h('label', {}, 'Turno'), turno),
     h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos', val('centro')), chipsPara('centro', 'centro')),
@@ -638,7 +638,7 @@ function abrirForm(v, base) {
     fotoCargaNueva.forEach((d, i) => prev.appendChild(h('div', {}, h('img', { src: d }), h('button', { type: 'button', class: 'rojo x', onclick: () => { fotoCargaNueva.splice(i, 1); pintarPrev(); } }, '✕'))));
     if (fotoCargaNueva.length) cuenta.textContent = fotoCargaNueva.length + ' foto(s) lista(s) para guardar.';
   };
-  const c4 = h('div', { class: 'card paso' }, h('h3', {}, '7️⃣ 📷 Foto de la volqueta'),
+  const c4 = h('div', { id: 'cVolqueta', class: 'card paso' }, h('h3', {}, '7️⃣ 📷 Foto de la volqueta *'),
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Tomar foto', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoCargaNueva = fotoCargaNueva.concat(arr).slice(0, 10); pintarPrev(); } })), cuenta, prev);
   const prevR = h('div', { id: 'prevRecibo', class: 'fotos', style: 'margin-top:10px' });
   const cuentaR = h('p', { class: 'sub', style: 'margin:8px 0 0' }, v && v.tiene_recibo ? '✔ Ya tiene recibo. Las que agregues se suman.' : 'Si ya tienes el recibo sellado, súbelo aquí. Si no, lo subes después desde la lista.');
@@ -693,11 +693,12 @@ async function guardarViaje() {
   if (uf0 === 'OTRO' && !g('eje')) M('eje', rec0 ? 'a dónde llega (escríbelo)' : 'de dónde sale (escríbelo)');
   else if (!uf0 && !origenTxt()) M('abs', rec0 ? 'la UF o dónde llega' : 'la UF o de dónde sale');
   if (!g('destino')) M('destino', rec0 ? 'de dónde viene' : 'el destino');
+  if (!g('n_valera')) M('n_valera', 'el número del albarán');
   { const ya = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
+    if (!fotoCargaNueva.length && !(ya && ya.tiene_carga)) M('cVolqueta', 'la foto de la volqueta');
     if (!fotoReciboNueva.length && !(ya && ya.tiene_recibo)) M('cAlbaran', 'la foto del albarán'); }
   if (err.length) {
-    aviso('Falta completar: ' + err.join(', ') + '.', 'err');
-    mal.forEach((id, i) => { const el = $(id); if (!el) return; el.classList.add('malcampo'); el.addEventListener('input', () => el.classList.remove('malcampo'), { once: true }); el.addEventListener('change', () => el.classList.remove('malcampo'), { once: true }); const w = el.parentNode; if (w) w.appendChild(h('div', { class: 'malmsg' }, '⬆ Falta: ' + err[i])); });
+    mal.forEach((id, i) => { const el = $(id); if (!el) return; el.classList.add('malcampo'); el.addEventListener('input', () => el.classList.remove('malcampo'), { once: true }); el.addEventListener('change', () => el.classList.remove('malcampo'), { once: true }); const card = el.classList.contains('card'), w = card ? el : el.parentNode; if (w) w.appendChild(h('div', { class: 'malmsg' }, (card ? '' : '⬆ ') + 'Falta: ' + err[i])); });
     const p = $(mal[0]); if (p) { p.scrollIntoView({ block: 'center' }); if (p.focus) p.focus(); }
     return;
   }
