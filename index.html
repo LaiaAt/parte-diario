@@ -105,6 +105,8 @@ const MAXACT = 6, MAXFOTOS = 15;
 const PASOS = ['Datos del día', 'Actividades', 'Personal', 'Máquinas', 'Materiales', 'Fotos', 'Pedir para mañana', 'Revisar y guardar'];
 const $ = id => document.getElementById(id);
 const hoy = () => new Date().toLocaleDateString('sv-SE');
+const ayer = () => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toLocaleDateString('sv-SE'); };
+const fechaOk = f => f === hoy() || f === ayer();
 const uid = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 function h(tag, props, ...kids) {
@@ -176,15 +178,16 @@ const nuevaSolicitud = () => ({ tipo: 'Combustible', detalle: '', cantidad: '', 
 let verErr = false, ERR = new WeakMap(), ultId = null;
 
 // Convierte lo que viene del servidor o del teléfono en un parte completo. reiniciar = día nuevo con la cuadrilla de ayer.
-function base(p, reiniciar) {
+function base(p, reiniciar, fx) {
+  fx = fx || hoy();
   const o = nuevoParte();
   if (!p) return o;
-  o.fecha = reiniciar ? hoy() : (p.fecha || hoy());
+  o.fecha = reiniciar ? fx : (p.fecha || fx);
   o.n = reiniciar ? 1 : (p.n || 1);
   o.rev = reiniciar ? 0 : (p.rev || 0);
   o.encabezado = { localizacion: (p.encabezado || {}).localizacion || '', pk: PD.pkDigitos((p.encabezado || {}).pk) };
   const L = x => Array.isArray(x) ? x : [];
-  const mismoDia = (p.fecha || '') === hoy();
+  const mismoDia = (p.fecha || '') === fx;
   if (reiniciar) {
     // informe nuevo: se conserva TODO lo del anterior (editable y eliminable); solo las fotos no se copian
     o.actividades = JSON.parse(JSON.stringify(L(p.actividades)));
@@ -316,27 +319,29 @@ const estaElim = (f, n) => (ELIM[elimKey(f, n)] || 0) > Date.now();
 async function pintarBiblio(lista) {
   lista = lista.filter(x => !estaElim(x.fecha, x.n));
   const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave && !estaElim(e.parte.fecha, e.parte.n));
-  const h0 = hoy(), por = {};
+  const h0 = hoy(), por = {}, a0 = ayer();
   const K = (f, n) => f + '|' + (n || 1);
   lista.forEach(x => { por[K(x.fecha, x.n)] = { fecha: x.fecha, n: x.n || 1, pdf: x.pdf, rev: x.rev || 1, pend: false }; });
   cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf, rev: e.parte.rev || 1 }); });
   const bo = await kv.get('borrador');
-  if (bo && bo.llave === user.llave && bo.fecha === h0 && bo.guardado === false && bo.parte && !estaElim(h0, bo.parte.n)) {
-    const bn = bo.parte.n || 1, bk = K(h0, bn);
-    por[bk] = Object.assign(por[bk] || { fecha: h0, n: bn, pdf: false, rev: bo.parte.rev || 1 }, { borr: true });
+  if (bo && bo.llave === user.llave && fechaOk(bo.fecha) && bo.guardado === false && bo.parte && !estaElim(bo.fecha, bo.parte.n)) {
+    const bn = bo.parte.n || 1, bk = K(bo.fecha, bn);
+    por[bk] = Object.assign(por[bk] || { fecha: bo.fecha, n: bn, pdf: false, rev: bo.parte.rev || 1 }, { borr: true });
   }
   const todos = Object.keys(por).map(k => por[k]);
   const deHoy = todos.filter(x => x.fecha === h0).sort((a, b) => a.n - b.n);
-  const otros = todos.filter(x => x.fecha !== h0).sort((a, b) => a.fecha === b.fecha ? b.n - a.n : (a.fecha < b.fecha ? 1 : -1));
+  const deAyer = todos.filter(x => x.fecha === a0).sort((a, b) => a.n - b.n);
+  const otros = todos.filter(x => x.fecha !== h0 && x.fecha !== a0).sort((a, b) => a.fecha === b.fecha ? b.n - a.n : (a.fecha < b.fecha ? 1 : -1));
   const sig = deHoy.reduce((m, x) => Math.max(m, x.n), 0) + 1;
   const B = $('biblio');
   B.textContent = '';
   B.appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + user.nombre), h('br'), h('small', {}, PD.fechaLarga(h0)), h('br'),
     h('button', { onclick: salir, style: 'margin-top:8px;background:#fff;color:#b00020;border:2px solid #b00020' }, '🚪 Cerrar sesión (cambiar llave)')));
   B.appendChild(cajaAvisos());
-  if (sig <= 9) B.appendChild(h('button', { onclick: () => editarHoy(sig) }, deHoy.length ? '➕ Crear otro informe de hoy (Informe ' + sig + ')' : '➕ Crear el parte de hoy'));
+  B.appendChild(h('button', { onclick: () => elegirFecha(todos) }, '➕ Crear parte diario'));
   const card = h('div', { class: 'card', style: 'margin-top:12px' }, h('b', {}, 'Mis partes'));
   deHoy.forEach(x => card.appendChild(filaParte(x, true, deHoy.length > 1)));
+  deAyer.forEach(x => card.appendChild(filaParte(x, true, deAyer.length > 1)));
   otros.forEach(x => card.appendChild(filaParte(x, false, false)));
   if (!todos.length) card.appendChild(h('p', {}, h('small', {}, 'Todavía no hay partes.')));
   B.appendChild(card);
@@ -360,12 +365,12 @@ async function biblioteca(sinRed) {
 function filaParte(x, esHoy, varios) {
   const n = x.n || 1;
   const bs = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' });
-  if (esHoy) bs.appendChild(h('button', { onclick: () => editarHoy(n, !x.pend || !x.local) }, 'Editar'));
+  if (esHoy) bs.appendChild(h('button', { onclick: () => editarHoy(n, !x.pend || !x.local, x.fecha) }, 'Editar'));
   if (x.pdf || x.local) {
     bs.appendChild(h('button', { class: 'sec', onclick: () => verDe(x.fecha, n) }, 'Ver'));
     bs.appendChild(h('button', { class: 'sec', onclick: () => compDe(x.fecha, n) }, 'Compartir'));
   }
-  if (esHoy) bs.appendChild(h('button', { class: 'sec', 'aria-label': 'Eliminar', title: 'Eliminar', style: 'padding-left:12px;padding-right:12px', onclick: () => eliminarHoy(n) }, '🗑'));
+  if (esHoy) bs.appendChild(h('button', { class: 'sec', 'aria-label': 'Eliminar', title: 'Eliminar', style: 'padding-left:12px;padding-right:12px', onclick: () => eliminarHoy(n, x.fecha) }, '🗑'));
   return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), (n > 1 || varios) ? h('span', { class: 'tag' }, 'Informe ' + n) : null, esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
     x.borr ? h('span', { class: 'tag pend' }, 'Borrador sin guardar') : null, x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
 }
@@ -424,23 +429,23 @@ function confirmarElim(msg) {
     document.body.appendChild(f);
   });
 }
-async function eliminarHoy(n) {
-  n = typeof n === 'number' ? n : 1;
-  if (!(await confirmarElim('¿Eliminar este informe de hoy' + (n > 1 ? ' (Informe ' + n + ')' : '') + '? Se borra del sistema y de la biblioteca. No se puede deshacer.'))) return;
+async function eliminarHoy(n, fx) {
+  n = typeof n === 'number' ? n : 1; fx = fx || hoy();
+  if (!(await confirmarElim('¿Eliminar este informe del ' + PD.fechaLarga(fx) + '' + (n > 1 ? ' (Informe ' + n + ')' : '') + '? Se borra del sistema y de la biblioteca. No se puede deshacer.'))) return;
   if (!navigator.onLine) { aviso('Para eliminar necesitas señal.', 'err'); return; }
-  ELIM[elimKey(hoy(), n)] = Date.now() + 60000;
+  ELIM[elimKey(fx, n)] = Date.now() + 60000;
   if (!$('biblio').hidden) await pintarBiblio((await kv.get('bib_' + user.llave)) || []);
   aviso('Eliminando…');
-  const deshacer = async () => { delete ELIM[elimKey(hoy(), n)]; if (!$('biblio').hidden) await pintarBiblio((await kv.get('bib_' + user.llave)) || []); };
+  const deshacer = async () => { delete ELIM[elimKey(fx, n)]; if (!$('biblio').hidden) await pintarBiblio((await kv.get('bib_' + user.llave)) || []); };
   try {
-    const r = await api({ accion: 'eliminar', llave: user.llave, fecha: hoy(), n: n });
+    const r = await api({ accion: 'eliminar', llave: user.llave, fecha: fx, n: n });
     if (!r.ok) { await deshacer(); aviso(r.mensaje || 'No se pudo eliminar.', 'err'); return; }
-    await mutarCola(c => c.filter(x => !(x.llave === user.llave && x.parte.fecha === hoy() && (x.parte.n || 1) === n)));
+    await mutarCola(c => c.filter(x => !(x.llave === user.llave && x.parte.fecha === fx && (x.parte.n || 1) === n)));
     const bo = await kv.get('borrador');
-    if (bo && bo.llave === user.llave && bo.fecha === hoy() && ((bo.parte && bo.parte.n) || 1) === n) await kv.del('borrador');
+    if (bo && bo.llave === user.llave && bo.fecha === fx && ((bo.parte && bo.parte.n) || 1) === n) await kv.del('borrador');
     P = null;
     const k = 'bib_' + user.llave;
-    await kv.set(k, ((await kv.get(k)) || []).filter(x => !(x.fecha === hoy() && (x.n || 1) === n)));
+    await kv.set(k, ((await kv.get(k)) || []).filter(x => !(x.fecha === fx && (x.n || 1) === n)));
     await biblioteca();
     aviso('Informe eliminado.', 'ok');
   } catch (e) { await deshacer(); aviso('No se pudo eliminar. Intenta de nuevo.', 'err'); }
@@ -456,38 +461,54 @@ function menuEdicion() {
   c.appendChild(h('div', { class: 'row' }, h('button', { onclick: () => { $('barra').hidden = false; paso = 7; mostrar(); } }, '✅ Revisar y guardar cambios')));
   window.scrollTo(0, 0);
 }
-async function editarHoy(n, existe) {
-  n = typeof n === 'number' ? n : 1;
+
+function elegirFecha(todos) {
+  const f = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px' });
+  const ir = fx => {
+    f.remove();
+    const sig = todos.filter(x => x.fecha === fx).reduce((m, x) => Math.max(m, x.n || 1), 0) + 1;
+    if (sig > 9) { aviso('Ya hay muchos informes de ese día.', 'err'); return; }
+    editarHoy(sig, false, fx);
+  };
+  f.appendChild(h('div', { style: 'background:#fff;border-radius:12px;padding:18px;max-width:340px;width:100%' },
+    h('div', { style: 'font-weight:bold;font-size:18px;margin-bottom:12px' }, '📅 ¿De qué fecha es el parte?'),
+    h('button', { style: 'width:100%;margin-bottom:10px', onclick: () => ir(hoy()) }, 'HOY · ' + PD.fechaLarga(hoy())),
+    h('button', { class: 'sec', style: 'width:100%;margin-bottom:10px', onclick: () => ir(ayer()) }, 'AYER · ' + PD.fechaLarga(ayer())),
+    h('button', { class: 'sec', style: 'width:100%;color:#b00020', onclick: () => f.remove() }, 'Cancelar')));
+  document.body.appendChild(f);
+}
+async function editarHoy(n, existe, fx) {
+  n = typeof n === 'number' ? n : 1; fx = fx || hoy();
   const r = ult;
   verErr = false;
   ['biblio', 'listo'].forEach(i => $(i).hidden = true); $('app').hidden = false; $('barra').hidden = false;
   $('saludo').textContent = 'Hola, ' + user.nombre + (n > 1 ? ' · Informe ' + n : '');
-  $('fecha').textContent = PD.fechaLarga(hoy());
+  $('fecha').textContent = PD.fechaLarga(fx);
   const b = await kv.get('borrador');
-  const cola = ((await kv.get('cola')) || []).find(x => x.llave === user.llave && x.parte.fecha === hoy() && (x.parte.n || 1) === n);
+  const cola = ((await kv.get('cola')) || []).find(x => x.llave === user.llave && x.parte.fecha === fx && (x.parte.n || 1) === n);
   RF = (await kv.get('rf_' + user.llave)) || {}; pasoMostrado = -1; foco = false;
   const ro = await kv.get('roster');
   const mio = ro && ro.llave === user.llave ? ro.parte : null;
   paso = 0;
-  if (b && b.fecha === hoy() && b.llave === user.llave && ((b.parte && b.parte.n) || 1) === n) {
+  if (b && b.fecha === fx && b.llave === user.llave && ((b.parte && b.parte.n) || 1) === n) {
     P = base(b.parte, false); paso = b.paso || 0;
     $('info').textContent = 'Seguimos con tu parte de hoy.';
   } else if (cola) {
-    P = base(cola.parte, false); P.fecha = hoy();
+    P = base(cola.parte, false); P.fecha = fx;
     $('info').textContent = 'Seguimos con tu parte de hoy.';
-  } else if (r && r.ok && r.esHoy && r.parte && (r.parte.n || 1) === n) {
-    P = base(r.parte, false); P.fecha = hoy(); $('info').textContent = 'Ya había un parte de hoy. Puedes corregirlo.';
+  } else if (r && r.ok && r.esHoy && fx === hoy() && r.parte && (r.parte.n || 1) === n) {
+    P = base(r.parte, false); P.fecha = fx; $('info').textContent = 'Ya había un parte de hoy. Puedes corregirlo.';
   } else {
     let sv = null;
-    if (existe && navigator.onLine) { try { const x = await api({ accion: 'parte', llave: user.llave, fecha: hoy(), n: n }, 20000); if (x.ok) sv = x.parte; } catch (e) {} }
-    if (sv) { P = base(sv, false); P.fecha = hoy(); $('info').textContent = 'Ya había un parte de hoy. Puedes corregirlo.'; }
+    if (existe && navigator.onLine) { try { const x = await api({ accion: 'parte', llave: user.llave, fecha: fx, n: n }, 20000); if (x.ok) sv = x.parte; } catch (e) {} }
+    if (sv) { P = base(sv, false); P.fecha = fx; $('info').textContent = 'Ya había un parte de hoy. Puedes corregirlo.'; }
     else {
       const src = mio || ((r && r.ok && r.parte) ? r.parte : null);
-      P = base(src, true);
+      P = base(src, true, fx);
       $('info').textContent = src ? (n > 1 ? 'Nuevo informe: cargamos todo lo del anterior. Corrige, quita o agrega lo que haga falta.' : 'Cargamos todo lo del parte anterior. Corrige, quita o agrega lo que haga falta.') : 'Primer parte: agrega tu gente y máquinas.';
     }
   }
-  P.n = n; P.fecha = hoy();
+  P.n = n; P.fecha = fx;
   editando = (P.rev || 0) > 0 || !!cola;
   if (editando && !P.rev) P.rev = 1;
   if (n > 1 && (P.rev || 0) === 0 && !cola) P.encabezado.localizacion = '';
@@ -657,7 +678,7 @@ function aplicarFrente(nombre) {
   const k = String(nombre || '').trim().toUpperCase(), e = RF[k];
   if (!e || editando || (P.rev || 0) > 0 || frenteCargado === k) return;
   const q = base(e.parte, true);
-  q.n = P.n; q.fecha = hoy(); q.clima_sel = P.clima_sel; q.clima = P.clima;
+  q.n = P.n; q.fecha = P.fecha; q.clima_sel = P.clima_sel; q.clima = P.clima;
   q.encabezado.localizacion = e.nombre;
   P = q; frenteCargado = k;
   $('info').textContent = 'Cargamos lo último del frente ' + e.nombre + '. Corrige, quita o agrega lo que haga falta.';
@@ -868,7 +889,7 @@ function validar() {
     pr.push({ paso: paso, t: t });
     if (o) { const e = mk.get(o) || {}; [].concat(ks).forEach(k => { e[k] = msg || 'Falta este dato'; }); mk.set(o, e); }
   };
-  const hh = (a, b) => a && b && b > a;
+  const hh = (a, b) => a && b && b !== a; // fin menor que inicio = turno de noche (pasa la medianoche)
   const e0 = P.encabezado;
   if (!e0.localizacion.trim()) m(0, 'Falta el lugar.', e0, 'localizacion');
   if (!/^\d{1,6}$/.test(e0.pk)) m(0, 'Falta el PK (solo números).', e0, 'pk', 'Escribe solo números');

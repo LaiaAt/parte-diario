@@ -69,8 +69,8 @@
   function horasEntre(ini, fin) {
     const m = s => { const p = String(s || '').split(':'); return Number(p[0]) * 60 + Number(p[1]); };
     const a = m(ini), b = m(fin);
-    if (isNaN(a) || isNaN(b) || b <= a) return 0;
-    let h = (b - a) / 60;
+    if (isNaN(a) || isNaN(b) || b === a) return 0;
+    let h = (b > a ? b - a : b + 1440 - a) / 60;
     if (h >= 6) h -= 1; // 1 hora de almuerzo
     return Math.round(h * 100) / 100;
   }
