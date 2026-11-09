@@ -101,7 +101,7 @@
 
   // ---------- PLANILLA: Parte diario viajes de volquetas ----------
   const FILAS = 15;
-  const COLS = [['No', 8], ['Número remisión\no consecutivo', 40], ['Placa\nVehículo', 24], ['Tipo de\nMaterial', 32], ['Centro de\ncostos', 24], ['Peso\n(Ton)', 18], ['Volumen\n(m3)', 18], ['Origen', 30], ['Destino', 30], ['Kilómetros\nrecorridos', 17], ['Hora de\nLlegada', 18.4]];
+  const COLS = [['No', 8], ['Número remisión\no consecutivo', 36], ['Placa\nVehículo', 22], ['Tipo de\nMaterial', 29], ['Centro de\ncostos', 20], ['Peso\n(Ton)', 14], ['Vol. albarán\n(m3)', 19], ['Vol. confirm.\n(m3)', 19], ['Origen', 28], ['Destino', 28], ['Kilómetros\nrecorridos', 17], ['Hora de\nLlegada', 18.4]];
 
   // Una sola planilla por día: todos los viajes en una tabla continua (se parte en hojas de FILAS filas).
   function grupos(viajes) {
@@ -152,11 +152,11 @@
         COLS.forEach(c => { doc.setFillColor(215, 224, 232); doc.rect(x, y, c[1], hh, 'FD'); doc.setFont('helvetica', 'bold'); doc.setTextColor(0); tx(c[0], x + c[1] / 2, y + 4, { align: 'center' }); x += c[1]; });
         y += hh;
         const rh = 7.2;
-        let vol = 0, viajesN = 0;
+        let vol = 0, volC = 0, viajesN = 0;
         for (let i = 0; i < FILAS; i++) {
           const r = filas[i]; x = M;
-          const celdas = r ? [String(pg * FILAS + i + 1), null, r.placa, r.material, r.centro, f2(r.peso), f2(volv(r)), lugarTr(r, 'o'), lugarTr(r, 'd'), f2(r.km), r.hora_llegada].map(c => c === undefined || c === null ? '' : c) : [String(pg * FILAS + i + 1), '', '', '', '', '', '', '', '', '', ''];
-          if (r) { const c = num(volv(r)); if (!isNaN(c)) vol += c; viajesN++; }
+          const celdas = r ? [String(pg * FILAS + i + 1), null, r.placa, r.material, r.centro, f2(r.peso), f2(volv(r)), f2(r.cant), lugarTr(r, 'o'), lugarTr(r, 'd'), f2(r.km), r.hora_llegada].map(c => c === undefined || c === null ? '' : c) : [String(pg * FILAS + i + 1), '', '', '', '', '', '', '', '', '', '', ''];
+          if (r) { const c = num(volv(r)); if (!isNaN(c)) vol += c; const cc = num(r.cant); if (!isNaN(cc)) volC += cc; viajesN++; }
           COLS.forEach((c, j) => {
             doc.rect(x, y, c[1], rh);
             doc.setTextColor(0);
@@ -180,8 +180,8 @@
         const obs = g.v.map(r => r.obs).filter(Boolean).join(' | ');
         doc.setFont('helvetica', 'normal'); doc.setFontSize(7); tx(obs, M + 132, y + 9, { maxWidth: AN - 134 });
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        tx('VOLUMEN DE LA HOJA: ' + (Math.round(vol * 100) / 100) + ' m3', M + 2, y + 11); tx('VIAJES DE LA HOJA: ' + viajesN, M + 2, y + 17);
-        if (pg === paginas - 1) { const tv0 = g.v.reduce((a, r) => a + (isNaN(num(volv(r))) ? 0 : num(volv(r))), 0); tx('TOTAL DEL DÍA: ' + g.v.length + ' viajes · ' + (Math.round(tv0 * 100) / 100) + ' m3', M + 62, y + 17); }
+        tx('VOL. ALBARÁN HOJA: ' + (Math.round(vol * 100) / 100) + ' m3  ·  VOL. CONFIRMADO HOJA: ' + (Math.round(volC * 100) / 100) + ' m3', M + 2, y + 11); tx('VIAJES DE LA HOJA: ' + viajesN, M + 2, y + 17);
+        if (pg === paginas - 1) { const tv0 = g.v.reduce((a, r) => a + (isNaN(num(volv(r))) ? 0 : num(volv(r))), 0); const tc0 = g.v.reduce((a, r) => a + (isNaN(num(r.cant)) ? 0 : num(r.cant)), 0); tx('TOTAL DEL DÍA: ' + g.v.length + ' viajes · alb. ' + (Math.round(tv0 * 100) / 100) + ' m3 · conf. ' + (Math.round(tc0 * 100) / 100) + ' m3', M + 40, y + 17); }
         y += 22;
         doc.rect(M, y, AN / 2, 17); doc.rect(M + AN / 2, y, AN / 2, 17);
         doc.setFontSize(8); doc.setFont('helvetica', 'normal');
