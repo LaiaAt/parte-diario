@@ -123,7 +123,6 @@ button.chipm{cursor:pointer;font:inherit}
       <div><label>Hasta</label><input type="date" id="hasta"></div>
       <button id="act">Actualizar</button>
       <button id="infSem" style="background:#0d3b66;color:#fff;border:2px solid #0d3b66;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.35)">📄 Informe</button>
-      <button class="sec" id="salir">Salir</button>
       <span id="estado" class="small"></span>
     </div>
     <div id="err" class="msg"></div>
@@ -1311,7 +1310,7 @@ function descargarXlsx() {
 
 $('entrar').onclick = entrar;
 $('llave').onkeydown = e => { if (e.key === 'Enter') entrar(); };
-$('salir').onclick = salir; $('salirTop').onclick = salir;
+$('salirTop').onclick = salir;
 $('infSem').onclick = async () => {
   const d = $('desde').value, hh = $('hasta').value, e = $('estado'), bt = $('infSem');
   if (!d || !hh || d > hh) { e.textContent = 'Revisa las fechas del periodo.'; return; }
