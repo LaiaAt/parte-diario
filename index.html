@@ -109,10 +109,13 @@ const PASOS = ['Datos del día', 'Actividades', 'Personal', 'Máquinas', 'Materi
 const $ = id => document.getElementById(id);
 const hoy = () => new Date().toLocaleDateString('sv-SE');
 // Fechas permitidas: hoy y los 2 días anteriores; el lunes, 3 (viernes, sábado, domingo y lunes)
+let ABIERTAS = []; try { ABIERTAS = JSON.parse(localStorage.getItem('pd_abiertas') || '[]'); } catch (e) {}
 const fechasPermitidas = () => {
   const d = new Date(); d.setHours(12, 0, 0, 0);
   const atras = d.getDay() === 1 ? 3 : 2, L = [d.toLocaleDateString('sv-SE')];
   for (let i = 0; i < atras; i++) { d.setDate(d.getDate() - 1); L.push(d.toLocaleDateString('sv-SE')); }
+  // fechas que el administrador dejó abiertas (partes cargados de papel), vigentes hasta 5 días después
+  const hoyS = L[0]; ABIERTAS.forEach(f => { const lim = new Date(f + 'T12:00:00'); lim.setDate(lim.getDate() + 5); if (L.indexOf(f) < 0 && hoyS >= f && hoyS <= lim.toLocaleDateString('sv-SE')) L.push(f); });
   return L;
 };
 const fechaOk = f => fechasPermitidas().indexOf(f) >= 0;
@@ -366,7 +369,7 @@ async function biblioteca(sinRed) {
   if (navigator.onLine && !sinRed) {
     try {
       const x = await api({ accion: 'lista', llave: user.llave }, 20000);
-      if (x.ok) { lista = x.biblioteca; await kv.set('bib_' + user.llave, lista); if (user && !$('biblio').hidden) await pintarBiblio(lista); }
+      if (x.ok) { lista = x.biblioteca; ABIERTAS = x.abiertas || []; try { localStorage.setItem('pd_abiertas', JSON.stringify(ABIERTAS)); } catch (e) {} await kv.set('bib_' + user.llave, lista); if (user && !$('biblio').hidden) await pintarBiblio(lista); }
       else if (/no v[aá]lida|inactiv/i.test(x.mensaje || '')) { await cerrarSesion(x.mensaje); return; }
     } catch (e) {}
   }
