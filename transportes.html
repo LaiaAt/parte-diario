@@ -284,17 +284,17 @@ function filaViaje(v) {
   const falta = !v.tiene_recibo && puedeRecibo(v);
   const mas = h('div', { class: 'bs', hidden: true, style: 'margin-top:8px' });
   if (puedeEditar(v)) { mas.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); }
-  if (v.tiene_carga) mas.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🖼 Ver fotos de carga'));
-  if (v.tiene_recibo) mas.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🖼 Ver fotos del recibo'));
   if (v.tiene_recibo && puedeRecibo(v)) mas.appendChild(selectorFotos({ camara: '📷 Otra foto del recibo', galeria: '🖼 Otras de la galería', alAgregar: f => fotoRecibo(v, f) }));
   if (puedeEditar(v)) mas.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje'));
   const bs = h('div', { class: 'bs' });
   if (falta && !v.tiene_recibo) bs.appendChild(selectorFotos({ camara: '📷 Foto del recibo', galeria: '🖼 Desde galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) }));
+  if (v.tiene_recibo) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🧾 Albarán'));
+  if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🚛 Volqueta'));
   bs.appendChild(h('button', { class: 'sec', onclick: () => compartirVale(v) }, '📄 Vale'));
   if (mas.children.length) bs.appendChild(h('button', { class: 'sec', onclick: () => { mas.hidden = !mas.hidden; } }, '⋯ Más'));
   return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
     h('div', { class: 't' }, v.placa, ' · ', v.material),
-    h('div', { class: 's' }, r2(num(v.cant) || 0) + ' m³ · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
+    h('div', { class: 's' }, r2(num(v.cant) || 0) + ' m³ validado' + (num(v.vol_albaran) > 0 ? ' · ' + r2(num(v.vol_albaran)) + ' m³ albarán' : '') + ' · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
     h('div', { style: 'margin-bottom:8px' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null, h('span', { class: 'tag' }, v.cod)),
     bs, mas,
     v.alertas ? h('small', { style: 'color:#b36b00;display:block;margin-top:6px' }, '⚠ ' + v.alertas) : null,
@@ -626,6 +626,7 @@ function abrirForm(v, base) {
   const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '1️⃣ 📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
   const masDatos = h('div', { class: 'card paso' }, h('h3', {}, '6️⃣ 🧾 Datos del vale'),
     campo('n_valera', 'N° del albarán / valera *', val('n_valera'), { inputmode: 'numeric' }),
+    h('div', { style: 'margin-top:10px' }, campo('vol_albaran', 'Volumen que dice el albarán (m³) *', val('vol_albaran'), { inputmode: 'decimal', ph: 'Ej. 15' }), h('small', { class: 'sub' }, 'Es el volumen nominal que indica el volquetero. El de la tolva (paso 5) es el volumen validado.')),
     h('div', { style: 'margin-top:10px' }, h('label', {}, '¿De quién es la valera?'), vd),
     h('div', { style: 'margin-top:10px' }, h('label', {}, 'Turno'), turno),
     h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos', val('centro')), chipsPara('centro', 'centro')),
@@ -662,6 +663,7 @@ function abrirForm(v, base) {
     if (!v || !$('tipo').value) $('tipo').value = vo.tipo || '';
     if (!v || !$('capacidad').value) $('capacidad').value = vo.capacidad === undefined ? '' : vo.capacidad;
     if (!v || !$('conductor').value) $('conductor').value = vo.conductor || '';
+    if (!v && !$('vol_albaran').value && vo.nominal > 0) $('vol_albaran').value = vo.nominal;
     recalcCant();
     if (!v) {
       const u0 = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || '')))[0];
@@ -705,6 +707,7 @@ async function guardarViaje() {
   else if (!uf0 && !origenTxt()) M('abs', rec0 ? 'la UF o dónde llega' : 'la UF o de dónde sale');
   if (!g('destino')) M('destino', rec0 ? 'de dónde viene' : 'el destino');
   if (!g('n_valera')) M('n_valera', 'el número del albarán');
+  if (!(num(g('vol_albaran')) > 0 && num(g('vol_albaran')) <= 60)) M('vol_albaran', 'el volumen que dice el albarán (m³)');
   { const ya = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
     if (!fotoReciboNueva.length && !(ya && ya.tiene_recibo)) M('cAlbaran', 'la foto del albarán'); }
   if (err.length) {
@@ -717,14 +720,14 @@ async function guardarViaje() {
   const cod = antes ? antes.cod : nuevoCod();
   const v = Object.assign({}, antes || {}, {
     cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : ($('fecha_vale').value || hoy()), registrado: antes ? (antes.registrado || antes.fecha) : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
-    placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
+    placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), vol_albaran: g('vol_albaran'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
     lat: '', lon: '', prec: '',
     uf: $('uf').value, pct: pct > 0 ? pct : '', cant: cant > 0 ? cant : '', peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
     tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'RECIBIDO' : (antes ? antes.estado : 'DESPACHADO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
   });
   const i = VIAJES.findIndex(x => x.cod === cod); if (i >= 0) VIAJES[i] = v; else VIAJES.push(v);
   // catalogo local: que aparezcan ya los valores nuevos
-  if (!DATOS.volquetas.some(x => x.placa === placa)) DATOS.volquetas.push({ placa: placa, empresa: v.empresa, tipo: v.tipo, capacidad: v.capacidad, conductor: v.conductor });
+  if (!DATOS.volquetas.some(x => x.placa === placa)) DATOS.volquetas.push({ placa: placa, nominal: num(v.vol_albaran) || '', empresa: v.empresa, tipo: v.tipo, capacidad: v.capacidad, conductor: v.conductor });
   [['MATERIAL', v.material], ['DESTINO', contra(v)], ['CENTRO_COSTOS', v.centro]].forEach(p => { if (p[1] && !DATOS.catalogos[p[0]].some(x => x.toUpperCase() === p[1].toUpperCase())) DATOS.catalogos[p[0]].push(p[1]); });
   const previo = COLA.find(o => o.t === 'g' && o.cod === cod);
   if (fotoCargaNueva.length) { const ya = previo && previo.fotoNueva ? asArr(await kv.get('f_' + cod + '_c')) : []; await kv.set('f_' + cod + '_c', ya.concat(fotoCargaNueva).slice(0, 10)); }

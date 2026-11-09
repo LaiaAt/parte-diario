@@ -354,7 +354,7 @@ function pintaAlb() {
       h('div', { class: 'big' }, 'Valera ' + (v.n_valera || '—'), h('span', { class: 'tag' }, v.valera_de || '—')),
       h('div', {}, v.placa + ' · ' + (v.conductor || '') + ' · ' + (v.empresa || '')),
       h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + (v.material || '—') + ' · ' + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—')),
-      h('div', { class: 'small' }, nf(v.cant) + ' m³' + (pctV(v) !== null ? ' (' + pctV(v) + ' % de la tolva)' : '') + ' · ' + v.cod + ' · ' + v.usuario),
+      h('div', { class: 'small' }, nf(v.cant) + ' m³ validado' + (Number(v.vol_albaran) > 0 ? ' · ' + nf(v.vol_albaran) + ' m³ albarán' : '') + (pctV(v) !== null ? ' (' + pctV(v) + ' % de la tolva)' : '') + ' · ' + v.cod + ' · ' + v.usuario),
       v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
       fo));
     // las fotos del albarán se muestran de una vez (primeros 3 resultados)
@@ -479,11 +479,11 @@ function formVol(x, msg) {
   const id = p => (x ? 'ev_' + x.placa + '_' : 'nv') + p;
   const inp = (k, lab, extra) => h('div', {}, h('label', {}, lab), h('input', Object.assign({ id: id(k) }, extra || {})));
   const f = [inp('Placa', 'Placa *', { maxlength: 7, autocapitalize: 'characters', value: x ? x.placa : '' }), inp('Emp', 'Empresa', { list: 'dl-nvemp', value: x ? x.empresa : '' }), inp('Tipo', 'Tipo (elige o escribe)', { list: 'dl-nvtipo', value: x ? x.tipo : '' }),
-    inp('Cap', 'Capacidad (m³ sueltos)', { inputmode: 'decimal', value: x ? x.capacidad : '' }), inp('Cond', 'Conductor', { value: x ? x.conductor : '' })];
+    inp('Cap', 'Capacidad (m³ sueltos)', { inputmode: 'decimal', value: x ? x.capacidad : '' }), inp('Nom', 'Volumen nominal del albarán (m³)', { inputmode: 'decimal', value: x && x.nominal !== undefined ? x.nominal : '' }), inp('Cond', 'Conductor', { value: x ? x.conductor : '' })];
   const g = k => $(id(k)).value;
   f.push(h('div', { class: 'acc' }, h('button', { onclick: async () => {
     msg.textContent = ''; const p = g('Placa').trim(); if (!p) { msg.textContent = 'Escribe la placa.'; return; }
-    const d = { placa: x ? x.placa : p, empresa: g('Emp'), tipo: g('Tipo'), capacidad: g('Cap'), conductor: g('Cond') };
+    const d = { placa: x ? x.placa : p, empresa: g('Emp'), tipo: g('Tipo'), capacidad: g('Cap'), nominal: g('Nom'), conductor: g('Cond') };
     if (x) { d.cambio = 'editar'; d.placa_nueva = p; } else d.cambio = 'crear';
     if (!await cambioVol(d)) msg.textContent = 'No se guardó.';
   } }, x ? '💾 Guardar cambios' : 'Guardar')), msg);
@@ -507,7 +507,7 @@ function vistaVol(c) {
     const ed = h('details', {}, h('summary', { style: 'font-size:16px' }, '✏️ Editar datos'), formVol(x, msg));
     c.appendChild(h('div', { class: 'tcard' + (esPend(x) ? ' warn' : '') },
       h('div', { class: 'big' }, x.placa, esPend(x) ? h('span', { class: 'tag w' }, 'Nueva') : null, esIn(x) ? h('span', { class: 'tag' }, 'Inactiva') : null),
-      h('div', { class: 'small' }, [x.empresa, x.tipo, x.capacidad ? x.capacidad + ' m³' : '', x.conductor].filter(Boolean).join(' · ') || 'Sin datos'),
+      h('div', { class: 'small' }, [x.empresa, x.tipo, x.capacidad ? x.capacidad + ' m³' : '', x.nominal ? 'nominal ' + x.nominal + ' m³' : '', x.conductor].filter(Boolean).join(' · ') || 'Sin datos'),
       h('div', { class: 'small' }, n + (n === 1 ? ' viaje' : ' viajes') + ' en estas fechas'),
       h('div', { class: 'acc' },
         esPend(x) ? h('button', { onclick: () => cambioVol({ cambio: 'confirmar', placa: x.placa }) }, '✔ Confirmar') : null,
@@ -537,7 +537,7 @@ function vistaViajes(c) {
   function pintaLista() {
     const L = viajesTr(); lista.textContent = '';
     L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (v.alertas ? ' warn' : '') },
-      h('div', { class: 'big' }, v.placa, ' · ', nf(v.cant) + ' m³', pctV(v) !== null ? h('span', { class: 'tag' + (pctV(v) < 70 ? ' w' : '') }, pctV(v) + ' %') : null),
+      h('div', { class: 'big' }, v.placa, ' · ', nf(v.cant) + ' m³', Number(v.vol_albaran) > 0 ? h('span', { class: 'small' }, ' (albarán ' + nf(v.vol_albaran) + ')') : null, pctV(v) !== null ? h('span', { class: 'tag' + (pctV(v) < 70 ? ' w' : '') }, pctV(v) + ' %') : null),
       h('div', {}, v.material || '—'),
       h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + (v.km ? ' · ' + nf(v.km) + ' km' : '')),
       h('div', { class: 'small' }, (v.conductor || '') + ' · valera ' + (v.n_valera || '—') + ' · ' + v.cod),
@@ -549,8 +549,8 @@ function vistaViajes(c) {
   }
   pintaLista();
 }
-const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3', 'Estado', 'Alertas', 'Movimiento'];
-const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), v.origen, v.destino, v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'];
+const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán'];
+const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), v.origen, v.destino, v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran];
 function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen']);
   const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => filaTr(v).concat([tieneGps(v) ? mapaUrl(v) : '']).map(csvCelda).join(';')));
