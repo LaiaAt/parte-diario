@@ -1330,7 +1330,7 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
 (function () { let l = ''; try { l = localStorage.getItem('adm') || sessionStorage.getItem('adm') || ''; } catch (e) {} if (l) { $('llave').value = l; entrar(); } })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+<script>if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (hab && !rec) { rec = true; location.reload(); } }); navigator.serviceWorker.register('sw.js').catch(() => {}); }
 </script>
 </body>
 </html>
