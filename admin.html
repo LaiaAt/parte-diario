@@ -246,7 +246,7 @@ function modulo(m) {
   window.scrollTo(0, 0);
   if (m === 'transportes' && !TR) cargarTr();
 }
-let TRVM = 'alb', TR = null, TRTAB = 'viajes', TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
+let TRVM = 'conf', TR = null, TRTAB = 'viajes', TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
 async function cargarTr() {
   $('trBody').textContent = 'Cargando…';
   try {
@@ -393,7 +393,6 @@ function vistaRes(c) {
   const q = V.reduce((a, v) => a + (Number(v.cant) || 0), 0), qa = V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0), ps = V.map(pctV).filter(x => x !== null), ks = V.filter(v => Number(v.km) > 0);
   const qkm = ks.reduce((a, v) => a + (Number(v.cant) || 0) * Number(v.km), 0), qkma = ks.reduce((a, v) => a + (Number(v.vol_albaran) || 0) * Number(v.km), 0), baja = ps.filter(x => x < 70).length;
   const K = (t, v, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, h('b', {}, v), t);
-  c.appendChild(chips([['alb', 'Barras y orden según volumen del albarán'], ['conf', 'según volumen confirmado']], TRVM, k => { TRVM = k; pintarTr(); }));
   c.appendChild(h('div', { class: 'kpis kpis2' }, K('Viajes', V.length), K('m³ según albarán', nf1(qa)), K('m³ confirmado', nf1(q)), K('Volquetas', new Set(V.map(v => v.placa)).size),
     K('Carga promedio', ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) + ' %' : '—', ps.length && ps.reduce((a, b) => a + b, 0) / ps.length < 70 ? 'mal' : 'bien'),
     K('Km promedio', ks.length ? nf1(ks.reduce((a, v) => a + Number(v.km), 0) / ks.length) : '—'), K('m³ × km (albarán)', nf1(qkma)), K('m³ × km (confirmado)', nf1(qkm)),
@@ -423,7 +422,6 @@ function vistaMapa(c) {
   const dias = Array.from(new Set(TR.viajes.map(v => v.fecha))).sort().reverse();
   if (TRDIA !== '*' && (!TRDIA || dias.indexOf(TRDIA) < 0)) TRDIA = dias[0] || '';
   c.appendChild(chips(dias.slice(0, 8).map(d => [d, fmtF(d).slice(0, 5)]).concat([['*', 'Todo el periodo']]), TRDIA, k => { TRDIA = k; pintarTr(); }));
-  c.appendChild(chips([['alb', 'Franjas según volumen del albarán'], ['conf', 'según volumen confirmado']], TRVM, k => { TRVM = k; pintarTr(); }));
   const V = TR.viajes.filter(v => TRDIA === '*' || v.fecha === TRDIA);
   const ufTxt = v => v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : (v.mov === 'RECIBE' ? (v.destino || 'Sin destino') : (v.origen || 'Otro origen'));
   const sitTxt = v => (sitioDe(v) || 'Sin indicar').trim() || 'Sin indicar';
@@ -460,7 +458,7 @@ function vistaMapa(c) {
     const col0 = color(q), g = el('g', {}); el('rect', { x: q.x, y: q.y, width: NW, height: q.h, rx: 8, fill: col0 }, '', g);
     const cy = q.y + q.h / 2, nombre = q.n.length > 22 ? q.n.slice(0, 21) + '…' : q.n;
     el('text', { x: q.x + 10, y: cy - 3, 'font-size': 14, 'font-weight': 800, style: 'fill:#fff' }, nombre, g);
-    el('text', { x: q.x + 10, y: cy + 14, 'font-size': 11, style: 'fill:#fff' }, nf1(q.va) + ' alb. · ' + nf1(q.vc) + ' conf. · ' + q.t + ' v.', g);
+    el('text', { x: q.x + 10, y: cy + 14, 'font-size': 11, style: 'fill:#fff' }, nf1(q.va) + ' m³ alb. · ' + nf1(q.vc) + ' m³ conf. · ' + q.t + ' v.', g);
     el('title', {}, q.n + ': ' + q.t + ' viaje(s) · ' + nf1(q.va) + ' m³ albarán · ' + nf1(q.vc) + ' m³ confirmado', g);
   };
   ls.forEach(q => caja(q)); rs.forEach(q => caja(q));
@@ -549,8 +547,8 @@ function vistaViajes(c) {
   const lista = h('div', {});
   const bus = h('input', { type: 'search', placeholder: '🔍 Buscar placa, material, destino, valera…', value: TRQ });
   bus.oninput = () => { TRQ = bus.value; pintaLista(); };
-  c.append(bus, chips([['', 'Todos'], ['alerta', '⚠️ Con alerta'], ['sinrec', 'Sin albarán']], TRFIL, k => { TRFIL = k; pintarTr(); }), lista,
-    h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px' }, h('button', { class: 'sec', onclick: csvTr }, '⬇ CSV'), h('button', { onclick: xlsxTr, id: 'btnXlsxTr' }, '⬇ Excel con fotos')), h('div', { id: 'xlsxMsg', class: 'small', style: 'margin-top:6px' }));
+  c.append(bus, chips([['', 'Todos'], ['alerta', '⚠️ Con alerta'], ['sinrec', 'Sin albarán']], TRFIL, k => { TRFIL = k; pintarTr(); }),
+    h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px' }, h('button', { class: 'sec', onclick: csvTr }, '⬇ CSV'), h('button', { onclick: xlsxTr, id: 'btnXlsxTr' }, '⬇ Excel con fotos')), h('div', { id: 'xlsxMsg', class: 'small', style: 'margin:0 0 6px' }), lista);
   function pintaLista() {
     const L = viajesTr(); lista.textContent = '';
     L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (v.alertas ? ' warn' : '') },
