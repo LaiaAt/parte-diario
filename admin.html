@@ -246,7 +246,7 @@ function modulo(m) {
   window.scrollTo(0, 0);
   if (m === 'transportes' && !TR) cargarTr();
 }
-let TR = null, TRTAB = 'viajes', TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
+let TRVM = 'alb', TR = null, TRTAB = 'viajes', TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
 async function cargarTr() {
   $('trBody').textContent = 'Cargando…';
   try {
@@ -354,7 +354,7 @@ function pintaAlb() {
       h('div', { class: 'big' }, 'Valera ' + (v.n_valera || '—'), h('span', { class: 'tag' }, v.valera_de || '—')),
       h('div', {}, v.placa + ' · ' + (v.conductor || '') + ' · ' + (v.empresa || '')),
       h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + (v.material || '—') + ' · ' + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—')),
-      h('div', { class: 'small' }, nf(v.cant) + ' m³ validado' + (Number(v.vol_albaran) > 0 ? ' · ' + nf(v.vol_albaran) + ' m³ albarán' : '') + (pctV(v) !== null ? ' (' + pctV(v) + ' % de la tolva)' : '') + ' · ' + v.cod + ' · ' + v.usuario),
+      h('div', { class: 'small' }, (Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) : '—') + ' m³ albarán · ' + nf(v.cant) + ' m³ confirmado' + (pctV(v) !== null ? ' (' + pctV(v) + ' % de la tolva)' : '') + ' · ' + v.cod + ' · ' + v.usuario),
       v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
       fo));
     // las fotos del albarán se muestran de una vez (primeros 3 resultados)
@@ -375,35 +375,38 @@ function vistaAlb(c) {
 }
 
 /* ----- resumen gerencial ----- */
-function agrupa(V, f) { const o = {}; V.forEach(v => { const k = f(v); const x = (o[k] = o[k] || { k: k, n: 0, q: 0, ps: 0, pn: 0, km: 0, kn: 0 }); const q = Number(v.cant) || 0, p = pctV(v); x.n++; x.q += q; if (p !== null) { x.ps += p; x.pn++; } if (Number(v.km) > 0) { x.km += Number(v.km); x.kn++; } }); return Object.keys(o).map(k => o[k]).sort((a, b) => b.q - a.q); }
+function agrupa(V, f) { const o = {}; V.forEach(v => { const k = f(v); const x = (o[k] = o[k] || { k: k, n: 0, q: 0, qa: 0, ps: 0, pn: 0, km: 0, kn: 0 }); const q = Number(v.cant) || 0, p = pctV(v); x.n++; x.q += q; x.qa += Number(v.vol_albaran) || 0; if (p !== null) { x.ps += p; x.pn++; } if (Number(v.km) > 0) { x.km += Number(v.km); x.kn++; } }); return Object.keys(o)
+  .map(k => o[k]).sort((a, b) => qm(b) - qm(a)); }
+const qm = x => TRVM === 'alb' ? x.qa : x.q;
 const pctProm = x => x.pn ? x.ps / x.pn : null;
 function tablaBarras(titulo, L, col, conPct, max) {
-  const mx = Math.max.apply(null, L.map(x => x.q).concat([1]));
+  const mx = Math.max.apply(null, L.map(qm).concat([1]));
   return h('div', { class: 'tcard' }, h('div', { class: 'big' }, titulo),
     h('div', { class: 'tw' }, h('table', { style: 'width:100%;border-collapse:collapse' },
       L.slice(0, max || 12).map(x => h('tr', {}, h('td', { style: 'padding:5px 4px;font-weight:700;white-space:nowrap' }, x.k),
-        h('td', { style: 'width:45%;padding:5px 4px' }, h('div', { style: 'height:12px;border-radius:6px;background:' + col + ';width:' + Math.max(2, Math.round(x.q / mx * 100)) + '%' })),
-        h('td', { style: 'text-align:right;padding:5px 4px;white-space:nowrap' }, h('b', {}, nf1(x.q) + ' m³'), ' · ' + x.n + ' v.'),
+        h('td', { style: 'width:45%;padding:5px 4px' }, h('div', { style: 'height:12px;border-radius:6px;background:' + col + ';width:' + Math.max(2, Math.round(qm(x) / mx * 100)) + '%' })),
+        h('td', { style: 'text-align:right;padding:5px 4px;white-space:nowrap' }, h('b', {}, nf1(x.qa) + ' alb.'), ' · ' + nf1(x.q) + ' conf. · ' + x.n + ' v.'),
         conPct ? h('td', { style: 'text-align:right;padding:5px 4px;white-space:nowrap;' + (pctProm(x) !== null && pctProm(x) < 70 ? 'color:#b3261e;font-weight:700' : '') }, pctProm(x) === null ? '—' : Math.round(pctProm(x)) + ' %') : null)))));
 }
 function vistaRes(c) {
   const V = TR.viajes; if (!V.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay viajes en estas fechas')); return; }
-  const q = V.reduce((a, v) => a + (Number(v.cant) || 0), 0), ps = V.map(pctV).filter(x => x !== null), ks = V.filter(v => Number(v.km) > 0);
-  const qkm = ks.reduce((a, v) => a + (Number(v.cant) || 0) * Number(v.km), 0), baja = ps.filter(x => x < 70).length;
+  const q = V.reduce((a, v) => a + (Number(v.cant) || 0), 0), qa = V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0), ps = V.map(pctV).filter(x => x !== null), ks = V.filter(v => Number(v.km) > 0);
+  const qkm = ks.reduce((a, v) => a + (Number(v.cant) || 0) * Number(v.km), 0), qkma = ks.reduce((a, v) => a + (Number(v.vol_albaran) || 0) * Number(v.km), 0), baja = ps.filter(x => x < 70).length;
   const K = (t, v, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, h('b', {}, v), t);
-  c.appendChild(h('div', { class: 'kpis kpis2' }, K('Viajes', V.length), K('m³ movilizados', nf1(q)), K('Volquetas', new Set(V.map(v => v.placa)).size),
+  c.appendChild(chips([['alb', 'Barras y orden según volumen del albarán'], ['conf', 'según volumen confirmado']], TRVM, k => { TRVM = k; pintarTr(); }));
+  c.appendChild(h('div', { class: 'kpis kpis2' }, K('Viajes', V.length), K('m³ según albarán', nf1(qa)), K('m³ confirmado', nf1(q)), K('Volquetas', new Set(V.map(v => v.placa)).size),
     K('Carga promedio', ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) + ' %' : '—', ps.length && ps.reduce((a, b) => a + b, 0) / ps.length < 70 ? 'mal' : 'bien'),
-    K('Km promedio', ks.length ? nf1(ks.reduce((a, v) => a + Number(v.km), 0) / ks.length) : '—'), K('m³ × km', nf1(qkm)),
+    K('Km promedio', ks.length ? nf1(ks.reduce((a, v) => a + Number(v.km), 0) / ks.length) : '—'), K('m³ × km (albarán)', nf1(qkma)), K('m³ × km (confirmado)', nf1(qkm)),
     K('Viajes con carga baja (<70 %)', baja, baja ? 'mal' : ''), K('Sin albarán (días pasados)', V.filter(v => !v.tiene_recibo && v.fecha < TR.hoy).length, V.some(v => !v.tiene_recibo && v.fecha < TR.hoy) ? 'mal' : 'bien')));
   // m3 por dia
   const pd = agrupa(V, v => v.fecha).sort((a, b) => a.k.localeCompare(b.k)).map(x => Object.assign(x, { k: fmtF(x.k).slice(0, 5) }));
   c.appendChild(tablaBarras('📅 m³ por día', pd, '#0277bd', true, 40));
   // UF x destino
   const ufs = Array.from(new Set(V.map(ufTxt))).sort(), des = agrupa(V, v => sitioDe(v) || '—').map(x => x.k);
-  const M = {}; V.forEach(v => { const k = ufTxt(v) + '|' + (sitioDe(v) || '—'); M[k] = (M[k] || 0) + (Number(v.cant) || 0); });
-  const mx = Math.max.apply(null, Object.keys(M).map(k => M[k]).concat([1]));
-  const tb = h('table', { style: 'border-collapse:collapse;min-width:100%' }, h('tr', {}, h('th', { style: 'text-align:left;padding:6px' }, 'm³  (UF ↓ / destino →)'), des.map(d => h('th', { style: 'padding:6px;font-size:13px' }, d)), h('th', { style: 'padding:6px' }, 'Total')));
-  ufs.forEach(u => { let tot = 0; const r = h('tr', {}, h('td', { style: 'padding:6px;font-weight:700;white-space:nowrap' }, u)); des.forEach(d => { const x = M[u + '|' + d] || 0; tot += x; r.appendChild(h('td', { style: 'padding:6px;text-align:right;background:rgba(10,127,46,' + (x ? (0.12 + 0.55 * x / mx).toFixed(2) : 0) + ')' }, x ? nf1(x) : '')); }); r.appendChild(h('td', { style: 'padding:6px;text-align:right;font-weight:700' }, nf1(tot))); tb.appendChild(r); });
+  const M = {}; V.forEach(v => { const k = ufTxt(v) + '|' + (sitioDe(v) || '—'), o = (M[k] = M[k] || { a: 0, c: 0 }); o.a += Number(v.vol_albaran) || 0; o.c += Number(v.cant) || 0; });
+  const mv = o => o ? (TRVM === 'alb' ? o.a : o.c) : 0, mx = Math.max.apply(null, Object.keys(M).map(k => mv(M[k])).concat([1]));
+  const tb = h('table', { style: 'border-collapse:collapse;min-width:100%' }, h('tr', {}, h('th', { style: 'text-align:left;padding:6px' }, 'm³ albarán / confirmado  (UF ↓ / destino →)'), des.map(d => h('th', { style: 'padding:6px;font-size:13px' }, d)), h('th', { style: 'padding:6px' }, 'Total')));
+  ufs.forEach(u => { let ta = 0, tc = 0; const r = h('tr', {}, h('td', { style: 'padding:6px;font-weight:700;white-space:nowrap' }, u)); des.forEach(d => { const o = M[u + '|' + d], x = mv(o); if (o) { ta += o.a; tc += o.c; } r.appendChild(h('td', { style: 'padding:6px;text-align:right;white-space:nowrap;background:rgba(10,127,46,' + (x ? (0.12 + 0.55 * x / mx).toFixed(2) : 0) + ')' }, o ? nf1(o.a) + ' / ' + nf1(o.c) : '')); }); r.appendChild(h('td', { style: 'padding:6px;text-align:right;font-weight:700;white-space:nowrap' }, nf1(ta) + ' / ' + nf1(tc))); tb.appendChild(r); });
   c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🧭 Cuánto va de cada UF a cada destino'), h('div', { class: 'tw' }, tb)));
   c.appendChild(tablaBarras('📍 Por destino', agrupa(V, v => sitioDe(v) || '—'), '#0277bd', true));
   c.appendChild(tablaBarras('🛣 Por UF de origen', agrupa(V, ufTxt), '#2e7d32', true));
@@ -412,7 +415,7 @@ function vistaRes(c) {
   c.appendChild(tablaBarras('🪨 Por material', agrupa(V, v => v.material || '—'), '#ef6c00', false));
   const lb = agrupa(V, v => v.placa).filter(x => pctProm(x) !== null && pctProm(x) < 70 && x.n >= 2).sort((a, b) => pctProm(a) - pctProm(b));
   c.appendChild(h('div', { class: 'tcard' + (lb.length ? ' warn' : '') }, h('div', { class: 'big' }, '📉 Carga baja (promedio menor a 70 %)'),
-    lb.length ? lb.map(x => h('div', {}, h('b', {}, x.k), ' · ' + Math.round(pctProm(x)) + ' % en ' + x.n + ' viajes · ' + nf1(x.q) + ' m³')) : h('div', { class: 'trok' }, '✅ Ninguna volqueta con carga baja')));
+    lb.length ? lb.map(x => h('div', {}, h('b', {}, x.k), ' · ' + Math.round(pctProm(x)) + ' % en ' + x.n + ' viajes · ' + nf1(x.qa) + ' alb. / ' + nf1(x.q) + ' conf. m³')) : h('div', { class: 'trok' }, '✅ Ninguna volqueta con carga baja')));
 }
 
 /* ----- flujo: de dónde sale el material y adónde llega (gráfico propio, sin internet extra) ----- */
@@ -420,14 +423,15 @@ function vistaMapa(c) {
   const dias = Array.from(new Set(TR.viajes.map(v => v.fecha))).sort().reverse();
   if (TRDIA !== '*' && (!TRDIA || dias.indexOf(TRDIA) < 0)) TRDIA = dias[0] || '';
   c.appendChild(chips(dias.slice(0, 8).map(d => [d, fmtF(d).slice(0, 5)]).concat([['*', 'Todo el periodo']]), TRDIA, k => { TRDIA = k; pintarTr(); }));
+  c.appendChild(chips([['alb', 'Franjas según volumen del albarán'], ['conf', 'según volumen confirmado']], TRVM, k => { TRVM = k; pintarTr(); }));
   const V = TR.viajes.filter(v => TRDIA === '*' || v.fecha === TRDIA);
   const ufTxt = v => v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : (v.mov === 'RECIBE' ? (v.destino || 'Sin destino') : (v.origen || 'Otro origen'));
   const sitTxt = v => (sitioDe(v) || 'Sin indicar').trim() || 'Sin indicar';
   const L = {}, R = {}, E = {};
   V.forEach(v => {
-    const rec = v.mov === 'RECIBE', a = rec ? sitTxt(v) : ufTxt(v), b = rec ? ufTxt(v) : sitTxt(v), w = Number(v.cant) > 0 ? Number(v.cant) : 0, k = a + '\u0001' + b;
-    L[a] = L[a] || { n: a, v: 0, t: 0, uf: /^UF \d/.test(a) }; R[b] = R[b] || { n: b, v: 0, t: 0, uf: /^UF \d/.test(b) }; E[k] = E[k] || { a: a, b: b, v: 0, t: 0 };
-    [L[a], R[b], E[k]].forEach(x => { x.v += w; x.t++; });
+    const rec = v.mov === 'RECIBE', a = rec ? sitTxt(v) : ufTxt(v), b = rec ? ufTxt(v) : sitTxt(v), wa = Number(v.vol_albaran) || 0, wc = Number(v.cant) || 0, w = TRVM === 'alb' ? wa : wc, k = a + '\u0001' + b;
+    L[a] = L[a] || { n: a, v: 0, va: 0, vc: 0, t: 0, uf: /^UF \d/.test(a) }; R[b] = R[b] || { n: b, v: 0, va: 0, vc: 0, t: 0, uf: /^UF \d/.test(b) }; E[k] = E[k] || { a: a, b: b, v: 0, va: 0, vc: 0, t: 0 };
+    [L[a], R[b], E[k]].forEach(x => { x.v += w; x.va += wa; x.vc += wc; x.t++; });
   });
   c.appendChild(h('div', { class: 'small', style: 'margin:8px 0' }, '📖 Cómo leerlo: a la izquierda está de dónde SALE el material y a la derecha adónde LLEGA. Las franjas son los viajes: entre más ancha, más m³. Verde = UF de la obra · otros colores = sitios externos.'));
   if (!V.length) { c.appendChild(h('div', { class: 'tcard' }, 'No hay viajes en ese periodo.')); return; }
@@ -451,19 +455,19 @@ function vistaMapa(c) {
   ls.forEach(a => { rs.forEach(b => { const e = E[a.n + '\u0001' + b.n]; if (e) ribbons.push({ e: e, a: a, b: b }); }); });
   ribbons.forEach(r => { const e = r.e, ta = r.a.h * wt(e) / wt(r.a), tb = r.b.h * wt(e) / wt(r.b); e.ya = r.a.cur; r.a.cur += ta; e.yb = r.b.cur; r.b.cur += tb; e.ta = ta; e.tb = tb;
     const g = el('path', { d: 'M' + x0 + ',' + e.ya + 'C' + xm + ',' + e.ya + ' ' + xm + ',' + e.yb + ' ' + x1 + ',' + e.yb + 'L' + x1 + ',' + (e.yb + tb) + 'C' + xm + ',' + (e.yb + tb) + ' ' + xm + ',' + (e.ya + ta) + ' ' + x0 + ',' + (e.ya + ta) + 'Z', fill: color(r.a.uf ? r.b : r.a), 'fill-opacity': '.45', stroke: '#fff', 'stroke-width': .5 });
-    el('title', {}, r.a.n + ' → ' + r.b.n + ': ' + e.t + ' viaje(s) · ' + nf1(e.v) + ' m³', g); });
+    el('title', {}, r.a.n + ' → ' + r.b.n + ': ' + e.t + ' viaje(s) · ' + nf1(e.va) + ' m³ albarán · ' + nf1(e.vc) + ' m³ confirmado', g); });
   const caja = (q, lado) => {
     const col0 = color(q), g = el('g', {}); el('rect', { x: q.x, y: q.y, width: NW, height: q.h, rx: 8, fill: col0 }, '', g);
     const cy = q.y + q.h / 2, nombre = q.n.length > 22 ? q.n.slice(0, 21) + '…' : q.n;
     el('text', { x: q.x + 10, y: cy - 3, 'font-size': 14, 'font-weight': 800, style: 'fill:#fff' }, nombre, g);
-    el('text', { x: q.x + 10, y: cy + 14, 'font-size': 12, style: 'fill:#fff' }, nf1(q.v) + ' m³ · ' + q.t + ' viaje' + (q.t === 1 ? '' : 's'), g);
-    el('title', {}, q.n + ': ' + q.t + ' viaje(s) · ' + nf1(q.v) + ' m³', g);
+    el('text', { x: q.x + 10, y: cy + 14, 'font-size': 11, style: 'fill:#fff' }, nf1(q.va) + ' alb. · ' + nf1(q.vc) + ' conf. · ' + q.t + ' v.', g);
+    el('title', {}, q.n + ': ' + q.t + ' viaje(s) · ' + nf1(q.va) + ' m³ albarán · ' + nf1(q.vc) + ' m³ confirmado', g);
   };
   ls.forEach(q => caja(q)); rs.forEach(q => caja(q));
   c.appendChild(svg);
-  c.appendChild(h('div', { class: 'small', style: 'margin-top:6px' }, V.length + ' viajes · ' + nf1(V.reduce((a, v) => a + (Number(v.cant) || 0), 0)) + ' m³ · tablero pd-v68'));
+  c.appendChild(h('div', { class: 'small', style: 'margin-top:6px' }, V.length + ' viajes · ' + nf1(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0)) + ' m³ albarán · ' + nf1(V.reduce((a, v) => a + (Number(v.cant) || 0), 0)) + ' m³ confirmado'));
   const top = ord.slice(0, 5);
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🏁 Recorridos con más material'), h('div', {}, top.map(e => h('div', { class: 'small', style: 'margin:3px 0' }, '• ' + e.a + ' → ' + e.b + ': ' + nf1(e.v) + ' m³ (' + e.t + ' viaje' + (e.t === 1 ? '' : 's') + ')')))));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🏁 Recorridos con más material'), h('div', {}, top.map(e => h('div', { class: 'small', style: 'margin:3px 0' }, '• ' + e.a + ' → ' + e.b + ': ' + nf1(e.va) + ' alb. / ' + nf1(e.vc) + ' conf. m³ (' + e.t + ' viaje' + (e.t === 1 ? '' : 's') + ')')))));
   const sit = (TR.sitios || []).filter(x => x.lat !== '' && x.lat !== undefined && x.lon !== '');
   if (sit.length) c.appendChild(h('details', { style: 'margin-top:8px' }, h('summary', { class: 'small' }, '📍 Ver destinos en Google Maps'), sit.map(x => h('a', { class: 'btnl', href: 'https://www.google.com/maps/search/?api=1&query=' + x.lat + ',' + x.lon, target: '_blank', rel: 'noopener' }, '📍 ' + x.n))));
 }
@@ -550,7 +554,7 @@ function vistaViajes(c) {
   function pintaLista() {
     const L = viajesTr(); lista.textContent = '';
     L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (v.alertas ? ' warn' : '') },
-      h('div', { class: 'big' }, v.placa, ' · ', nf(v.cant) + ' m³', Number(v.vol_albaran) > 0 ? h('span', { class: 'small' }, ' (albarán ' + nf(v.vol_albaran) + ')') : null, pctV(v) !== null ? h('span', { class: 'tag' + (pctV(v) < 70 ? ' w' : '') }, pctV(v) + ' %') : null),
+      h('div', { class: 'big' }, v.placa, ' · ', (Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) : '—') + ' alb. · ' + nf(v.cant) + ' conf. m³', pctV(v) !== null ? h('span', { class: 'tag' + (pctV(v) < 70 ? ' w' : '') }, pctV(v) + ' %') : null),
       h('div', {}, v.material || '—'),
       h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + (v.km ? ' · ' + nf(v.km) + ' km' : '')),
       h('div', { class: 'small' }, (v.conductor || '') + ' · valera ' + (v.n_valera || '—') + ' · ' + v.cod),
@@ -562,7 +566,7 @@ function vistaViajes(c) {
   }
   pintaLista();
 }
-const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán'];
+const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán'];
 const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), v.origen, v.destino, v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran];
 function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen']);
@@ -637,12 +641,72 @@ async function validarDist(x) {
   if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return; }
   TR = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (TR.ok) pintarTr();
 }
+/* ----- distancias, sitios (destinos/orígenes) y UF: el administrador los crea y corrige ----- */
+const nrm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+async function postGeo(d) {
+  const r = await api(Object.assign({ accion: 'admin_tr_geo', llave: LLAVE }, d));
+  if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return null; }
+  TR.geo = r.geo; TR.dist = r.dist; TR.sitios = r.sitios; TR.ufs = r.ufs; return r;
+}
+function vistaGeo(c) {
+  const G = TR.geo || { sitios: [], ufs: [], dist: [] };
+  const inp = (v, w, extra) => h('input', Object.assign({ type: 'text', inputmode: 'decimal', value: v === undefined || v === null ? '' : v, style: 'width:' + (w || 84) + 'px;font-size:15px;padding:6px' }, extra || {}));
+  const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
+  const mapa = (la, lo) => (la !== '' && lo !== '' && la !== undefined) ? h('a', { href: 'https://www.google.com/maps/search/?api=1&query=' + la + ',' + lo, target: '_blank', rel: 'noopener', title: 'Ver en el mapa' }, '📍') : null;
+  c.appendChild(h('div', { class: 'small', style: 'margin:6px 0' }, 'Aquí creas y corriges los orígenes (UF) y destinos, sus coordenadas y las distancias en km. Los cambios se guardan al instante y los usan los transportistas desde su próximo viaje.'));
+  // 1) matriz de distancias UF x sitio
+  const D = {}; G.dist.forEach(x => { D[x.uf + '|' + nrm(x.d)] = x; });
+  const tm = h('table', { style: 'border-collapse:collapse;font-size:14px' }, h('tr', {}, th('UF ↓ / destino →'), G.sitios.map(x => th(x.n))));
+  G.ufs.forEach(u => {
+    const r = h('tr', {}, td(h('b', {}, 'UF ' + u.uf)));
+    G.sitios.forEach(sx => {
+      const k = 'UF' + String(u.uf).toUpperCase() + '|' + nrm(sx.n), e = D[k];
+      const i = inp(e ? e.km : '', 62, { title: e ? (e.pv ? 'POR VALIDAR · ' : '') + e.fuente : 'Sin distancia', style: 'width:62px;font-size:15px;padding:6px;' + (e && e.pv ? 'background:#fff3cd' : '') });
+      i.addEventListener('change', async () => {
+        const v = i.value.trim().replace(',', '.'), antes = D[k];
+        if (v === '') { if (!antes) return; if (!confirm('¿Borrar la distancia UF ' + u.uf + ' → ' + sx.n + '?')) { i.value = antes.km; return; } const q = await postGeo({ tabla: 'dist', uf: u.uf, destino: sx.n, op: 'eliminar' }); if (q) { delete D[k]; i.style.background = ''; } return; }
+        const q = await postGeo({ tabla: 'dist', uf: u.uf, destino: sx.n, km: v, op: 'guardar' });
+        if (q) { D[k] = q.dist.find(x => x.uf === 'UF' + String(u.uf).toUpperCase() && nrm(x.d) === nrm(sx.n)) || { km: v, fuente: '' }; i.style.background = '#d7f0dc'; i.title = D[k].fuente || ''; } else i.value = antes ? antes.km : '';
+      });
+      r.appendChild(td(i));
+    });
+    tm.appendChild(r);
+  });
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📏 Distancias UF → destino (km)'), h('div', { class: 'small' }, 'Escribe el km y sal de la casilla. Vacía = se borra. Amarillo = ingresada por un usuario, falta validar (al editarla queda validada).'), h('div', { class: 'tw', style: 'max-height:none' }, tm)));
+  const otras = G.dist.filter(x => !G.ufs.some(u => 'UF' + String(u.uf).toUpperCase() === x.uf) || !G.sitios.some(s => nrm(s.n) === nrm(x.d)));
+  if (otras.length) c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '⚠️ Distancias con UF o destino que no está en las listas'), h('div', { class: 'small' }, 'Créalos abajo (sitio o UF) para verlos en la tabla, o bórralos aquí.'),
+    otras.map(x => h('div', { style: 'margin:4px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, h('span', {}, x.uf + ' → ' + x.d + ': ' + x.km + ' km' + (x.pv ? ' (por validar)' : '')), h('button', { class: 'sec', onclick: async () => { if (!confirm('¿Borrar esta distancia?')) return; if (await postGeo({ tabla: 'dist', uf: x.uf.replace(/^UF/, ''), destino: x.d, op: 'eliminar' })) pintarTr(); } }, '🗑 Borrar')))));
+  // 2) sitios
+  const filaSitio = (x, nuevo) => {
+    const n = nuevo ? h('input', { type: 'text', placeholder: 'Nombre del sitio', style: 'width:200px;font-size:15px;padding:6px' }) : h('b', {}, x.n);
+    const la = inp(x.lat), lo = inp(x.lon), ra = inp(x.radio, 64), no = h('input', { type: 'text', value: x.notas || '', style: 'width:170px;font-size:15px;padding:6px' });
+    const re = h('select', { style: 'font-size:15px;padding:6px' }, [['', '— no definido —'], ['EXC', 'Solo descapote (EXC)'], ['RCD', 'Todo menos descapote (RCD)'], ['RCD,EXC', 'Ambos']].map(o => h('option', { value: o[0] }, o[1])));
+    re.value = (String(x.recibe || '').toUpperCase().split(/[,;\s]+/).filter(Boolean).sort().join(',') === 'EXC,RCD') ? 'RCD,EXC' : String(x.recibe || '').toUpperCase();
+    const gu = async () => { const nombre = nuevo ? n.value.trim() : x.n; if (!nombre) { n.focus(); return; } if (await postGeo({ tabla: 'sitio', nombre: nombre, lat: la.value.trim(), lon: lo.value.trim(), radio: ra.value.trim(), recibe: re.value, notas: no.value })) pintarTr(); };
+    return h('tr', { style: nuevo ? 'background:#f1f8f1' : '' }, td(n), td(la), td(lo), td(ra), td(re), td(no), td(mapa(x.lat, x.lon)),
+      td(h('div', { style: 'display:flex;gap:4px' }, h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, nuevo ? '➕ Crear' : '💾'),
+        nuevo ? null : h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Eliminar sitio', onclick: async () => { if (!confirm('¿Eliminar el sitio ' + x.n + '? Los viajes ya hechos no cambian; sus distancias quedan en la tabla.')) return; if (await postGeo({ tabla: 'sitio', nombre: x.n, op: 'eliminar' })) pintarTr(); } }, '🗑'))));
+  };
+  const ts = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['Destino / origen externo', 'Latitud', 'Longitud', 'Radio (m)', 'Qué recibe', 'Notas', '', ''].map(th)));
+  ts.appendChild(filaSitio({ n: '', lat: '', lon: '', radio: '', recibe: '', notas: '' }, true)); G.sitios.forEach(x => ts.appendChild(filaSitio(x, false)));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📍 Destinos y orígenes externos (sitios)'), h('div', { class: 'small' }, 'El nombre no se cambia después de creado (para no romper los viajes). Coordenadas en grados decimales, ej. 4.8123 y -74.0345. Radio = qué tan cerca debe estar un camión para considerarse "en el sitio".'), h('div', { class: 'tw', style: 'max-height:none' }, ts)));
+  // 3) UF
+  const filaUF = (x, nuevo) => {
+    const n = nuevo ? h('input', { type: 'text', placeholder: 'N° UF', style: 'width:70px;font-size:15px;padding:6px' }) : h('b', {}, 'UF ' + x.uf);
+    const f = ['lat_ini', 'lon_ini', 'lat_fin', 'lon_fin', 'lat_cg', 'lon_cg'].map(k => inp(x[k], 78)), no = h('input', { type: 'text', value: x.notas || '', style: 'width:150px;font-size:15px;padding:6px' });
+    const gu = async () => { const uf = nuevo ? n.value.trim() : x.uf; if (!uf) { n.focus(); return; } const d = { tabla: 'uf', uf: uf, notas: no.value }; ['lat_ini', 'lon_ini', 'lat_fin', 'lon_fin', 'lat_cg', 'lon_cg'].forEach((k, i) => { d[k] = f[i].value.trim(); }); if (await postGeo(d)) pintarTr(); };
+    return h('tr', { style: nuevo ? 'background:#f1f8f1' : '' }, td(n), f.map(i => td(i)), td(no), td(h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, nuevo ? '➕ Crear' : '💾')));
+  };
+  const tu = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['UF', 'Lat inicio', 'Lon inicio', 'Lat fin', 'Lon fin', 'Lat centro', 'Lon centro', 'Notas', ''].map(th)));
+  tu.appendChild(filaUF({}, true)); G.ufs.forEach(x => tu.appendChild(filaUF(x, false)));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🛣 Unidades funcionales (orígenes en la obra)'), h('div', { class: 'small' }, 'Inicio y fin del tramo. Si dejas el centro vacío se calcula como el punto medio.'), h('div', { class: 'tw', style: 'max-height:none' }, tu)));
+}
 function pintarTr() {
   const V = TR.viajes, hoy = TR.hoy;
   const conAl = V.filter(v => v.alertas), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend);
   const top = $('trTop'); top.textContent = '';
   const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
-  top.appendChild(h('div', { class: 'kpis' }, K('Viajes', V.length), K('m³', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas', new Set(V.map(v => v.placa)).size)));
+  top.appendChild(h('div', { class: 'kpis' }, K('Viajes', V.length), K('m³ albarán', nf(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0))), K('m³ confirmado', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas', new Set(V.map(v => v.placa)).size)));
   const aviso = (n, txt, fn) => n ? h('button', { class: 'trav', onclick: fn }, '⚠️ ' + n + ' ' + txt) : null;
   top.append(...[
     aviso(pend.length, pend.length === 1 ? 'volqueta nueva por confirmar' : 'volquetas nuevas por confirmar', () => { TRVOL = 'pend'; TRTAB = 'volquetas'; pintarTr(); }),
@@ -657,10 +721,10 @@ function pintarTr() {
   }
   if (!pend.length && !conAl.length && !sinRec.length && !dp.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
   const tb = $('trTabs'); tb.textContent = '';
-  [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['planillas', '📑 Cierre y planillas']].forEach(([k, t]) =>
+  [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']].forEach(([k, t]) =>
     tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; pintarTr(); } }, t)));
   const c = $('trBody'); c.textContent = '';
-  ({ viajes: vistaViajes, albaran: vistaAlb, sosp: vistaSosp, resumen: vistaRes, mapa: vistaMapa, volquetas: vistaVol, planillas: vistaPlan })[TRTAB](c);
+  ({ viajes: vistaViajes, albaran: vistaAlb, sosp: vistaSosp, resumen: vistaRes, mapa: vistaMapa, volquetas: vistaVol, geo: vistaGeo, planillas: vistaPlan })[TRTAB](c);
 }
 function chips(opts, val, fn) {
   return h('div', { class: 'chips' }, opts.map(([k, t]) => h('button', { class: 'chip' + (val === k ? ' on' : ''), onclick: () => fn(k) }, t)));
