@@ -93,7 +93,7 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
 </style>
 </head>
 <body>
-<header><img class="logo" src="marca.png" alt="Consorcio Constructor Sabana Norte"><h1>Registro de transportes</h1><span id="red"></span></header>
+<header><img class="logo" src="marca.png" alt="Consorcio Constructor Sabana Norte"><h1>Registro de transportes</h1><span style="display:flex;align-items:center;gap:10px"><span id="red"></span><button id="salirTop" hidden style="background:#d32f2f;color:#fff;font-weight:700;padding:6px 12px;min-height:0;width:auto;font-size:14px;border:2px solid #fff;border-radius:8px" onclick="cerrarSesion()">Cerrar sesión</button></span></header>
 <main>
   <div id="aviso" class="aviso" hidden></div>
   <section id="login" class="card" hidden>
@@ -136,7 +136,7 @@ function h(tag, props, ...kids) {
   return e;
 }
 function aviso(t, c, quieto) { const a = $('aviso'); a.textContent = t || ''; a.className = 'aviso ' + (c || ''); a.hidden = !t; if (t && !quieto) window.scrollTo(0, 0); }
-function pantalla(id) { ['login', 'inicio', 'anteriores', 'dia', 'form', 'listo', 'visor'].forEach(i => $(i).hidden = i !== id); window.scrollTo(0, 0); }
+function pantalla(id) { $('salirTop').hidden = id === 'login' || !user; ['login', 'inicio', 'anteriores', 'dia', 'form', 'listo', 'visor'].forEach(i => $(i).hidden = i !== id); window.scrollTo(0, 0); }
 
 /* ---------- almacenamiento en el telefono ---------- */
 const kv = (() => {
@@ -253,7 +253,6 @@ function pintarInicio() {
   hoyV.forEach(v => B.appendChild(filaViaje(v)));
   if (hoyV.length) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:14px', onclick: () => planilla(hoy()) }, '📄 Planilla de hoy'));
   if (VIAJES.some(v => v.fecha !== hoy())) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:6px', onclick: abrirAnteriores }, '📅 Días anteriores'));
-  B.appendChild(h('div', { style: 'text-align:center;margin-top:10px' }, h('button', { class: 'link', onclick: () => cerrarSesion() }, 'Cerrar sesión (cambiar llave)')));
 }
 
 function abrirAnteriores() {
