@@ -241,6 +241,9 @@ function pintarInicio() {
   const hoyV = VIAJES.filter(v => v.fecha === hoy()).sort((a, b) => String(a.hora_salida || '').localeCompare(String(b.hora_salida || '')) || a.cod.localeCompare(b.cod));
   const vol = hoyV.reduce((s, v) => s + volV(v), 0);
   B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()))));
+  const nLleg = hoyV.filter(v => v.mov === 'RECIBE').length, nSal = hoyV.length - nLleg;
+  const tile = (ico, n, t, col) => h('div', { style: 'flex:1;background:#fff;border:2px solid ' + col + ';border-radius:8px;text-align:center;padding:10px 4px' }, h('div', { style: 'font-size:30px;font-weight:800;color:' + col }, ico + ' ' + n), h('div', { style: 'font-size:16px;font-weight:700;color:#12202b' }, t));
+  B.appendChild(h('div', { style: 'display:flex;gap:8px;margin-bottom:12px' }, tile('📥', nLleg, 'Llegaron a la obra', '#0d3b66'), tile('📤', nSal, 'Salieron de la obra', '#1b5e20')));
   B.appendChild(h('div', { class: 'gr', style: 'margin-bottom:14px' },
     h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO VIAJE'),
     ultimoViaje() ? h('button', { class: 'sec', onclick: () => abrirForm(null, ultimoViaje()) }, '🔁 Repetir el último viaje (' + ultimoViaje().placa + ')') : null));
