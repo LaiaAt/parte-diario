@@ -103,6 +103,7 @@ button.chipm{cursor:pointer;font:inherit}
 <header><b><img class="logo" src="marca.png" alt="">Dashboard · Partes diarios</b><span style="display:flex;align-items:center;gap:10px"><span id="quien"></span><button id="salirTop" hidden style="background:#d32f2f;color:#fff;font-weight:700;padding:8px 14px;border:2px solid #fff;border-radius:8px">Cerrar sesión</button></span></header>
 <div id="nav" class="bar" hidden></div>
 <div id="nav2" class="bar" hidden style="margin-top:-4px"></div>
+<div id="nav3" class="bar" hidden style="margin-top:-4px"></div>
 <main>
 <section id="login" class="card">
   <img class="marca" src="logo.png" alt="Consorcio Constructor Sabana Norte">
@@ -240,12 +241,18 @@ async function cargar(primera) {
 
 const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['consolidados', '📊 Consolidados'], ['transportes', '🚛 Transportes']];
 let MOD = 'resumen';
+const TR_TABS = [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
+function navTr() {
+  const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
+  TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; if (TR) pintarTr(); else navTr(); } }, t)));
+}
 function modulo(m) {
   MOD = m;
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
   const gt = m === 'transportes';
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', (b.dataset.g === 't') === gt));
-  $('nav2').hidden = gt;
+  $('nav2').hidden = gt; $('nav3').hidden = !gt; if (gt) navTr();
+  { const t = $('nav').offsetHeight + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
   window.scrollTo(0, 0);
   if (m === 'transportes' && !TR) cargarTr();
@@ -804,9 +811,7 @@ function pintarTr() {
     top.appendChild(cj);
   }
   if (!pend.length && !conAl.length && !sinRec.length && !dp.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
-  const tb = $('trTabs'); tb.textContent = '';
-  [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']].forEach(([k, t]) =>
-    tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; pintarTr(); } }, t)));
+  navTr();
   const c = $('trBody'); c.textContent = '';
   ({ viajes: vistaViajes, albaran: vistaAlb, sosp: vistaSosp, resumen: vistaRes, mapa: vistaMapa, volquetas: vistaVol, geo: vistaGeo, planillas: vistaPlan })[TRTAB](c);
 }
