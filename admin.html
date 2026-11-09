@@ -658,6 +658,25 @@ async function crearCierre(desde, hasta, usuario, msg) {
 }
 function cargaJs(src, ok) { return new Promise((res, rej) => { if (ok()) return res(); const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script ' + src)); document.head.appendChild(s); }); }
 let LOGO_PL = null;
+async function planillasRango(desde, hasta, llave, msg) {
+  const V = TR.viajes.filter(v => v.fecha >= desde && v.fecha <= hasta && (!llave || v.llave === llave));
+  if (!V.length) { msg.textContent = 'No hay viajes en ese periodo.'; return; }
+  const dias = Array.from(new Set(V.map(v => v.fecha))).sort();
+  if (dias.length > 31) { msg.textContent = 'Máximo 31 días.'; return; }
+  msg.textContent = 'Generando ' + dias.length + (dias.length === 1 ? ' planilla…' : ' planillas…');
+  try {
+    await cargaJs('vendor/jspdf.umd.min.js', () => window.jspdf); await cargaJs('pdf_tr.js', () => window.PDT);
+    await logoPl();
+    let comp = null; const J = window.jspdf.jsPDF;
+    function Comp(o) { if (!comp) comp = new J(o); else comp.addPage(); return comp; }
+    dias.forEach(d => { const vs = V.filter(v => v.fecha === d), nom = Array.from(new Set(vs.map(v => v.creado_por || v.usuario).filter(Boolean))).join(' / '); window.PDT.generarPlanilla(d, vs, { nombre: nom }, Comp, LOGO_PL); });
+    bajar(comp.output('blob'), dias.length === 1 ? 'Planilla_viajes_' + (llave || 'TODAS') + '_' + dias[0] + '.pdf' : 'Planillas_viajes_' + (llave || 'TODAS') + '_' + dias[0] + '_a_' + dias[dias.length - 1] + '.pdf');
+    msg.textContent = '✔ ' + dias.length + (dias.length === 1 ? ' planilla lista.' : ' planillas listas (una hoja por día).');
+  } catch (e) { console.error(e); msg.textContent = 'No se pudo generar la planilla.'; }
+}
+async function logoPl() {
+  if (!LOGO_PL) { try { LOGO_PL = await new Promise((res, rej) => { const i = new Image(); i.onload = () => { const cv = document.createElement('canvas'); cv.width = i.naturalWidth; cv.height = i.naturalHeight; cv.getContext('2d').drawImage(i, 0, 0); res({ data: cv.toDataURL('image/png'), w: i.naturalWidth, h: i.naturalHeight }); }; i.onerror = rej; i.src = 'logo.png'; }); } catch (e) {} }
+}
 async function planillaDia(g, msg) {
   msg.textContent = 'Generando planilla…';
   try {
@@ -711,10 +730,13 @@ async function xlsxCambios() {
 function vistaPlan(c) {
   const msg = h('div', { class: 'small', style: 'margin:6px 0' });
   const llaves = Array.from(new Set(TR.viajes.map(v => v.llave).filter(Boolean))).sort(), sel = h('select', { style: 'width:100%;margin:6px 0' }, h('option', { value: '' }, 'Todas las llaves'), llaves.map(l => h('option', { value: l }, l)));
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📑 Crear cierre gerencial (PDF)'),
-    h('div', { class: 'small' }, 'KPIs, ranking, UF, destinos, carga baja, alertas y detalle. Queda en la biblioteca.'), sel,
-    h('div', { class: 'acc' }, h('button', { onclick: () => crearCierre(bogota(), bogota(), sel.value, msg) }, 'Cierre de hoy'), h('button', { onclick: () => crearCierre($('desde').value, $('hasta').value, sel.value, msg) }, 'Del rango filtrado')), msg));
   const m2 = h('div', { class: 'small' });
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📄 Crear planilla (PDF)'),
+    h('div', { class: 'small' }, 'Una planilla por cada día, con los datos actuales de los viajes (formato de calidad). No se guarda: se genera al momento. Si hay un rango filtrado, sale una hoja por cada día del rango.'), sel,
+    h('div', { class: 'acc' }, h('button', { onclick: () => planillasRango(bogota(), bogota(), sel.value, m2) }, 'Planilla de hoy'), h('button', { onclick: () => planillasRango($('desde').value, $('hasta').value, sel.value, m2) }, 'Planillas del rango filtrado'))));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📑 Reporte consolidado (PDF)'),
+    h('div', { class: 'small' }, 'KPIs, ranking, UF, destinos, carga baja, alertas y detalle con volumen de albarán y confirmado. Queda en la biblioteca.'),
+    h('div', { class: 'acc' }, h('button', { onclick: () => crearCierre(bogota(), bogota(), sel.value, msg) }, 'Consolidado de hoy'), h('button', { onclick: () => crearCierre($('desde').value, $('hasta').value, sel.value, msg) }, 'Consolidado del rango filtrado')), msg));
   // Planillas del día: NO se guardan; se generan al momento con los datos actuales de cada viaje
   const G = {}; TR.viajes.forEach(v => { const k = v.fecha + '|' + (v.llave || ''); (G[k] = G[k] || { fecha: v.fecha, llave: v.llave || '', usuario: v.creado_por || v.usuario || '', v: [] }).v.push(v); });
   const gl = Object.keys(G).map(k => G[k]).sort((a, b) => (b.fecha + b.llave).localeCompare(a.fecha + a.llave));
