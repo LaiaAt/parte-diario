@@ -9,6 +9,7 @@
     const conUF = (lado === 'o') !== rec; // en ENTREGA la UF es el origen; en RECIBE es el destino
     return conUF && uf ? (t ? uf + ' · ' + t : uf) : t;
   }
+  const volv = v => (num(v.vol_albaran) > 0 ? v.vol_albaran : v.cant); // en obra solo se muestra el volumen del albarán
   const f2 = v => { const x = num(v); return isNaN(x) ? '' : String(Math.round(x * 100) / 100); };
 
   // logo: { data: 'data:image/png;base64,...', w: px, h: px } o null
@@ -68,7 +69,7 @@
     y += 15;
     const H = 13.5;
     celda(M, y, XM - M, H, false); etiqueta('TIPO DE MATERIAL:', M, y, 0, 0); valor(v.material, M, y + 10.5, XM - M, 12);
-    celda(XM, y, X1 - XM, H, false); etiqueta('CANTIDAD DESPACHADA (m3):', XM, y, 0, 0); valor(f2(v.cant), XM, y + 10.5, X1 - XM, 12);
+    celda(XM, y, X1 - XM, H, false); etiqueta('CANTIDAD DESPACHADA (m3):', XM, y, 0, 0); valor(f2(volv(v)), XM, y + 10.5, X1 - XM, 12);
     y += H;
     celda(M, y, XM - M, H, false); etiqueta('ORIGEN:', M, y, 0, 0); valor(lugarTr(v, 'o'), M, y + 10.5, XM - M, 11);
     celda(XM, y, X1 - XM, H, false); etiqueta('DESTINO:', XM, y, 0, 0); valor(lugarTr(v, 'd'), XM, y + 10.5, X1 - XM, 11);
@@ -83,7 +84,7 @@
     y += H;
     const mitad = (XM - M) / 2;
     celda(M, y, mitad, H, false); etiqueta('HORA DE SALIDA:', M, y, 0, 0); valor(v.hora_salida, M, y + 10.5, mitad, 12);
-    celda(M + mitad, y, mitad, H, false); etiqueta('CANTIDAD RECIBIDA (m3):', M + mitad, y, 0, 0); valor(f2(v.cant_recibida !== undefined && v.cant_recibida !== '' ? v.cant_recibida : v.cant), M + mitad, y + 10.5, mitad, 12);
+    celda(M + mitad, y, mitad, H, false); etiqueta('CANTIDAD RECIBIDA (m3):', M + mitad, y, 0, 0); valor(f2(v.cant_recibida !== undefined && v.cant_recibida !== '' ? v.cant_recibida : volv(v)), M + mitad, y + 10.5, mitad, 12);
     y += H;
     // firmas
     const w3 = W / 3, hf = 17;
@@ -154,8 +155,8 @@
         let vol = 0, viajesN = 0;
         for (let i = 0; i < FILAS; i++) {
           const r = filas[i]; x = M;
-          const celdas = r ? [String(pg * FILAS + i + 1), null, r.placa, r.material, r.centro, f2(r.peso), f2(r.cant), lugarTr(r, 'o'), lugarTr(r, 'd'), f2(r.km), r.hora_llegada].map(c => c === undefined || c === null ? '' : c) : [String(pg * FILAS + i + 1), '', '', '', '', '', '', '', '', '', ''];
-          if (r) { const c = num(r.cant); if (!isNaN(c)) vol += c; viajesN++; }
+          const celdas = r ? [String(pg * FILAS + i + 1), null, r.placa, r.material, r.centro, f2(r.peso), f2(volv(r)), lugarTr(r, 'o'), lugarTr(r, 'd'), f2(r.km), r.hora_llegada].map(c => c === undefined || c === null ? '' : c) : [String(pg * FILAS + i + 1), '', '', '', '', '', '', '', '', '', ''];
+          if (r) { const c = num(volv(r)); if (!isNaN(c)) vol += c; viajesN++; }
           COLS.forEach((c, j) => {
             doc.rect(x, y, c[1], rh);
             doc.setTextColor(0);
@@ -180,7 +181,7 @@
         doc.setFont('helvetica', 'normal'); doc.setFontSize(7); tx(obs, M + 132, y + 9, { maxWidth: AN - 134 });
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
         tx('VOLUMEN DE LA HOJA: ' + (Math.round(vol * 100) / 100) + ' m3', M + 2, y + 11); tx('VIAJES DE LA HOJA: ' + viajesN, M + 2, y + 17);
-        if (pg === paginas - 1) { const tv0 = g.v.reduce((a, r) => a + (isNaN(num(r.cant)) ? 0 : num(r.cant)), 0); tx('TOTAL DEL DÍA: ' + g.v.length + ' viajes · ' + (Math.round(tv0 * 100) / 100) + ' m3', M + 62, y + 17); }
+        if (pg === paginas - 1) { const tv0 = g.v.reduce((a, r) => a + (isNaN(num(volv(r))) ? 0 : num(volv(r))), 0); tx('TOTAL DEL DÍA: ' + g.v.length + ' viajes · ' + (Math.round(tv0 * 100) / 100) + ' m3', M + 62, y + 17); }
         y += 22;
         doc.rect(M, y, AN / 2, 17); doc.rect(M + AN / 2, y, AN / 2, 17);
         doc.setFontSize(8); doc.setFont('helvetica', 'normal');

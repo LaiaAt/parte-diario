@@ -500,21 +500,34 @@ function tipoAuto(prefijo) {
 }
 function vistaVol(c) {
   const V = TR.viajes;
-  c.appendChild(chips([['pend', 'Por confirmar'], ['act', 'Activas'], ['inact', 'Inactivas'], ['todas', 'Todas']], TRVOL, k => { TRVOL = k; pintarTr(); }));
+  c.appendChild(chips([['pend', 'Por validar'], ['act', 'Activas'], ['inact', 'Inactivas'], ['todas', 'Todas']], TRVOL, k => { TRVOL = k; pintarTr(); }));
   const L = TR.volquetas.filter(x => TRVOL === 'pend' ? esPend(x) : TRVOL === 'act' ? !esIn(x) : TRVOL === 'inact' ? esIn(x) : true);
+  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Escribe el volumen validado (el que comprobaste en la tolva) y pulsa ✔ Validar o Enter. El nominal es el que dice el albarán.'));
+  const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;position:sticky;top:0;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
+  const tb = h('table', { style: 'width:100%;border-collapse:collapse;font-size:15px' }, h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Conductor', 'Nominal albarán (m³)', 'Validado (m³)', 'Viajes', 'Estado', ''].map(th)));
   L.forEach(x => {
     const n = V.filter(v => v.placa === x.placa).length, msg = h('div', { class: 'small' });
-    const ed = h('details', {}, h('summary', { style: 'font-size:16px' }, '✏️ Editar datos'), formVol(x, msg));
-    c.appendChild(h('div', { class: 'tcard' + (esPend(x) ? ' warn' : '') },
-      h('div', { class: 'big' }, x.placa, esPend(x) ? h('span', { class: 'tag w' }, 'Nueva') : null, esIn(x) ? h('span', { class: 'tag' }, 'Inactiva') : null),
-      h('div', { class: 'small' }, [x.empresa, x.tipo, x.capacidad ? x.capacidad + ' m³' : '', x.nominal ? 'nominal ' + x.nominal + ' m³' : '', x.conductor].filter(Boolean).join(' · ') || 'Sin datos'),
-      h('div', { class: 'small' }, n + (n === 1 ? ' viaje' : ' viajes') + ' en estas fechas'),
-      h('div', { class: 'acc' },
-        esPend(x) ? h('button', { onclick: () => cambioVol({ cambio: 'confirmar', placa: x.placa }) }, '✔ Confirmar') : null,
-        h('button', { class: 'sec', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? 'Activar' : 'Desactivar')), ed));
-    tipoAuto('ev_' + x.placa + '_');
+    const iN = h('input', { type: 'text', inputmode: 'decimal', value: x.nominal === undefined || x.nominal === '' ? '' : x.nominal, style: 'width:90px;font-size:16px;padding:8px' });
+    const iV = h('input', { type: 'text', inputmode: 'decimal', value: x.capacidad === undefined || x.capacidad === '' ? '' : x.capacidad, style: 'width:90px;font-size:16px;padding:8px;font-weight:700' });
+    const guardar = async () => {
+      const vv = iV.value.trim().replace(',', '.'), nn = iN.value.trim().replace(',', '.');
+      if (!(Number(vv) > 0)) { iV.style.outline = '3px solid #b3261e'; iV.focus(); return; }
+      await cambioVol({ cambio: 'validar', placa: x.placa, capacidad: vv, nominal: nn });
+    };
+    [iN, iV].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') guardar(); }));
+    const ed = h('tr', { hidden: true }, h('td', { colspan: 9, style: 'padding:6px 10px;background:#fafafa' }, formVol(x, msg)));
+    tb.appendChild(h('tr', { style: esPend(x) ? 'background:#fffaf0' : '' },
+      td(h('b', {}, x.placa), esPend(x) ? h('span', { class: 'tag w', style: 'margin-left:6px' }, 'Nueva') : null),
+      td(x.empresa || '—'), td(x.tipo || '—'), td(x.conductor || '—'), td(iN), td(iV), td(String(n)),
+      td(esIn(x) ? 'Inactiva' : (esPend(x) ? 'Por validar' : '✔ Validada')),
+      td(h('div', { style: 'display:flex;gap:6px' }, h('button', { onclick: guardar }, esPend(x) ? '✔ Validar' : '💾 Guardar'),
+        h('button', { class: 'sec', title: 'Editar datos', onclick: () => { ed.hidden = !ed.hidden; } }, '✏️'),
+        h('button', { class: 'sec', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? 'Activar' : 'Desactivar')))));
+    tb.appendChild(ed);
   });
-  if (!L.length) c.appendChild(h('div', { class: 'trok' }, TRVOL === 'pend' ? '✅ No hay volquetas por confirmar' : 'No hay volquetas'));
+  c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tb));
+  L.forEach(x => tipoAuto('ev_' + x.placa + '_'));
+  if (!L.length) c.appendChild(h('div', { class: 'trok' }, TRVOL === 'pend' ? '✅ No hay volquetas por validar' : 'No hay volquetas'));
   const msg = h('div', { class: 'small' }), f = h('details', { class: 'tcard' }, h('summary', {}, '➕ Agregar volqueta'), formVol(null, msg));
   c.appendChild(f);
   const dl = (id, vals) => { const d = h('datalist', { id: id }); vals.forEach(v => d.appendChild(h('option', { value: v }))); c.appendChild(d); };

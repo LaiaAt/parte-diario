@@ -238,7 +238,7 @@ function ultimoViaje() { return VIAJES.slice().sort((a, b) => (b.fecha + (b.hora
 function pintarInicio() {
   const B = $('inicio'); B.textContent = '';
   const hoyV = VIAJES.filter(v => v.fecha === hoy()).sort((a, b) => String(a.hora_salida || '').localeCompare(String(b.hora_salida || '')) || a.cod.localeCompare(b.cod));
-  const vol = hoyV.reduce((s, v) => s + (isNaN(num(v.cant)) ? 0 : num(v.cant)), 0);
+  const vol = hoyV.reduce((s, v) => s + volV(v), 0);
   B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()))));
   B.appendChild(h('div', { class: 'gr', style: 'margin-bottom:14px' },
     h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO VIAJE'),
@@ -256,7 +256,7 @@ function pintarInicio() {
   if (ks.length) {
     const card = h('div', { class: 'card' }, h('b', {}, 'Días anteriores'));
     ks.forEach(f => {
-      const vs = dias[f], v2 = vs.reduce((s, v) => s + (isNaN(num(v.cant)) ? 0 : num(v.cant)), 0);
+      const vs = dias[f], v2 = vs.reduce((s, v) => s + volV(v), 0);
       card.appendChild(h('div', { class: 'li' }, h('div', {}, h('b', {}, fmtF(f)), h('small', {}, vs.length + ' viaje(s) · ' + r2(v2) + ' m³')),
         h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, h('button', { onclick: () => abrirDia(f) }, 'Abrir'), h('button', { class: 'sec', onclick: () => planilla(f) }, '📄 Planilla'))));
     });
@@ -294,10 +294,10 @@ function filaViaje(v) {
   if (mas.children.length) bs.appendChild(h('button', { class: 'sec', onclick: () => { mas.hidden = !mas.hidden; } }, '⋯ Más'));
   return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
     h('div', { class: 't' }, v.placa, ' · ', v.material),
-    h('div', { class: 's' }, r2(num(v.cant) || 0) + ' m³ validado' + (num(v.vol_albaran) > 0 ? ' · ' + r2(num(v.vol_albaran)) + ' m³ albarán' : '') + ' · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
+    h('div', { class: 's' }, r2(volV(v)) + ' m³ · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
     h('div', { style: 'margin-bottom:8px' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null, h('span', { class: 'tag' }, v.cod)),
     bs, mas,
-    v.alertas ? h('small', { style: 'color:#b36b00;display:block;margin-top:6px' }, '⚠ ' + v.alertas) : null,
+    alertasCampo(v.alertas) ? h('small', { style: 'color:#b36b00;display:block;margin-top:6px' }, '⚠ ' + alertasCampo(v.alertas)) : null,
     op ? h('small', { style: 'color:#b3261e;display:block;margin-top:6px' }, '⚠ No se pudo enviar: ' + op.error + ' ', h('button', { class: 'link', onclick: () => quitarOp(op) }, 'Descartar cambio')) : null);
 }
 async function quitarOp(op) { COLA = COLA.filter(o => o !== op); await guardarCola(); if (op.t === 'g' && op.viaje && op.viaje.nuevo) { VIAJES = VIAJES.filter(v => v.cod !== op.cod); await guardarViajes(); } volver(); }
@@ -361,6 +361,8 @@ function llenarListas() {
   lst('dl-tipo', TIPOS_VOL.map(t => t.n)); lst('dl-empresa', Array.from(new Set(DATOS.volquetas.map(x => x.empresa).filter(Boolean))).sort());
   lst('dl-material', DATOS.catalogos.MATERIAL); lst('dl-origen', DATOS.catalogos.ORIGEN); lst('dl-destino', DATOS.catalogos.DESTINO); lst('dl-centro', DATOS.catalogos.CENTRO_COSTOS);
 }
+const volV = v => (num(v.vol_albaran) > 0 ? num(v.vol_albaran) : (num(v.cant) || 0));
+const alertasCampo = a => String(a || '').split('; ').filter(x => x && !/capacidad|nominal|tolva|cantidad mayor|carga por encima/i.test(x)).join('; ');
 const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
 const MATERIALES_BASE = ['Material de excavación', 'Escombro', 'Material de relleno seleccionado', 'Recebo', 'Subbase granular', 'Base granular tipo A', 'Base granular tipo B', 'Base granular tipo C', 'Base PA', 'Rajón', 'Rajoncillo', 'Arena', 'Arena de trituración', 'Arena de peña', 'Gravilla', 'Triturado', 'Mezcla asfáltica', 'Descapote', 'RCD (demolición)'];
 function listaMateriales() {
@@ -561,7 +563,7 @@ function recalcCant() {
   const cap = num($('capacidad').value), pct = num($('pct').value), i = $('cantInfo');
   const c = cap > 0 && pct > 0 ? Math.round(cap * pct) / 100 : '';
   $('cant').value = c;
-  i.textContent = !(cap > 0) ? '' : (c === '' ? 'Toca cuánto va llena la tolva.' : '= ' + c + ' m³ de ' + cap + ' m³');
+  i.textContent = '';
 }
 function campoCarga(v, valor) {
   const inp = h('input', { id: 'pct', type: 'hidden', value: valor === undefined || valor === null ? '' : valor });
@@ -626,7 +628,7 @@ function abrirForm(v, base) {
   const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '1️⃣ 📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
   const masDatos = h('div', { class: 'card paso' }, h('h3', {}, '6️⃣ 🧾 Datos del vale'),
     campo('n_valera', 'N° del albarán / valera *', val('n_valera'), { inputmode: 'numeric' }),
-    h('div', { style: 'margin-top:10px' }, campo('vol_albaran', 'Volumen que dice el albarán (m³) *', val('vol_albaran'), { inputmode: 'decimal', ph: 'Ej. 15' }), h('small', { class: 'sub' }, 'Es el volumen nominal que indica el volquetero. El de la tolva (paso 5) es el volumen validado.')),
+    h('div', { id: 'cVolAlb', style: 'margin-top:10px' }, campo('vol_albaran', 'Volqueta nueva: volumen que dice el albarán (m³) *', val('vol_albaran'), { inputmode: 'decimal', ph: 'Ej. 15' }), h('small', { class: 'sub' }, 'Solo se pide la primera vez que aparece la volqueta.')),
     h('div', { style: 'margin-top:10px' }, h('label', {}, '¿De quién es la valera?'), vd),
     h('div', { style: 'margin-top:10px' }, h('label', {}, 'Turno'), turno),
     h('div', { style: 'margin-top:10px' }, campo('centro', 'Centro de costos', val('centro')), chipsPara('centro', 'centro')),
@@ -657,13 +659,19 @@ function abrirForm(v, base) {
   const alPlaca = () => {
     const p = normPlaca(pl.value), vo = DATOS.volquetas.find(x => x.placa === p);
     const lk = document.querySelector('label[for=km]'); if (lk) lk.textContent = 'Distancia del recorrido (km, opcional)';
+    // volumen del albarán: solo se pide si la volqueta es nueva; si ya hizo viajes se trae del anterior
+    { const ult = VIAJES.filter(x => x.placa === p && num(x.vol_albaran) > 0).sort((x, y) => (y.fecha + (y.hora_salida || '')).localeCompare(x.fecha + (x.hora_salida || '')))[0];
+      const kv = vo && num(vo.nominal) > 0 ? num(vo.nominal) : (ult ? num(ult.vol_albaran) : 0), cv = $('cVolAlb'), ci = $('vol_albaran');
+      if (kv > 0) { if (!ci.value || ci.dataset.auto === '1') { ci.value = kv; ci.dataset.auto = '1'; } cv.style.display = 'none'; }
+      else if (v && num(v.vol_albaran) > 0) cv.style.display = 'none';
+      else { if (ci.dataset.auto === '1') { ci.value = ''; ci.dataset.auto = ''; } cv.style.display = ''; } }
     if (!vo) return;
     // datos de la volqueta: salen solos del catálogo (no se le piden a quien registra)
     if (!v || !$('empresa').value) $('empresa').value = vo.empresa || '';
     if (!v || !$('tipo').value) $('tipo').value = vo.tipo || '';
     if (!v || !$('capacidad').value) $('capacidad').value = vo.capacidad === undefined ? '' : vo.capacidad;
     if (!v || !$('conductor').value) $('conductor').value = vo.conductor || '';
-    if (!v && !$('vol_albaran').value && vo.nominal > 0) $('vol_albaran').value = vo.nominal;
+
     recalcCant();
     if (!v) {
       const u0 = VIAJES.filter(x => x.placa === p).sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || '')))[0];
@@ -691,6 +699,7 @@ function abrirForm(v, base) {
   ponerLista(pl, () => DATOS.volquetas.map(x => x.placa), 'Elige la placa', 'Escribir otra placa');
   ponerLista($('centro'), () => { const o = (DATOS.catalogos.CENTRO_COSTOS || []).slice(); recientes('centro').forEach(t => { if (!o.some(x => x.toUpperCase() === t.toUpperCase())) o.push(t); }); return o; }, 'Centro de costos', 'Escribir otro centro de costos');
   if (!v && pl.value) { alPlaca(); sugerirKm2(); }
+  if (v && num(v.vol_albaran) > 0) $('cVolAlb').style.display = 'none';
 }
 async function guardarViaje() {
   const g = id => $(id).value.trim();
@@ -746,7 +755,7 @@ function mostrarListo(v) {
   const L = $('listo'); L.textContent = '';
   L.appendChild(h('div', { class: 'card', style: 'text-align:center' }, h('p', { class: 'hecho' }, '✅'), h('h2', {}, '¡Viaje guardado!'),
     h('p', { style: 'font-family:monospace;font-size:24px;font-weight:700;color:#b00000;margin:4px 0' }, v.cod),
-    h('p', {}, v.placa + ' · ' + v.material + ' · ' + r2(num(v.cant)) + ' m³'), h('p', { id: 'estadoEnvio' }, 'Guardado en el teléfono.')));
+    h('p', {}, v.placa + ' · ' + v.material + ' · ' + r2(volV(v)) + ' m³'), h('p', { id: 'estadoEnvio' }, 'Guardado en el teléfono.')));
   const bs = h('div', { class: 'gr' });
   bs.appendChild(h('button', { class: 'verde', onclick: () => compartirVale(v) }, '📄 Ver o enviar el vale'));
   if (puedeRecibo(v)) { bs.appendChild(h('p', { class: 'sub', style: 'margin:8px 0 0' }, 'Cuando llegue al destino, sube la foto del recibo sellado:')); const fr = h('div', { class: 'bs' }); fr.appendChild(selectorFotos({ camara: '📷 Foto del recibo', galeria: '🖼 Desde galería', alAgregar: f => fotoRecibo(v, f, true).then(() => mostrarListo(v)) })); bs.appendChild(fr); }
