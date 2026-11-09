@@ -82,7 +82,10 @@ small{color:var(--mut)}
 
   <section id="app" hidden>
     <div class="card"><b id="saludo"></b> · <span id="fecha"></span><br><small id="info"></small><br>
-      <button class="link" id="btnBib">← Mis partes</button> <button class="link" id="btnSalir" style="color:#b00020;font-weight:700">🚪 Cerrar sesión</button></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="btnBib" style="flex:1;background:#12202b;color:#fff;border:0;font-size:16px;font-weight:800;padding:12px;box-shadow:0 2px 6px rgba(0,0,0,.35)">← VOLVER</button>
+        <button id="btnSalir" style="flex:1;background:#fff;color:#b00020;border:3px solid #b00020;font-size:16px;font-weight:800;padding:10px">🚪 CERRAR SESIÓN</button>
+      </div></div>
     <div id="progreso" class="guia"></div>
     <div id="contenido"></div>
   </section>
