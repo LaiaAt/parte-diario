@@ -507,8 +507,8 @@ function vistaVol(c) {
   const tb = h('table', { style: 'width:100%;border-collapse:collapse;font-size:15px' }, h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Conductor', 'Nominal albarán (m³)', 'Validado (m³)', 'Viajes', 'Estado', ''].map(th)));
   L.forEach(x => {
     const n = V.filter(v => v.placa === x.placa).length, msg = h('div', { class: 'small' });
-    const iN = h('input', { type: 'text', inputmode: 'decimal', value: x.nominal === undefined || x.nominal === '' ? '' : x.nominal, style: 'width:90px;font-size:16px;padding:8px' });
-    const iV = h('input', { type: 'text', inputmode: 'decimal', value: x.capacidad === undefined || x.capacidad === '' ? '' : x.capacidad, style: 'width:90px;font-size:16px;padding:8px;font-weight:700' });
+    const iN = h('input', { type: 'text', inputmode: 'decimal', value: x.nominal === undefined || x.nominal === '' ? '' : x.nominal, style: 'width:72px;font-size:15px;padding:6px' });
+    const iV = h('input', { type: 'text', inputmode: 'decimal', value: x.capacidad === undefined || x.capacidad === '' ? '' : x.capacidad, style: 'width:72px;font-size:15px;padding:6px;font-weight:700' });
     const guardar = async () => {
       const vv = iV.value.trim().replace(',', '.'), nn = iN.value.trim().replace(',', '.');
       if (!(Number(vv) > 0)) { iV.style.outline = '3px solid #b3261e'; iV.focus(); return; }
@@ -518,11 +518,11 @@ function vistaVol(c) {
     const ed = h('tr', { hidden: true }, h('td', { colspan: 9, style: 'padding:6px 10px;background:#fafafa' }, formVol(x, msg)));
     tb.appendChild(h('tr', { style: esPend(x) ? 'background:#fffaf0' : '' },
       td(h('b', {}, x.placa), esPend(x) ? h('span', { class: 'tag w', style: 'margin-left:6px' }, 'Nueva') : null),
-      td(x.empresa || '—'), td(x.tipo || '—'), td(x.conductor || '—'), td(iN), td(iV), td(String(n)),
+      td(x.empresa || '—'), td(x.tipo || '—'), td(h('span', { style: 'display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: x.conductor || '' }, x.conductor || '—')), td(iN), td(iV), td(String(n)),
       td(esIn(x) ? 'Inactiva' : (esPend(x) ? 'Por validar' : '✔ Validada')),
-      td(h('div', { style: 'display:flex;gap:6px' }, h('button', { onclick: guardar }, esPend(x) ? '✔ Validar' : '💾 Guardar'),
-        h('button', { class: 'sec', title: 'Editar datos', onclick: () => { ed.hidden = !ed.hidden; } }, '✏️'),
-        h('button', { class: 'sec', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? 'Activar' : 'Desactivar')))));
+      td(h('div', { style: 'display:flex;gap:4px;white-space:nowrap' }, h('button', { style: 'padding:8px 10px;font-size:14px', onclick: guardar }, esPend(x) ? '✔ Validar' : '💾'),
+        h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Editar datos', onclick: () => { ed.hidden = !ed.hidden; } }, '✏️'),
+        h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: esIn(x) ? 'Activar' : 'Desactivar', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? '▶' : '⏸')))));
     tb.appendChild(ed);
   });
   c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tb));
