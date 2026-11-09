@@ -105,8 +105,14 @@ const MAXACT = 6, MAXFOTOS = 15;
 const PASOS = ['Datos del día', 'Actividades', 'Personal', 'Máquinas', 'Materiales', 'Fotos', 'Pedir para mañana', 'Revisar y guardar'];
 const $ = id => document.getElementById(id);
 const hoy = () => new Date().toLocaleDateString('sv-SE');
-const ayer = () => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toLocaleDateString('sv-SE'); };
-const fechaOk = f => f === hoy() || f === ayer();
+// Fechas permitidas: hoy y los 2 días anteriores; el lunes, 3 (viernes, sábado, domingo y lunes)
+const fechasPermitidas = () => {
+  const d = new Date(); d.setHours(12, 0, 0, 0);
+  const atras = d.getDay() === 1 ? 3 : 2, L = [d.toLocaleDateString('sv-SE')];
+  for (let i = 0; i < atras; i++) { d.setDate(d.getDate() - 1); L.push(d.toLocaleDateString('sv-SE')); }
+  return L;
+};
+const fechaOk = f => fechasPermitidas().indexOf(f) >= 0;
 const uid = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 function h(tag, props, ...kids) {
@@ -319,7 +325,7 @@ const estaElim = (f, n) => (ELIM[elimKey(f, n)] || 0) > Date.now();
 async function pintarBiblio(lista) {
   lista = lista.filter(x => !estaElim(x.fecha, x.n));
   const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave && !estaElim(e.parte.fecha, e.parte.n));
-  const h0 = hoy(), por = {}, a0 = ayer();
+  const h0 = hoy(), por = {}, permit = fechasPermitidas();
   const K = (f, n) => f + '|' + (n || 1);
   lista.forEach(x => { por[K(x.fecha, x.n)] = { fecha: x.fecha, n: x.n || 1, pdf: x.pdf, rev: x.rev || 1, pend: false }; });
   cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf, rev: e.parte.rev || 1 }); });
@@ -330,8 +336,8 @@ async function pintarBiblio(lista) {
   }
   const todos = Object.keys(por).map(k => por[k]);
   const deHoy = todos.filter(x => x.fecha === h0).sort((a, b) => a.n - b.n);
-  const deAyer = todos.filter(x => x.fecha === a0).sort((a, b) => a.n - b.n);
-  const otros = todos.filter(x => x.fecha !== h0 && x.fecha !== a0).sort((a, b) => a.fecha === b.fecha ? b.n - a.n : (a.fecha < b.fecha ? 1 : -1));
+  const deAyer = todos.filter(x => x.fecha !== h0 && permit.indexOf(x.fecha) >= 0).sort((a, b) => a.fecha === b.fecha ? a.n - b.n : (a.fecha < b.fecha ? 1 : -1));
+  const otros = todos.filter(x => permit.indexOf(x.fecha) < 0).sort((a, b) => a.fecha === b.fecha ? b.n - a.n : (a.fecha < b.fecha ? 1 : -1));
   const sig = deHoy.reduce((m, x) => Math.max(m, x.n), 0) + 1;
   const B = $('biblio');
   B.textContent = '';
@@ -471,9 +477,8 @@ function elegirFecha(todos) {
     editarHoy(sig, false, fx);
   };
   f.appendChild(h('div', { style: 'background:#fff;border-radius:12px;padding:18px;max-width:340px;width:100%' },
-    h('div', { style: 'font-weight:bold;font-size:18px;margin-bottom:12px' }, '📅 ¿De qué fecha es el parte?'),
-    h('button', { style: 'width:100%;margin-bottom:10px', onclick: () => ir(hoy()) }, 'HOY · ' + PD.fechaLarga(hoy())),
-    h('button', { class: 'sec', style: 'width:100%;margin-bottom:10px', onclick: () => ir(ayer()) }, 'AYER · ' + PD.fechaLarga(ayer())),
+    h('div', { style: 'font-weight:bold;font-size:18px;margin-bottom:12px' }, '📅 Fecha del parte'),
+    ...fechasPermitidas().map((fx, i) => h('button', { class: i ? 'sec' : '', style: 'width:100%;margin-bottom:10px', onclick: () => ir(fx) }, (i ? '' : 'HOY · ') + PD.fechaLarga(fx))),
     h('button', { class: 'sec', style: 'width:100%;color:#b00020', onclick: () => f.remove() }, 'Cancelar')));
   document.body.appendChild(f);
 }
