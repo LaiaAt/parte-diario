@@ -561,7 +561,8 @@ function vistaViajes(c) {
       h('div', { class: 'small' }, (v.conductor || '') + ' · valera ' + (v.n_valera || '—') + ' · ' + v.cod),
       tieneGps(v) ? h('div', { class: 'small' }, h('a', { href: mapaUrl(v), target: '_blank', rel: 'noopener' }, '📍 Ver origen en el mapa')) : null,
       v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
-      h('div', { style: 'margin-top:6px' }, botonesFoto(v)))));
+      h('div', { class: 'small', style: 'margin-top:4px' }, '🕒 Creado por ' + (v.creado_por || '—') + ' el ' + fmtTs(v.creado || v.registrado) + (v.modificado && v.modificado !== v.creado ? ' · Última modificación ' + fmtTs(v.modificado) : '')),
+      h('div', { style: 'margin-top:6px' }, botonesFoto(v), (() => { const cj = h('div', {}), b = h('button', { class: 'sec sm', style: 'margin-top:6px' }, '🕒 Historial de cambios'); b.onclick = () => historialVale(v, cj, b); return h('div', {}, b, cj); })()))));
     if (!L.length) lista.appendChild(h('div', { class: 'trok' }, 'No hay viajes'));
     if (L.length > 300) lista.appendChild(h('div', { class: 'small' }, 'Se muestran 300 de ' + L.length + '. Usa la búsqueda o descarga el CSV.'));
   }
@@ -648,6 +649,46 @@ async function bajarPlan(p, msg) {
   msg.textContent = 'Descargando…';
   try { const r = await api({ accion: 'admin_tr_pdf', llave: LLAVE, url: p.url }); if (!r.ok) { msg.textContent = r.mensaje || 'No se pudo abrir'; return; } bajarB64(r.pdf, r.nombre || 'Planilla.pdf'); msg.textContent = ''; } catch (e) { msg.textContent = 'No se pudo conectar.'; }
 }
+/* ----- control de cambios (bitácora) ----- */
+let CAMB = { r: null, f: '', q: '' };
+const ACC_COL = { CREADO: '#2e7d32', MODIFICADO: '#ef6c00', ELIMINADO: '#c62828', 'FOTO ALBARÁN': '#0277bd', 'AJUSTE ADMIN': '#6a1b9a' };
+const fmtTs = t => { t = String(t || ''); return t.length >= 16 ? fmtF(t.slice(0, 10)) + ' ' + t.slice(11, 16) : t; };
+function filaCambio(x, sinVale) {
+  return h('div', { class: 'tcard', style: 'border-left:5px solid ' + (ACC_COL[x.accion] || '#999') },
+    h('div', { class: 'big' }, h('span', { style: 'color:' + (ACC_COL[x.accion] || '#555') }, x.accion), sinVale ? '' : ' · ' + x.cod),
+    h('div', { class: 'small' }, '🕒 ' + fmtTs(x.ts) + ' · 👤 ' + (x.usuario || '—') + (x.llave ? ' (' + x.llave + ')' : '') + (x.placa ? ' · ' + x.placa : '') + (x.fecha ? ' · viaje del ' + fmtF(x.fecha) : '')),
+    h('div', { style: 'margin-top:4px;font-size:14px;word-break:break-word' }, x.detalle));
+}
+async function cargaCambios() {
+  const box = $('cambBox'); if (!box) return; box.textContent = 'Cargando…';
+  try { const r = await api({ accion: 'admin_tr_bitacora', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (!r.ok) { box.textContent = r.mensaje || 'No se pudo cargar'; return; } CAMB.r = r.filas; pintaCambios(); }
+  catch (e) { box.textContent = 'No se pudo conectar.'; }
+}
+function pintaCambios() {
+  const box = $('cambBox'); if (!box || !CAMB.r) return; box.textContent = '';
+  const q = CAMB.q.trim().toUpperCase(), L = CAMB.r.filter(x => (!CAMB.f || x.accion === CAMB.f) && (!q || [x.cod, x.usuario, x.llave, x.placa, x.detalle].join(' ').toUpperCase().indexOf(q) >= 0));
+  box.appendChild(h('div', { class: 'small' }, L.length + ' movimiento(s) en el periodo'));
+  L.slice(0, 200).forEach(x => box.appendChild(filaCambio(x)));
+  if (!L.length) box.appendChild(h('div', { class: 'trok' }, 'No hay movimientos con ese filtro'));
+  if (L.length > 200) box.appendChild(h('div', { class: 'small' }, 'Se muestran 200 de ' + L.length + '. Usa la búsqueda.'));
+}
+function vistaCambios(c) {
+  c.appendChild(h('div', { class: 'small', style: 'margin:6px 0' }, 'Cada creación, modificación, eliminación, foto de albarán y ajuste del administrador queda registrado con quién y cuándo. El registro no se puede editar desde la app. Cambia las fechas arriba y pulsa Actualizar para ver otro periodo.'));
+  const bus = h('input', { type: 'search', placeholder: '🔍 Buscar vale, usuario, placa o detalle…', value: CAMB.q }); bus.oninput = () => { CAMB.q = bus.value; pintaCambios(); };
+  c.append(bus, chips([['', 'Todos'], ['CREADO', 'Creados'], ['MODIFICADO', 'Modificados'], ['ELIMINADO', 'Eliminados'], ['FOTO ALBARÁN', 'Fotos'], ['AJUSTE ADMIN', 'Ajustes admin']], CAMB.f, k => { CAMB.f = k; pintaCambios(); }), h('div', { id: 'cambBox' }));
+  if (CAMB.r) pintaCambios(); else cargaCambios();
+  const bt = h('button', { class: 'sec sm', style: 'margin:8px 0' }, '⬇ Descargar cambios (CSV)'); bt.onclick = () => {
+    const rows = (CAMB.r || []).map(x => [x.ts, x.cod, x.accion, x.usuario, x.llave, x.placa, x.fecha, x.detalle].map(csvCelda).join(';'));
+    bajar(new Blob(['\ufeff' + [['Fecha y hora', 'Vale', 'Acción', 'Usuario', 'Llave', 'Placa', 'Fecha del viaje', 'Detalle'].map(csvCelda).join(';')].concat(rows).join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Control_de_cambios_' + $('desde').value + '_' + $('hasta').value + '.csv'); };
+  c.insertBefore(bt, c.querySelector('#cambBox'));
+}
+async function historialVale(v, caja, btn) {
+  if (caja.dataset.abierto) { caja.textContent = ''; caja.dataset.abierto = ''; return; }
+  caja.dataset.abierto = '1'; caja.textContent = 'Cargando historial…';
+  try { const r = await api({ accion: 'admin_tr_bitacora', llave: LLAVE, cod: v.cod }); caja.textContent = ''; if (!r.ok) { caja.textContent = r.mensaje || 'No se pudo'; return; }
+    if (!r.filas.length) caja.appendChild(h('div', { class: 'small' }, 'Sin movimientos registrados (viaje anterior al control de cambios).')); r.filas.forEach(x => caja.appendChild(filaCambio(x, true))); }
+  catch (e) { caja.textContent = 'No se pudo conectar.'; }
+}
 function vistaPlan(c) {
   const msg = h('div', { class: 'small', style: 'margin:6px 0' });
   const llaves = Array.from(new Set(TR.viajes.map(v => v.llave).filter(Boolean))).sort(), sel = h('select', { style: 'width:100%;margin:6px 0' }, h('option', { value: '' }, 'Todas las llaves'), llaves.map(l => h('option', { value: l }, l)));
@@ -676,7 +717,7 @@ const nrm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUppe
 async function postGeo(d) {
   const r = await api(Object.assign({ accion: 'admin_tr_geo', llave: LLAVE }, d));
   if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return null; }
-  TR.geo = r.geo; TR.dist = r.dist; TR.sitios = r.sitios; TR.ufs = r.ufs; return r;
+  CAMB.r = null; TR.geo = r.geo; TR.dist = r.dist; TR.sitios = r.sitios; TR.ufs = r.ufs; return r;
 }
 function vistaGeo(c) {
   const G = TR.geo || { sitios: [], ufs: [], dist: [] };
@@ -763,10 +804,10 @@ function pintarTr() {
   }
   if (!pend.length && !conAl.length && !sinRec.length && !dp.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
   const tb = $('trTabs'); tb.textContent = '';
-  [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']].forEach(([k, t]) =>
+  [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['cambios', '🕒 Control de cambios'], ['planillas', '📑 Cierre y planillas']].forEach(([k, t]) =>
     tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; pintarTr(); } }, t)));
   const c = $('trBody'); c.textContent = '';
-  ({ viajes: vistaViajes, albaran: vistaAlb, sosp: vistaSosp, resumen: vistaRes, mapa: vistaMapa, volquetas: vistaVol, geo: vistaGeo, planillas: vistaPlan })[TRTAB](c);
+  ({ viajes: vistaViajes, albaran: vistaAlb, sosp: vistaSosp, resumen: vistaRes, mapa: vistaMapa, volquetas: vistaVol, geo: vistaGeo, cambios: vistaCambios, planillas: vistaPlan })[TRTAB](c);
 }
 function chips(opts, val, fn) {
   return h('div', { class: 'chips' }, opts.map(([k, t]) => h('button', { class: 'chip' + (val === k ? ' on' : ''), onclick: () => fn(k) }, t)));
