@@ -170,7 +170,7 @@ let RF = {}, frenteCargado = null, pasoMostrado = -1, foco = false;
 let user = null, P = null, paso = 0, sugerencias = [], ultimoPdf = null, tBorr = null;
 
 const idP = (f, l, n) => f + '_' + l + ((n || 1) > 1 ? '_n' + n : '');
-const nuevoParte = () => ({ n: 1, rev: 0, fecha: hoy(), encabezado: { localizacion: '', pk: '' }, clima_sel: null, clima: [], actividades: [],
+const nuevoParte = () => ({ n: 1, rev: 0, fecha: hoy(), encabezado: { localizacion: '', pk: '', jornada: 'DIA' }, clima_sel: null, clima: [], actividades: [],
   personal: [], maquinas: [], materiales: [], fotos: [], solicitudes: [] });
 const ultimoCC = () => { const t = [].concat(P.personal, P.maquinas, P.materiales); for (let i = t.length - 1; i >= 0; i--) if (t[i].c_costo) return t[i].c_costo; return ''; };
 const nuevaActividad = () => ({ n: P.actividades.length + 1, descripcion: '', unidad: '', d1: '', d2: '', d3: '', descuentos: '0', factor: '1', obs: '' });
@@ -194,7 +194,7 @@ function base(p, reiniciar, fx) {
   o.fecha = reiniciar ? fx : (p.fecha || fx);
   o.n = reiniciar ? 1 : (p.n || 1);
   o.rev = reiniciar ? 0 : (p.rev || 0);
-  o.encabezado = { localizacion: (p.encabezado || {}).localizacion || '', pk: PD.pkDigitos((p.encabezado || {}).pk) };
+  o.encabezado = { localizacion: (p.encabezado || {}).localizacion || '', pk: PD.pkDigitos((p.encabezado || {}).pk), jornada: (p.encabezado || {}).jornada === 'NOCHE' ? 'NOCHE' : 'DIA' };
   const L = x => Array.isArray(x) ? x : [];
   const mismoDia = (p.fecha || '') === fx;
   if (reiniciar) {
@@ -721,6 +721,10 @@ function llenarListas() {
 function pasoDatos(c) {
   c.appendChild(h('h2', {}, 'Datos del día'));
   c.appendChild(h('p', { class: 'guia' }, 'Dónde trabajaron hoy y si hubo mal clima.'));
+  const jor = h('div', { class: 'card' }, h('b', {}, 'Jornada'));
+  const jf = h('div', { class: 'chips' });
+  [['DIA', '☀️ Día'], ['NOCHE', '🌙 Noche']].forEach(o => jf.appendChild(h('button', { type: 'button', class: 'chip' + (P.encabezado.jornada === o[0] ? ' on' : ''), onclick: () => { P.encabezado.jornada = o[0]; cambio(); mostrar(); } }, o[1])));
+  jor.appendChild(jf); c.appendChild(jor);
   c.appendChild(h('div', { class: 'card' }, campo('Frente o lugar de trabajo', P.encabezado, 'localizacion', { ph: 'Ej: QF1', list: 'dl-frente', alTerminar: () => aplicarFrente(P.encabezado.localizacion),
     ayuda: Object.keys(RF).length ? 'Si ya hiciste un parte de este frente, cargamos su personal, máquinas y materiales.' : '' }), chipsFrente(), h('div', { class: 'row' }, pkCampo())));
   const ec = E(P, 'clima_sel');
