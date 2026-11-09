@@ -1,4 +1,4 @@
-const CACHE = 'pd-v83';
+const CACHE = 'pd-v84';
 const ARCHIVOS = ['./', 'index.html', 'transportes.html', 'admin.html', 'manifest-transportes.json', 'manifest-admin.json', 'comun.js', 'pdf.js', 'pdfgen.html', 'pdf_tr.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'marca.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js'];
 
