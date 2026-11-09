@@ -436,7 +436,7 @@ function vistaMapa(c) {
   const wt = x => x.v > 0 ? x.v : 0.5 * x.t; // viajes sin volumen pesan poco pero se ven
   const ls = Object.keys(L).map(k => L[k]).sort((x, y) => (x.uf === y.uf ? 0 : x.uf ? -1 : 1) || String(x.n).localeCompare(String(y.n), 'es', { numeric: true }));
   const rs = Object.keys(R).map(k => R[k]).sort((x, y) => (x.uf === y.uf ? 0 : x.uf ? -1 : 1) || String(x.n).localeCompare(String(y.n), 'es', { numeric: true }));
-  const tot = ls.reduce((s, x) => s + wt(x), 0), W = 780, GAP = 12, NW = 190, MINH = 44;
+  const tot = ls.reduce((s, x) => s + wt(x), 0), W = 780, GAP = 12, NW = 190, MINH = 76;
   const alto = arr => arr.reduce((s, x) => s + Math.max(MINH, 0) , 0) + GAP * (arr.length - 1);
   const H = Math.max(300, alto(ls), alto(rs)) + 50, esc = Math.max(0, H - 50 - GAP * Math.max(ls.length, rs.length) - 0);
   const lay = (arr, x) => { const sum = arr.reduce((s, q) => s + wt(q), 0) || 1, libre = Math.max(0, H - 50 - GAP * (arr.length - 1) - MINH * arr.length); let y = 36; arr.forEach(q => { q.h = MINH + libre * wt(q) / sum; q.x = x; q.y = y; q.cur = y; y += q.h + GAP; }); };
@@ -457,8 +457,10 @@ function vistaMapa(c) {
   const caja = (q, lado) => {
     const col0 = color(q), g = el('g', {}); el('rect', { x: q.x, y: q.y, width: NW, height: q.h, rx: 8, fill: col0 }, '', g);
     const cy = q.y + q.h / 2, nombre = q.n.length > 22 ? q.n.slice(0, 21) + '…' : q.n;
-    el('text', { x: q.x + 10, y: cy - 3, 'font-size': 14, 'font-weight': 800, style: 'fill:#fff' }, nombre, g);
-    el('text', { x: q.x + 10, y: cy + 14, 'font-size': 11, style: 'fill:#fff' }, nf1(q.va) + ' m³ alb. · ' + nf1(q.vc) + ' m³ conf. · ' + q.t + ' v.', g);
+    el('text', { x: q.x + 10, y: cy - 18, 'font-size': 14, 'font-weight': 800, style: 'fill:#fff' }, nombre, g);
+    el('text', { x: q.x + 10, y: cy - 2, 'font-size': 11.5, style: 'fill:#fff' }, 'Albarán: ' + nf1(q.va) + ' m³', g);
+    el('text', { x: q.x + 10, y: cy + 13, 'font-size': 11.5, style: 'fill:#fff' }, 'Confirmado: ' + nf1(q.vc) + ' m³', g);
+    el('text', { x: q.x + 10, y: cy + 28, 'font-size': 11.5, style: 'fill:#fff' }, 'Viajes: ' + q.t, g);
     el('title', {}, q.n + ': ' + q.t + ' viaje(s) · ' + nf1(q.va) + ' m³ albarán · ' + nf1(q.vc) + ' m³ confirmado', g);
   };
   ls.forEach(q => caja(q)); rs.forEach(q => caja(q));
