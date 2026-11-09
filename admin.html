@@ -404,7 +404,7 @@ function vistaRes(c) {
   const q = V.reduce((a, v) => a + (Number(v.cant) || 0), 0), qa = V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0), ps = V.map(pctV).filter(x => x !== null), ks = V.filter(v => Number(v.km) > 0);
   const qkm = ks.reduce((a, v) => a + (Number(v.cant) || 0) * Number(v.km), 0), qkma = ks.reduce((a, v) => a + (Number(v.vol_albaran) || 0) * Number(v.km), 0), baja = ps.filter(x => x < 70).length;
   const K = (t, v, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, h('b', {}, v), t);
-  c.appendChild(h('div', { class: 'kpis kpis2' }, K('Viajes', V.length), K('m³ según albarán', nf1(qa)), K('m³ confirmado', nf1(q)), K('Volquetas', new Set(V.map(v => v.placa)).size),
+  c.appendChild(h('div', { class: 'kpis kpis2' }, K('Viajes', V.length), K('📥 Llegaron a la obra', V.filter(v => v.mov === 'RECIBE').length), K('📤 Salieron de la obra', V.filter(v => v.mov !== 'RECIBE').length), K('m³ según albarán', nf1(qa)), K('m³ confirmado', nf1(q)), K('Volquetas', new Set(V.map(v => v.placa)).size),
     K('Carga promedio', ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) + ' %' : '—', ps.length && ps.reduce((a, b) => a + b, 0) / ps.length < 70 ? 'mal' : 'bien'),
     K('Km promedio', ks.length ? nf1(ks.reduce((a, v) => a + Number(v.km), 0) / ks.length) : '—'), K('m³ × km (albarán)', nf1(qkma)), K('m³ × km (confirmado)', nf1(qkm)),
     K('Viajes con carga baja (<70 %)', baja, baja ? 'mal' : ''), K('Sin albarán (días pasados)', V.filter(v => !v.tiene_recibo && v.fecha < TR.hoy).length, V.some(v => !v.tiene_recibo && v.fecha < TR.hoy) ? 'mal' : 'bien')));
@@ -830,7 +830,7 @@ function pintarTr() {
   const conAl = V.filter(v => v.alertas), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend);
   const top = $('trTop'); top.textContent = '';
   const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
-  top.appendChild(h('div', { class: 'kpis' }, K('Viajes', V.length), K('m³ albarán', nf(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0))), K('m³ confirmado', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas', new Set(V.map(v => v.placa)).size)));
+  top.appendChild(h('div', { class: 'kpis' }, K('Viajes', V.length), K('📥 Llegaron', V.filter(v => v.mov === 'RECIBE').length), K('📤 Salieron', V.filter(v => v.mov !== 'RECIBE').length), K('m³ albarán', nf(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0))), K('m³ confirmado', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas', new Set(V.map(v => v.placa)).size)));
   const aviso = (n, txt, fn) => n ? h('button', { class: 'trav', onclick: fn }, '⚠️ ' + n + ' ' + txt) : null;
   top.append(...[
     aviso(pend.length, pend.length === 1 ? 'volqueta nueva por confirmar' : 'volquetas nuevas por confirmar', () => { TRVOL = 'pend'; TRTAB = 'volquetas'; pintarTr(); }),
