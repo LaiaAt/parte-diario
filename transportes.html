@@ -33,7 +33,7 @@ label{font-size:16px;color:var(--mut);display:block;margin-bottom:3px}
 input,select{width:100%;padding:14px;font-size:20px;border:1px solid #8794a0;border-radius:6px;background:#fff;color:var(--ink)}
 input:focus,select:focus,button:focus-visible{outline:3px solid var(--hv);outline-offset:1px}
 button{padding:16px 16px;min-height:56px;font-size:19px;font-weight:700;border:0;border-radius:6px;background:var(--ink);color:#fff;width:100%}
-button.sec{background:#dde2e6;color:var(--ink)}
+button.sec{background:#fff;color:#12202b;border:2px solid #12202b}
 button.link{background:none;color:var(--ink);text-decoration:underline;width:auto;padding:4px;font-weight:400;font-size:15px}
 .chk{display:flex;align-items:center;gap:10px;font-size:18px;color:var(--ink);margin:0;font-weight:700}
 .chk input{width:28px;height:28px}
@@ -104,6 +104,7 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
     <p><small>La primera vez necesitas señal. Después funciona sin internet.</small></p>
   </section>
   <section id="inicio" hidden></section>
+  <section id="anteriores" hidden></section>
   <section id="dia" hidden></section>
   <section id="form" hidden></section>
   <section id="listo" hidden></section>
@@ -135,7 +136,7 @@ function h(tag, props, ...kids) {
   return e;
 }
 function aviso(t, c, quieto) { const a = $('aviso'); a.textContent = t || ''; a.className = 'aviso ' + (c || ''); a.hidden = !t; if (t && !quieto) window.scrollTo(0, 0); }
-function pantalla(id) { ['login', 'inicio', 'dia', 'form', 'listo', 'visor'].forEach(i => $(i).hidden = i !== id); window.scrollTo(0, 0); }
+function pantalla(id) { ['login', 'inicio', 'anteriores', 'dia', 'form', 'listo', 'visor'].forEach(i => $(i).hidden = i !== id); window.scrollTo(0, 0); }
 
 /* ---------- almacenamiento en el telefono ---------- */
 const kv = (() => {
@@ -251,26 +252,33 @@ function pintarInicio() {
   if (!hoyV.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay viajes hoy. Toca el botón verde para empezar.'));
   hoyV.forEach(v => B.appendChild(filaViaje(v)));
   if (hoyV.length) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:14px', onclick: () => planilla(hoy()) }, '📄 Planilla de hoy'));
-  const dias = {}; VIAJES.forEach(v => { if (v.fecha !== hoy()) (dias[v.fecha] = dias[v.fecha] || []).push(v); });
-  const ks = Object.keys(dias).sort().reverse();
-  if (ks.length) {
-    const card = h('div', { class: 'card' }, h('b', {}, 'Días anteriores'));
-    ks.forEach(f => {
-      const vs = dias[f], v2 = vs.reduce((s, v) => s + volV(v), 0);
-      card.appendChild(h('div', { class: 'li' }, h('div', {}, h('b', {}, fmtF(f)), h('small', {}, vs.length + ' viaje(s) · ' + r2(v2) + ' m³')),
-        h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, h('button', { onclick: () => abrirDia(f) }, 'Abrir'), h('button', { class: 'sec', onclick: () => planilla(f) }, '📄 Planilla'))));
-    });
-    B.appendChild(card);
-  }
+  if (VIAJES.some(v => v.fecha !== hoy())) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:6px', onclick: abrirAnteriores }, '📅 Días anteriores'));
   B.appendChild(h('div', { style: 'text-align:center;margin-top:10px' }, h('button', { class: 'link', onclick: () => cerrarSesion() }, 'Cerrar sesión (cambiar llave)')));
 }
 
+function abrirAnteriores() {
+  diaActual = null; aviso('');
+  const A = $('anteriores'); A.textContent = '';
+  A.appendChild(h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;margin-bottom:12px', onclick: abrirInicio }, '← VOLVER AL INICIO'));
+  A.appendChild(h('h3', {}, 'Días anteriores'));
+  const dias = {}; VIAJES.forEach(v => { if (v.fecha !== hoy()) (dias[v.fecha] = dias[v.fecha] || []).push(v); });
+  const ks = Object.keys(dias).sort().reverse();
+  if (!ks.length) A.appendChild(h('div', { class: 'card' }, 'No hay días anteriores.'));
+  const card = h('div', { class: 'card' });
+  ks.forEach(f => {
+    const vs = dias[f], v2 = vs.reduce((s, v) => s + volV(v), 0);
+    card.appendChild(h('div', { class: 'li' }, h('div', {}, h('b', {}, fmtF(f)), h('small', {}, vs.length + ' viaje(s) · ' + r2(v2) + ' m³')),
+      h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, h('button', { onclick: () => abrirDia(f) }, 'Abrir'), h('button', { class: 'sec', onclick: () => planilla(f) }, '📄 Planilla'))));
+  });
+  if (ks.length) A.appendChild(card);
+  pantalla('anteriores');
+}
 /* ---------- dia anterior: lista de viajes ---------- */
 function abrirDia(f) {
   diaActual = f; aviso('');
   const D = $('dia'); D.textContent = '';
   const vs = VIAJES.filter(v => v.fecha === f).sort((a, b) => String(a.hora_salida || '').localeCompare(String(b.hora_salida || '')) || a.cod.localeCompare(b.cod));
-  D.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;box-shadow:0 2px 6px rgba(0,0,0,.35)', onclick: abrirInicio }, '← VOLVER AL INICIO'),
+  D.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;box-shadow:0 2px 6px rgba(0,0,0,.35)', onclick: abrirAnteriores }, '← VOLVER A DÍAS ANTERIORES'),
     h('h3', { style: 'margin:6px 0 0' }, fmtF(f) + (f === hoy() ? ' (hoy)' : '')),
     h('small', {}, puedeRecibo({ fecha: f }) ? 'Este día ya cerró. Aún puedes subir la foto del recibo.' : 'Este día ya cerró.'),
     h('button', { class: 'verde', onclick: () => planilla(f) }, '📄 Planilla del día')));
