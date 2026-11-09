@@ -790,8 +790,9 @@ async function cargarLogo() {
 function bajar(blob, nombre) {
   const u = URL.createObjectURL(blob); const a = h('a', { href: u, download: nombre }); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000);
 }
-async function entregarPdf(doc, nombre, titulo) {
+async function entregarPdf(doc, nombre, titulo, directo) {
   const blob = doc.output('blob');
+  if (directo) { bajar(blob, nombre); return; }
   const file = new File([blob], nombre, { type: 'application/pdf' });
   try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: titulo }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   bajar(blob, nombre);
@@ -809,7 +810,7 @@ async function planilla(f) {
     const nombre = 'Planilla_viajes_' + user.llave + '_' + f + '.pdf';
     const msg = ''; // la planilla ya no se guarda en el servidor: se genera siempre con los datos actuales
     aviso('Planilla lista.' + msg, 'ok');
-    await entregarPdf(doc, nombre, 'Planilla de viajes ' + fmtF(f));
+    await entregarPdf(doc, nombre, 'Planilla de viajes ' + fmtF(f), true);
   } catch (e) { console.error(e); aviso('No se pudo crear la planilla.', 'err'); }
 }
 
