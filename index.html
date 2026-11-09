@@ -244,7 +244,7 @@ async function ingresar() {
   if (!navigator.onLine) { aviso('La primera vez necesitas señal.', 'err'); return; }
   aviso('Entrando…');
   try {
-    const r = await api({ accion: 'validar', llave: l }, 30000);
+    const r = await api({ accion: 'validar', llave: l, app: 'parte' }, 30000);
     if (!r.ok && r.admin) { aviso('Eres administrador: te llevo al dashboard…', 'ok'); setTimeout(() => { location.href = 'admin.html'; }, 900); return; }
     if (!r.ok) { aviso(r.mensaje || 'Llave no válida', 'err'); return; }
     if (!user || user.llave !== r.llave) await kv.del('borrador');
@@ -537,7 +537,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 /* ---------- piezas reutilizables ---------- */
 const REQ = new Set(['localizacion', 'descripcion', 'nombre', 'c_costo', 'cantidad', 'detalle', 'd1', 'd2', 'd3', 'descuentos', 'factor', 'inicio', 'fin', 'fecha']);
 function E(o, k) { return verErr && o && ERR.has(o) ? (ERR.get(o)[k] || '') : ''; }
-const ACT_OTRA = false; // pasa a true cuando el servidor acepte unidades distintas en actividades
+const ACT_OTRA = true; // el servidor acepta unidades escritas distintas a la lista
 function campo(etiqueta, obj, clave, o) {
   o = o || {};
   const er = E(obj, clave);
@@ -749,7 +749,7 @@ function tarjetaActividad(a, i) {
   card.appendChild(h('div', { class: 'row' }, campo('¿En qué se mide?', a, 'unidad', { desplegable: () => PD.UNIDADES.map(u => u.cod + ' — ' + u.texto), tituloLista: '¿En qué se mide?', libre: ACT_OTRA ? 'Escribir otra unidad' : '', req: true, ph: 'Toca y elige', ayuda: 'Toca y elige de la lista.',
     alTerminar: () => {
       const antes = a.unidad; a.unidad = PD.normUnidad(a.unidad);
-      if (a.unidad && !PD.unidadValida(a.unidad)) { a.unidad = ''; aviso('La unidad "' + antes + '" no es válida. Elige una de la lista: M3, M2, ML, UND, KG, TON o GL.', 'err'); }
+      if (a.unidad && !PD.unidadValida(a.unidad)) { a.unidad = ''; aviso('La unidad "' + antes + '" no es válida. Elige una de la lista o escribe una (máx. 20 letras).', 'err'); }
       mostrar();
     } })));
   const labels = PD.dimsLabels(a.unidad);
@@ -904,7 +904,7 @@ function validar() {
   P.actividades.forEach(a => {
     if (!a.descripcion.trim()) m(1, 'La actividad ' + a.n + ' no tiene nombre.', a, 'descripcion');
     if (!a.unidad) m(1, 'Elige en qué se mide la actividad ' + a.n + '.', a, 'unidad', 'Elige una opción');
-    else if (!PD.unidadValida(a.unidad)) m(1, 'La unidad "' + a.unidad + '" de la actividad ' + a.n + ' no es válida. Elige una de la lista: M3, M2, ML, UND, KG, TON o GL.', a, 'unidad', 'Unidad no válida: elige de la lista');
+    else if (!PD.unidadValida(a.unidad)) m(1, 'La unidad "' + a.unidad + '" de la actividad ' + a.n + ' no es válida. Elige una de la lista o escribe una.', a, 'unidad', 'Unidad no válida: elige de la lista');
     else if (isNaN(PD.cantidadActividad(a))) {
       const ks = [];
       for (let i = 1; i <= PD.dimsDe(a.unidad); i++) if (!(PD.num(a['d' + i]) > 0)) ks.push('d' + i);

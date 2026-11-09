@@ -34,8 +34,8 @@
     const u = UNIDADES.find(x => x.cod === (sin || k) || x.texto.toUpperCase() === k || x.texto.toUpperCase().replace(/\s*\(.*\)\s*$/, '') === k);
     return u ? u.cod : k;
   }
-  // Solo se aceptan las unidades de la lista (el servidor tambien las exige).
-  function unidadValida(t) { const k = normUnidad(t); return !!k && UNIDADES.some(x => x.cod === k); }
+  // Se aceptan las de la lista o una unidad escrita (hasta 20 caracteres).
+  function unidadValida(t) { const k = normUnidad(t); return /^[A-Z0-9ÁÉÍÓÚÑ³²\/\-. ]{1,20}$/.test(k); } // lista o unidad escrita por el usuario
 
   function undPdf(cod) {
     const u = UNIDADES.find(x => x.cod === cod);
