@@ -651,7 +651,7 @@ async function bajarPlan(p, msg) {
 }
 /* ----- control de cambios (bitácora) ----- */
 let CAMB = { r: null, f: '', q: '' };
-const ACC_COL = { CREADO: '#2e7d32', MODIFICADO: '#ef6c00', ELIMINADO: '#c62828', 'FOTO ALBARÁN': '#0277bd', 'AJUSTE ADMIN': '#6a1b9a' };
+const ACC_COL = { CREADO: '#2e7d32', MODIFICADO: '#ef6c00', ELIMINADO: '#c62828', 'FOTO ALBARÁN': '#0277bd', 'AJUSTE ADMIN': '#6a1b9a', VALIDADA: '#00838f' };
 const fmtTs = t => { t = String(t || ''); return t.length >= 16 ? fmtF(t.slice(0, 10)) + ' ' + t.slice(11, 16) : t; };
 function filaCambio(x, sinVale) {
   return h('div', { class: 'tcard', style: 'border-left:5px solid ' + (ACC_COL[x.accion] || '#999') },
@@ -675,7 +675,7 @@ function pintaCambios() {
 function vistaCambios(c) {
   c.appendChild(h('div', { class: 'small', style: 'margin:6px 0' }, 'Cada creación, modificación, eliminación, foto de albarán y ajuste del administrador queda registrado con quién y cuándo. El registro no se puede editar desde la app. Cambia las fechas arriba y pulsa Actualizar para ver otro periodo.'));
   const bus = h('input', { type: 'search', placeholder: '🔍 Buscar vale, usuario, placa o detalle…', value: CAMB.q }); bus.oninput = () => { CAMB.q = bus.value; pintaCambios(); };
-  c.append(bus, chips([['', 'Todos'], ['CREADO', 'Creados'], ['MODIFICADO', 'Modificados'], ['ELIMINADO', 'Eliminados'], ['FOTO ALBARÁN', 'Fotos'], ['AJUSTE ADMIN', 'Ajustes admin']], CAMB.f, k => { CAMB.f = k; pintaCambios(); }), h('div', { id: 'cambBox' }));
+  c.append(bus, chips([['', 'Todos'], ['CREADO', 'Creados'], ['MODIFICADO', 'Modificados'], ['ELIMINADO', 'Eliminados'], ['FOTO ALBARÁN', 'Fotos'], ['AJUSTE ADMIN', 'Ajustes admin'], ['VALIDADA', 'Validaciones']], CAMB.f, k => { CAMB.f = k; pintaCambios(); }), h('div', { id: 'cambBox' }));
   if (CAMB.r) pintaCambios(); else cargaCambios();
   const bt = h('button', { class: 'sec sm', style: 'margin:8px 0' }, '⬇ Descargar cambios (CSV)'); bt.onclick = () => {
     const rows = (CAMB.r || []).map(x => [x.ts, x.cod, x.accion, x.usuario, x.llave, x.placa, x.fecha, x.detalle].map(csvCelda).join(';'));
