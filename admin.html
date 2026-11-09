@@ -648,12 +648,11 @@ async function xlsxTr() {
 /* ----- cierre / planillas ----- */
 function bajarB64(b64, nombre) { const bin = atob(b64), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); bajar(new Blob([a], { type: 'application/pdf' }), nombre); }
 async function crearCierre(desde, hasta, usuario, msg) {
-  msg.textContent = 'Generando cierre… (puede tardar unos segundos)';
+  msg.textContent = 'Generando reporte… (puede tardar unos segundos)';
   try {
-    const r = await api({ accion: 'admin_tr_cierre', llave: LLAVE, desde: desde, hasta: hasta, usuario: usuario || '' });
+    const r = await api({ accion: 'admin_tr_cierre', llave: LLAVE, desde: desde, hasta: hasta, usuario: usuario || '', sin_guardar: true }, 120000);
     if (!r.ok) { msg.textContent = r.mensaje || 'No se pudo crear'; return; }
-    bajarB64(r.pdf, r.nombre); msg.textContent = '✔ Cierre creado (' + r.viajes + ' viajes) y guardado en la biblioteca.';
-    TR = null; const t = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (t.ok) { TR = t; pintarTr(); }
+    bajarB64(r.pdf, r.nombre); msg.textContent = '✔ Reporte listo (' + r.viajes + ' viajes).';
   } catch (e) { msg.textContent = 'No se pudo conectar.'; }
 }
 function cargaJs(src, ok) { return new Promise((res, rej) => { if (ok()) return res(); const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script ' + src)); document.head.appendChild(s); }); }
@@ -728,28 +727,22 @@ async function xlsxCambios() {
   btn.disabled = false;
 }
 function vistaPlan(c) {
-  const msg = h('div', { class: 'small', style: 'margin:6px 0' });
-  const llaves = Array.from(new Set(TR.viajes.map(v => v.llave).filter(Boolean))).sort(), sel = h('select', { style: 'width:100%;margin:6px 0' }, h('option', { value: '' }, 'Todas las llaves'), llaves.map(l => h('option', { value: l }, l)));
-  const m2 = h('div', { class: 'small' });
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📄 Crear planilla (PDF)'),
-    h('div', { class: 'small' }, 'Una planilla por cada día, con los datos actuales de los viajes (formato de calidad). No se guarda: se genera al momento. Si hay un rango filtrado, sale una hoja por cada día del rango.'), sel,
-    h('div', { class: 'acc' }, h('button', { onclick: () => planillasRango(bogota(), bogota(), sel.value, m2) }, 'Planilla de hoy'), h('button', { onclick: () => planillasRango($('desde').value, $('hasta').value, sel.value, m2) }, 'Planillas del rango filtrado'))));
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📑 Reporte consolidado (PDF)'),
-    h('div', { class: 'small' }, 'KPIs, ranking, UF, destinos, carga baja, alertas y detalle con volumen de albarán y confirmado. Queda en la biblioteca.'),
-    h('div', { class: 'acc' }, h('button', { onclick: () => crearCierre(bogota(), bogota(), sel.value, msg) }, 'Consolidado de hoy'), h('button', { onclick: () => crearCierre($('desde').value, $('hasta').value, sel.value, msg) }, 'Consolidado del rango filtrado')), msg));
-  // Planillas del día: NO se guardan; se generan al momento con los datos actuales de cada viaje
-  const G = {}; TR.viajes.forEach(v => { const k = v.fecha + '|' + (v.llave || ''); (G[k] = G[k] || { fecha: v.fecha, llave: v.llave || '', usuario: v.creado_por || v.usuario || '', v: [] }).v.push(v); });
-  const gl = Object.keys(G).map(k => G[k]).sort((a, b) => (b.fecha + b.llave).localeCompare(a.fecha + a.llave));
-  if (gl.length) c.appendChild(h('div', { class: 'small', style: 'margin:10px 0 4px' }, '📄 Planillas diarias: se generan al momento con los datos actuales (no se guardan).'));
-  gl.forEach(g => c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, fmtF(g.fecha)), h('div', { class: 'small' }, g.llave + ' · ' + g.usuario + ' · ' + g.v.length + (g.v.length === 1 ? ' viaje' : ' viajes')),
-    h('button', { style: 'width:100%;margin-top:8px;padding:12px', onclick: () => planillaDia(g, m2) }, '⬇ Descargar planilla (PDF)'))));
-  const cierres = TR.planillas.filter(p => (p.archivo || '').indexOf('Cierre') === 0);
-  if (cierres.length) c.appendChild(h('div', { class: 'small', style: 'margin:12px 0 4px' }, '📑 Cierres gerenciales guardados'));
-  cierres.forEach(p => c.appendChild(h('div', { class: 'tcard' },
-    h('div', { class: 'big' }, fmtF(p.fecha)), h('div', { class: 'small' }, '📑 ' + p.usuario),
-    p.url ? h('button', { style: 'width:100%;margin-top:8px;padding:12px', onclick: () => bajarPlan(p, m2) }, '⬇ Descargar PDF') : null)));
-  c.appendChild(m2);
-  if (!gl.length && !cierres.length) c.appendChild(h('div', { class: 'trok' }, 'No hay viajes ni cierres en estas fechas'));
+  const msg = h('div', { class: 'small', style: 'margin:10px 2px 0;min-height:18px;font-weight:600' });
+  const llaves = Array.from(new Set(TR.viajes.map(v => v.llave).filter(Boolean))).sort(), sel = h('select', { style: 'width:100%;margin:0' }, h('option', { value: '' }, 'Todas las llaves'), llaves.map(l => h('option', { value: l }, l)));
+  const ff = x => fmtF(x).slice(0, 5), rango = () => ff($('desde').value) + ' al ' + ff($('hasta').value);
+  const card = (color, ico, tit, desc, bHoy, bRango, fHoy, fRango) => h('div', { style: 'background:#fff;border:1px solid var(--line);border-top:5px solid ' + color + ';border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px' },
+    h('div', { style: 'font-size:18px;font-weight:800' }, ico + ' ' + tit), h('div', { class: 'small', style: 'flex:1;line-height:1.35' }, desc),
+    h('button', { style: 'padding:14px;font-size:16px;background:' + color + ';border-color:' + color + ';color:#fff', onclick: fHoy }, bHoy),
+    h('button', { class: 'sec', style: 'padding:12px;font-size:15px;font-weight:700;border:2px solid ' + color + ';color:' + color, onclick: fRango }, bRango));
+  c.appendChild(h('div', { style: 'background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:6px 0 12px' },
+    h('div', { style: 'font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px' }, 'Filtrar por llave'), sel,
+    h('div', { class: 'small', style: 'margin-top:8px' }, '📅 Periodo filtrado arriba: ' + rango() + ' · pulsa Actualizar si lo cambias')));
+  c.appendChild(h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px' },
+    card('#0a7d32', '📄', 'Planilla diaria', 'Formato de calidad con los datos actuales de los viajes. En un rango sale una hoja por cada día. Se descarga al instante y no se guarda.',
+      'Planilla de hoy', 'Rango filtrado · ' + rango(), () => planillasRango(bogota(), bogota(), sel.value, msg), () => planillasRango($('desde').value, $('hasta').value, sel.value, msg)),
+    card('#0d3b66', '📊', 'Reporte consolidado', 'KPIs, ranking, UF, destinos, carga baja, alertas y detalle, con volumen de albarán y confirmado. Se descarga al instante y no se guarda.',
+      'Consolidado de hoy', 'Rango filtrado · ' + rango(), () => crearCierre(bogota(), bogota(), sel.value, msg), () => crearCierre($('desde').value, $('hasta').value, sel.value, msg))));
+  c.appendChild(msg);
 }
 
 const sitioDe = v => v.mov === 'RECIBE' ? (v.origen || '') : (v.destino || '');
