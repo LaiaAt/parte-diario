@@ -290,15 +290,11 @@ function filaViaje(v) {
   const pend = COLA.some(o => o.cod === v.cod && !o.error);
   const falta = !v.tiene_recibo && puedeRecibo(v);
   const mas = h('div', { class: 'bs', hidden: true, style: 'margin-top:8px' });
-  if (puedeEditar(v)) { mas.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); }
-  if (v.tiene_recibo && puedeRecibo(v)) mas.appendChild(selectorFotos({ camara: '📷 Otra foto del recibo', galeria: '🖼 Otras de la galería', alAgregar: f => fotoRecibo(v, f) }));
-  if (puedeEditar(v)) mas.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje'));
   const bs = h('div', { class: 'bs' });
   if (falta && !v.tiene_recibo) bs.appendChild(selectorFotos({ camara: '📷 Foto del recibo', galeria: '🖼 Desde galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) }));
   if (v.tiene_recibo) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🧾 Albarán'));
   if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🚛 Volqueta'));
-  bs.appendChild(h('button', { class: 'sec', onclick: () => compartirVale(v) }, '📄 Vale'));
-  if (mas.children.length) bs.appendChild(h('button', { class: 'sec', onclick: () => { mas.hidden = !mas.hidden; } }, '⋯ Más'));
+  if (puedeEditar(v)) { bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); bs.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje')); }
   return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
     h('div', { class: 't' }, v.placa, ' · ', v.material),
     h('div', { class: 's' }, r2(volV(v)) + ' m³ · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
