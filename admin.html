@@ -656,6 +656,17 @@ async function crearCierre(desde, hasta, usuario, msg) {
     TR = null; const t = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (t.ok) { TR = t; pintarTr(); }
   } catch (e) { msg.textContent = 'No se pudo conectar.'; }
 }
+function cargaJs(src, ok) { return new Promise((res, rej) => { if (ok()) return res(); const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script ' + src)); document.head.appendChild(s); }); }
+let LOGO_PL = null;
+async function planillaDia(g, msg) {
+  msg.textContent = 'Generando planilla…';
+  try {
+    await cargaJs('vendor/jspdf.umd.min.js', () => window.jspdf); await cargaJs('pdf_tr.js', () => window.PDT);
+    if (!LOGO_PL) { try { LOGO_PL = await new Promise((res, rej) => { const i = new Image(); i.onload = () => { const cv = document.createElement('canvas'); cv.width = i.naturalWidth; cv.height = i.naturalHeight; cv.getContext('2d').drawImage(i, 0, 0); res({ data: cv.toDataURL('image/png'), w: i.naturalWidth, h: i.naturalHeight }); }; i.onerror = rej; i.src = 'logo.png'; }); } catch (e) {} }
+    const doc = window.PDT.generarPlanilla(g.fecha, g.v, { nombre: g.usuario }, window.jspdf.jsPDF, LOGO_PL);
+    bajar(doc.output('blob'), 'Planilla_viajes_' + g.llave + '_' + g.fecha + '.pdf'); msg.textContent = '';
+  } catch (e) { console.error(e); msg.textContent = 'No se pudo generar la planilla.'; }
+}
 async function bajarPlan(p, msg) {
   msg.textContent = 'Descargando…';
   try { const r = await api({ accion: 'admin_tr_pdf', llave: LLAVE, url: p.url }); if (!r.ok) { msg.textContent = r.mensaje || 'No se pudo abrir'; return; } bajarB64(r.pdf, r.nombre || 'Planilla.pdf'); msg.textContent = ''; } catch (e) { msg.textContent = 'No se pudo conectar.'; }
@@ -704,11 +715,19 @@ function vistaPlan(c) {
     h('div', { class: 'small' }, 'KPIs, ranking, UF, destinos, carga baja, alertas y detalle. Queda en la biblioteca.'), sel,
     h('div', { class: 'acc' }, h('button', { onclick: () => crearCierre(bogota(), bogota(), sel.value, msg) }, 'Cierre de hoy'), h('button', { onclick: () => crearCierre($('desde').value, $('hasta').value, sel.value, msg) }, 'Del rango filtrado')), msg));
   const m2 = h('div', { class: 'small' });
-  TR.planillas.forEach(p => c.appendChild(h('div', { class: 'tcard' },
-    h('div', { class: 'big' }, fmtF(p.fecha)), h('div', { class: 'small' }, (p.archivo || '').indexOf('Cierre') === 0 ? '📑 ' + p.usuario : p.llave + ' · ' + p.usuario + ' · ' + TR.viajes.filter(v => v.fecha === p.fecha && v.llave === p.llave).length + ' viajes'),
+  // Planillas del día: NO se guardan; se generan al momento con los datos actuales de cada viaje
+  const G = {}; TR.viajes.forEach(v => { const k = v.fecha + '|' + (v.llave || ''); (G[k] = G[k] || { fecha: v.fecha, llave: v.llave || '', usuario: v.creado_por || v.usuario || '', v: [] }).v.push(v); });
+  const gl = Object.keys(G).map(k => G[k]).sort((a, b) => (b.fecha + b.llave).localeCompare(a.fecha + a.llave));
+  if (gl.length) c.appendChild(h('div', { class: 'small', style: 'margin:10px 0 4px' }, '📄 Planillas diarias: se generan al momento con los datos actuales (no se guardan).'));
+  gl.forEach(g => c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, fmtF(g.fecha)), h('div', { class: 'small' }, g.llave + ' · ' + g.usuario + ' · ' + g.v.length + (g.v.length === 1 ? ' viaje' : ' viajes')),
+    h('button', { style: 'width:100%;margin-top:8px;padding:12px', onclick: () => planillaDia(g, m2) }, '⬇ Descargar planilla (PDF)'))));
+  const cierres = TR.planillas.filter(p => (p.archivo || '').indexOf('Cierre') === 0);
+  if (cierres.length) c.appendChild(h('div', { class: 'small', style: 'margin:12px 0 4px' }, '📑 Cierres gerenciales guardados'));
+  cierres.forEach(p => c.appendChild(h('div', { class: 'tcard' },
+    h('div', { class: 'big' }, fmtF(p.fecha)), h('div', { class: 'small' }, '📑 ' + p.usuario),
     p.url ? h('button', { style: 'width:100%;margin-top:8px;padding:12px', onclick: () => bajarPlan(p, m2) }, '⬇ Descargar PDF') : null)));
   c.appendChild(m2);
-  if (!TR.planillas.length) c.appendChild(h('div', { class: 'trok' }, 'No hay planillas en estas fechas'));
+  if (!gl.length && !cierres.length) c.appendChild(h('div', { class: 'trok' }, 'No hay viajes ni cierres en estas fechas'));
 }
 
 const sitioDe = v => v.mov === 'RECIBE' ? (v.origen || '') : (v.destino || '');

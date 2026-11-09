@@ -807,10 +807,7 @@ async function planilla(f) {
   try {
     const doc = PDT.generarPlanilla(f, vs, { nombre: user.nombre }, window.jspdf.jsPDF, await cargarLogo());
     const nombre = 'Planilla_viajes_' + user.llave + '_' + f + '.pdf';
-    let msg = '';
-    if (navigator.onLine && !COLA.some(o => o.llave === user.llave && o.t === 'g')) {
-      try { const r = await api({ accion: 'tr_planilla', llave: user.llave, fecha: f, pdf: doc.output('datauristring').split(',')[1] }, 60000); msg = r.ok ? ' Copia guardada en la oficina.' : ''; } catch (e) {}
-    } else if (COLA.some(o => o.llave === user.llave && o.t === 'g')) msg = ' Hay viajes sin enviar: la copia de la oficina se guarda cuando todo esté enviado.';
+    const msg = ''; // la planilla ya no se guarda en el servidor: se genera siempre con los datos actuales
     aviso('Planilla lista.' + msg, 'ok');
     await entregarPdf(doc, nombre, 'Planilla de viajes ' + fmtF(f));
   } catch (e) { console.error(e); aviso('No se pudo crear la planilla.', 'err'); }
