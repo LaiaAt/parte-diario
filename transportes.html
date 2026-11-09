@@ -252,6 +252,7 @@ function pintarInicio() {
   const faltan = VIAJES.filter(v => v.fecha === ayer && !v.tiene_recibo && puedeRecibo(v));
   if (faltan.length) { B.appendChild(h('h3', {}, '📷 Falta la foto del recibo (ayer)')); faltan.forEach(v => B.appendChild(filaViaje(v))); }
   B.appendChild(h('h3', { style: 'margin-top:14px' }, 'Viajes de hoy' + (hoyV.length ? ' · ' + hoyV.length + ' · ' + r2(vol) + ' m³' : '')));
+  if (hoyV.length) B.appendChild(h('div', { style: 'background:#fff3cd;border:2px solid #12202b;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-weight:700' }, '🧾 Registros en la app: ' + hoyV.length + '. Al final del día debes tener ' + hoyV.length + ' albaranes de papel, numerados del 1 al ' + hoyV.length + '.'));
   if (!hoyV.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay viajes hoy. Toca el botón verde para empezar.'));
   hoyV.forEach(v => B.appendChild(filaViaje(v)));
   if (hoyV.length) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:14px', onclick: () => planilla(hoy()) }, '📄 Planilla de hoy'));
@@ -299,7 +300,7 @@ function filaViaje(v) {
   if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🚛 Volqueta'));
   if (puedeEditar(v)) { bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); bs.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje')); }
   return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
-    h('div', { class: 't' }, v.placa, ' · ', v.material),
+    h('div', { class: 't' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;margin-right:6px' }, 'N° ' + consecDe(v)), v.placa, ' · ', v.material),
     h('div', { class: 's' }, r2(volV(v)) + ' m³ · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
     h('div', { style: 'margin-bottom:8px' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null, h('span', { class: 'tag' }, v.cod)),
     bs, mas,
@@ -368,6 +369,18 @@ function llenarListas() {
   lst('dl-material', DATOS.catalogos.MATERIAL); lst('dl-origen', DATOS.catalogos.ORIGEN); lst('dl-destino', DATOS.catalogos.DESTINO); lst('dl-centro', DATOS.catalogos.CENTRO_COSTOS);
 }
 const volV = v => (num(v.vol_albaran) > 0 ? num(v.vol_albaran) : (num(v.cant) || 0));
+// N° consecutivo del viaje en el día (el que se escribe en el albarán de papel). Los viajes viejos sin número se numeran por orden de registro.
+const delDia = (fecha, nombre) => VIAJES.filter(x => x.fecha === fecha && (!nombre || x.usuario === nombre));
+function consecDe(v) {
+  if (Number(v.consec) > 0) return Number(v.consec);
+  const L = delDia(v.fecha, v.usuario).filter(x => !(Number(x.consec) > 0)).sort((a, b) => String(a.creado || a.registrado || '').localeCompare(String(b.creado || b.registrado || '')) || String(a.hora_salida || '').localeCompare(String(b.hora_salida || '')));
+  return Math.max(1, L.findIndex(x => x.cod === v.cod) + 1);
+}
+function siguienteConsec(fecha, nombre) {
+  const L = delDia(fecha, nombre); let mx = L.filter(x => !(Number(x.consec) > 0)).length;
+  L.forEach(x => { if (Number(x.consec) > mx) mx = Number(x.consec); });
+  return mx + 1;
+}
 const alertasCampo = a => String(a || '').split('; ').filter(x => x && !/capacidad|nominal|tolva|cantidad mayor|carga por encima/i.test(x)).join('; ');
 const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
 const MATERIALES_BASE = ['Material de excavación', 'Escombro', 'Material de relleno seleccionado', 'Recebo', 'Subbase granular', 'Base granular tipo A', 'Base granular tipo B', 'Base granular tipo C', 'Base PA', 'Rajón', 'Rajoncillo', 'Arena', 'Arena de trituración', 'Arena de peña', 'Gravilla', 'Triturado', 'Mezcla asfáltica', 'Descapote', 'RCD (demolición)'];
@@ -604,7 +617,7 @@ function abrirForm(v, base) {
   const hh = new Date().getHours();
   const esRec = (v ? v.mov : (base && base.mov)) === 'RECIBE';
   const campo = (id, etiqueta, valor, o) => { o = o || {}; return h('div', { id: 'c_' + id }, h('label', { for: id }, etiqueta), h('input', { id: id, class: o.cls || '', type: o.type || 'text', inputmode: o.inputmode, list: o.list, autocomplete: 'off', autocapitalize: o.cap, value: valor, placeholder: o.ph })); };
-  F.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;box-shadow:0 2px 6px rgba(0,0,0,.35)', onclick: volver }, '← VOLVER'), h('h3', { style: 'margin:6px 0 0' }, v ? '✏️ Corregir viaje' : '➕ Nuevo viaje')));
+  F.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;box-shadow:0 2px 6px rgba(0,0,0,.35)', onclick: volver }, '← VOLVER'), h('h3', { style: 'margin:6px 0 0' }, v ? '✏️ Corregir viaje · N° ' + consecDe(v) : '➕ Nuevo viaje · N° ' + siguienteConsec(hoy(), user.nombre))));
   // paso 1
   const res = h('div', { id: 'resVol', class: 'resumen', hidden: true, style: 'display:none' });
   const dat = h('div', { id: 'datosVol', hidden: true, style: 'display:none' },
@@ -734,7 +747,7 @@ async function guardarViaje() {
   const antes = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
   const cod = antes ? antes.cod : nuevoCod();
   const v = Object.assign({}, antes || {}, {
-    cod: cod, llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : ($('fecha_vale').value || hoy()), registrado: antes ? (antes.registrado || antes.fecha) : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
+    cod: cod, consec: antes ? consecDe(antes) : siguienteConsec($('fecha_vale').value || hoy(), user.nombre), llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : ($('fecha_vale').value || hoy()), registrado: antes ? (antes.registrado || antes.fecha) : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
     placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), vol_albaran: g('vol_albaran'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
     lat: '', lon: '', prec: '',
     uf: $('uf').value, pct: pct > 0 ? pct : '', cant: cant > 0 ? cant : '', peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
@@ -759,7 +772,7 @@ async function guardarViaje() {
 }
 function mostrarListo(v) {
   const L = $('listo'); L.textContent = '';
-  L.appendChild(h('div', { class: 'card', style: 'text-align:center' }, h('p', { class: 'hecho' }, '✅'), h('h2', {}, '¡Viaje guardado!'),
+  L.appendChild(h('div', { class: 'card', style: 'text-align:center' }, h('p', { class: 'hecho' }, '✅'), h('h2', {}, '¡Viaje guardado!'), h('p', { style: 'font-size:22px;font-weight:800;background:#fff3cd;border:2px solid #12202b;border-radius:8px;padding:8px;margin:6px 0' }, '✍️ Escribe el N° ' + consecDe(v) + ' en el albarán'),
     h('p', { style: 'font-family:monospace;font-size:24px;font-weight:700;color:#b00000;margin:4px 0' }, v.cod),
     h('p', {}, v.placa + ' · ' + v.material + ' · ' + r2(volV(v)) + ' m³'), h('p', { id: 'estadoEnvio' }, 'Guardado en el teléfono.')));
   const bs = h('div', { class: 'gr' });
