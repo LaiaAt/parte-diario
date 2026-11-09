@@ -297,6 +297,7 @@ function sospechosos() {
   const add = (tipo, msg, vs) => S.push({ tipo, msg, vs });
   const porVal = {}; V.forEach(v => { if (v.n_valera) { const k = v.n_valera.toUpperCase() + '|' + v.valera_de; (porVal[k] = porVal[k] || []).push(v); } });
   Object.keys(porVal).forEach(k => { if (porVal[k].length > 1) add('Albarán repetido', 'La valera N° ' + porVal[k][0].n_valera + ' (' + (porVal[k][0].valera_de || '—') + ') está en ' + porVal[k].length + ' viajes', porVal[k]); });
+  V.forEach(v => { const qa = Number(v.vol_albaran) || 0, qc = Number(v.cant) || 0; if (qa > 0 && qc > 0 && Math.abs(qa - qc) / qc > 0.10) add('Albarán ≠ confirmado', v.placa + ' el ' + fmtF(v.fecha) + ': albarán ' + nf1(qa) + ' m³ vs confirmado ' + nf1(qc) + ' m³ (' + (qa > qc ? '+' : '') + Math.round((qa - qc) / qc * 100) + ' %)', [v]); });
   const pd = {}; V.forEach(v => { const k = v.placa + '|' + v.fecha; (pd[k] = pd[k] || []).push(v); });
   Object.keys(pd).forEach(k => {
     const L = pd[k], cond = new Set(L.map(v => String(v.conductor).toUpperCase().replace(/\s+/g, ' ').trim()).filter(Boolean));
@@ -576,24 +577,53 @@ function csvTr() {
 function cargarScript(src) { return new Promise((ok, no) => { if (window.ExcelJS) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('script')); document.head.appendChild(s); }); }
 function miniatura(data, ancho) { return new Promise(res => { if (!data) return res(''); const im = new Image(); im.onload = () => { const k = Math.min(1, ancho / im.naturalWidth), cv = document.createElement('canvas'); cv.width = Math.round(im.naturalWidth * k); cv.height = Math.round(im.naturalHeight * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); res({ url: cv.toDataURL('image/jpeg', 0.72), w: cv.width, h: cv.height }); }; im.onerror = () => res(''); im.src = data; }); }
 async function xlsxTr() {
-  const L = viajesTr(), msg = $('xlsxMsg'), btn = $('btnXlsxTr');
+  const L = viajesTr().slice().sort((a, b) => (a.fecha + (a.hora_salida || '')).localeCompare(b.fecha + (b.hora_salida || ''))), msg = $('xlsxMsg'), btn = $('btnXlsxTr');
   if (!L.length) { msg.textContent = 'No hay viajes para exportar.'; return; }
   if (L.length > 150) { msg.textContent = 'Con fotos el máximo es 150 viajes (hay ' + L.length + '). Filtra por día, placa o destino, o usa el CSV.'; return; }
   btn.disabled = true; msg.textContent = 'Preparando Excel…';
   try {
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
-    const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Viajes');
-    ws.columns = COLS_TR.concat(['Ubicación origen', 'Foto volqueta', 'Foto albarán']).map((c, i) => ({ header: c, width: i >= COLS_TR.length + 1 ? 24 : (/Material|Alertas|Origen|Destino|Conductor|Empresa/.test(c) ? 24 : 12) }));
-    ws.getRow(1).font = { bold: true }; ws.views = [{ state: 'frozen', ySplit: 1 }];
-    const iF = COLS_TR.length + 1;
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Carlos Eduardo Bermúdez Castro'; wb.created = new Date();
+    const ws = wb.addWorksheet('Viajes', { views: [{ state: 'frozen', xSplit: 5, ySplit: 4 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+    const VERDE = 'FF1B5E20', GRIS = 'FFF1F8F1', BORDE = { style: 'thin', color: { argb: 'FFB0BEC5' } }, B4 = { top: BORDE, left: BORDE, bottom: BORDE, right: BORDE };
+    // [encabezado, ancho, tipo, valor(v)]
+    const C = [
+      ['Fecha', 11, 'f', v => v.fecha], ['Hora', 7, 't', v => v.hora_salida || ''], ['Vale', 17, 't', v => v.cod], ['Valera', 9, 't', v => v.n_valera || ''], ['Placa', 9, 't', v => v.placa],
+      ['Empresa', 18, 't', v => v.empresa || ''], ['Conductor', 18, 't', v => v.conductor || ''], ['Material', 20, 't', v => v.material || ''],
+      ['Movimiento', 11, 't', v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['UF', 8, 't', v => ufTxt(v)], ['Origen', 22, 't', v => v.origen || ''], ['Destino', 22, 't', v => v.destino || ''], ['Km', 7, 'n', v => v.km === '' ? '' : Number(v.km)],
+      ['m³ albarán', 11, 'n', v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, 'n', v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Diferencia m³', 11, 'n', v => Number(v.vol_albaran) > 0 && Number(v.cant) > 0 ? Math.round((Number(v.vol_albaran) - Number(v.cant)) * 100) / 100 : ''],
+      ['% carga', 8, 'n0', v => pctV(v) === null ? '' : pctV(v)], ['Estado', 12, 't', v => v.estado || ''], ['Alertas', 32, 't', v => v.alertas || ''], ['Ubicación', 18, 'l', v => v], ['Foto volqueta', 24, 'img', null], ['Foto albarán', 24, 'img', null]];
+    ws.columns = C.map(c => ({ width: c[1] }));
+    ws.mergeCells(1, 1, 1, C.length); ws.getCell('A1').value = 'REGISTRO DE TRANSPORTES — Consorcio Constructor Sabana Norte'; ws.getCell('A1').font = { bold: true, size: 15, color: { argb: VERDE } }; ws.getRow(1).height = 24;
+    ws.mergeCells(2, 1, 2, C.length); ws.getCell('A2').value = 'Periodo: ' + fmtF($('desde').value) + ' al ' + fmtF($('hasta').value) + '  ·  ' + L.length + ' viajes  ·  Generado ' + new Date().toLocaleString('es-CO') + '  ·  Autor: Carlos Eduardo Bermúdez Castro'; ws.getCell('A2').font = { size: 10, color: { argb: 'FF455A64' } };
+    const hr = ws.getRow(4); C.forEach((c, i) => { const ce = hr.getCell(i + 1); ce.value = c[0]; ce.font = { bold: true, color: { argb: 'FFFFFFFF' } }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i >= 13 && i <= 15 ? 'FF0D3B66' : VERDE } }; ce.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; ce.border = B4; });
+    hr.height = 30; ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: C.length } };
+    const iF = C.length - 2, ini = 5;
     for (let i = 0; i < L.length; i += 5) {
       msg.textContent = 'Descargando fotos… ' + Math.min(i, L.length) + ' de ' + L.length;
       const lote = L.slice(i, i + 5), r = await api({ accion: 'admin_tr_fotos', llave: LLAVE, cods: lote.map(v => v.cod) }).catch(() => ({ ok: false }));
       for (let j = 0; j < lote.length; j++) {
-        const v = lote[j], f = (r.ok && r.fotos && r.fotos[v.cod]) || {}, row = ws.addRow(filaTr(v).concat([tieneGps(v) ? { text: 'Abrir en Google Maps', hyperlink: mapaUrl(v) } : '', '', ''])), n = row.number;
+        const v = lote[j], f = (r.ok && r.fotos && r.fotos[v.cod]) || {}, row = ws.addRow(C.map(c => c[2] === 'img' ? '' : c[2] === 'l' ? (tieneGps(v) ? { text: 'Abrir en Maps', hyperlink: mapaUrl(v) } : '') : c[2] === 'f' ? fmtF(c[3](v)) : c[3](v))), n = row.number;
         row.height = 96; row.alignment = { vertical: 'middle', wrapText: true };
-        for (const [k, d] of [[iF, f.c], [iF + 1, f.r]]) { const m = await miniatura(d, 320); if (m) { const id = wb.addImage({ base64: m.url, extension: 'jpeg' }); ws.addImage(id, { tl: { col: k, row: n - 1 }, ext: { width: 125, height: Math.round(125 * m.h / m.w) } }); } }
+        row.eachCell({ includeEmpty: true }, (ce, k) => { ce.border = B4; const t = C[k - 1][2]; if (t === 'n') ce.numFmt = '#,##0.0'; if (t === 'n0') ce.numFmt = '0'; if (t === 'n' || t === 'n0') ce.alignment = { vertical: 'middle', horizontal: 'right' }; if (t === 'l' && ce.value && ce.value.hyperlink) ce.font = { color: { argb: 'FF0563C1' }, underline: true }; if ((n - ini) % 2) ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GRIS } }; });
+        if (v.alertas) row.getCell(19).font = { color: { argb: 'FFC62828' } };
+        for (const [k, d] of [[iF, f.c], [iF + 1, f.r]]) { const m = await miniatura(d, 320); if (m) { const id = wb.addImage({ base64: m.url, extension: 'jpeg' }); ws.addImage(id, { tl: { col: k, row: n - 1 }, ext: { width: 125, height: Math.min(92, Math.round(125 * m.h / m.w)) } }); } }
       }
+    }
+    // fila de totales
+    const fin = ws.rowCount, tot = ws.addRow([]); tot.height = 22;
+    tot.getCell(1).value = 'TOTALES'; ['m³ albarán', 'm³ confirmado', 'Diferencia m³'].forEach(nm => { const k = C.findIndex(c => c[0] === nm) + 1, col = ws.getColumn(k).letter; tot.getCell(k).value = { formula: 'SUBTOTAL(109,' + col + ini + ':' + col + fin + ')' }; tot.getCell(k).numFmt = '#,##0.0'; });
+    tot.getCell(C.findIndex(c => c[0] === 'Km') + 1).value = L.length + ' viajes';
+    tot.eachCell({ includeEmpty: true }, (ce, k) => { if (k <= C.length) { ce.font = { bold: true }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCFD8DC' } }; ce.border = B4; } });
+    // hoja resumen
+    const rs = wb.addWorksheet('Resumen'); rs.columns = [{ width: 26 }, { width: 10 }, { width: 14 }, { width: 14 }, { width: 14 }];
+    rs.getCell('A1').value = 'RESUMEN DEL PERIODO'; rs.getCell('A1').font = { bold: true, size: 14, color: { argb: VERDE } };
+    let rr = 3;
+    for (const [tit, fn] of [['Por UF de origen', v => ufTxt(v)], ['Por destino / sitio', v => sitioDe(v) || '—'], ['Por material', v => v.material || '—'], ['Por volqueta', v => v.placa]]) {
+      const M = {}; L.forEach(v => { const k = fn(v), o = (M[k] = M[k] || { n: 0, a: 0, c: 0 }); o.n++; o.a += Number(v.vol_albaran) || 0; o.c += Number(v.cant) || 0; });
+      const h1 = rs.getRow(rr); [tit, 'Viajes', 'm³ albarán', 'm³ confirmado', 'Diferencia'].forEach((t, i) => { const ce = h1.getCell(i + 1); ce.value = t; ce.font = { bold: true, color: { argb: 'FFFFFFFF' } }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: VERDE } }; ce.border = B4; }); rr++;
+      Object.keys(M).sort((x, y) => M[y].c - M[x].c).forEach(k => { const o = M[k], row = rs.getRow(rr++); [k, o.n, o.a, o.c, o.a - o.c].forEach((t, i) => { const ce = row.getCell(i + 1); ce.value = i >= 2 ? Math.round(t * 100) / 100 : t; ce.border = B4; if (i >= 2) ce.numFmt = '#,##0.0'; }); });
+      rr++;
     }
     msg.textContent = 'Guardando archivo…';
     const buf = await wb.xlsx.writeBuffer();
@@ -654,6 +684,18 @@ function vistaGeo(c) {
   const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
   const mapa = (la, lo) => (la !== '' && lo !== '' && la !== undefined) ? h('a', { href: 'https://www.google.com/maps/search/?api=1&query=' + la + ',' + lo, target: '_blank', rel: 'noopener', title: 'Ver en el mapa' }, '📍') : null;
   c.appendChild(h('div', { class: 'small', style: 'margin:6px 0' }, 'Aquí creas y corriges los orígenes (UF) y destinos, sus coordenadas y las distancias en km. Los cambios se guardan al instante y los usan los transportistas desde su próximo viaje.'));
+  const bx = h('button', { class: 'sec sm', style: 'margin:0 0 8px' }, '⬇ Descargar Excel (sitios, UF y distancias)');
+  bx.onclick = () => {
+    if (!window.XLSX) { alert('No cargó el módulo de Excel. Revisa tu conexión e intenta de nuevo.'); return; }
+    const wb = XLSX.utils.book_new(), ad = (n, rows) => XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), n);
+    ad('Sitios', [['Sitio', 'Latitud', 'Longitud', 'Radio (m)', 'Recibe', 'Notas']].concat(G.sitios.map(x => [x.n, x.lat, x.lon, x.radio, x.recibe, x.notas])));
+    ad('UF', [['UF', 'Lat inicio', 'Lon inicio', 'Lat fin', 'Lon fin', 'Lat centro', 'Lon centro', 'Notas']].concat(G.ufs.map(u => [u.uf, u.lat_ini, u.lon_ini, u.lat_fin, u.lon_fin, u.lat_cg, u.lon_cg, u.notas || ''])));
+    ad('Distancias', [['UF', 'Destino / sitio', 'Km', 'Fuente', 'Por validar']].concat(G.dist.map(x => [x.uf, x.d, x.km, x.fuente, x.pv ? 'SI' : ''])));
+    const DD = {}; G.dist.forEach(x => { DD[x.uf + '|' + nrm(x.d)] = x.km; });
+    ad('Matriz km', [['UF \\ Destino'].concat(G.sitios.map(x => x.n))].concat(G.ufs.map(u => ['UF ' + u.uf].concat(G.sitios.map(sx => { const k = DD['UF' + String(u.uf).toUpperCase() + '|' + nrm(sx.n)]; return k === undefined ? '' : k; })))));
+    XLSX.writeFile(wb, 'Distancias_y_sitios_' + new Date().toLocaleDateString('sv-SE') + '.xlsx');
+  };
+  c.appendChild(bx);
   // 1) matriz de distancias UF x sitio
   const D = {}; G.dist.forEach(x => { D[x.uf + '|' + nrm(x.d)] = x; });
   const tm = h('table', { style: 'border-collapse:collapse;font-size:14px' }, h('tr', {}, th('UF ↓ / destino →'), G.sitios.map(x => th(x.n))));
