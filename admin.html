@@ -1318,7 +1318,7 @@ $('infSem').onclick = async () => {
   try {
     const r = await api({ accion: 'admin_informe_semanal', llave: LLAVE, desde: d, hasta: hh }, 300000);
     if (!r.ok) { e.textContent = r.mensaje || 'No se pudo generar.'; }
-    else { bajarB64(r.pdf, r.nombre || 'Informe.pdf'); e.textContent = 'Listo: ' + r.partes + ' partes. Quedó en la biblioteca.'; }
+    else { bajarB64(r.pdf, r.nombre || 'Informe.pdf'); e.textContent = 'Listo: ' + r.partes + ' partes. Descargado.'; }
   } catch (er) { e.textContent = 'No se pudo conectar. Intenta de nuevo.'; }
   bt.disabled = false;
 };
