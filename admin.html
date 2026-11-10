@@ -129,6 +129,8 @@ button.chipm{cursor:pointer;font:inherit}
     <div id="err" class="msg"></div>
   </div>
 
+  <section id="acHost" data-m="acero" hidden style="margin:8px 0"></section>
+
   <div id="alertas" class="miss" data-m="resumen" style="margin:8px 0"></div>
   <div class="kpis" id="kpis" data-m="resumen"></div>
 
@@ -236,7 +238,7 @@ async function cargar(primera) {
   $('estado').textContent = '';
   if (!r.ok) { (primera ? $('loginmsg') : $('err')).textContent = r.mensaje || 'No se pudo cargar'; if (!primera && /administradores/.test(r.mensaje || '')) salir(); return false; }
   { const c = {}; (r.ACTIVIDAD || []).forEach(x => { c[x.id] = (c[x.id] || 0) + 1; if (!x.an) x.an = c[x.id]; }); } // numero real de la actividad (1..N en orden); el servidor nuevo ya lo manda
-  D = r; $('quien').textContent = r.nombre; pintar(); cargarFotos(); return true;
+  D = r; $('quien').textContent = r.nombre; pintar(); cargarFotos(); if ($('acFrame')) enviarAc(MOD === 'acero'); return true;
 }
 
 const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['consolidados', '📊 Consolidados'], ['transportes', '🚛 Transportes']];
@@ -249,13 +251,14 @@ function navTr() {
 function modulo(m) {
   MOD = m;
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
-  const gt = m === 'transportes';
-  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g !== 'a' && (b.dataset.g === 't') === gt));
-  $('nav2').hidden = gt; $('nav3').hidden = !gt; if (gt) navTr();
+  const gt = m === 'transportes', ga = m === 'acero', grp = gt ? 't' : ga ? 'a' : 'p';
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g === grp));
+  $('nav2').hidden = gt || ga; $('nav3').hidden = !gt; if (gt) navTr();
   { const t = $('nav').offsetHeight + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
   window.scrollTo(0, 0);
   if (m === 'transportes' && !TR) cargarTr();
+  if (m === 'acero') abrirAcero();
 }
 let TRVM = 'conf', TR = null, TRTAB = 'viajes', TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
 async function cargarTr() {
@@ -852,10 +855,25 @@ function pintarTr() {
 function chips(opts, val, fn) {
   return h('div', { class: 'chips' }, opts.map(([k, t]) => h('button', { class: 'chip' + (val === k ? ' on' : ''), onclick: () => fn(k) }, t)));
 }
+/* ----- Acero: se muestra dentro del Dashboard con el mismo periodo ----- */
+function enviarAc(recargar) {
+  const f = $('acFrame'); if (!f || !f.contentWindow) return;
+  f.contentWindow.postMessage({ t: 'per', d: $('desde').value, h: $('hasta').value, r: !!recargar }, location.origin);
+}
+function abrirAcero() {
+  let f = $('acFrame');
+  if (!f) { f = h('iframe', { id: 'acFrame', src: 'acero-embed.html', title: 'Acero', scrolling: 'no', style: 'width:100%;border:0;display:block;min-height:70vh;background:transparent' }); $('acHost').appendChild(f); }
+  else enviarAc(true);
+}
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data) return;
+  if (e.data.t === 'acero-listo') enviarAc(false);
+  else if (e.data.t === 'acero-alto' && $('acFrame')) $('acFrame').style.height = Math.max(400, e.data.h) + 'px';
+});
 function navegacion() {
   const n = $('nav'); n.hidden = false; if (n.firstChild) { modulo(MOD); return; }
   const n2 = $('nav2'); let ultP = 'resumen';
-  [['p', '📅 Parte diario', () => modulo(MOD !== 'transportes' ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (MOD !== 'transportes') ultP = MOD; modulo('transportes'); }], ['a', '🔩 Acero', () => { location.href = 'acero-panel.html'; }]].forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
+  [['p', '📅 Parte diario', () => modulo(MOD !== 'transportes' && MOD !== 'acero' ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (MOD !== 'transportes' && MOD !== 'acero') ultP = MOD; modulo('transportes'); }], ['a', '🔩 Acero', () => { if (MOD !== 'transportes' && MOD !== 'acero') ultP = MOD; modulo('acero'); }]].forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
   MODS.filter(x => x[0] !== 'transportes').forEach(x => { const b = h('button', { onclick: () => modulo(x[0]) }, x[1]); b.dataset.mod = x[0]; n2.appendChild(b); });
   modulo(MOD);
 }

@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.AcerosCore, Api = window.Api, CFG = window.ACEROS_CONFIG;
-  var MODO = window.ACEROS_MODO === 'salidas' ? 'salidas' : 'dashboard', BASE = window.ACEROS_BASE || '';
+  var MODO = window.ACEROS_MODO === 'salidas' ? 'salidas' : 'dashboard', BASE = window.ACEROS_BASE || '', EMB = !!window.ACEROS_EMBED;
 
   var S = {
     ses: null, estado: { pedidos: [], entradas: [], salidas: [] }, calc: null, tab: MODO === 'salidas' ? 'salida' : 'panel', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
@@ -31,6 +31,7 @@
   }
   function enPer(f) { var r = rangoPer(); if (!r) return true; var d = String(f || '').slice(0, 10); return d >= r[0] && d <= r[1]; }
   function vFiltro() {
+    if (EMB) return '';
     var P = [['hoy', 'Hoy'], ['7d', '7 días'], ['mes', 'Este mes'], ['todo', 'Todo'], ['rango', 'Rango']];
     return '<div class="fper"><div class="fch">' + P.map(function (x) { return '<button type="button" class="fc' + (S.per.k === x[0] ? ' on' : '') + '" data-a="per" data-v="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>' +
       (S.per.k === 'rango' ? '<div class="frng"><label>Desde<input type="date" max="' + hoyISO() + '" value="' + esc(S.per.d) + '" data-f="per.d"></label><label>Hasta<input type="date" max="' + hoyISO() + '" value="' + esc(S.per.h) + '" data-f="per.h"></label></div>' : '') + '</div>';
@@ -67,6 +68,7 @@
   }
 
   function vTop() {
+    if (EMB) return '';
     return '<header class="top"><img class="logo" src="' + BASE + 'icons/icon-192.png" alt=""><div class="tit"><b>' + esc(CFG.TITULO) + '</b><span>' +
       esc(S.ses.nombre) + ' · ' + (esAdmin() ? 'Administrador' : 'Supervisor') + (Api.remoto ? '' : ' · modo local') + '</span></div>' +
       (MODO === 'dashboard' ? '<a class="ibtn" href="admin.html" title="Volver al Dashboard" style="text-decoration:none;display:flex;align-items:center;justify-content:center">⌂</a>' : '') + '<button class="ibtn" data-a="refrescar" title="Actualizar">⟳</button><button class="ibtn" data-a="salir" title="Salir">⏻</button></header>';
@@ -721,7 +723,7 @@
     if (!S.ses) { app.innerHTML = vLogin(); return; }
     S.calc = C.calcular(S.estado);
     var fo = S.focus; S.focus = '';
-    app.innerHTML = '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main><div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>';
+    app.innerHTML = '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
     if (fo && $(fo)) { var el = $(fo); el.focus(); try { el.select(); } catch (e) { } }
   }
 
@@ -927,6 +929,18 @@
 
   window.addEventListener('online', enviarCola);
   setInterval(function () { if (S.ses && Api.pendientes()) enviarCola(); }, 30000);
+
+  // ---------- Modo incrustado en el Dashboard: periodo y actualización los manda el Dashboard ----------
+  if (EMB) {
+    var avisaAlto = function () { try { parent.postMessage({ t: 'acero-alto', h: Math.ceil(document.documentElement.getBoundingClientRect().height) }, location.origin); } catch (e) { } };
+    if (window.ResizeObserver) new ResizeObserver(avisaAlto).observe(document.body);
+    window.addEventListener('message', function (ev) {
+      if (ev.origin !== location.origin || !ev.data || ev.data.t !== 'per') return;
+      S.per = { k: 'rango', d: ev.data.d || '', h: ev.data.h || '' };
+      if (ev.data.r && S.ses) cargarEstado(); else render();
+    });
+    try { parent.postMessage({ t: 'acero-listo' }, location.origin); } catch (e) { }
+  }
 
   // ---------- Inicio ----------
   S.ses = Api.sesion();
