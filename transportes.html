@@ -92,6 +92,7 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
 .sub{color:var(--mut);font-size:15px;margin:-4px 0 10px}
 #form label{font-size:18px;font-weight:700}#form input,#form select{font-size:20px;padding:14px}#form .card h3{font-size:22px}#form .grande{font-size:24px;padding:20px}
 .dosbtn{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}.dosbtn button{margin:0!important;padding:14px 4px!important;font-size:18px!important}
+.viaje .fila1{flex-wrap:nowrap}.viaje .fila1>button{flex:1 1 0;min-width:0;margin:0}.viaje .fila1>.mas3{flex:0 0 60px;font-size:26px;font-weight:800;padding:0}
 </style>
 </head>
 <body>
@@ -308,13 +309,13 @@ function filaViaje(v, solo) {
   const pend = COLA.some(o => o.cod === v.cod && !o.error);
   const falta = !v.tiene_recibo && puedeRecibo(v);
   const mas = h('div', { class: 'bs', hidden: true, style: 'margin-top:8px' });
-  const bs = h('div', { class: 'bs' });
+  const bs = h('div', { class: 'bs fila1' });
   if (falta && !v.tiene_recibo) bs.appendChild(selectorFotos({ camara: '📷 Foto del recibo', galeria: '🖼 Desde galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) }));
   if (v.tiene_recibo) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🧾 Albarán'));
   if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🚛 Volqueta'));
   if (puedeEditar(v)) {
     mas.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); mas.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje'));
-    const bm = h('button', { class: 'sec', onclick: () => { mas.hidden = !mas.hidden; bm.textContent = mas.hidden ? '⋯ Más' : '▲ Menos'; } }, '⋯ Más');
+    const bm = h('button', { class: 'sec mas3', onclick: () => { mas.hidden = !mas.hidden; bm.textContent = mas.hidden ? '⋯' : '▲'; } }, '⋯');
     bs.appendChild(bm);
   }
   if (solo) return h('div', { class: 'viaje falta' },
