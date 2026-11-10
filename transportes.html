@@ -678,7 +678,7 @@ function abrirForm(v, base) {
   vd.value = val('valera_de');
   const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '1️⃣ 📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
   const cMaq = h('div', { class: 'card paso' }, h('h3', {}, '6️⃣ 🏗️ Máquina que cargó'),
-    campo('maquina', '¿Con qué máquina se cargó la volqueta?', val('maquina'), { ph: 'Elegir…' }));
+    campo('maquina', '¿Con qué máquina se cargó la volqueta?', val('maquina'), { ph: 'Elegir…' }), h('small', { class: 'sub' }, 'Si no está en la lista, toca «Escribir otra máquina». Queda guardada y el administrador la valida.'));
   const masDatos = h('div', { class: 'card paso' }, h('h3', {}, '7️⃣ 🧾 Datos del vale'),
     campo('n_valera', 'N° del albarán / valera *', val('n_valera'), { inputmode: 'numeric' }),
     h('div', { id: 'cVolAlb', style: 'margin-top:10px' }, campo('vol_albaran', 'Volqueta nueva: volumen que dice el albarán (m³) *', val('vol_albaran'), { inputmode: 'decimal', ph: 'Ej. 15' }), h('small', { class: 'sub' }, 'Solo se pide la primera vez que aparece la volqueta.')),
@@ -750,7 +750,7 @@ function abrirForm(v, base) {
   $('destinoSel').addEventListener('change', () => setTimeout(sugerirKm2, 0)); $('destino').addEventListener('change', sugerirKm2);
   pl.oninput = () => { alPlaca(); sugerirKm2(); }; pl.onchange = pl.oninput;
   ponerLista(pl, () => DATOS.volquetas.map(x => x.placa), 'Elige la placa', 'Escribir otra placa');
-  ponerLista($('maquina'), () => ['— Sin máquina —'].concat((DATOS.maquinas || []).map(m => m.n)), 'Máquina que cargó');
+  ponerLista($('maquina'), () => ['— Sin máquina —'].concat((DATOS.maquinas || []).map(m => m.n)), 'Máquina que cargó', 'Escribir otra máquina');
   $('maquina').addEventListener('change', () => { if (/^—/.test($('maquina').value)) $('maquina').value = ''; });
   ponerLista($('centro'), () => { const o = (DATOS.catalogos.CENTRO_COSTOS || []).slice(); recientes('centro').forEach(t => { if (!o.some(x => x.toUpperCase() === t.toUpperCase())) o.push(t); }); return o; }, 'Centro de costos', 'Escribir otro centro de costos');
   if (!v && pl.value) { alPlaca(); sugerirKm2(); }
@@ -803,6 +803,7 @@ async function guardarViaje() {
   const i = VIAJES.findIndex(x => x.cod === cod); if (i >= 0) VIAJES[i] = v; else VIAJES.push(v);
   // catalogo local: que aparezcan ya los valores nuevos
   if (!DATOS.volquetas.some(x => x.placa === placa)) DATOS.volquetas.push({ placa: placa, nominal: num(v.vol_albaran) || '', empresa: v.empresa, tipo: v.tipo, capacidad: v.capacidad, conductor: v.conductor });
+  if (v.maquina) { const nm = String(v.maquina).trim().toUpperCase(); DATOS.maquinas = DATOS.maquinas || []; if (!DATOS.maquinas.some(m => String(m.n).toUpperCase() === nm || String(m.tipo).toUpperCase() === nm)) DATOS.maquinas.push({ movil: '', tipo: nm, n: nm, pv: true }); }
   [['MATERIAL', v.material], ['DESTINO', contra(v)], ['CENTRO_COSTOS', v.centro]].forEach(p => { if (p[1] && !DATOS.catalogos[p[0]].some(x => x.toUpperCase() === p[1].toUpperCase())) DATOS.catalogos[p[0]].push(p[1]); });
   const previo = COLA.find(o => o.t === 'g' && o.cod === cod);
   if (fotoCargaNueva.length) { const ya = previo && previo.fotoNueva ? asArr(await kv.get('f_' + cod + '_c')) : []; await kv.set('f_' + cod + '_c', ya.concat(fotoCargaNueva).slice(0, 10)); }

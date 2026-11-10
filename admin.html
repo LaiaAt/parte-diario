@@ -830,13 +830,13 @@ function vistaGeo(c) {
   c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🛣 Unidades funcionales (orígenes en la obra)'), h('div', { class: 'small' }, 'Inicio y fin del tramo. Si dejas el centro vacío se calcula como el punto medio.'), h('div', { class: 'tw', style: 'max-height:none' }, tu)));
   // 4) máquinas que cargan las volquetas
   const filaMaq = (x, nuevo) => {
-    const mo = inp(x.movil, 70, { placeholder: 'Móvil', inputmode: 'text' }), ti = h('input', { type: 'text', value: x.tipo || '', placeholder: 'Tipo de máquina (ej. EXCAVADORA 20 TN)', style: 'width:340px;max-width:100%;font-size:15px;padding:6px' });
-    const gu = async () => { const m = mo.value.trim(); if (!m) { mo.focus(); return; } if (!ti.value.trim()) { ti.focus(); return; } if (await postGeo({ tabla: 'maquina', op: 'guardar', movil: m, movil_orig: nuevo ? '' : x.movil, tipo: ti.value.trim() })) pintarTr(); };
-    return h('tr', { style: nuevo ? 'background:#f1f8f1' : '' }, td(mo), td(ti),
+    const mo = inp(x.movil, 70, { placeholder: x.pv ? 'Asigna móvil' : 'Móvil', inputmode: 'text' }), ti = h('input', { type: 'text', value: x.tipo || '', placeholder: 'Tipo de máquina (ej. EXCAVADORA 20 TN)', style: 'width:340px;max-width:100%;font-size:15px;padding:6px' });
+    const gu = async () => { const m = mo.value.trim(); if (!m && !x.pv) { mo.focus(); return; } if (!ti.value.trim()) { ti.focus(); return; } if (await postGeo({ tabla: 'maquina', op: 'guardar', movil: m, movil_orig: nuevo ? '' : x.movil, tipo_orig: nuevo ? '' : x.tipo, tipo: ti.value.trim() })) pintarTr(); };
+    return h('tr', { style: nuevo ? 'background:#f1f8f1' : (x.pv ? 'background:#fff3cd' : '') }, td(mo), td(ti), td(x.pv ? h('small', {}, '⚠ Nueva: ' + (x.por || '').replace(/^POR VALIDAR · /, '')) : ''),
       td(h('div', { style: 'display:flex;gap:4px' }, h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, nuevo ? '➕ Agregar' : '💾'),
-        nuevo ? null : h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Retirar máquina', onclick: async () => { if (!confirm('¿Retirar la máquina ' + x.movil + ' · ' + x.tipo + '? Los viajes ya registrados no cambian.')) return; if (await postGeo({ tabla: 'maquina', op: 'eliminar', movil: x.movil })) pintarTr(); } }, '🗑'))));
+        nuevo ? null : h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Retirar máquina', onclick: async () => { if (!confirm('¿Retirar la máquina ' + x.movil + ' · ' + x.tipo + '? Los viajes ya registrados no cambian.')) return; if (await postGeo({ tabla: 'maquina', op: 'eliminar', movil: x.movil, movil_orig: x.movil, tipo_orig: x.tipo })) pintarTr(); } }, '🗑'))));
   };
-  const tq = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['Móvil', 'Tipo de máquina', ''].map(th)));
+  const tq = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['Móvil', 'Tipo de máquina', 'Estado', ''].map(th)));
   tq.appendChild(filaMaq({ movil: '', tipo: '' }, true)); (G.maquinas || []).forEach(x => tq.appendChild(filaMaq(x, false)));
   c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🏗️ Máquinas que cargan las volquetas'), h('div', { class: 'small' }, 'Es la lista desplegable «Máquina que cargó» del formulario de viajes. Agrega, corrige o retira; los transportistas la ven desde su próxima carga de la app. Los viajes ya registrados conservan el nombre con que se guardaron.'), h('div', { class: 'tw', style: 'max-height:none' }, tq)));
 }
@@ -851,6 +851,8 @@ function pintarTr() {
     aviso(pend.length, pend.length === 1 ? 'volqueta nueva por confirmar' : 'volquetas nuevas por confirmar', () => { TRVOL = 'pend'; TRTAB = 'volquetas'; pintarTr(); }),
     aviso(conAl.length, conAl.length === 1 ? 'viaje con alerta' : 'viajes con alertas', () => { TRFIL = 'alerta'; TRTAB = 'viajes'; pintarTr(); }),
     aviso(sinRec.length, 'sin albarán', () => { TRFIL = 'sinrec'; TRTAB = 'viajes'; pintarTr(); })].filter(Boolean));
+  const mp = (TR.maquinas || []).filter(x => x.pv);
+  if (mp.length) top.appendChild(h('button', { class: 'trav', onclick: () => { TRTAB = 'geo'; pintarTr(); } }, '🏗️ ' + mp.length + (mp.length === 1 ? ' máquina nueva por validar: ' : ' máquinas nuevas por validar: ') + mp.slice(0, 3).map(x => x.n).join(', ') + (mp.length > 3 ? '…' : '')));
   const dp = (TR.dist || []).filter(x => x.pv);
   if (dp.length) {
     const cj = h('div', { class: 'trav', style: 'display:block;text-align:left;cursor:default' }, h('b', {}, '📏 ' + dp.length + (dp.length === 1 ? ' distancia por validar' : ' distancias por validar') + ' (destino o UF nuevos)'));
@@ -858,7 +860,7 @@ function pintarTr() {
       h('button', { onclick: () => validarDist(x) }, 'Validar / corregir'))));
     top.appendChild(cj);
   }
-  if (!pend.length && !conAl.length && !sinRec.length && !dp.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
+  if (!pend.length && !conAl.length && !sinRec.length && !dp.length && !mp.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
   navTr();
   const c = $('trBody'); c.textContent = '';
   ({ viajes: vistaViajes, albaran: vistaAlb, sosp: vistaSosp, resumen: vistaRes, mapa: vistaMapa, volquetas: vistaVol, geo: vistaGeo, planillas: vistaPlan })[TRTAB](c);
