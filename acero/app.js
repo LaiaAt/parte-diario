@@ -818,8 +818,16 @@
     if (!S.ses) { app.innerHTML = S.auto ? '<main>' + vCargando() + '</main>' : vLogin(); return; }
     S.calc = C.calcular(S.estado);
     var fo = S.focus; S.focus = '';
+    // Conservar lo que el usuario estaba viendo: posición vertical, barra de pestañas y filtros desplazados.
+    var y0 = window.pageYOffset, h0 = app.offsetHeight, sx = {};
+    app.style.minHeight = h0 + 'px';
+    Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { sx[e.className + i] = e.scrollLeft; });
     app.innerHTML = '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
     if (fo && $(fo)) { var el = $(fo); el.focus(); try { el.select(); } catch (e) { } }
+    Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { if (sx[e.className + i] != null) e.scrollLeft = sx[e.className + i]; });
+    var on = app.querySelector('.tabs .on'); if (on && on.parentNode.scrollWidth > on.parentNode.clientWidth) { var pr = on.parentNode, l = on.offsetLeft, r = l + on.offsetWidth; if (l < pr.scrollLeft || r > pr.scrollLeft + pr.clientWidth) pr.scrollLeft = l - 12; }
+    if (window.pageYOffset !== y0) window.scrollTo(0, y0);
+    setTimeout(function () { app.style.minHeight = ''; }, 400);
   }
 
   // ---------- Acciones ----------
@@ -886,12 +894,22 @@
     if (s.modo === 'pos' && !String(s.fase).trim()) { s.err = 'Escriba la fase.'; s.msg = ''; render(); return; }
     var pctV = s.modo === 'pct' ? (parseFloat(String(s.pct).replace(',', '.')) || 0) : 0, elemSel = s.elem;
     var llegaA100 = s.modo === 'pct' && tipoReg === 'SALIDA' && pctAcum(elemSel) + pctV >= 100 - 1e-9;
+    var fch = /^\d{4}-\d\d-\d\d$/.test(s.fecha) ? s.fecha : hoyISO();
+    if (fch > hoyISO()) { s.err = 'La fecha no puede ser futura.'; s.msg = ''; render(); return; }
+    // El acero tiene que existir en la fecha elegida (no se arma ni se saca lo que aún no había llegado).
+    var fdd = function (x) { return String(x.fecha || '').slice(0, 10); };
+    var calcF = C.calcular({ pedidos: S.estado.pedidos, entradas: S.estado.entradas.filter(function (e) { return fdd(e) <= fch; }), salidas: S.estado.salidas.filter(function (x) { return fdd(x) <= fch && x.estado !== 'ANULADA'; }) });
+    for (var j = 0; j < lista.length; j++) {
+      var errF = tipoReg === 'ARMADO' ? C.validarArmado(calcF, lista[j].elem, lista[j].diam, lista[j].cant, lista[j].marca) : C.validarSalida(calcF, lista[j].elem, lista[j].diam, lista[j].cant, lista[j].marca);
+      if (errF) {
+        var llego = S.estado.entradas.filter(function (e) { return e.estructura === lista[j].elem; }).map(fdd).sort()[0];
+        s.err = 'El ' + fch.split('-').reverse().join('/') + ' no había ese acero en el almacén' + (llego ? ' (llegó el ' + llego.split('-').reverse().join('/') + ')' : '') + '. Posición ' + lista[j].pos + ': ' + errF; s.msg = ''; render(); return;
+      }
+    }
     for (var i = 0; i < lista.length; i++) {
       var err = S.tipo2 === 'ARMADO' ? C.validarArmado(S.calc, lista[i].elem, lista[i].diam, lista[i].cant, lista[i].marca) : C.validarSalida(S.calc, lista[i].elem, lista[i].diam, lista[i].cant, lista[i].marca);
       if (err) { s.err = 'Posición ' + lista[i].pos + ': ' + err; s.msg = ''; render(); return; }
     }
-    var fch = /^\d{4}-\d\d-\d\d$/.test(s.fecha) ? s.fecha : hoyISO();
-    if (fch > hoyISO()) { s.err = 'La fecha de salida no puede ser futura.'; s.msg = ''; render(); return; }
     if (!s.grupo) s.grupo = 'S' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     var totKg = 0, totP = 0; lista.forEach(function (it) { totKg += it.kg; totP += it.cant; });
     var obs = s.obs;
@@ -902,7 +920,7 @@
       s.balElem = llegaA100 ? elemSel : '';
       s.msg = (tipoReg === 'ARMADO' ? 'Armado guardado: ' : 'Salida guardada: ') + pz(totP) + ' (≈ ' + kg(totKg) + ' kg)' + (s.modo === 'pct' ? ' · ' + fmtPct(pctV) + ' % de avance' : '') + '.';
       window.scrollTo(0, 0);
-      S.tab = 'panel'; toast(s.msg); s.msg = '';
+      S.tab = 'panel'; try { sessionStorage.setItem('ac_tab_' + MODO, 'panel'); } catch (e) { } toast(s.msg); s.msg = '';
       if (Api.remoto) { S.estado = Api.conCola(S.estado); render(); return enviarCola(); }
       return cargarEstado();
     });
@@ -943,7 +961,7 @@
       case 'cerrarBal': S.sal.balElem = ''; render(); break;
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'per': S.per.k = v; render(); break;
-      case 'tab': S.tab = v; render(); window.scrollTo(0, 0); break;
+      case 'tab': S.tab = v; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
       case 'refrescar': cargarEstado().then(function () { toast('Actualizado'); }); break;
       case 'salir': Api.salir(); S.ses = null; S.loginErr = ''; render(); break;
       case 'todas': setCant(S.sal.elem, el.getAttribute('data-d'), v, 99999); render(); break;
@@ -1056,6 +1074,7 @@
   }
 
   // ---------- Inicio ----------
+  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(panel|inv|mov|ped|inf|salida|cargar)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
   S.ses = Api.sesion();
   if (S.ses && MODO === 'dashboard' && S.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; }
   if (S.ses) { render(); enviarCola().then(cargarEstado); }
@@ -1066,7 +1085,7 @@
     if (l0) { S.auto = true; render(); }
     if (l0) Api.login(l0).then(function (r) {
       if (!r.ok || r.ses.rol !== 'admin') { Api.salir(); S.auto = false; render(); return; }
-      S.ses = r.ses; S.loginErr = ''; S.tab = 'panel'; render(); enviarCola().then(cargarEstado);
+      S.ses = r.ses; S.loginErr = ''; render(); enviarCola().then(cargarEstado);
     }).catch(function () { S.auto = false; S.loginErr = 'No se pudo conectar.'; render(); });
   }
 })();

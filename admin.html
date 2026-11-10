@@ -243,14 +243,17 @@ async function cargar(primera) {
 }
 
 const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['consolidados', '📊 Consolidados'], ['transportes', '🚛 Transportes']];
-let MOD = 'resumen';
+function selGet(k, def, ok) { try { const v = sessionStorage.getItem('adm_sel_' + k); return v && ok(v) ? v : def; } catch (e) { return def; } }
+function selSet(k, v) { try { sessionStorage.setItem('adm_sel_' + k, v); } catch (e) {} }
+let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] === v));
 const TR_TABS = [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
-  TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; if (TR) pintarTr(); else navTr(); } }, t)));
+  TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; selSet('tr', k); if (TR) pintarTr(); else navTr(); } }, t)));
 }
 function modulo(m) {
-  MOD = m;
+  if (m === 'acero' && !(D && D.acero)) m = 'resumen';
+  MOD = m; selSet('mod', m);
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
   const gt = m === 'transportes', ga = m === 'acero', grp = gt ? 't' : ga ? 'a' : 'p';
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g === grp));
@@ -261,7 +264,7 @@ function modulo(m) {
   if (m === 'transportes' && !TR) cargarTr();
   if (m === 'acero') abrirAcero();
 }
-let TRVM = 'conf', TR = null, TRTAB = 'viajes', TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
+let TRVM = 'conf', TR = null, TRTAB = selGet('tr', 'viajes', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
 async function cargarTr() {
   $('trBody').textContent = 'Cargando…';
   try {
@@ -870,11 +873,11 @@ function chips(opts, val, fn) {
   return h('div', { class: 'chips' }, opts.map(([k, t]) => h('button', { class: 'chip' + (val === k ? ' on' : ''), onclick: () => fn(k) }, t)));
 }
 /* ----- Acero: se muestra dentro del Dashboard con el mismo periodo ----- */
-let ACTAB = 'panel';
+let ACTAB = selGet('ac', 'panel', v => ['panel', 'inv', 'mov', 'ped', 'inf'].indexOf(v) >= 0);
 const AC_TABS = [['panel', '📊 Panel'], ['inv', '📦 Inventario'], ['mov', '🧾 Movimientos'], ['ped', '📋 Pedidos'], ['inf', '📄 Informe']];
 function navAc() {
   const tb = $('nav4'); tb.textContent = '';
-  AC_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: ACTAB === k ? 'on' : '', onclick: () => { ACTAB = k; navAc(); enviarAc(false); window.scrollTo(0, 0); } }, t)));
+  AC_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: ACTAB === k ? 'on' : '', onclick: () => { ACTAB = k; selSet('ac', k); navAc(); enviarAc(false); } }, t)));
 }
 function enviarAc(recargar) {
   const f = $('acFrame'); if (!f || !f.contentWindow) return;
@@ -1400,6 +1403,18 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
   ['desde', 'hasta'].forEach(i => $(i).onchange = () => { s.value = ''; });
 })();
 (function () { let l = ''; try { l = localStorage.getItem('adm') || sessionStorage.getItem('adm') || ''; } catch (e) {} if (l) { $('llave').value = l; entrar(); } })();
+
+// Al elegir algo, la pantalla no vuelve al inicio: se conserva el desplazamiento vertical y el de las barras de pestañas.
+function conservar(fn) {
+  return function () {
+    const y = window.pageYOffset, ids = ['nav', 'nav2', 'nav3', 'nav4'], xs = ids.map(i => ($(i) || {}).scrollLeft || 0);
+    const r = fn.apply(this, arguments);
+    ids.forEach((i, k) => { if ($(i)) $(i).scrollLeft = xs[k]; });
+    if (window.pageYOffset !== y) window.scrollTo(0, y);
+    return r;
+  };
+}
+pintar = conservar(pintar); pintarTr = conservar(pintarTr); navTr = conservar(navTr); navAc = conservar(navAc); modulo = conservar(modulo);
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script>if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (hab && !rec) { rec = true; location.reload(); } }); navigator.serviceWorker.register('sw.js').catch(() => {}); }
