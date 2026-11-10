@@ -1,6 +1,6 @@
 {
   "id": "dashboard",
-  "name": "Dashboard de obra",
+  "name": "Dashboard",
   "short_name": "Dashboard",
   "start_url": "./admin.html",
   "scope": "./",
