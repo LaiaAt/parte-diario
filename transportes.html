@@ -169,7 +169,7 @@ const guardarViajes = () => { GEN++; return kv.set('viajes_' + user.llave, VIAJE
 const guardarCola = () => kv.set('cola', COLA);
 const guardarDatos = () => kv.set('datos', DATOS);
 const puedeEditar = v => v.fecha === hoy() || v.registrado === hoy();
-const puedeRecibo = v => hoy() <= sumDias(v.fecha, 1);
+const puedeRecibo = v => hoy() <= sumDias(v.fecha, v.tiene_recibo ? 1 : 14);
 
 const ALF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function nuevoCod() {
@@ -249,9 +249,11 @@ function pintarInicio() {
     h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO VIAJE'),
     ultimoViaje() ? h('button', { class: 'sec', onclick: () => abrirForm(null, ultimoViaje()) }, '🔁 Repetir el último viaje (' + ultimoViaje().placa + ')') : null));
   // recibos pendientes de ayer
-  const ayer = sumDias(hoy(), -1);
-  const faltan = VIAJES.filter(v => v.fecha === ayer && !v.tiene_recibo && puedeRecibo(v));
-  if (faltan.length) { B.appendChild(h('h3', {}, '📷 Falta la foto del recibo (ayer)')); faltan.forEach(v => B.appendChild(filaViaje(v))); }
+  const faltan = VIAJES.filter(v => v.fecha < hoy() && !v.tiene_recibo && puedeRecibo(v)).sort((a, b) => a.fecha.localeCompare(b.fecha) || consecDe(a) - consecDe(b));
+  if (faltan.length) {
+    B.appendChild(h('div', { style: 'background:#fde8e8;border:3px solid #b00000;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-weight:800;color:#7a0000;font-size:18px' }, '⚠️ Faltan ' + faltan.length + ' foto(s) de albarán de días anteriores. Súbelas aquí abajo.'));
+    faltan.forEach(v => { B.appendChild(h('small', { style: 'font-weight:700' }, fmtF(v.fecha) + ' · N° ' + consecDe(v))); B.appendChild(filaViaje(v)); });
+  }
   B.appendChild(h('h3', { style: 'margin-top:14px' }, 'Viajes de hoy' + (hoyV.length ? ' · ' + hoyV.length + ' · ' + r2(vol) + ' m³' : '')));
   if (hoyV.length) B.appendChild(h('div', { style: 'background:#fff3cd;border:2px solid #12202b;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-weight:700' }, '🧾 Registros en la app: ' + hoyV.length + '. Al final del día debes tener ' + hoyV.length + ' albaranes de papel, numerados del 1 al ' + hoyV.length + '.'));
   if (!hoyV.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay viajes hoy. Toca el botón verde para empezar.'));
