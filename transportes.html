@@ -107,6 +107,7 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
   <section id="inicio" hidden></section>
   <section id="anteriores" hidden></section>
   <section id="dia" hidden></section>
+  <section id="pendientes" hidden></section>
   <section id="form" hidden></section>
   <section id="listo" hidden></section>
   <section id="visor" hidden></section>
@@ -137,7 +138,7 @@ function h(tag, props, ...kids) {
   return e;
 }
 function aviso(t, c, quieto) { const a = $('aviso'); a.textContent = t || ''; a.className = 'aviso ' + (c || ''); a.hidden = !t; if (t && !quieto) window.scrollTo(0, 0); }
-function pantalla(id) { $('salirTop').hidden = id === 'login' || !user; ['login', 'inicio', 'anteriores', 'dia', 'form', 'listo', 'visor'].forEach(i => $(i).hidden = i !== id); window.scrollTo(0, 0); }
+function pantalla(id) { $('salirTop').hidden = id === 'login' || !user; ['login', 'inicio', 'anteriores', 'dia', 'pendientes', 'form', 'listo', 'visor'].forEach(i => $(i).hidden = i !== id); window.scrollTo(0, 0); }
 
 /* ---------- almacenamiento en el telefono ---------- */
 const kv = (() => {
@@ -234,9 +235,22 @@ async function cerrarSesion(msg) {
 
 /* ---------- inicio ---------- */
 let diaActual = null;
-function volver() { if (diaActual) abrirDia(diaActual); else abrirInicio(); }
-function abrirInicio() { diaActual = null; aviso(''); pintarInicio(); pantalla('inicio'); refrescar(); }
+let enPend = false;
+function volver() { if (enPend) abrirPend(); else if (diaActual) abrirDia(diaActual); else abrirInicio(); }
+function abrirInicio() { diaActual = null; enPend = false; aviso(''); pintarInicio(); pantalla('inicio'); refrescar(); }
 function ultimoViaje() { return VIAJES.slice().sort((a, b) => (b.fecha + (b.hora_salida || '') + b.cod).localeCompare(a.fecha + (a.hora_salida || '') + a.cod))[0]; }
+const listaPend = () => VIAJES.filter(v => v.fecha < hoy() && !v.tiene_recibo && puedeRecibo(v)).sort((a, b) => a.fecha.localeCompare(b.fecha) || consecDe(a) - consecDe(b));
+function abrirPend() {
+  diaActual = null; enPend = true; aviso('');
+  const P = $('pendientes'); P.textContent = '';
+  P.appendChild(h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;margin-bottom:12px', onclick: abrirInicio }, '← VOLVER AL INICIO'));
+  P.appendChild(h('h3', {}, '⚠️ Pendientes: albaranes sin foto'));
+  const L = listaPend();
+  if (!L.length) P.appendChild(h('div', { class: 'card' }, '✅ No tienes pendientes.'));
+  else P.appendChild(h('div', { style: 'background:#fde8e8;border:3px solid #b00000;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-weight:800;color:#7a0000;font-size:18px' }, 'OJO: tienes ' + L.length + ' registro(s) sin foto del albarán. Sube la foto de cada uno para liberarlo.'));
+  L.forEach(v => { P.appendChild(h('small', { style: 'font-weight:700' }, fmtF(v.fecha) + ' · N° ' + consecDe(v))); P.appendChild(filaViaje(v)); });
+  pantalla('pendientes');
+}
 function pintarInicio() {
   const B = $('inicio'); B.textContent = '';
   const hoyV = VIAJES.filter(v => v.fecha === hoy()).sort((a, b) => consecDe(a) - consecDe(b) || a.cod.localeCompare(b.cod));
@@ -247,13 +261,9 @@ function pintarInicio() {
   B.appendChild(h('div', { style: 'display:flex;gap:8px;margin-bottom:12px' }, tile('📥', nLleg, 'Llegaron a la obra', '#0d3b66'), tile('📤', nSal, 'Salieron de la obra', '#1b5e20')));
   B.appendChild(h('div', { class: 'gr', style: 'margin-bottom:14px' },
     h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO VIAJE'),
+    listaPend().length ? h('button', { style: 'background:#b00000;color:#fff;border:0;font-size:20px;font-weight:800', onclick: abrirPend }, '⚠️ PENDIENTES (' + listaPend().length + ')') : null,
     ultimoViaje() ? h('button', { class: 'sec', onclick: () => abrirForm(null, ultimoViaje()) }, '🔁 Repetir el último viaje (' + ultimoViaje().placa + ')') : null));
   // recibos pendientes de ayer
-  const faltan = VIAJES.filter(v => v.fecha < hoy() && !v.tiene_recibo && puedeRecibo(v)).sort((a, b) => a.fecha.localeCompare(b.fecha) || consecDe(a) - consecDe(b));
-  if (faltan.length) {
-    B.appendChild(h('div', { style: 'background:#fde8e8;border:3px solid #b00000;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-weight:800;color:#7a0000;font-size:18px' }, '⚠️ OJO: tienes ' + faltan.length + ' registro(s) sin foto del albarán. Sube la foto de cada uno para liberarlo.'));
-    faltan.forEach(v => { B.appendChild(h('small', { style: 'font-weight:700' }, fmtF(v.fecha) + ' · N° ' + consecDe(v))); B.appendChild(filaViaje(v)); });
-  }
   B.appendChild(h('h3', { style: 'margin-top:14px' }, 'Viajes de hoy' + (hoyV.length ? ' · ' + hoyV.length + ' · ' + r2(vol) + ' m³' : '')));
   if (hoyV.length) B.appendChild(h('div', { style: 'background:#fff3cd;border:2px solid #12202b;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-weight:700' }, '🧾 Registros en la app: ' + hoyV.length + '. Al final del día debes tener ' + hoyV.length + ' albaranes de papel, numerados del 1 al ' + hoyV.length + '.'));
   if (!hoyV.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay viajes hoy. Toca el botón verde para empezar.'));
@@ -263,7 +273,7 @@ function pintarInicio() {
 }
 
 function abrirAnteriores() {
-  diaActual = null; aviso('');
+  diaActual = null; enPend = false; aviso('');
   const A = $('anteriores'); A.textContent = '';
   A.appendChild(h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;margin-bottom:12px', onclick: abrirInicio }, '← VOLVER AL INICIO'));
   A.appendChild(h('h3', {}, 'Días anteriores'));
@@ -281,7 +291,7 @@ function abrirAnteriores() {
 }
 /* ---------- dia anterior: lista de viajes ---------- */
 function abrirDia(f) {
-  diaActual = f; aviso('');
+  diaActual = f; enPend = false; aviso('');
   const D = $('dia'); D.textContent = '';
   const vs = VIAJES.filter(v => v.fecha === f).sort((a, b) => consecDe(a) - consecDe(b) || a.cod.localeCompare(b.cod));
   D.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;box-shadow:0 2px 6px rgba(0,0,0,.35)', onclick: abrirAnteriores }, '← VOLVER A DÍAS ANTERIORES'),
@@ -304,6 +314,7 @@ function filaViaje(v) {
   if (puedeEditar(v)) { bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); bs.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje')); }
   return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
     h('div', { class: 't' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;margin-right:6px' }, 'N° ' + consecDe(v)), v.placa, ' · ', v.material),
+    v.n_valera ? h('div', { style: 'font-size:18px;font-weight:800;margin:2px 0' }, '🧾 Albarán N° ' + v.n_valera) : null,
     h('div', { class: 's' }, r2(volV(v)) + ' m³ · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
     h('div', { style: 'margin-bottom:8px' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null, h('span', { class: 'tag' }, v.cod)),
     bs, mas,
