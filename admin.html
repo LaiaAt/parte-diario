@@ -383,7 +383,72 @@ function pintaAlb() {
       api({ accion: 'admin_tr_foto', llave: LLAVE, cod: v.cod, cual: 'recibo', i: 0 }).then(x => { if (x.ok) im.src = x.data; else im.replaceWith(h('div', { class: 'small' }, x.mensaje || 'No se pudo abrir la foto')); }).catch(() => {});
     }
     fo.appendChild(h('div', { style: 'margin-top:6px' }, botonesFoto(v)));
+    const pan = h('div', { class: 'edAlb', style: 'margin-top:8px' });
+    fo.appendChild(h('div', { class: 'acc', style: 'margin-top:8px' },
+      h('button', { class: 'sec', onclick: () => formEditAlb(v, i, pan) }, '✏️ Editar'),
+      h('button', { class: 'sec', onclick: () => histAlb(v, pan) }, '🕘 Historial'),
+      h('button', { class: 'sec', style: 'color:#b3261e;border-color:#b3261e', onclick: () => formElimAlb(v, pan) }, '🗑 Eliminar')));
+    fo.appendChild(pan);
   });
+}
+function cierraTr(cod, nuevo) {
+  if (ALB.r) { const k = ALB.r.viajes.findIndex(x => x.cod === cod); if (k >= 0) { if (nuevo) ALB.r.viajes[k] = Object.assign({}, ALB.r.viajes[k], nuevo); else { ALB.r.viajes.splice(k, 1); ALB.r.total = Math.max(0, (ALB.r.total || 1) - 1); } } }
+  if (TR && TR.viajes) { const k = TR.viajes.findIndex(x => x.cod === cod); if (k >= 0) { if (nuevo) TR.viajes[k] = Object.assign({}, TR.viajes[k], nuevo); else TR.viajes.splice(k, 1); } }
+  pintaAlb();
+}
+function formEditAlb(v, i, pan) {
+  pan.textContent = '';
+  const campos = [['n_valera', 'N° de valera / albarán'], ['placa', 'Placa'], ['empresa', 'Empresa'], ['conductor', 'Conductor'], ['material', 'Material'], ['origen', 'Origen'], ['destino', 'Destino'],
+    ['uf', 'UF (1 a 7 u OTRO)'], ['km', 'Km'], ['vol_albaran', 'm³ del albarán'], ['cant', 'm³ confirmado'], ['hora_salida', 'Hora de salida (HH:MM)'], ['hora_llegada', 'Hora de llegada (HH:MM)'], ['obs', 'Observaciones']];
+  const el = {}, msg = h('div', { class: 'small', style: 'color:#b3261e;margin-top:6px' });
+  const caja = h('div', { style: 'border:2px solid #12202b;border-radius:8px;padding:10px;background:#fffdf3' }, h('b', {}, '✏️ Editar viaje ' + v.cod));
+  campos.forEach(([k, lab]) => { el[k] = h('input', { value: v[k] === undefined || v[k] === null ? '' : v[k], style: 'width:100%' }); caja.appendChild(h('div', { style: 'margin-top:6px' }, h('label', { class: 'small' }, lab), el[k])); });
+  el.valera_de = h('select', { style: 'width:100%' }, [['', '—'], ['NUESTRA', 'Nuestra'], ['VOLQUETERO', 'Del volquetero']].map(o => h('option', Object.assign({ value: o[0] }, v.valera_de === o[0] ? { selected: 'selected' } : {}), o[1])));
+  el.mov = h('select', { style: 'width:100%' }, [['ENTREGA', 'Sale de la obra'], ['RECIBE', 'Llega a la obra']].map(o => h('option', Object.assign({ value: o[0] }, (v.mov || 'ENTREGA') === o[0] ? { selected: 'selected' } : {}), o[1])));
+  caja.appendChild(h('div', { style: 'margin-top:6px' }, h('label', { class: 'small' }, 'Valera de'), el.valera_de));
+  caja.appendChild(h('div', { style: 'margin-top:6px' }, h('label', { class: 'small' }, 'Movimiento'), el.mov));
+  caja.appendChild(h('div', { class: 'small', style: 'margin-top:8px' }, 'Quedará registrado en el control de cambios: quién lo modificó, cuándo y qué cambió (antes → después).'));
+  const ok = h('button', { onclick: async () => {
+    const cambios = {}; Object.keys(el).forEach(k => { const x = el[k].value.trim(), o = v[k] === undefined || v[k] === null ? '' : String(v[k]); if (x !== o.trim()) cambios[k] = x; });
+    if (!Object.keys(cambios).length) { msg.textContent = 'No cambiaste nada.'; return; }
+    ok.disabled = true; msg.textContent = 'Guardando…';
+    try {
+      const r = await api({ accion: 'admin_tr_editar', llave: LLAVE, cod: v.cod, cambios });
+      if (!r.ok) { msg.textContent = r.mensaje || 'No se pudo guardar'; ok.disabled = false; return; }
+      cierraTr(v.cod, r.viaje || null);
+    } catch (e) { msg.textContent = 'No se pudo conectar. Intenta de nuevo.'; ok.disabled = false; }
+  } }, '💾 Guardar cambios');
+  caja.appendChild(h('div', { class: 'acc', style: 'margin-top:8px' }, ok, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cancelar')));
+  caja.appendChild(msg); pan.appendChild(caja);
+}
+function formElimAlb(v, pan) {
+  pan.textContent = '';
+  const mot = h('input', { placeholder: 'Motivo (obligatorio)', style: 'width:100%' }), msg = h('div', { class: 'small', style: 'color:#b3261e;margin-top:6px' });
+  const ok = h('button', { style: 'background:#b3261e;color:#fff;border:0', onclick: async () => {
+    if (mot.value.trim().length < 3) { msg.textContent = 'Escribe el motivo.'; return; }
+    ok.disabled = true; msg.textContent = 'Eliminando…';
+    try {
+      const r = await api({ accion: 'admin_tr_eliminar', llave: LLAVE, cod: v.cod, motivo: mot.value.trim() });
+      if (!r.ok) { msg.textContent = r.mensaje || 'No se pudo eliminar'; ok.disabled = false; return; }
+      cierraTr(v.cod, null);
+    } catch (e) { msg.textContent = 'No se pudo conectar. Intenta de nuevo.'; ok.disabled = false; }
+  } }, 'Sí, eliminar este viaje');
+  pan.appendChild(h('div', { style: 'border:2px solid #b3261e;border-radius:8px;padding:10px;background:#fff5f4' },
+    h('b', {}, '🗑 Eliminar viaje ' + v.cod), h('div', { class: 'small', style: 'margin:6px 0' }, 'Se borra el viaje y sus fotos. No se puede deshacer. Queda en el control de cambios con tu nombre y el motivo.'), mot,
+    h('div', { class: 'acc', style: 'margin-top:8px' }, ok, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cancelar')), msg));
+}
+async function histAlb(v, pan) {
+  pan.textContent = 'Cargando historial…';
+  try {
+    const r = await api({ accion: 'admin_tr_bitacora', llave: LLAVE, cod: v.cod });
+    pan.textContent = '';
+    if (!r.ok) { pan.textContent = r.mensaje || 'No se pudo cargar'; return; }
+    const caja = h('div', { style: 'border:1px solid #bbb;border-radius:8px;padding:8px;background:#fafafa' }, h('b', {}, '🕘 Historial de ' + v.cod));
+    if (!r.filas.length) caja.appendChild(h('div', { class: 'small' }, 'Sin movimientos registrados.'));
+    r.filas.forEach(x => caja.appendChild(h('div', { class: 'small', style: 'margin-top:6px;border-top:1px solid #ddd;padding-top:4px' }, h('b', {}, x.accion), ' · ' + fmtTs(x.ts) + ' · ' + (x.usuario || x.llave), h('div', {}, x.detalle))));
+    caja.appendChild(h('div', { class: 'acc', style: 'margin-top:6px' }, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cerrar')));
+    pan.appendChild(caja);
+  } catch (e) { pan.textContent = 'No se pudo conectar.'; }
 }
 function vistaAlb(c) {
   const inp = h('input', { type: 'search', placeholder: '🔎 N° de albarán / valera, vale o placa…', value: ALB.q, inputmode: 'search' });
@@ -707,7 +772,7 @@ async function xlsxCambios() {
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     const wb = new ExcelJS.Workbook(); wb.creator = 'Carlos Eduardo Bermúdez Castro'; wb.created = new Date();
     const VERDE = 'FF1B5E20', BORDE = { style: 'thin', color: { argb: 'FFB0BEC5' } }, B4 = { top: BORDE, left: BORDE, bottom: BORDE, right: BORDE };
-    const COL = { CREADO: 'FF2E7D32', MODIFICADO: 'FFEF6C00', ELIMINADO: 'FFC62828', 'FOTO ALBARÁN': 'FF0277BD', 'AJUSTE ADMIN': 'FF6A1B9A', VALIDADA: 'FF00838F' };
+    const COL = { CREADO: 'FF2E7D32', MODIFICADO: 'FFEF6C00', ELIMINADO: 'FFC62828', 'FOTO ALBARÁN': 'FF0277BD', 'AJUSTE ADMIN': 'FF6A1B9A', 'MODIFICADO (ADMIN)': 'FFEF6C00', 'ELIMINADO (ADMIN)': 'FFC62828', VALIDADA: 'FF00838F' };
     const ws = wb.addWorksheet('Control de cambios', { views: [{ state: 'frozen', ySplit: 4 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
     const H = [['Fecha y hora', 17], ['Vale / elemento', 30], ['Acción', 15], ['Usuario', 22], ['Llave', 12], ['Placa', 10], ['Fecha del viaje', 13], ['Detalle (antes → después)', 90]];
     ws.columns = H.map(x => ({ width: x[1] }));
