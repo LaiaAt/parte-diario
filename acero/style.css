@@ -431,3 +431,18 @@ body.emb .tabs button span { display: none; }
 body.emb .tabs button.on { background: transparent; color: #1f2d3d; border-bottom-color: #0a7f2e; font-weight: 700; box-shadow: none; }
 body.emb main { padding-top: 12px; }
 body.emb .tabs { display: none; }
+
+/* Panel: cantidades y kilos en grande */
+.hero b em, .kp em { font-size: .45em; font-style: normal; font-weight: 600; opacity: .8; margin-left: 4px; }
+.sec-t small { font-size: .78rem; font-weight: 600; color: #5b6672; margin-left: 6px; }
+.kp3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kp { background: #fff; border: 1px solid #dde1e6; border-left: 5px solid #8a97a6; border-radius: 8px; padding: 12px 14px; }
+.kp.lib { border-left-color: #2e7d4f; } .kp.arm { border-left-color: #8a97a6; } .kp.out { border-left-color: #1f4e79; }
+.kp small { display: block; font-size: .8rem; font-weight: 700; color: #5b6672; text-transform: uppercase; letter-spacing: .04em; }
+.kp b { display: block; font-size: 2.1rem; line-height: 1.1; color: #1f2d3d; margin-top: 4px; }
+.kp strong { display: block; font-size: 1.35rem; color: #1f2d3d; margin-top: 2px; }
+.kp b em, .kp strong em { color: #5b6672; }
+.dm { display: flex; align-items: center; gap: 8px; margin: 3px 0; } .dm-b { flex: 1; height: 10px; background: #eef0f3; border-radius: 3px; overflow: hidden; } .dm-b i { display: block; height: 100%; }
+.dm span { flex: none; min-width: 150px; text-align: right; font-size: .82rem; color: #5b6672; } .dm span b { color: #1f2d3d; font-size: .95rem; }
+.bh-r small b { color: #1f2d3d; }
+@media (max-width: 520px) { .kp3 { grid-template-columns: 1fr; } .dm span { min-width: 120px; font-size: .76rem; } }

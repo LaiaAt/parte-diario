@@ -160,47 +160,82 @@
     return '<div class="bh"><i class="lib" style="width:' + f(x.lib_p) + '"></i><i class="arm" style="width:' + f(x.arm_p) + '"></i><i class="out" style="width:' + f(x.out_p) + '"></i></div>';
   }
   function leyenda() { return '<div class="ley"><span><i class="lib"></i>Libre</span><span><i class="arm"></i>Armado</span><span><i class="out"></i>Salió</span></div>'; }
-  function tendencia7() {
-    var dias = [], d = new Date(), k, i, z = isoDe;
-    for (i = 6; i >= 0; i--) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate() - i); dias.push({ f: z(x), a: 0, o: 0, l: ['D', 'L', 'M', 'M', 'J', 'V', 'S'][x.getDay()] + ' ' + x.getDate() }); }
-    S.estado.salidas.forEach(function (x) { if (x.estado === 'ANULADA') return; var f = String(x.fecha || '').slice(0, 10); dias.forEach(function (y) { if (y.f === f) { if (tp(x) === 'ARMADO') y.a += +x.kg || 0; else y.o += +x.kg || 0; } }); });
-    var mx = Math.max.apply(null, dias.map(function (y) { return Math.max(y.a, y.o); }).concat([1])), W = 300, H = 120, bw = 13, gx = W / 7, g = '';
-    dias.forEach(function (y, n) {
-      var x0 = n * gx + gx / 2 - bw - 1, ha = 100 * y.a / mx, ho = 100 * y.o / mx;
-      g += '<rect x="' + x0.toFixed(1) + '" y="' + (105 - ha).toFixed(1) + '" width="' + bw + '" height="' + ha.toFixed(1) + '" rx="2" fill="#8a97a6"/>' +
-        '<rect x="' + (x0 + bw + 2).toFixed(1) + '" y="' + (105 - ho).toFixed(1) + '" width="' + bw + '" height="' + ho.toFixed(1) + '" rx="2" fill="#1f4e79"/>' +
-        '<text x="' + (n * gx + gx / 2).toFixed(1) + '" y="118" text-anchor="middle" class="tx">' + y.l + '</text>';
+  // ---- Panel: todo respeta el periodo del filtro (Dashboard o botones propios) ----
+  function aggPeriodo() {
+    var r = { lle: { p: 0, kg: 0 }, arm: { p: 0, kg: 0 }, out: { p: 0, kg: 0 }, dia: {}, diam: {} };
+    function d(k) { return r.dia[k] || (r.dia[k] = { lle: 0, arm: 0, out: 0 }); }
+    function dm(k) { return r.diam[k] || (r.diam[k] = { lle: 0, arm: 0, out: 0, lle_p: 0, arm_p: 0, out_p: 0 }); }
+    S.estado.entradas.forEach(function (e) {
+      var f = String(e.fecha || '').slice(0, 10); if (!enPer(f)) return;
+      var q = +e.cantidad || 0, k = +e.kg || 0; r.lle.p += q; r.lle.kg += k; d(f).lle += k; var x = dm(e.diametro); x.lle += k; x.lle_p += q;
     });
-    var tA = dias.reduce(function (a, y) { return a + y.a; }, 0), tO = dias.reduce(function (a, y) { return a + y.o; }, 0);
-    return '<div class="card gr"><h3>Últimos 7 días (kg)</h3><svg viewBox="0 0 ' + W + ' ' + H + '" class="tr" role="img" aria-label="Armado y salida por día"><line x1="0" y1="105" x2="' + W + '" y2="105" stroke="#94a3b8"/>' + g + '</svg>' +
-      '<div class="ley"><span><i class="arm"></i>Armado ' + kg(tA) + ' kg</span><span><i class="out"></i>Salió ' + kg(tO) + ' kg</span></div></div>';
+    S.estado.salidas.forEach(function (e) {
+      if (e.estado === 'ANULADA') return;
+      var f = String(e.fecha || '').slice(0, 10); if (!enPer(f)) return;
+      var q = +e.cantidad || 0, k = +e.kg || 0, t = tp(e) === 'ARMADO' ? 'arm' : 'out';
+      r[t].p += q; r[t].kg += k; d(f)[t] += k; var x = dm(e.diametro); x[t] += k; x[t + '_p'] += q;
+    });
+    return r;
+  }
+  function textoPeriodo() {
+    var r = rangoPer(); if (!r) return 'Todo el historial';
+    function f(x) { return x.slice(8, 10) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4); }
+    if (S.per.k === 'rango' && !S.per.d && !S.per.h) return 'Todo el historial';
+    return r[0] === r[1] ? f(r[0]) : (r[0] < '1000' ? 'Hasta ' : 'Del ' + f(r[0]) + ' ') + (r[1] > '9000' ? '' : 'al ' + f(r[1]));
+  }
+  function diasGrafico(ag) {
+    var r = rangoPer(), hoy = hoyISO(), ini, fin, ks = Object.keys(ag.dia).sort();
+    fin = r && r[1] < hoy && r[1] < '9000' ? r[1] : hoy;
+    ini = r && r[0] > '1000' ? r[0] : (ks.length ? ks[0] : fin);
+    var out = [], d = new Date(fin + 'T12:00:00'), lim = 31;
+    while (out.length < lim) { var f = isoDe(d); if (f < ini) break; out.unshift(f); d.setDate(d.getDate() - 1); }
+    return { dias: out, recorte: out.length === lim && out[0] > ini };
+  }
+  function graficoDias(ag) {
+    var g = diasGrafico(ag), dias = g.dias, n = dias.length || 1, W = 320, H = 150, L = 34, B = 18, T = 8, iw = W - L - 6, ih = H - B - T;
+    var mx = 1; dias.forEach(function (f) { var y = ag.dia[f] || {}; mx = Math.max(mx, y.lle || 0, y.arm || 0, y.out || 0); });
+    var paso = Math.pow(10, Math.floor(Math.log10(mx))), top = Math.ceil(mx / paso) * paso; if (top / paso < 2) top = paso * 2;
+    var gx = iw / n, bw = Math.max(2, Math.min(9, gx / 3.6)), h = '';
+    for (var i = 0; i <= 4; i++) { var v = top * i / 4, y = T + ih - ih * i / 4; h += '<line x1="' + L + '" x2="' + (W - 4) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="#e3e7ec"/><text x="' + (L - 4) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" class="tx">' + (v >= 1000 ? (v / 1000).toLocaleString('es-CO', { maximumFractionDigits: 1 }) + 'k' : Math.round(v)) + '</text>'; }
+    var cols = [['lle', '#2e7d4f'], ['arm', '#8a97a6'], ['out', '#1f4e79']], cada = Math.ceil(n / 7);
+    dias.forEach(function (f, k) {
+      var y = ag.dia[f] || {}, x0 = L + k * gx + gx / 2 - bw * 1.5;
+      cols.forEach(function (c, j) { var v = y[c[0]] || 0, hh = ih * v / top; if (v > 0) h += '<rect x="' + (x0 + j * bw).toFixed(1) + '" y="' + (T + ih - hh).toFixed(1) + '" width="' + (bw - .6).toFixed(1) + '" height="' + hh.toFixed(1) + '" fill="' + c[1] + '"/>'; });
+      if (k % cada === 0 || k === n - 1) h += '<text x="' + (L + k * gx + gx / 2).toFixed(1) + '" y="' + (H - 5) + '" text-anchor="middle" class="tx">' + f.slice(8, 10) + '/' + f.slice(5, 7) + '</text>';
+    });
+    return '<div class="card gr"><h3>Kilos por día</h3><p class="peq mut" style="margin:0 0 6px">' + textoPeriodo() + (g.recorte ? ' · se muestran los últimos 31 días' : '') + '</p>' +
+      '<div class="ley"><span><i class="lib"></i>Llegó</span><span><i class="arm"></i>Armado</span><span><i class="out"></i>Salió</span></div>' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" class="tr" role="img" aria-label="Kilos por día">' + h + '</svg></div>';
+  }
+  function kpiPer(tit, cls, x) {
+    return '<div class="kp ' + cls + '"><small>' + tit + '</small><b>' + n0(x.p) + '<em> pzs</em></b><strong>' + kg(x.kg) + '<em> kg</em></strong></div>';
   }
   function vPanel() {
     if (!S.estado.entradas.length) return sinInventario();
-    var c = S.calc, t = c.tot, filtrado = S.per.k !== 'todo';
+    var c = S.calc, t = c.tot, ag = aggPeriodo();
     var diams = Object.keys(c.porDiam).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); });
-    var ps = { p: 0, kg: 0 };
-    S.estado.salidas.forEach(function (x) { if (x.estado !== 'ANULADA' && tp(x) === 'SALIDA' && enPer(x.fecha)) { ps.p += x.cantidad; ps.kg += x.kg; } });
-    var h = '<div class="hero"><small>En la playa de hierros hay</small><b>' + pz(t.sal_p) + '</b><span>' + kg(t.sal_kg) + ' kg · de ' + n0(t.in_p) + ' que llegaron</span>' + apilada(t) + '</div>';
-    h += vFiltro() + '<div class="tri">' +
-      '<div class="tl lib"><div class="tl-i">✅</div><b>' + n0(t.lib_p) + '</b><strong>Libre</strong><small>Sin usar</small><i>' + kg(t.lib_kg) + ' kg</i></div>' +
-      '<div class="tl arm"><div class="tl-i">🔧</div><b>' + n0(t.arm_p) + '</b><strong>Armado</strong><small>Ya armado, sigue aquí</small><i>' + kg(t.arm_kg) + ' kg</i></div>' +
-      '<div class="tl out"><div class="tl-i">🚚</div><b>' + n0(filtrado ? ps.p : t.out_p) + '</b><strong>Salió</strong><small>' + (filtrado ? 'En el período' : 'Ya se fue de la playa') + '</small><i>' + kg(filtrado ? ps.kg : t.out_kg) + ' kg</i></div></div>';
-    // distribución general
-    h += '<div class="card gr"><h3>¿Cómo está el acero?</h3><div class="dn-w">' + donut(t.lib_p, t.arm_p, t.out_p) +
+    var h = '<div class="hero"><small>Hoy en la playa de hierros</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg · de ' + n0(t.in_p) + ' piezas (' + kg(t.in_kg) + ' kg) que llegaron en total</span>' + apilada(t) + '</div>';
+    h += vFiltro();
+    h += '<h2 class="sec-t">Movimiento del período <small>' + textoPeriodo() + '</small></h2><div class="kp3">' + kpiPer('Llegó', 'lib', ag.lle) + kpiPer('Armado', 'arm', ag.arm) + kpiPer('Salió', 'out', ag.out) + '</div>';
+    h += graficoDias(ag);
+    // estado actual de la playa
+    h += '<div class="card gr"><h3>Estado actual del acero</h3><div class="dn-w">' + donut(t.lib_p, t.arm_p, t.out_p) +
       '<div class="dn-l"><div><i class="lib"></i><b>' + n0(t.lib_p) + '</b> libres<small>' + kg(t.lib_kg) + ' kg</small></div><div><i class="arm"></i><b>' + n0(t.arm_p) + '</b> armadas<small>' + kg(t.arm_kg) + ' kg</small></div><div><i class="out"></i><b>' + n0(t.out_p) + '</b> salieron<small>' + kg(t.out_kg) + ' kg</small></div></div></div></div>';
-    h += tendencia7();
-    // avance por estructura (ranking)
+    // kilos por diámetro en el período
+    var dp = diams.filter(function (d) { var x = ag.diam[d]; return x && (x.lle || x.arm || x.out); });
+    var mxd = Math.max.apply(null, dp.map(function (d) { var x = ag.diam[d]; return Math.max(x.lle, x.arm, x.out); }).concat([1]));
+    h += '<div class="card gr"><h3>Kilos por tipo de varilla en el período</h3><div class="ley"><span><i class="lib"></i>Llegó</span><span><i class="arm"></i>Armado</span><span><i class="out"></i>Salió</span></div>' +
+      (dp.length ? dp.map(function (d) {
+        var x = ag.diam[d], w = function (n) { return Math.max(n > 0 ? 1.5 : 0, 100 * n / mxd).toFixed(1) + '%'; };
+        function fila(cl, k, q) { return '<div class="dm"><div class="dm-b"><i class="' + cl + '" style="width:' + w(k) + '"></i></div><span><b>' + kg(k) + '</b> kg · ' + n0(q) + ' pzs</span></div>'; }
+        return '<div class="bh-r"><div class="bh-t"><b>' + esc(C.diamLabel(d)) + '</b></div>' + fila('lib', x.lle, x.lle_p) + fila('arm', x.arm, x.arm_p) + fila('out', x.out, x.out_p) + '</div>';
+      }).join('') : '<div class="vacio">Sin movimiento en este período</div>') + '</div>';
+    // avance por estructura (acumulado)
     var es = Object.keys(c.porElem).map(function (e) { var x = c.porElem[e]; return { e: e, x: x, av: x.in_p ? (x.arm_p + x.out_p) / x.in_p : 0 }; }).sort(function (a, b) { return b.av - a.av; });
-    h += '<div class="card gr"><h3>Avance por estructura</h3><p class="peq mut" style="margin:0 0 8px">Armado + salida sobre lo que llegó</p>' + leyenda() +
-      es.map(function (r) { return '<div class="bh-r"><div class="bh-t"><b>' + esc(r.e) + '</b><span>' + Math.round(100 * r.av) + '%</span></div>' + barraH(r.x) + '<small>' + n0(r.x.lib_p) + ' libres · ' + n0(r.x.arm_p) + ' armadas · ' + n0(r.x.out_p) + ' salieron</small></div>'; }).join('') + '</div>';
-    // kg por varilla
-    var mxk = Math.max.apply(null, diams.map(function (d) { return c.porDiam[d].in_kg || 0; }).concat([1]));
-    h += '<div class="card gr"><h3>Kilos por tipo de varilla</h3>' + leyenda() + diams.map(function (d) {
-      var x = c.porDiam[d], w = function (n) { return (100 * n / mxk).toFixed(1) + '%'; };
-      return '<div class="bh-r"><div class="bh-t"><b>' + esc(C.diamLabel(d)) + '</b><span>' + kg(x.in_kg) + ' kg</span></div><div class="bh"><i class="lib" style="width:' + w(x.lib_kg) + '"></i><i class="arm" style="width:' + w(x.arm_kg) + '"></i><i class="out" style="width:' + w(x.out_kg) + '"></i></div></div>'; }).join('') + '</div>';
+    h += '<div class="card gr"><h3>Avance por estructura</h3><p class="peq mut" style="margin:0 0 8px">Acumulado: armado + salida sobre lo que llegó</p>' + leyenda() +
+      es.map(function (r) { return '<div class="bh-r"><div class="bh-t"><b>' + esc(r.e) + '</b><span>' + Math.round(100 * r.av) + '%</span></div>' + barraH(r.x) + '<small><b>' + n0(r.x.in_p) + '</b> pzs · <b>' + kg(r.x.in_kg) + '</b> kg · ' + n0(r.x.lib_p) + ' libres · ' + n0(r.x.arm_p) + ' armadas · ' + n0(r.x.out_p) + ' salieron</small></div>'; }).join('') + '</div>';
     var L = movimientos().slice(0, 5);
-    h += '<h2 class="sec-t">Últimos movimientos</h2><div class="card">' + (L.length ? L.map(function (m) { return vMov(m, false); }).join('') : '<div class="vacio">Sin movimientos</div>') + '</div>';
+    h += '<h2 class="sec-t">Últimos movimientos del período</h2><div class="card">' + (L.length ? L.map(function (m) { return vMov(m, false); }).join('') : '<div class="vacio">Sin movimientos en este período</div>') + '</div>';
     return h;
   }
   function diamsDisponibles() {
