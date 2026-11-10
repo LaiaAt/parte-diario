@@ -893,7 +893,7 @@ window.addEventListener('message', e => {
 function navegacion() {
   const n = $('nav'); n.hidden = false; if (n.firstChild) { modulo(MOD); return; }
   const n2 = $('nav2'); let ultP = 'resumen';
-  [['p', '📅 Parte diario', () => modulo(MOD !== 'transportes' && MOD !== 'acero' ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (MOD !== 'transportes' && MOD !== 'acero') ultP = MOD; modulo('transportes'); }], ['a', '🔩 Acero', () => { if (MOD !== 'transportes' && MOD !== 'acero') ultP = MOD; modulo('acero'); }]].forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
+  [['p', '📅 Parte diario', () => modulo(MOD !== 'transportes' && MOD !== 'acero' ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (MOD !== 'transportes' && MOD !== 'acero') ultP = MOD; modulo('transportes'); }], D.acero ? ['a', '🔩 Acero', () => { if (MOD !== 'transportes' && MOD !== 'acero') ultP = MOD; modulo('acero'); }] : null].filter(Boolean).forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
   MODS.filter(x => x[0] !== 'transportes').forEach(x => { const b = h('button', { onclick: () => modulo(x[0]) }, x[1]); b.dataset.mod = x[0]; n2.appendChild(b); });
   modulo(MOD);
 }

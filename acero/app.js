@@ -61,7 +61,7 @@
     return '<div class="login"><div class="marca"><img src="' + BASE + 'icons/icon-192.png" alt=""><h1>' + esc(CFG.TITULO) + '</h1>' +
       (Api.remoto ? '' : '<span class="insignia">Modo local de prueba</span>') + '</div>' +
       '<form id="f-login" class="card"><label class="f" for="l-pin">Escribe tu llave</label>' +
-      '<input id="l-pin" type="password" autocomplete="current-password" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Tu llave">' +
+      '<input id="l-pin" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Escribe tu llave">' +
       (S.loginErr ? '<div class="error">' + esc(S.loginErr) + '</div>' : '') +
       '<div style="margin-top:16px"><button class="btn blk" type="submit">Entrar</button></div></form>' +
       '</div>';
