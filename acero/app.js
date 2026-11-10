@@ -606,10 +606,13 @@
     else pl.forEach(function (q) {
       if (y + 16 > FIN) pagina();
       var x = M;
-      [q.nombre, q.cargo, q.inicio, q.fin, q.horas].forEach(function (t, i) { celda(x, PW[i], 16, [{ t: String(t || ''), size: 8 }], { al: i > 1 ? 'c' : 'l', size: 8 }); x += PW[i]; });
+      [q.nombre, q.cargo, q.inicio, q.fin, q.horas].forEach(function (t, i) { celda(x, PW[i], 16, [{ t: String(t || ''), size: 8, c: PER.previo ? [0.8, 0.1, 0.1] : undefined }], { al: i > 1 ? 'c' : 'l', size: 8 }); x += PW[i]; });
       y += 16;
     });
-    if (pl.length) P.texto(M, y + 10, 'Total personal: ' + pl.length + (PER.de ? ' · tomado del Parte diario de ' + PER.de : ''), 7.5, false, [0.25, 0.25, 0.25]);
+    if (pl.length) {
+      var pf = PER.fechaParte ? PER.fechaParte.split('-').reverse().join('/') : '';
+      P.texto(M, y + 10, 'Total personal: ' + pl.length + (PER.de ? ' · tomado del Parte diario de ' + PER.de : '') + (PER.previo ? ' · el Parte de este día aún no se llena: se muestra el del ' + pf : ''), 7.5, false, PER.previo ? [0.8, 0.1, 0.1] : [0.25, 0.25, 0.25]);
+    }
     y += 20;
     // 1) almacén al iniciar
     function tabla4(titulo, primera, claves, mapa) {
