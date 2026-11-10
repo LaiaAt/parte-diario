@@ -341,21 +341,25 @@ async function fotoRecibo(v, data, quedarse) {
   if (!quedarse) volver(); aviso('✔ Foto del recibo guardada.', 'ok'); sincronizar();
 }
 async function verFoto(v, cual) {
-  let datas = asArr(await kv.get('f_' + v.cod + '_' + (cual === 'carga' ? 'c' : 'r')));
-  if (!datas.length) {
-    if (!navigator.onLine) { aviso('Para ver esta foto necesitas señal.', 'err'); return; }
-    aviso('Abriendo…');
-    try { const r = await api({ accion: 'tr_foto', llave: user.llave, cod: v.cod, cual: cual }); if (!r.ok) { aviso(r.mensaje || 'No se pudo abrir.', 'err'); return; } datas = r.datas || (r.data ? [r.data] : []); aviso(''); }
-    catch (e) { aviso('No se pudo abrir. Intenta de nuevo.', 'err'); return; }
-  }
-  // La foto se abre ENCIMA de la pantalla actual (no cambia de pantalla): al cerrar vuelves exactamente al mismo lugar de la lista.
+  // La foto se abre ENCIMA de la pantalla actual (sin cambiar de pantalla ni mover la lista): al cerrar vuelves al mismo lugar.
   const V = $('visor'); V.textContent = '';
   V.style.cssText = 'position:fixed;inset:0;z-index:50;background:rgba(18,32,43,.96);overflow:auto;padding:12px;-webkit-overflow-scrolling:touch';
   const cerrar = () => { V.hidden = true; V.textContent = ''; document.body.style.overflow = ''; };
+  const cuerpo = h('div', {}, h('p', { style: 'color:#fff;font-size:18px;text-align:center;margin-top:30px' }, 'Abriendo…'));
   V.appendChild(h('div', { style: 'max-width:640px;margin:0 auto' },
-    h('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:#12202b;padding:8px 0;color:#fff;font-weight:700' }, h('span', {}, (cual === 'carga' ? '🚛 Volqueta' : '🧾 Albarán') + ' · N° ' + consecDe(v) + ' · ' + v.placa), h('button', { class: 'verde', style: 'width:auto;padding:8px 18px', onclick: cerrar }, '✕ Cerrar')),
-    datas.map(d => h('img', { src: d, style: 'width:100%;margin-top:8px;border-radius:6px;background:#fff' }))));
+    h('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:#12202b;padding:8px 0;color:#fff;font-weight:700' }, h('span', {}, (cual === 'carga' ? '🚛 Volqueta' : '🧾 Albarán') + ' · N° ' + consecDe(v) + ' · ' + v.placa), h('button', { class: 'verde', style: 'width:auto;padding:8px 18px', onclick: cerrar }, '✕ Cerrar')), cuerpo));
   V.hidden = false; V.scrollTop = 0; document.body.style.overflow = 'hidden';
+  const msg = t => { cuerpo.textContent = ''; cuerpo.appendChild(h('p', { style: 'color:#ffb4b4;font-size:18px;text-align:center;margin-top:30px' }, t)); };
+  let datas = asArr(await kv.get('f_' + v.cod + '_' + (cual === 'carga' ? 'c' : 'r')));
+  if (!datas.length) {
+    if (!navigator.onLine) { msg('Para ver esta foto necesitas señal.'); return; }
+    try { const r = await api({ accion: 'tr_foto', llave: user.llave, cod: v.cod, cual: cual }); if (!r.ok) { msg(r.mensaje || 'No se pudo abrir.'); return; } datas = r.datas || (r.data ? [r.data] : []); }
+    catch (e) { msg('No se pudo abrir. Intenta de nuevo.'); return; }
+  }
+  if (V.hidden) return;
+  cuerpo.textContent = '';
+  if (!datas.length) { msg('No hay foto guardada.'); return; }
+  datas.forEach(d => cuerpo.appendChild(h('img', { src: d, style: 'width:100%;margin-top:8px;border-radius:6px;background:#fff' })));
 }
 
 /* ---------- formulario de viaje ---------- */
