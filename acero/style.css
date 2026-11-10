@@ -430,3 +430,4 @@ body.emb .tabs button { flex: 1 0 auto; background: transparent; border: 0; bord
 body.emb .tabs button span { display: none; }
 body.emb .tabs button.on { background: transparent; color: #1f2d3d; border-bottom-color: #0a7f2e; font-weight: 700; box-shadow: none; }
 body.emb main { padding-top: 12px; }
+body.emb .tabs { display: none; }

@@ -105,6 +105,7 @@ button.chipm{cursor:pointer;font:inherit}
 <div id="nav" class="bar" hidden></div>
 <div id="nav2" class="bar" hidden style="margin-top:-4px"></div>
 <div id="nav3" class="bar" hidden style="margin-top:-4px"></div>
+<div id="nav4" class="bar" hidden style="margin-top:-4px"></div>
 <main>
 <section id="login" class="card">
   <img class="marca" src="logo.png" alt="Consorcio Constructor Sabana Norte">
@@ -253,8 +254,8 @@ function modulo(m) {
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
   const gt = m === 'transportes', ga = m === 'acero', grp = gt ? 't' : ga ? 'a' : 'p';
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g === grp));
-  $('nav2').hidden = gt || ga; $('nav3').hidden = !gt; if (gt) navTr();
-  { const t = $('nav').offsetHeight + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
+  $('nav2').hidden = gt || ga; $('nav3').hidden = !gt; $('nav4').hidden = !ga; if (gt) navTr(); if (ga) navAc();
+  { const t = $('nav').offsetHeight + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav4').style.top = t; $('nav4').style.marginTop = '0'; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
   window.scrollTo(0, 0);
   if (m === 'transportes' && !TR) cargarTr();
@@ -869,9 +870,15 @@ function chips(opts, val, fn) {
   return h('div', { class: 'chips' }, opts.map(([k, t]) => h('button', { class: 'chip' + (val === k ? ' on' : ''), onclick: () => fn(k) }, t)));
 }
 /* ----- Acero: se muestra dentro del Dashboard con el mismo periodo ----- */
+let ACTAB = 'panel';
+const AC_TABS = [['panel', '📊 Panel'], ['inv', '📦 Inventario'], ['mov', '🧾 Movimientos'], ['ped', '📋 Pedidos'], ['inf', '📄 Informe']];
+function navAc() {
+  const tb = $('nav4'); tb.textContent = '';
+  AC_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: ACTAB === k ? 'on' : '', onclick: () => { ACTAB = k; navAc(); enviarAc(false); window.scrollTo(0, 0); } }, t)));
+}
 function enviarAc(recargar) {
   const f = $('acFrame'); if (!f || !f.contentWindow) return;
-  f.contentWindow.postMessage({ t: 'per', d: $('desde').value, h: $('hasta').value, r: !!recargar }, location.origin);
+  f.contentWindow.postMessage({ t: 'per', d: $('desde').value, h: $('hasta').value, r: !!recargar, tab: ACTAB }, location.origin);
 }
 function abrirAcero() {
   let f = $('acFrame');

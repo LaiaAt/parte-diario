@@ -938,6 +938,7 @@
     window.addEventListener('message', function (ev) {
       if (ev.origin !== location.origin || !ev.data || ev.data.t !== 'per') return;
       S.per = { k: 'rango', d: ev.data.d || '', h: ev.data.h || '' };
+      if (/^(panel|inv|mov|ped|inf)$/.test(ev.data.tab || '')) S.tab = ev.data.tab;
       if (ev.data.r && S.ses) cargarEstado(); else render();
     });
     try { parent.postMessage({ t: 'acero-listo' }, location.origin); } catch (e) { }
