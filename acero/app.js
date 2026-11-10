@@ -821,6 +821,7 @@
   }
 
   function vista() {
+    if (!S.cargado) return vCargando();
     switch (S.tab) {
       case 'salida': return vSalida();
       case 'inv': return vInv();
