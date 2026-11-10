@@ -813,6 +813,7 @@
       }
       h += '<details><summary>Ver las ' + p.rows.length + ' filas</summary><div class="tw"><table><thead><tr><th>Marca</th><th class="n">Cant.</th><th>Diám.</th><th class="n">Largo m</th><th class="n">Kg</th></tr></thead><tbody>' +
         p.rows.map(function (r) { return '<tr><td>' + esc(r.marca) + '</td><td class="n">' + r.cantidad + '</td><td>' + esc(C.diamLabel(r.diametro)) + '</td><td class="n">' + (r.largo ? kg(r.largo) : '—') + '</td><td class="n">' + kg(r.kg) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
+      h += '<div class="fld" style="margin-top:10px"><label>Nombre de la estructura</label><input type="text" maxlength="80" value="' + esc(p.nombre) + '" data-i="carga.' + i + '.nombre"><div class="peq mut">Si es un complemento de otra estructura ya cargada, cámbiele el nombre (ej. «CAISSON AT COMPLEMENTO»).</div></div>';
       if (!ya.length) h += '<div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" inputmode="numeric" placeholder="Ej. 203192" value="' + esc(c.pedido) + '" data-i="carga.' + i + '.pedido"></div>' +
         '<div class="fld"><label>Fecha en que llegó a obra</label><input type="date" max="' + hoyISO() + '" value="' + esc(c.llegada || hoyISO()) + '" data-i="carga.' + i + '.llegada"></div></div>';
       if (c.err && !ya.length) h += '<div class="error">' + esc(c.err) + '</div>';
@@ -889,6 +890,8 @@
     if (!String(c.pedido).trim()) c.err = 'Escriba el número de pedido.';
     else if (!/^\d{4}-\d\d-\d\d$/.test(c.llegada || '') || c.llegada > hoyISO()) c.err = 'Elija la fecha en que llegó el pedido a obra (no puede ser futura).';
     else if (!p.rows.length) c.err = 'El archivo no trae piezas.';
+    else if (p.errores && p.errores.length) c.err = 'No se puede registrar: hay ' + p.errores.length + ' fila(s) del archivo que no se entendieron (ver avisos arriba). Envíe el archivo para ajustar el lector.';
+    else if (!String(p.nombre).trim()) c.err = 'Escriba el nombre de la estructura.';
     else {
       var mal = p.rows.filter(function (r) { return !r.largo || !r.peso; })[0];
       if (mal) c.err = 'Complete la marca ' + mal.marca + ' (falta largo o peso del diámetro ' + mal.diametro + ').';
@@ -1075,6 +1078,7 @@
     var t = ev.target;
     if (t.id === 'dli-file') { leerArchivos(t.files).then(function () { t.value = ''; }); return; }
     var f = t.getAttribute('data-f');
+    if (/^carga\.\d+\.nombre$/.test(t.getAttribute('data-i') || '')) { var cn = S.cargas[+t.getAttribute('data-i').split('.')[1]]; if (cn) { cn.parsed.nombre = String(t.value).trim() || cn.parsed.nombre; cn.err = ''; render(); } return; }
     if (f === 'mov.q') { S.mq = t.value; render(); return; }
     if (f) {
       var p = f.split('.'); S[p[0]][p[1]] = t.value;
@@ -1107,6 +1111,7 @@
     else if (i === 'sal.fase') S.sal.fase = t.value;
     else if (i === 'sal.pct') { S.sal.pct = t.value.replace(/[^0-9.,]/g, ''); S.sal.msg = ''; aplicarPct(); S.focus = 's-pct'; render(); var e4 = $('s-pct'); if (e4) { try { e4.setSelectionRange(e4.value.length, e4.value.length); } catch (x) { } } }
     else {
+      var m0 = /^carga\.(\d+)\.nombre$/.exec(i); if (m0 && S.cargas[+m0[1]]) S.cargas[+m0[1]].parsed.nombre = t.value;
       var m = /^carga\.(\d+)\.pedido$/.exec(i), m2 = /^carga\.(\d+)\.llegada$/.exec(i);
       if (m && S.cargas[+m[1]]) S.cargas[+m[1]].pedido = t.value;
       if (m2 && S.cargas[+m2[1]]) S.cargas[+m2[1]].llegada = t.value;

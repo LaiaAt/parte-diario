@@ -77,6 +77,14 @@
   const RE_PFORMA = /^(\d+)\s+P\s+"?([^"\s]+?)(?:'')?"?\s+((?:-?[\d.]+X?\s*)+)$/;
   const RE_ESTRIBO = /^(\d+)\s+E\s+"([^"]+)"\s+([\d.]*)\*([\d.]+)\s+G([\d.]+)/;
 
+  // El servidor guarda la marca con máximo 20 caracteres: se quita la primera palabra del grupo (CAISSON, PILOTE…) y se numera la fila.
+  function marcaGrupo(grupo, n) {
+    const sufijo = ' #' + n;
+    let base = grupo.replace(/^\S+\s+/, '').trim() || grupo;
+    if (base.length + sufijo.length > 20) base = base.slice(0, 20 - sufijo.length);
+    return base + sufijo;
+  }
+
   /** Lee un .dli (Uint8Array) y devuelve las piezas con su cantidad, largo y peso. */
   function parseDLI(bytes, nombreArchivo) {
     const avisos = [];
@@ -145,6 +153,7 @@
       rows.push({ marca, cantidad, diametro: diam, largo, forma, aviso, peso: peso || 0 });
     }
     // Formato por grupos (DL-NET "Comp."/Pilotes/Caisson): [nombre del grupo] [" n"] y n filas "cant [C|E] "diám" medidas".
+    const errores = [];
     if (!rows.length) {
       const iT = cells.indexOf('Total'), fin = iT < 0 ? cells.length : iT;
       const RE_G = /^(\d+)\s+(?:([CE])\s+)?"([^"]+)"\s+(.*)$/;
@@ -157,7 +166,7 @@
         if (!/^\s\d+$/.test(cells[i + 1])) break;
         for (let k = 0; k < n && i + 2 + k < fin; k++) {
           const dato = cells[i + 2 + k].trim(), mm = RE_G.exec(dato);
-          if (!mm) continue;
+          if (!mm) { errores.push('Fila no entendida en ' + grupo + ': ' + dato); continue; }
           const cant = +mm[1], tipo = mm[2] || '', diam = normDiam(mm[3]), resto = mm[4];
           let largo = null, forma = '', aviso = '', x;
           if (tipo === 'E' && (x = /^([\d.]*)\*([\d.]+)\s+G([\d.]+)/.exec(resto))) {
@@ -170,7 +179,7 @@
           const peso = PESOS[diam];
           if (!peso) aviso = aviso || 'Diámetro sin peso definido (' + diam + ')';
           if (!cant) continue;
-          rows.push({ marca: grupo + ' #' + (k + 1), cantidad: cant, diametro: diam, largo, forma, aviso, peso: peso || 0 });
+          rows.push({ marca: marcaGrupo(grupo, k + 1), cantidad: cant, diametro: diam, largo, forma, aviso, peso: peso || 0 });
         }
         i += 2 + n;
       }
@@ -180,6 +189,7 @@
     if (declarado !== null && declarado !== rows.length)
       avisos.push('El archivo declara ' + declarado + ' filas y se leyeron ' + rows.length + '. Revise antes de registrar.');
     if (!rows.length) avisos.push('No se encontraron piezas en el archivo.');
+    errores.forEach((e) => avisos.push(e));
     rows.forEach((r) => { if (r.aviso) avisos.push('Marca ' + r.marca + ': ' + r.aviso); });
 
     // Peso total que declara el propio DLI (cabecera) → control cruzado
@@ -188,7 +198,7 @@
     const kgDLI = mp ? r2(mp[1].trim().split(/\s+/).slice(4, 20).map(Number).filter((x) => x > 1).reduce((t, x) => t + x, 0)) || null : null;
     const kgApp = totales(rows).totalKg;
     if (kgDLI && Math.abs(kgApp - kgDLI) / kgDLI > 0.005 && !rows.some((r) => r.aviso)) avisos.push('El peso calculado (' + kgApp + ' kg) difiere del declarado en el DLI (' + kgDLI + ' kg).');
-    return { archivo: nombreArchivo || '', nombre, kgDLI, descripcion, empresa, proyecto, declarado, rows, avisos, ...totales(rows) };
+    return { archivo: nombreArchivo || '', nombre, kgDLI, descripcion, empresa, proyecto, declarado, rows, avisos, errores, ...totales(rows) };
   }
 
   function recalcular(rows) {
