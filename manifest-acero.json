@@ -5,8 +5,8 @@
   "start_url": "./acero.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#222831",
-  "theme_color": "#222831",
+  "background_color": "#eef0f2",
+  "theme_color": "#0a7f2e",
   "lang": "es",
   "icons": [
     {

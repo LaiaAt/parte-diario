@@ -390,3 +390,11 @@ i.lib { background: #16a34a; } i.arm { background: #f59e0b; } i.out { background
 .inf-res { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
 .inf-res div { background: #f1f5f9; border: 2px solid #94a3b8; border-radius: 12px; padding: 10px 6px; text-align: center; }
 .inf-res b { display: block; font-size: 1.15rem; color: var(--navy); } .inf-res small { color: #475569; font-size: .72rem; }
+
+/* ===== Misma gama de colores que Parte diario y Transportes (verde corporativo + azul pizarra) ===== */
+:root { --bg: #eef0f3; --line: #cfd6dd; --acc: #0a7f2e; --acc2: #086b26; --navy: #1f2d3d; --acero: #1f2d3d; --acero2: #2b3b4e; }
+.top { background: #0a7f2e; border-bottom: 4px solid #1f2d3d; }
+.tabs button.on { background: #e6f4ea; border-bottom-color: #0a7f2e; }
+.hero { background: #1f2d3d; }
+.btn { background: #1f2d3d; } .btn:active { background: #0a7f2e; }
+.fc.on { background: #0a7f2e; border-color: #0a7f2e; color: #fff; }
