@@ -168,8 +168,18 @@
               doc.setFont('helvetica', 'normal'); doc.setFontSize(6.4);
               tx('Alb. ' + f2(volv(r)), x + 1.2, y + 3, { maxWidth: c[1] - 2 }); tx('Conf. ' + f2(r.cant), x + 1.2, y + 6.1, { maxWidth: c[1] - 2 });
             } else {
-              doc.setFont('helvetica', 'normal'); doc.setFontSize(j === 0 ? 7 : 8);
-              tx(celdas[j], j === 0 ? x + c[1] / 2 : x + 1.5, y + 5, j === 0 ? { align: 'center' } : { maxWidth: c[1] - 3 });
+              doc.setFont('helvetica', 'normal');
+              if (j === 0) { doc.setFontSize(7); tx(celdas[j], x + c[1] / 2, y + 5, { align: 'center' }); }
+              else {
+                // ajusta el texto a la celda: una linea si cabe; si no, achica y usa hasta 2 lineas (con "..." si aun no cabe)
+                const t = String(celdas[j] === undefined || celdas[j] === null ? '' : celdas[j]), an = c[1] - 3;
+                let fs = 8, ls;
+                for (; fs >= 5.5; fs -= 0.5) { doc.setFontSize(fs); ls = doc.splitTextToSize(t, an); if (ls.length === 1) break; if (ls.length === 2 && fs <= 6.5) break; }
+                doc.setFontSize(fs); ls = doc.splitTextToSize(t, an);
+                if (ls.length > 2) { ls = ls.slice(0, 2); let u = ls[1]; while (u.length > 1 && doc.getTextWidth(u + '...') > an) u = u.slice(0, -1); ls[1] = u + '...'; }
+                if (ls.length === 1) tx(ls[0], x + 1.5, y + 4.6);
+                else { tx(ls[0], x + 1.5, y + 3.1); tx(ls[1], x + 1.5, y + 6.1); }
+              }
             }
             x += c[1];
           });
