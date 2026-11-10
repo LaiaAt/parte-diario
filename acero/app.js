@@ -85,7 +85,7 @@
   }
 
   function vTabs() {
-    var T = MODO === 'salidas'
+    var T = EMB ? [['panel', '', 'Panel'], ['inv', '', 'Inventario'], ['mov', '', 'Movimientos'], ['ped', '', 'Pedidos'], ['inf', '', 'Informe']] : MODO === 'salidas'
       ? [['salida', '✍️', 'Registrar'], ['mov', '🧾', 'Movimientos'], ['inv', '📦', 'Inventario'], ['inf', '📄', 'Informe']]
       : [['panel', '📊', 'Panel'], ['salida', '✍️', 'Registrar'], ['inv', '📦', 'Inventario'], ['mov', '🧾', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe'], ['cargar', '📥', 'Cargar DLI']];
     return '<nav class="tabs">' + T.map(function (t) {
@@ -149,7 +149,7 @@
   }
   // ---- gráficos del panel (SVG/CSS, sin librerías) ----
   function donut(l, a, o) {
-    var t = l + a + o || 1, R = 15.915, off = 25, seg = [[l, '#16a34a'], [a, '#f59e0b'], [o, '#2563eb']], acc = 0, h = '';
+    var t = l + a + o || 1, R = 15.915, off = 25, seg = [[l, '#2e7d4f'], [a, '#8a97a6'], [o, '#1f4e79']], acc = 0, h = '';
     seg.forEach(function (x) { var p = 100 * x[0] / t; if (p > 0) h += '<circle cx="21" cy="21" r="' + R + '" fill="none" stroke="' + x[1] + '" stroke-width="7" stroke-dasharray="' + p.toFixed(2) + ' ' + (100 - p).toFixed(2) + '" stroke-dashoffset="' + (off - acc).toFixed(2) + '"/>'; acc += p; });
     var av = Math.round(100 * (a + o) / t);
     return '<svg class="dn" viewBox="0 0 42 42" role="img" aria-label="Distribución de piezas"><circle cx="21" cy="21" r="' + R + '" fill="none" stroke="#e2e8f0" stroke-width="7"/>' + h +
@@ -167,8 +167,8 @@
     var mx = Math.max.apply(null, dias.map(function (y) { return Math.max(y.a, y.o); }).concat([1])), W = 300, H = 120, bw = 13, gx = W / 7, g = '';
     dias.forEach(function (y, n) {
       var x0 = n * gx + gx / 2 - bw - 1, ha = 100 * y.a / mx, ho = 100 * y.o / mx;
-      g += '<rect x="' + x0.toFixed(1) + '" y="' + (105 - ha).toFixed(1) + '" width="' + bw + '" height="' + ha.toFixed(1) + '" rx="2" fill="#f59e0b"/>' +
-        '<rect x="' + (x0 + bw + 2).toFixed(1) + '" y="' + (105 - ho).toFixed(1) + '" width="' + bw + '" height="' + ho.toFixed(1) + '" rx="2" fill="#2563eb"/>' +
+      g += '<rect x="' + x0.toFixed(1) + '" y="' + (105 - ha).toFixed(1) + '" width="' + bw + '" height="' + ha.toFixed(1) + '" rx="2" fill="#8a97a6"/>' +
+        '<rect x="' + (x0 + bw + 2).toFixed(1) + '" y="' + (105 - ho).toFixed(1) + '" width="' + bw + '" height="' + ho.toFixed(1) + '" rx="2" fill="#1f4e79"/>' +
         '<text x="' + (n * gx + gx / 2).toFixed(1) + '" y="118" text-anchor="middle" class="tx">' + y.l + '</text>';
     });
     var tA = dias.reduce(function (a, y) { return a + y.a; }, 0), tO = dias.reduce(function (a, y) { return a + y.o; }, 0);
@@ -932,6 +932,7 @@
 
   // ---------- Modo incrustado en el Dashboard: periodo y actualización los manda el Dashboard ----------
   if (EMB) {
+    document.body.classList.add('emb');
     var avisaAlto = function () { try { parent.postMessage({ t: 'acero-alto', h: Math.ceil(document.documentElement.getBoundingClientRect().height) }, location.origin); } catch (e) { } };
     if (window.ResizeObserver) new ResizeObserver(avisaAlto).observe(document.body);
     window.addEventListener('message', function (ev) {

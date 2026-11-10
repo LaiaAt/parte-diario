@@ -398,3 +398,35 @@ i.lib { background: #16a34a; } i.arm { background: #f59e0b; } i.out { background
 .hero { background: #1f2d3d; }
 .btn { background: #1f2d3d; } .btn:active { background: #0a7f2e; }
 .fc.on { background: #0a7f2e; border-color: #0a7f2e; color: #fff; }
+
+/* ===== Diseño corporativo: sobrio, neutro, un solo color de marca (verde) ===== */
+:root { --bg: #eef0f3; --line: #dde1e6; --ink: #1f2d3d; --mut: #5b6672; --libbg: #fff; --armbg: #fff; --outbg: #fff; --sombra: none; --r: 10px; }
+.card, .ec { border: 1px solid #dde1e6; box-shadow: none; border-radius: 10px; }
+.card h2, .ec-h b { color: #1f2d3d; }
+.hero { background: #1f2d3d; border-radius: 10px; padding: 16px 18px; }
+.hero b { font-weight: 700; letter-spacing: -.5px; }
+.stk { background: #dde1e6; height: 8px; border-radius: 4px; }
+.stk i.lib, i.lib { background: #2e7d4f; } .stk i.arm, i.arm { background: #8a97a6; } .stk i.out, i.out { background: #1f4e79; }
+.tl, .cl { background: #fff !important; color: #1f2d3d !important; border: 1px solid #dde1e6 !important; border-left-width: 4px !important; border-radius: 8px; text-align: left; padding: 10px 12px; }
+.tl.lib, .cl.lib { border-left-color: #2e7d4f !important; } .tl.arm, .cl.arm { border-left-color: #8a97a6 !important; } .tl.out, .cl.out { border-left-color: #1f4e79 !important; }
+.tl b, .cl b { font-size: 1.7rem; font-weight: 700; } .tl strong { font-size: .95rem; color: #1f2d3d; } .tl small, .cl small { color: #5b6672; font-weight: 600; } .tl i, .cl i { color: #5b6672; font-weight: 600; }
+.tl .tl-i { display: none; }
+.kpi { border: 1px solid #dde1e6; border-left: 4px solid #8a97a6; box-shadow: none; border-radius: 8px; }
+.kpi.ent { border-left-color: #2e7d4f; } .kpi.sal { border-left-color: #1f4e79; } .kpi.sdo { border-left-color: #8a97a6; }
+.mv .mv-i { background: #eef0f3 !important; filter: grayscale(1); border-radius: 8px; }
+.pd-s .lib, .pd-s .arm, .pd-s .out { background: #eef0f3; color: #1f2d3d; }
+.fper .fch .fc, .fc { border: 1px solid #cfd6dd; background: #fff; color: #1f2d3d; font-weight: 600; }
+.fper .fc.on, .fc.on { background: #1f2d3d; color: #fff; border-color: #1f2d3d; }
+.banda.warn { background: #fff8e6; color: #5c4400; border-bottom: 1px solid #e6d29a; font-weight: 500; }
+.chp.pen { background: #eef0f3; color: #5b6672; } .chp.anu { background: #f6e3e1; color: #8a2323; }
+.balance { background: #fff; border: 1px solid #dde1e6; } .balance .paso-h b { color: #1f2d3d; }
+.btn { border-radius: 8px; min-height: 46px; font-weight: 600; } .btn.sec { background: #fff; border: 1px solid #cfd6dd; color: #1f2d3d; }
+
+/* Dashboard (incrustado): pestañas de texto, sin iconos ni colores */
+body.emb { background: transparent; }
+body.emb .cab { background: transparent; }
+body.emb .tabs { background: #fff; border: 1px solid #dde1e6; border-radius: 10px; padding: 0 6px; gap: 0; box-shadow: none; overflow-x: auto; }
+body.emb .tabs button { flex: 1 0 auto; background: transparent; border: 0; border-bottom: 3px solid transparent; border-radius: 0; box-shadow: none; padding: 12px 14px; min-width: 0; font-size: .92rem; color: #5b6672; font-weight: 600; }
+body.emb .tabs button span { display: none; }
+body.emb .tabs button.on { background: transparent; color: #1f2d3d; border-bottom-color: #0a7f2e; font-weight: 700; box-shadow: none; }
+body.emb main { padding-top: 12px; }
