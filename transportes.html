@@ -752,6 +752,17 @@ async function guardarViaje() {
     const p = $(mal[0]); if (p) { p.scrollIntoView({ block: 'center' }); if (p.focus) p.focus(); }
     return;
   }
+  { // avisos antes de guardar (placa parecida / albarán repetido)
+    const par = (x, y) => { if (x.length !== y.length || x === y) return false; const d = []; for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) d.push(i); return d.length === 1 || (d.length === 2 && d[1] === d[0] + 1 && x[d[0]] === y[d[1]] && x[d[1]] === y[d[0]]); };
+    const conocida = DATOS.volquetas.some(x => normPlaca(x.placa) === placa);
+    if (!conocida) {
+      const sim = DATOS.volquetas.map(x => normPlaca(x.placa)).filter(x => par(placa, x));
+      if (sim.length && !confirm('⚠️ La placa ' + placa + ' NO está registrada y se parece a ' + sim.slice(0, 3).join(', ') + '.\n\n¿Está bien escrita? Aceptar = guardar así. Cancelar = corregir.')) { $('placa').focus(); return; }
+    }
+    const nv = g('n_valera').toUpperCase();
+    const rep = VIAJES.find(x => x.cod !== editandoCod && String(x.n_valera || '').toUpperCase() === nv && (x.valera_de || '') === ($('valera_de').value || ''));
+    if (rep && !confirm('⚠️ El albarán ' + nv + ' ya fue registrado (' + rep.placa + ', ' + rep.fecha + ').\n\n¿Es otro viaje? Aceptar = guardar igual. Cancelar = revisar el número.')) { $('n_valera').focus(); return; }
+  }
   const rec = $('mov').value === 'RECIBE';
   const antes = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
   const cod = antes ? antes.cod : nuevoCod();
