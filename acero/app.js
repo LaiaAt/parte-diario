@@ -80,7 +80,8 @@
     if (!Api.remoto) h += '<div class="banda info">Modo local de prueba: los datos solo existen en este navegador.</div>';
     if (S.offline) h += '<div class="banda warn">Sin conexión: se muestran los últimos datos guardados en este celular.</div>';
     if (pend && S.enviando) h += '<div class="banda info env"><span>Enviando la salida al almacén…</span><i class="prog"><b></b></i></div>';
-    else if (pend) h += '<div class="banda warn">' + pend + ' salida(s) sin enviar por falta de señal. Se envían solas al volver la conexión.<button class="btn chico" data-a="enviarCola">Enviar ahora</button></div>';
+    else if (pend) h += '<div class="banda warn"><div>⚠️ <b>' + pend + (pend === 1 ? ' registro guardado' : ' registros guardados') + ' en este celular, sin enviar por falta de señal.</b><br>No se han perdido: se envían solos cuando vuelva la señal. No cierres la sesión ni borres los datos del navegador hasta que desaparezca este aviso.</div><button class="btn chico" data-a="enviarCola">Enviar ahora</button></div>';
+    if (S.avisoBaja) h += '<div class="banda bad"><div>' + esc(S.avisoBaja) + '</div><button class="btn chico sec" data-a="cerrarAviso">Entendido</button></div>';
     if (errs.length) h += '<div class="banda bad"><div>' + errs.map(function (e) { return e.body.items ? 'No se pudo registrar la salida (' + e.body.items.length + ' posiciones): ' + esc(e.error) : 'No se pudo registrar ' + esc(e.body.cantidad) + ' × ' + esc(e.body.diametro) + '" en ' + esc(e.body.elemento) + ': ' + esc(e.error); }).join('<br>') + '</div><button class="btn chico sec" data-a="limpiarErrores">Entendido</button></div>';
     return h;
   }
@@ -136,7 +137,7 @@
       var p = m.p;
       return '<div class="mv ent"><div class="mv-i">📥</div><div class="mv-c"><div class="mv-t">Llegó acero · pedido ' + esc(p.pedido) + '</div><div class="mv-s">' + esc(p.estructura) + '</div>' +
         '<div class="mv-m"><span>' + pz(p.piezas) + '</span><span>' + kg(p.kg) + ' kg</span><span>' + esc(p.usuario) + ' · ' + fecha(p.fecha) + '</span></div></div>' +
-        (conAcciones && esAdmin() ? '<button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '">Anular</button>' : '') + '</div>';
+        (conAcciones && esAdmin() ? '<button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '">Dar de baja</button>' : '') + '</div>';
     }
     var g = m.g, g0 = g[0], arm = tp(g0) === 'ARMADO', activas = g.filter(function (x) { return x.estado !== 'ANULADA'; }), anG = !activas.length, uso = anG ? g : activas;
     var nP = 0, nK = 0, els = [];
@@ -298,12 +299,23 @@
     return S.estado.salidas.reduce(function (t, x) { return t + (x.elemento === e && x.diametro === d && x.marca === m && x.estado !== 'ANULADA' && x.modo === 'PCT' && tp(x) === S.sal.tipo ? x.cantidad : 0); }, 0);
   }
   function itemsPct(e, p) {
-    var cum = Math.min(100, pctAcum(e) + p), r = [], vistos = {};
+    var cum = Math.min(100, pctAcum(e) + p), r = [], vistos = {}, pos = [], totP = 0;
     S.estado.entradas.forEach(function (x) {
       if (x.estructura !== e) return;
       var k = x.diametro + '|' + x.marca; if (vistos[k]) return; vistos[k] = 1;
       var v = S.calc.porMarca[e + '|' + x.diametro + '|' + x.marca]; if (!v) return;
-      var meta = cum >= 100 - 1e-9 ? v.in_p : Math.floor(v.in_p * cum / 100 + 1e-9);
+      pos.push({ k: k, v: v, base: Math.floor(v.in_p * cum / 100 + 1e-9), rem: v.in_p * cum / 100 - Math.floor(v.in_p * cum / 100 + 1e-9) }); totP += v.in_p;
+    });
+    // Para que el porcentaje sea el que se pidió: las piezas sueltas que sobran al redondear se reparten por mayor resto.
+    var metaTot = cum >= 100 - 1e-9 ? totP : Math.round(totP * cum / 100 + 1e-9), extra = metaTot - pos.reduce(function (t, o) { return t + o.base; }, 0);
+    pos.slice().sort(function (a, b) { return b.rem - a.rem; }).forEach(function (o) { if (extra > 0 && o.base < o.v.in_p) { o.base++; extra--; } });
+    var metaPos = {}; pos.forEach(function (o) { metaPos[o.k] = o.base; });
+    vistos = {};
+    S.estado.entradas.forEach(function (x) {
+      if (x.estructura !== e) return;
+      var k = x.diametro + '|' + x.marca; if (vistos[k]) return; vistos[k] = 1;
+      var v = S.calc.porMarca[e + '|' + x.diametro + '|' + x.marca]; if (!v) return;
+      var meta = cum >= 100 - 1e-9 ? v.in_p : (metaPos[k] || 0);
       var q = Math.max(0, Math.min(dispDe(v), meta - tomadoPct(e, x.diametro, x.marca)));
       if (q > 0) r.push({ id: '', largo: x.largo || 0, elem: e, diam: x.diametro, pos: x.marca, marca: x.marca, cant: q, kg: C.kgSalida(S.calc, e, x.diametro, q, x.marca) });
     });
@@ -568,7 +580,8 @@
       (nd === 1 ? '<div class="inf-res"><div><b>' + D.nEst + '</b><small>estructuras armadas</small></div><div><b>' + kg(D.kgArm) + '</b><small>kg armados</small></div><div><b>' + kg(D.kgSal) + '</b><small>kg que salieron</small></div></div>'
         : '<div class="inf-res"><div><b>' + nd + '</b><small>días: una hoja de informe por cada día</small></div></div>') +
       '<button class="btn blk" data-a="bajarInforme">⬇️ Descargar informe (PDF)</button>' +
-      '<p class="peq mut">Un día o un rango de fechas (máx. 31 días), todo en un solo PDF. Incluye el personal y las fotos de acero del Parte diario.</p></div>';
+      '<button class="btn blk sec" data-a="bajarExcel" style="margin-top:8px">📊 Descargar datos en Excel</button>' +
+      '<p class="peq mut">PDF: un día o un rango (máx. 31 días), una hoja por día, con el personal y las fotos de acero del Parte diario.<br>Excel: el saldo consolidado anterior al período y, después, las entradas y los movimientos del período.</p></div>';
   }
   function diasRango(d, h) {
     var L = [], x = new Date(d + 'T12:00:00'), y = new Date(h + 'T12:00:00');
@@ -655,7 +668,7 @@
     else { banda('1 · ACERO EN EL ALMACÉN AL INICIAR EL DÍA'); P.rect(M, y, AN, 18, null, [0, 0, 0]); P.texto(M + 6, y + 12, 'No había acero en el almacén al iniciar el día.', 8.5); y += 28; }
     y += 8;
     // 2) y 3) tablas con filas que se ajustan
-    var CW = [50, 208, 42, 36, 42, 65, 80], CT = ['Estado', 'Estructura', '#Varilla', 'Cant.', '% estr.', 'Kg', 'Responsable'];
+    var CW = [50, 208, 42, 36, 42, 65, 80], CT = ['Estado', 'Estructura', '#Varilla', 'Cant.', '% piezas', 'Kg', 'Responsable'];
     function cabecera() { var x = M; CT.forEach(function (t, i) { celda(x, CW[i], 16, [{ t: t, b: true, size: 7.5 }], { fill: CLARO, al: i === 1 || i === 6 ? 'l' : 'c', size: 7.5 }); x += CW[i]; }); y += 16; }
     function tabla(titulo, bloques, vacio) {
       if (y + 17 + 16 + 24 > FIN) pagina();
@@ -762,7 +775,7 @@
       var x = S.calc.porElem[p.estructura] || { lib_p: 0, arm_p: 0, out_p: 0 };
       return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>' + fecha(p.fecha) + '</span></div><div class="pd-e">' + esc(p.estructura) + (p.descripcion ? '<em>' + esc(p.descripcion) + '</em>' : '') + '</div>' +
         '<div class="pd-m"><span><b>' + n0(p.piezas) + '</b> piezas</span><span><b>' + kg(p.kg) + '</b> kg</span><span>' + esc(p.usuario) + '</span></div>' +
-        '<button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar DLI</button>' +
+        '<div class="acc"><button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar DLI</button> <button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '" style="margin-top:8px">🗑 Dar de baja</button></div>' +
         '<div class="pd-s"><span class="lib">✅ ' + n0(x.lib_p) + ' libres</span><span class="arm">🔧 ' + n0(x.arm_p) + ' armadas</span><span class="out">🚚 ' + n0(x.out_p) + ' salieron</span></div></div>';
     }).join('');
     if (pags > 1) h += '<div class="pag"><button class="btn sec" data-a="pagPed" data-v="-1"' + (S.ped.pag <= 0 ? ' disabled' : '') + '>← Anterior</button><span>Página ' + (S.ped.pag + 1) + ' de ' + pags + '</span><button class="btn sec" data-a="pagPed" data-v="1"' + (S.ped.pag >= pags - 1 ? ' disabled' : '') + '>Siguiente →</button></div>';
@@ -879,7 +892,7 @@
     }
     if (c.err) { render(); return; }
     Api.cargarDLI(S.ses, p, c.pedido, c.llegada).then(function (r) {
-      if (!r.ok) { c.err = r.error; render(); return; }
+      if (!r.ok) { c.err = /sin conexi/i.test(r.error || '') ? 'Sin señal: este DLI NO se ha cargado todavía. Se queda aquí en pantalla; cuando tengas señal vuelve a pulsar Guardar.' : r.error; render(); return; }
       S.cargas.splice(i, 1);
       toast('Cargado: pedido ' + String(c.pedido).trim() + ' · ' + p.nombre);
       S.tab = 'panel';
@@ -937,6 +950,51 @@
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'DLI_pedido_' + String(p.pedido).replace(/[^\w-]+/g, '_') + '_' + String(p.estructura).replace(/[^\w-]+/g, '_') + '.csv';
     document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
+  function descargarExcel() {
+    var d = S.inf.d || hoyISO(), h = S.inf.h && S.inf.h >= d ? S.inf.h : d, F = function (x) { return x.split('-').reverse().join('/'); };
+    var fd = function (x) { return String(x.fecha || '').slice(0, 10); }, act = function (x) { return x.estado !== 'ANULADA'; };
+    var ini = C.calcular({ pedidos: S.estado.pedidos, entradas: S.estado.entradas.filter(function (e) { return fd(e) < d; }), salidas: S.estado.salidas.filter(function (x) { return fd(x) < d && act(x); }) });
+    var R = function (n) { return Math.round((n || 0) * 1000) / 1000; };
+    // 1) Consolidado anterior al período
+    var H1 = ['Estructura', 'Varilla', 'Llegó (pzs)', 'Llegó (kg)', 'Salió (pzs)', 'Salió (kg)', 'En almacén (pzs)', 'En almacén (kg)', 'Armadas (pzs)', 'Armadas (kg)', 'Libres (pzs)', 'Libres (kg)'];
+    var s1 = [[{ v: 'Consolidado de acero ANTES del período (todo lo anterior al ' + F(d) + ')', s: 5 }], [{ v: 'Es el saldo con el que inicia el período ' + F(d) + ' a ' + F(h) + '.', s: 8 }], [], H1.map(function (t) { return { v: t, s: 1 }; })];
+    var ks = Object.keys(ini.porElemDiam).sort(function (a, b) { var x = a.split('|'), y = b.split('|'); return x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : C.diamOrder(x[1]) - C.diamOrder(y[1]); }), T = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    ks.forEach(function (k) {
+      var x = ini.porElemDiam[k], p = k.split('|'), v = [x.in_p, R(x.in_kg), x.out_p, R(x.out_kg), x.sal_p, R(x.sal_kg), x.arm_p, R(x.arm_kg), x.lib_p, R(x.lib_kg)];
+      v.forEach(function (n, i) { T[i] += n; });
+      s1.push([p[0], C.diamLabel(p[1])].concat(v.map(function (n, i) { return { v: n, s: i % 2 ? 3 : 4 }; })));
+    });
+    if (ks.length) s1.push([{ v: 'TOTAL', s: 2 }, ''].concat(T.map(function (n, i) { return { v: R(n), s: i % 2 ? 6 : 7 }; })));
+    else s1.push(['Sin acero registrado antes de este período.']);
+    // 2) Entradas del período
+    var ped = {}; S.estado.pedidos.forEach(function (p) { ped[p.loadId] = p; });
+    var E = S.estado.entradas.filter(function (e) { return fd(e) >= d && fd(e) <= h; }).sort(function (a, b) { return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : cmpMarca(a.marca, b.marca); });
+    var s2 = [[{ v: 'Entradas de acero del ' + F(d) + ' al ' + F(h), s: 5 }], [], ['Fecha de llegada', 'Pedido', 'Estructura', 'Posición', 'Varilla', 'Cantidad', 'Largo (m)', 'Kg unitario', 'Kg total', 'Archivo DLI', 'Cargó'].map(function (t) { return { v: t, s: 1 }; })], tE = [0, 0];
+    E.forEach(function (e) {
+      var p = ped[e.loadId] || {}; tE[0] += e.cantidad; tE[1] += e.kg;
+      s2.push([F(fd(e)), e.pedido, e.estructura, e.marca, C.diamLabel(e.diametro), { v: e.cantidad, s: 4 }, { v: R(e.largo), s: 3 }, { v: R(e.kgUnit), s: 3 }, { v: R(e.kg), s: 3 }, p.archivo || '', p.usuario || '']);
+    });
+    s2.push(E.length ? [{ v: 'TOTAL', s: 2 }, '', '', '', '', { v: tE[0], s: 7 }, '', '', { v: R(tE[1]), s: 6 }] : ['No hubo entradas en este período.']);
+    // 3) Movimientos del período
+    var M = S.estado.salidas.filter(function (x) { return fd(x) >= d && fd(x) <= h; }).sort(function (a, b) { return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : cmpMarca(a.marca, b.marca); });
+    var s3 = [[{ v: 'Armados y salidas del ' + F(d) + ' al ' + F(h), s: 5 }], [{ v: 'Los movimientos ANULADOS aparecen marcados y no se suman en los totales.', s: 8 }], ['Fecha', 'Hora', 'Tipo', 'Estructura', 'Posición', 'Varilla', 'Cantidad', 'Kg', 'Fase', 'Avance %', 'Registró', 'Estado', 'Observación'].map(function (t) { return { v: t, s: 1 }; })], tA = [0, 0], tS = [0, 0];
+    M.forEach(function (x) {
+      var arm = tp(x) === 'ARMADO', ok = act(x);
+      if (ok) { var t = arm ? tA : tS; t[0] += x.cantidad; t[1] += x.kg; }
+      s3.push([F(fd(x)), String(x.fecha).slice(11, 16), arm ? 'Armado' : 'Salida', x.elemento, x.marca || '', C.diamLabel(x.diametro), { v: x.cantidad, s: 4 }, { v: R(x.kg), s: 3 }, x.fase || '', x.modo === 'PCT' ? { v: x.pct || 0, s: 3 } : '', x.usuario || '', ok ? 'Activo' : 'ANULADO', x.obs || '']);
+    });
+    if (M.length) { s3.push([{ v: 'TOTAL ARMADO', s: 2 }, '', '', '', '', '', { v: tA[0], s: 7 }, { v: R(tA[1]), s: 6 }]); s3.push([{ v: 'TOTAL SALIÓ', s: 2 }, '', '', '', '', '', { v: tS[0], s: 7 }, { v: R(tS[1]), s: 6 }]); }
+    else s3.push(['No hubo armados ni salidas en este período.']);
+    var bytes = MiniXlsx.construir([
+      { name: 'Saldo anterior', rows: s1, widths: [30, 12, 13, 13, 13, 13, 15, 15, 13, 13, 13, 13], freeze: 4 },
+      { name: 'Entradas', rows: s2, widths: [16, 11, 30, 11, 10, 11, 11, 12, 12, 40, 18], freeze: 3 },
+      { name: 'Armados y salidas', rows: s3, widths: [12, 8, 10, 30, 11, 10, 11, 12, 10, 10, 18, 11, 30], freeze: 3 }
+    ], 'Carlos Eduardo Bermúdez Castro');
+    var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Acero_' + (d === h ? d : d + '_a_' + h) + '.xlsx';
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast('Excel descargado');
+  }
   function descargarCSV() {
     var q = function (v) { v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     var num = function (n) { return String(n == null ? '' : n).replace('.', ','); };
@@ -976,6 +1034,7 @@
       case 'quitarCarga': S.cargas.splice(+v, 1); render(); break;
       case 'csv': descargarCSV(); break;
       case 'bajarInforme': descargarInforme(); break;
+      case 'bajarExcel': descargarExcel(); break;
       case 'dli': descargarDLI(v); break;
       case 'enviarCola': enviarCola(); break;
       case 'limpiarErrores': Api.limpiarErroresCola(); render(); break;
@@ -989,8 +1048,14 @@
           });
         }
         break;
-      case 'anularCarga':
-        if (confirm('¿Anular esta carga de DLI? Se quitan sus piezas del inventario.')) Api.anularCarga(S.ses, v).then(function (r) { toast(r.ok ? 'Carga anulada' : r.error); return cargarEstado(); });
+      case 'anularCarga': {
+        var pc = S.estado.pedidos.filter(function (x) { return x.loadId === v; })[0]; if (!pc) break;
+        var nm = S.estado.salidas.filter(function (x) { return x.estado !== 'ANULADA' && x.elemento === pc.estructura; }).length;
+        if (nm) { S.avisoBaja = 'No se puede dar de baja el pedido ' + pc.pedido + ' (' + pc.estructura + '): ya tiene ' + nm + ' movimiento(s) de armado o salida asociados. Primero anule esos movimientos en la pestaña Movimientos.'; render(); window.scrollTo(0, 0); break; }
+        if (confirm('¿Dar de baja el pedido ' + pc.pedido + ' (' + pc.estructura + ')? Se quitan sus piezas del inventario. Úselo si el DLI se cargó mal.')) Api.anularCarga(S.ses, v).then(function (r) { if (r.ok) toast('Pedido dado de baja'); else { S.avisoBaja = r.error; render(); } return cargarEstado(); });
+        break;
+      }
+      case 'cerrarAviso': S.avisoBaja = ''; render(); break;
         break;
       case 'borrarLocal':
         if (confirm('¿Borrar TODOS los datos de prueba de este navegador?')) { Api.borrarLocal(); S.estado = { pedidos: [], entradas: [], salidas: [] }; render(); toast('Datos de prueba borrados'); }
@@ -1057,6 +1122,8 @@
   });
 
   window.addEventListener('online', enviarCola);
+  // Pide al navegador que NO borre los datos guardados en el celular (cola sin enviar) aunque falte espacio.
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
   setInterval(function () { if (S.ses && Api.pendientes()) enviarCola(); }, 30000);
 
   // ---------- Modo incrustado en el Dashboard: periodo y actualización los manda el Dashboard ----------

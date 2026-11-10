@@ -8,7 +8,8 @@
   var remoto = !!CFG.API_URL;
 
   function leer(k, def) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? def : v; } catch (e) { return def; } }
-  function guardar(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+  function guardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  var TRANSITORIO = /lock|timeout|timed out|tiempo|ocupad|servicio|service|server|quota|too many|exceeded|unavailable|intenta/i;
   function vacio() { return { pedidos: [], entradas: [], salidas: [] }; }
   function uid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function ahora() {
@@ -136,7 +137,7 @@
       var q = leer(K.cola, []);
       if (!q.some(function (b) { return b.grupo === d.grupo; }))
         q.push({ action: 'salidaLote', v: 2, grupo: d.grupo, usuario: ses.nombre, items: d.items, obs: d.obs || '', fecha: conFecha(d.fecha, d.hora), fase: d.fase || '', modo: d.modo === 'PCT' ? 'PCT' : 'POS', pct: d.pct || 0, tipo: d.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA' });
-      guardar(K.cola, q);
+      if (!guardar(K.cola, q)) return Promise.resolve({ ok: false, error: 'No hay espacio en este celular para guardar el registro. Libere espacio o conéctese y vuelva a intentar: NO se guardó.' });
       return Promise.resolve({ ok: true, pendiente: true });
     },
 
@@ -175,8 +176,12 @@
       return q.reduce(function (p, b, i) {
         return p.then(function () {
           if (quedan.length) return;
-          return post(Object.assign({}, b, { pin: ses.pin })).then(function (r) { if (r.ok) enviadas++; else errores.push({ body: b, error: r.error }); })
-            .catch(function () { quedan = q.slice(i); });
+          return post(Object.assign({}, b, { pin: ses.pin })).then(function (r) {
+            if (r.ok) { enviadas++; return; }
+            // Error del servidor (no de validación): el registro NO se descarta, se reintenta después.
+            if ((r.transitorio || TRANSITORIO.test(String(r.error || ''))) && (b.intentos || 0) < 20) { b.intentos = (b.intentos || 0) + 1; quedan = q.slice(i); return; }
+            errores.push({ body: b, error: r.error });
+          }).catch(function () { quedan = q.slice(i); });
         });
       }, Promise.resolve()).then(function () {
         guardar(K.cola, quedan); guardar(K.err, errores);

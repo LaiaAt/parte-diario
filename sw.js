@@ -1,5 +1,5 @@
-const CACHE = 'pd-v136';
-const ARCHIVOS = ['./', 'index.html', 'transportes.html', 'admin.html', 'manifest-transportes.json', 'manifest-admin.json', 'acero.html', 'acero-panel.html', 'acero-embed.html', 'acero/modo-embed.js', 'manifest-acero.json', 'manifest-acero-panel.json', 'acero/core.js', 'acero/pdf.js', 'acero/config.js', 'acero/api.js', 'acero/app.js', 'acero/style.css', 'acero/modo-usuario.js', 'acero/modo-panel.js', 'acero/sw-registro.js', 'acero/icons/icon-192.png', 'acero/icons/icon-512.png', 'comun.js', 'pdf.js', 'pdfgen.html', 'pdf_tr.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'marca.png',
+const CACHE = 'pd-v137';
+const ARCHIVOS = ['./', 'index.html', 'transportes.html', 'admin.html', 'manifest-transportes.json', 'manifest-admin.json', 'acero.html', 'acero-panel.html', 'acero-embed.html', 'acero/modo-embed.js', 'manifest-acero.json', 'manifest-acero-panel.json', 'acero/core.js', 'acero/pdf.js', 'acero/xlsx.js', 'acero/config.js', 'acero/api.js', 'acero/app.js', 'acero/style.css', 'acero/modo-usuario.js', 'acero/modo-panel.js', 'acero/sw-registro.js', 'acero/icons/icon-192.png', 'acero/icons/icon-512.png', 'comun.js', 'pdf.js', 'pdfgen.html', 'pdf_tr.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'marca.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js'];
 
 self.addEventListener('install', e => {
