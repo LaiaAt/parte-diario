@@ -208,7 +208,7 @@ async function ingresar() {
   } catch (e) { aviso('No se pudo conectar. Intenta de nuevo.', 'err'); }
 }
 async function aplicarServidor(r) {
-  DATOS = { volquetas: r.volquetas || [], catalogos: r.catalogos || DATOS.catalogos, planillas: r.planillas || [], sitios: r.sitios || DATOS.sitios || [], ufs: r.ufs || DATOS.ufs || [], dist: r.dist || DATOS.dist || [] };
+  DATOS = { volquetas: r.volquetas || [], catalogos: r.catalogos || DATOS.catalogos, planillas: r.planillas || [], sitios: r.sitios || DATOS.sitios || [], ufs: r.ufs || DATOS.ufs || [], dist: r.dist || DATOS.dist || [], maquinas: r.maquinas || DATOS.maquinas || [] };
   aplicarSitios();
   await guardarDatos();
   const pend = new Set(COLA.filter(o => o.llave === user.llave).map(o => o.cod));
@@ -644,7 +644,7 @@ function abrirForm(v, base) {
   llenarListas();
   editandoCod = v ? v.cod : null; fotoCargaNueva = []; fotoReciboNueva = [];
   const F = $('form'); F.textContent = '';
-  const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'km', 'cant', 'uf', 'pct', 'mov'];
+  const BK = ['placa', 'empresa', 'tipo', 'capacidad', 'conductor', 'material', 'centro', 'origen', 'destino', 'km', 'cant', 'uf', 'pct', 'mov', 'maquina'];
   const val = (k, d) => v ? (v[k] === undefined || v[k] === null ? '' : v[k]) : (base && BK.indexOf(k) >= 0 && base[k] !== undefined && base[k] !== null ? base[k] : (d === undefined ? '' : d));
   const hh = new Date().getHours();
   const esRec = (v ? v.mov : (base && base.mov)) === 'RECIBE';
@@ -677,7 +677,9 @@ function abrirForm(v, base) {
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
   const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '1️⃣ 📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
-  const masDatos = h('div', { class: 'card paso' }, h('h3', {}, '6️⃣ 🧾 Datos del vale'),
+  const cMaq = h('div', { class: 'card paso' }, h('h3', {}, '6️⃣ 🏗️ Máquina que cargó'),
+    campo('maquina', '¿Con qué máquina se cargó la volqueta?', val('maquina'), { ph: 'Elegir…' }));
+  const masDatos = h('div', { class: 'card paso' }, h('h3', {}, '7️⃣ 🧾 Datos del vale'),
     campo('n_valera', 'N° del albarán / valera *', val('n_valera'), { inputmode: 'numeric' }),
     h('div', { id: 'cVolAlb', style: 'margin-top:10px' }, campo('vol_albaran', 'Volqueta nueva: volumen que dice el albarán (m³) *', val('vol_albaran'), { inputmode: 'decimal', ph: 'Ej. 15' }), h('small', { class: 'sub' }, 'Solo se pide la primera vez que aparece la volqueta.')),
     h('div', { style: 'margin-top:10px' }, h('label', {}, '¿De quién es la valera?'), vd),
@@ -692,7 +694,7 @@ function abrirForm(v, base) {
     fotoCargaNueva.forEach((d, i) => prev.appendChild(h('div', {}, h('img', { src: d }), h('button', { type: 'button', class: 'rojo x', onclick: () => { fotoCargaNueva.splice(i, 1); pintarPrev(); } }, '✕'))));
     if (fotoCargaNueva.length) cuenta.textContent = fotoCargaNueva.length + ' foto(s) lista(s) para guardar.';
   };
-  const c4 = h('div', { id: 'cVolqueta', class: 'card paso' }, h('h3', {}, '7️⃣ 📷 Foto de la volqueta'),
+  const c4 = h('div', { id: 'cVolqueta', class: 'card paso' }, h('h3', {}, '8️⃣ 📷 Foto de la volqueta'),
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Tomar foto', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoCargaNueva = fotoCargaNueva.concat(arr).slice(0, 10); pintarPrev(); } })), cuenta, prev);
   const prevR = h('div', { id: 'prevRecibo', class: 'fotos', style: 'margin-top:10px' });
   const cuentaR = h('p', { class: 'sub', style: 'margin:8px 0 0' }, v && v.tiene_recibo ? '✔ Ya tiene recibo. Las que agregues se suman.' : 'Si ya tienes el recibo sellado, súbelo aquí. Si no, lo subes después desde la lista.');
@@ -701,9 +703,9 @@ function abrirForm(v, base) {
     fotoReciboNueva.forEach((d, i) => prevR.appendChild(h('div', {}, h('img', { src: d }), h('button', { type: 'button', class: 'rojo x', onclick: () => { fotoReciboNueva.splice(i, 1); pintarPrevR(); } }, '✕'))));
     if (fotoReciboNueva.length) cuentaR.textContent = fotoReciboNueva.length + ' foto(s) del recibo lista(s) para guardar.';
   };
-  const c5 = h('div', { style: 'margin-top:14px' }, h('h3', {}, '8️⃣ 🧾 Foto del albarán *'),
+  const c5 = h('div', { style: 'margin-top:14px' }, h('h3', {}, '9️⃣ 🧾 Foto del albarán *'),
     h('div', { class: 'bs' }, selectorFotos({ clase: 'verde', camara: '📷 Foto del albarán', galeria: '🖼 Elegir de la galería', alAgregar: arr => { fotoReciboNueva = fotoReciboNueva.concat(arr).slice(0, 10); pintarPrevR(); } })), cuentaR, prevR);
-  F.appendChild(filaFecha); F.appendChild(c1); F.appendChild(cMov); F.appendChild(cRuta); F.appendChild(cCarga); F.appendChild(masDatos); F.appendChild(c4); F.appendChild(h('div', { id: 'cAlbaran', class: 'card paso' }, c5));
+  F.appendChild(filaFecha); F.appendChild(c1); F.appendChild(cMov); F.appendChild(cRuta); F.appendChild(cCarga); F.appendChild(cMaq); F.appendChild(masDatos); F.appendChild(c4); F.appendChild(h('div', { id: 'cAlbaran', class: 'card paso' }, c5));
   F.appendChild(h('button', { class: 'grande', onclick: guardarViaje }, v ? '✔ GUARDAR CAMBIOS' : '✔ LISTO, GUARDAR'));
   pantalla('form'); alertaForm(); recalcCant(); aplicarMov();
   const pl = $('placa');
@@ -748,6 +750,8 @@ function abrirForm(v, base) {
   $('destinoSel').addEventListener('change', () => setTimeout(sugerirKm2, 0)); $('destino').addEventListener('change', sugerirKm2);
   pl.oninput = () => { alPlaca(); sugerirKm2(); }; pl.onchange = pl.oninput;
   ponerLista(pl, () => DATOS.volquetas.map(x => x.placa), 'Elige la placa', 'Escribir otra placa');
+  ponerLista($('maquina'), () => ['— Sin máquina —'].concat((DATOS.maquinas || []).map(m => m.n)), 'Máquina que cargó');
+  $('maquina').addEventListener('change', () => { if (/^—/.test($('maquina').value)) $('maquina').value = ''; });
   ponerLista($('centro'), () => { const o = (DATOS.catalogos.CENTRO_COSTOS || []).slice(); recientes('centro').forEach(t => { if (!o.some(x => x.toUpperCase() === t.toUpperCase())) o.push(t); }); return o; }, 'Centro de costos', 'Escribir otro centro de costos');
   if (!v && pl.value) { alPlaca(); sugerirKm2(); }
   if (v && num(v.vol_albaran) > 0) $('cVolAlb').style.display = 'none';
@@ -791,7 +795,7 @@ async function guardarViaje() {
   const cod = antes ? antes.cod : nuevoCod();
   const v = Object.assign({}, antes || {}, {
     cod: cod, consec: antes ? consecDe(antes) : siguienteConsec($('fecha_vale').value || hoy(), user.nombre), llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : ($('fecha_vale').value || hoy()), registrado: antes ? (antes.registrado || antes.fecha) : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
-    placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), vol_albaran: g('vol_albaran'), conductor: g('conductor'), material: g('material'), centro: g('centro'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
+    placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), vol_albaran: g('vol_albaran'), conductor: g('conductor'), material: g('material'), centro: g('centro'), maquina: g('maquina'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
     lat: '', lon: '', prec: '',
     uf: $('uf').value, pct: pct > 0 ? pct : '', cant: cant > 0 ? cant : '', peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
     tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'RECIBIDO' : (antes ? antes.estado : 'DESPACHADO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''

@@ -582,8 +582,8 @@ function vistaViajes(c) {
   }
   pintaLista();
 }
-const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán'];
-const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), v.origen, v.destino, v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran];
+const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
+const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), v.origen, v.destino, v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
 function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen']);
   const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => filaTr(v).concat([tieneGps(v) ? mapaUrl(v) : '']).map(csvCelda).join(';')));
@@ -604,7 +604,7 @@ async function xlsxTr() {
     // [encabezado, ancho, tipo, valor(v)]
     const C = [
       ['Fecha', 11, 'f', v => v.fecha], ['Hora', 7, 't', v => v.hora_salida || ''], ['Vale', 17, 't', v => v.cod], ['Valera', 9, 't', v => v.n_valera || ''], ['Placa', 9, 't', v => v.placa],
-      ['Empresa', 18, 't', v => v.empresa || ''], ['Conductor', 18, 't', v => v.conductor || ''], ['Material', 20, 't', v => v.material || ''],
+      ['Empresa', 18, 't', v => v.empresa || ''], ['Conductor', 18, 't', v => v.conductor || ''], ['Material', 20, 't', v => v.material || ''], ['Máquina que cargó', 26, 't', v => v.maquina || ''],
       ['Movimiento', 11, 't', v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['UF', 8, 't', v => ufTxt(v)], ['Origen', 22, 't', v => v.origen || ''], ['Destino', 22, 't', v => v.destino || ''], ['Km', 7, 'n', v => v.km === '' ? '' : Number(v.km)],
       ['m³ albarán', 11, 'n', v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, 'n', v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Diferencia m³', 11, 'n', v => Number(v.vol_albaran) > 0 && Number(v.cant) > 0 ? Math.round((Number(v.vol_albaran) - Number(v.cant)) * 100) / 100 : ''],
       ['% carga', 8, 'n0', v => pctV(v) === null ? '' : pctV(v)], ['Estado', 12, 't', v => v.estado || ''], ['Alertas', 32, 't', v => v.alertas || ''], ['Ubicación', 18, 'l', v => v], ['Foto volqueta', 24, 'img', null], ['Foto albarán', 24, 'img', null]];
@@ -828,6 +828,17 @@ function vistaGeo(c) {
   const tu = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['UF', 'Lat inicio', 'Lon inicio', 'Lat fin', 'Lon fin', 'Lat centro', 'Lon centro', 'Notas', ''].map(th)));
   tu.appendChild(filaUF({}, true)); G.ufs.forEach(x => tu.appendChild(filaUF(x, false)));
   c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🛣 Unidades funcionales (orígenes en la obra)'), h('div', { class: 'small' }, 'Inicio y fin del tramo. Si dejas el centro vacío se calcula como el punto medio.'), h('div', { class: 'tw', style: 'max-height:none' }, tu)));
+  // 4) máquinas que cargan las volquetas
+  const filaMaq = (x, nuevo) => {
+    const mo = inp(x.movil, 70, { placeholder: 'Móvil', inputmode: 'text' }), ti = h('input', { type: 'text', value: x.tipo || '', placeholder: 'Tipo de máquina (ej. EXCAVADORA 20 TN)', style: 'width:340px;max-width:100%;font-size:15px;padding:6px' });
+    const gu = async () => { const m = mo.value.trim(); if (!m) { mo.focus(); return; } if (!ti.value.trim()) { ti.focus(); return; } if (await postGeo({ tabla: 'maquina', op: 'guardar', movil: m, movil_orig: nuevo ? '' : x.movil, tipo: ti.value.trim() })) pintarTr(); };
+    return h('tr', { style: nuevo ? 'background:#f1f8f1' : '' }, td(mo), td(ti),
+      td(h('div', { style: 'display:flex;gap:4px' }, h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, nuevo ? '➕ Agregar' : '💾'),
+        nuevo ? null : h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Retirar máquina', onclick: async () => { if (!confirm('¿Retirar la máquina ' + x.movil + ' · ' + x.tipo + '? Los viajes ya registrados no cambian.')) return; if (await postGeo({ tabla: 'maquina', op: 'eliminar', movil: x.movil })) pintarTr(); } }, '🗑'))));
+  };
+  const tq = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['Móvil', 'Tipo de máquina', ''].map(th)));
+  tq.appendChild(filaMaq({ movil: '', tipo: '' }, true)); (G.maquinas || []).forEach(x => tq.appendChild(filaMaq(x, false)));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🏗️ Máquinas que cargan las volquetas'), h('div', { class: 'small' }, 'Es la lista desplegable «Máquina que cargó» del formulario de viajes. Agrega, corrige o retira; los transportistas la ven desde su próxima carga de la app. Los viajes ya registrados conservan el nombre con que se guardaron.'), h('div', { class: 'tw', style: 'max-height:none' }, tq)));
 }
 function pintarTr() {
   const V = TR.viajes, hoy = TR.hoy;
