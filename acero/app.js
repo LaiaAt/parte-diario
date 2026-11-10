@@ -127,7 +127,11 @@
       G[k].push(s);
     });
     orden.forEach(function (k) { L.push({ t: 'S', f: G[k][0].fecha, s: G[k][0], g: G[k] }); });
-    L = L.filter(function (m) { return enPer(m.f); });
+    var q = String(S.mq || '').trim().toLowerCase();
+    if (q) {
+      var est = {}; S.estado.pedidos.forEach(function (p) { if (String(p.pedido).toLowerCase().indexOf(q) >= 0) est[p.estructura] = 1; });
+      L = L.filter(function (m) { return m.t === 'E' ? String(m.p.pedido).toLowerCase().indexOf(q) >= 0 : !!est[m.s.elemento]; });
+    } else L = L.filter(function (m) { return enPer(m.f); });
     L.sort(function (a, b) { return a.f < b.f ? 1 : a.f > b.f ? -1 : 0; });
     return L;
   }
@@ -397,7 +401,6 @@
     h += '<div class="seg"><button type="button" class="' + (s.modo === 'pos' ? 'on' : '') + '" data-a="modo" data-v="pos">Por posiciones</button><button type="button" class="' + (s.modo === 'pct' ? 'on' : '') + '" data-a="modo" data-v="pct">Por % de avance</button></div>';
     h += '<section class="paso"><div class="paso-h"><i>1</i><b>¿Cuándo y dónde?</b></div><div class="fgrid">' +
       '<div class="fld"><label for="s-fecha">Fecha</label><input id="s-fecha" type="date" max="' + hoyISO() + '" value="' + esc(s.fecha || hoyISO()) + '" data-i="sal.fecha"></div>' +
-      '<div class="fld"><label for="s-hora">Hora</label><input id="s-hora" type="time" value="' + esc(s.hora || horaAhora()) + '" data-i="sal.hora"></div>' +
       '<div class="fld" style="grid-column: 1 / -1"><label for="s-elem">Estructura</label><select id="s-elem" data-f="sal.elem">' + (s.elem ? '' : '<option value="">Elija la estructura…</option>') +
         todas.map(function (e) {
           var pzs = dispDe(S.calc.porElem[e]), ped = {};
@@ -508,6 +511,8 @@
   function vMovs() {
     var L = movimientos();
     return vFiltro() + '<div class="card"><div class="row2" style="justify-content:space-between"><h2 style="margin:0">Movimientos</h2><button class="btn chico sec" data-a="csv">Descargar CSV</button></div>' +
+      '<div class="fld" style="margin:10px 0"><label for="m-q">Filtrar por número de pedido</label><input id="m-q" type="search" inputmode="numeric" placeholder="Ej. 203192" value="' + esc(S.mq || '') + '" data-i="mov.q"></div>' +
+      (S.mq ? '<p class="peq mut">Mostrando todos los movimientos de las estructuras del pedido ' + esc(S.mq) + ' (sin límite de fechas).</p>' : '') +
       (L.length ? L.slice(0, 150).map(function (m) { return vMov(m, true); }).join('') : '<div class="vacio">Sin movimientos</div>') +
       (L.length > 150 ? '<p class="peq mut">Se muestran los 150 más recientes. El CSV trae todo.</p>' : '') +
       (!Api.remoto && esAdmin() ? '<div style="margin-top:14px"><button class="btn chico peligro" data-a="borrarLocal">Borrar datos de prueba de este navegador</button></div>' : '') + '</div>';
@@ -927,10 +932,10 @@
     var totKg = 0, totP = 0; lista.forEach(function (it) { totKg += it.kg; totP += it.cant; });
     var obs = s.obs;
     s.err = ''; s.msg = '';
-    Api.salidaLote(S.ses, { grupo: s.grupo, items: lista.map(function (it) { return { diametro: it.diam, cantidad: it.cant, elemento: it.elem, marca: it.marca }; }), obs: obs, fecha: fch, hora: s.hora || horaAhora(), fase: s.modo === 'pos' ? String(s.fase).trim() : '', modo: s.modo === 'pct' ? 'PCT' : 'POS', pct: pctV, tipo: tipoReg }).then(function (r) {
+    Api.salidaLote(S.ses, { grupo: s.grupo, items: lista.map(function (it) { return { diametro: it.diam, cantidad: it.cant, elemento: it.elem, marca: it.marca }; }), obs: obs, fecha: fch, hora: horaAhora(), fase: s.modo === 'pos' ? String(s.fase).trim() : '', modo: s.modo === 'pct' ? 'PCT' : 'POS', pct: pctV, tipo: tipoReg }).then(function (r) {
       if (!r.ok) { s.err = r.error; render(); return; }
-      s.obs = ''; s.fecha = ''; s.hora = ''; s.grupo = ''; s.n = 0; s.items = []; s.q = ''; s.pct = ''; s.elem = ''; s.diam = ''; s.marca = ''; s.pos = ''; s.cant = 1; s.fase = ''; s.fdiam = '';
-      s.balElem = llegaA100 ? elemSel : '';
+      s.obs = ''; s.fecha = ''; s.hora = ''; s.err = ''; s.grupo = ''; s.n = 0; s.items = []; s.q = ''; s.pct = ''; s.elem = ''; s.diam = ''; s.marca = ''; s.pos = ''; s.cant = 1; s.fase = ''; s.fdiam = '';
+      s.balElem = '';
       s.msg = (tipoReg === 'ARMADO' ? 'Armado guardado: ' : 'Salida guardada: ') + pz(totP) + ' (≈ ' + kg(totKg) + ' kg)' + (s.modo === 'pct' ? ' · ' + fmtPct(pctV) + ' % de avance' : '') + '.';
       window.scrollTo(0, 0);
       S.tab = 'panel'; try { sessionStorage.setItem('ac_tab_' + MODO, 'panel'); } catch (e) { } toast(s.msg); s.msg = '';
@@ -1094,7 +1099,7 @@
     else if (i === 'sal.q') { S.sal.q = t.value; S.focus = 's-q'; render(); var e3 = $('s-q'); if (e3) { try { e3.setSelectionRange(e3.value.length, e3.value.length); } catch (x) { } } }
     else if (i === 'ped.q') { S.ped.q = t.value; S.ped.pag = 0; S.focus = 'p-q'; render(); var e5 = $('p-q'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }
     else if (i === 'sal.fecha') S.sal.fecha = t.value;
-    else if (i === 'sal.hora') S.sal.hora = t.value;
+    else if (i === 'mov.q') { S.mq = t.value; S.focus = 'm-q'; render(); var e6 = $('m-q'); if (e6) { try { e6.setSelectionRange(e6.value.length, e6.value.length); } catch (x) { } } }
     else if (i === 'sal.fase') S.sal.fase = t.value;
     else if (i === 'sal.pct') { S.sal.pct = t.value.replace(/[^0-9.,]/g, ''); S.sal.msg = ''; aplicarPct(); S.focus = 's-pct'; render(); var e4 = $('s-pct'); if (e4) { try { e4.setSelectionRange(e4.value.length, e4.value.length); } catch (x) { } } }
     else {

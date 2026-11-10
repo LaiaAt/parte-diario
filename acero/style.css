@@ -449,10 +449,10 @@ body.emb .tabs { display: none; }
 
 /* Botones: un solo color, sin borde ni sombra de otro tono */
 .btn, .btn.sec, .btn.peligro { box-shadow: none !important; transform: none !important; }
-.btn { background: #1f2d3d; border: 1px solid #1f2d3d; color: #fff; }
+.btn { background: #1f2d3d; border: 2px solid #1f2d3d; color: #fff; font-weight: 700; }
 .btn:active:not([disabled]) { background: #0a7f2e; border-color: #0a7f2e; }
-.btn.sec { background: #fff; color: #1f2d3d; border: 1px solid #cfd6dd; }
-.btn.sec:active:not([disabled]) { background: #eef0f3; border-color: #cfd6dd; }
+.btn.sec { background: #e3ebf4; color: #12202f; border: 2px solid #1f2d3d; font-weight: 700; }
+.btn.sec:active:not([disabled]) { background: #c9d6e4; border-color: #0a7f2e; }
 .btn.peligro { background: #b3261e; border-color: #b3261e; }
 .btn[disabled] { opacity: .5; }
 
