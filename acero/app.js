@@ -508,10 +508,11 @@
       '<select data-f="inv.diam" style="flex:1;min-width:130px"><option value="">Todas las varillas</option>' + diams.map(function (d) { return '<option value="' + esc(d) + '"' + (d === v.diam ? ' selected' : '') + '>' + esc(C.diamLabel(d)) + '</option>'; }).join('') + '</select></div></div>' +
       (tarjetas.length ? tarjetas.join('') : '<div class="card vacio">Sin datos con ese filtro</div>');
   }
+  function pedidosLista() { var o = {}; S.estado.pedidos.forEach(function (p) { o[p.pedido] = 1; }); return Object.keys(o).sort(function (x, y) { return String(y).localeCompare(String(x), undefined, { numeric: true }); }); }
   function vMovs() {
     var L = movimientos();
     return vFiltro() + '<div class="card"><div class="row2" style="justify-content:space-between"><h2 style="margin:0">Movimientos</h2><button class="btn chico sec" data-a="csv">Descargar CSV</button></div>' +
-      '<div class="fld" style="margin:10px 0"><label for="m-q">Filtrar por número de pedido</label><input id="m-q" type="search" inputmode="numeric" placeholder="Ej. 203192" value="' + esc(S.mq || '') + '" data-i="mov.q"></div>' +
+      '<div class="mfil"><label for="m-q">Filtrar por número de pedido</label><select id="m-q" data-f="mov.q"><option value="">Todos los pedidos</option>' + pedidosLista().map(function (n) { return '<option value="' + esc(n) + '"' + (String(S.mq || '') === String(n) ? ' selected' : '') + '>Pedido ' + esc(n) + '</option>'; }).join('') + '</select></div>' +
       (S.mq ? '<p class="peq mut">Mostrando todos los movimientos de las estructuras del pedido ' + esc(S.mq) + ' (sin límite de fechas).</p>' : '') +
       (L.length ? L.slice(0, 150).map(function (m) { return vMov(m, true); }).join('') : '<div class="vacio">Sin movimientos</div>') +
       (L.length > 150 ? '<p class="peq mut">Se muestran los 150 más recientes. El CSV trae todo.</p>' : '') +
@@ -1072,6 +1073,7 @@
     var t = ev.target;
     if (t.id === 'dli-file') { leerArchivos(t.files).then(function () { t.value = ''; }); return; }
     var f = t.getAttribute('data-f');
+    if (f === 'mov.q') { S.mq = t.value; render(); return; }
     if (f) {
       var p = f.split('.'); S[p[0]][p[1]] = t.value;
       if (f === 'sal.elem') { S.sal.q = ''; S.sal.fdiam = ''; S.sal.items = []; S.sal.pct = ''; S.sal.balElem = ''; S.sal.fase = ''; }

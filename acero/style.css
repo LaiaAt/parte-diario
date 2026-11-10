@@ -477,3 +477,9 @@ body:not(.emb) .cab { position: sticky; top: 0; z-index: 20; }
 body:not(.emb) .cab .tabs { position: static; }
 .login .marca img { width: auto; height: 70px; border-radius: 8px; }
 .pie { color: #5b6672; }
+
+/* Filtro de pedido en Movimientos */
+.mfil { margin: 12px 0; } .mfil label { display: block; font-size: .8rem; font-weight: 800; color: #12202f; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .03em; }
+.mfil select { width: 100%; font-size: 1.05rem; font-weight: 700; color: #12202f; background: #fff8d6; border: 2px solid #12202f; border-radius: 10px; padding: 12px 10px; }
+.mfil select:focus { outline: 3px solid #0a7f2e; }
+.btn.chico.sec { background: #cfdcec; border: 2px solid #12202f; color: #0b1622; }
