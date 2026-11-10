@@ -144,6 +144,37 @@
       if (!peso) aviso = aviso || 'Diámetro sin peso definido (' + diam + ')';
       rows.push({ marca, cantidad, diametro: diam, largo, forma, aviso, peso: peso || 0 });
     }
+    // Formato por grupos (DL-NET "Comp."/Pilotes/Caisson): [nombre del grupo] [" n"] y n filas "cant [C|E] "diám" medidas".
+    if (!rows.length) {
+      const iT = cells.indexOf('Total'), fin = iT < 0 ? cells.length : iT;
+      const RE_G = /^(\d+)\s+(?:([CE])\s+)?"([^"]+)"\s+(.*)$/;
+      let g0 = -1;
+      for (let i = 0; i + 2 < fin; i++) {
+        if (/^\s\d+$/.test(cells[i + 1]) && /[A-Za-z]/.test(cells[i]) && !/^\s*\d/.test(cells[i]) && RE_G.test(cells[i + 2].trim())) { g0 = i; break; }
+      }
+      for (let i = g0; g0 >= 0 && i + 1 < fin;) {
+        const grupo = cells[i].trim(), n = parseInt(cells[i + 1], 10);
+        if (!/^\s\d+$/.test(cells[i + 1])) break;
+        for (let k = 0; k < n && i + 2 + k < fin; k++) {
+          const dato = cells[i + 2 + k].trim(), mm = RE_G.exec(dato);
+          if (!mm) continue;
+          const cant = +mm[1], tipo = mm[2] || '', diam = normDiam(mm[3]), resto = mm[4];
+          let largo = null, forma = '', aviso = '', x;
+          if (tipo === 'E' && (x = /^([\d.]*)\*([\d.]+)\s+G([\d.]+)/.exec(resto))) {
+            largo = r2(2 * (+('0' + x[1]) + +x[2]) + 2 * +x[3]); forma = 'Estribo ' + x[1] + '×' + x[2] + ' gancho ' + x[3];
+          } else if (tipo === 'C' && (x = /^([\d.]+)\/([\d.]+)\s+G([\d.]+)/.exec(resto))) {
+            largo = r2(Math.PI * +x[1] + +x[2] + 2 * +x[3]); forma = 'Aro Ø' + x[1] + ' traslape ' + x[2] + ' gancho ' + x[3];
+          } else if (!tipo && (x = /^([\d.]+)\s*(.*)$/.exec(resto))) {
+            largo = +x[1]; forma = x[2] ? 'Con ' + x[2].replace(/\s+/g, ' ') : 'Recta';
+          } else aviso = 'Forma no reconocida: indique el largo a mano';
+          const peso = PESOS[diam];
+          if (!peso) aviso = aviso || 'Diámetro sin peso definido (' + diam + ')';
+          if (!cant) continue;
+          rows.push({ marca: grupo + ' #' + (k + 1), cantidad: cant, diametro: diam, largo, forma, aviso, peso: peso || 0 });
+        }
+        i += 2 + n;
+      }
+    }
     recalcular(rows);
 
     if (declarado !== null && declarado !== rows.length)
