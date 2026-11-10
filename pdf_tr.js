@@ -162,7 +162,7 @@
             doc.setTextColor(0);
             if (j === 1 && r) {
               doc.setFont('helvetica', 'normal');
-              if (r.n_valera) { doc.setFontSize(8.5); tx(r.n_valera, x + 1.5, y + 3.6, { maxWidth: c[1] - 3 }); doc.setFontSize(5.8); doc.setTextColor(90); tx(r.cod, x + 1.5, y + 6.9, { maxWidth: c[1] - 3 }); }
+              if (r.n_valera) { doc.setFontSize(9.5); tx(r.n_valera, x + 1.5, y + 4.8, { maxWidth: c[1] - 3 }); }
               else { doc.setFontSize(7.5); tx(r.cod, x + 1.5, y + 4.8, { maxWidth: c[1] - 3 }); }
             } else if (j === 6 && r) {
               doc.setFont('helvetica', 'normal'); doc.setFontSize(6.4);
