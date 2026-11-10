@@ -566,10 +566,15 @@
     return '<div class="card inf-ctl"><h2 style="margin-top:0">Informe del día</h2><label class="f" style="margin:0">Fecha<input type="date" max="' + hoyISO() + '" value="' + esc(dia) + '" data-f="inf.d"></label>' +
       '<div class="inf-res"><div><b>' + D.nEst + '</b><small>estructuras armadas</small></div><div><b>' + kg(D.kgArm) + '</b><small>kg armados</small></div><div><b>' + kg(D.kgSal) + '</b><small>kg que salieron</small></div></div>' +
       '<button class="btn blk" data-a="bajarInforme">⬇️ Descargar informe (PDF)</button>' +
-      '<p class="peq mut">Parte diario de armado por estructura del día elegido. Personal (oficiales y ayudantes): se toma del Parte diario con la llave del usuario.</p></div>';
+      '<p class="peq mut">Parte diario de armado por estructura del día elegido. El personal (oficiales y ayudantes) sale del Parte diario del mismo día.</p></div>';
   }
   function descargarInforme() {
-    var dia = S.inf.d || hoyISO(), D = datosInforme(dia), P = new MiniPdf('Parte diario de producción - Taller de acero ' + dia);
+    var dia = S.inf.d || hoyISO();
+    toast('Preparando informe…');
+    Api.personal(S.ses, dia).then(function (r) { generarInforme(dia, r && r.ok ? r : { personal: [], sinDatos: true }); });
+  }
+  function generarInforme(dia, PER) {
+    var D = datosInforme(dia), P = new MiniPdf('Parte diario de producción - Taller de acero ' + dia);
     var M = 36, AN = 523, FIN = 800, y = 0, VERDE = [0.043, 0.42, 0.227], CLARO = [0.91, 0.945, 0.925], BL = [1, 1, 1], d = dia.split('-');
     var resp = S.ses ? S.ses.nombre : '';
     function pagina() { P.nueva(); y = M; }
@@ -592,7 +597,20 @@
     var meta = [['FECHA', d[2] + '/' + d[1] + '/' + d[0]], ['ESTRUCTURAS ARMADAS', String(D.nEst)], ['ARMADO', kg(D.kgArm) + ' kg'], ['SALIÓ', kg(D.kgSal) + ' kg']], mw = [110, 150, 130, 133], mx = M;
     meta.forEach(function (m, i) { P.rect(mx, y, mw[i], 22, CLARO, [0, 0, 0]); P.texto(mx + 4, y + 8, m[0], 6.5, true); P.texto(mx + 4, y + 18, m[1], 9.5, true); mx += mw[i]; });
     y += 22;
-    P.texto(M, y + 11, 'Personal (oficiales y ayudantes): se toma del Parte diario del día, con la llave de este usuario.', 8, false, [0.25, 0.25, 0.25]); y += 18;
+    y += 8;
+    // personal del día: el mismo que se registró en el Parte diario
+    var PW = [215, 170, 46, 46, 46], PT = ['Nombre', 'Cargo', 'Inicio', 'Fin', 'Horas'], pl = PER.personal || [];
+    banda('PERSONAL DEL DÍA (OFICIALES Y AYUDANTES)');
+    (function () { var x = M; PT.forEach(function (t, i) { celda(x, PW[i], 16, [{ t: t, b: true, size: 7.5 }], { fill: CLARO, al: i > 1 ? 'c' : 'l', size: 7.5 }); x += PW[i]; }); y += 16; })();
+    if (!pl.length) { P.rect(M, y, AN, 18, null, [0, 0, 0]); P.texto(M + 6, y + 12, PER.sinDatos ? 'No se pudo consultar el Parte diario (sin conexión).' : 'No hay personal registrado en el Parte diario de este día.', 8.5); y += 18; }
+    else pl.forEach(function (q) {
+      if (y + 16 > FIN) pagina();
+      var x = M;
+      [q.nombre, q.cargo, q.inicio, q.fin, q.horas].forEach(function (t, i) { celda(x, PW[i], 16, [{ t: String(t || ''), size: 8 }], { al: i > 1 ? 'c' : 'l', size: 8 }); x += PW[i]; });
+      y += 16;
+    });
+    if (pl.length) P.texto(M, y + 10, 'Total personal: ' + pl.length + (PER.de ? ' · tomado del Parte diario de ' + PER.de : ''), 7.5, false, [0.25, 0.25, 0.25]);
+    y += 20;
     // 1) almacén al iniciar
     function tabla4(titulo, primera, claves, mapa) {
       var W4 = [165, 52, 70, 52, 70, 52, 62];

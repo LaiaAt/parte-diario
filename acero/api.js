@@ -72,6 +72,11 @@
       });
     },
 
+    personal: function (ses, dia) {
+      if (!remoto) return Promise.resolve({ ok: true, personal: [] });
+      return post({ action: 'personal', pin: ses.pin, fecha: dia }).catch(function () { return { ok: false }; });
+    },
+
     cargarDLI: function (ses, parsed, pedido) {
       pedido = String(pedido).trim();
       var loadId = uid('L');
