@@ -230,12 +230,12 @@
         function fila(cl, k, q) { return '<div class="dm"><div class="dm-b"><i class="' + cl + '" style="width:' + w(k) + '"></i></div><span><b>' + kg(k) + '</b> kg · ' + n0(q) + ' pzs</span></div>'; }
         return '<div class="bh-r"><div class="bh-t"><b>' + esc(C.diamLabel(d)) + '</b></div>' + fila('lib', x.lle, x.lle_p) + fila('arm', x.arm, x.arm_p) + fila('out', x.out, x.out_p) + '</div>';
       }).join('') : '<div class="vacio">Sin movimiento en este período</div>') + '</div>';
-    // avance por estructura (acumulado)
-    var es = Object.keys(c.porElem).map(function (e) { var x = c.porElem[e]; return { e: e, x: x, av: x.in_p ? (x.arm_p + x.out_p) / x.in_p : 0 }; }).sort(function (a, b) { return b.av - a.av; });
-    h += '<div class="card gr"><h3>Avance por estructura</h3><p class="peq mut" style="margin:0 0 8px">Acumulado: armado + salida sobre lo que llegó</p>' + leyenda() +
-      es.map(function (r) { return '<div class="bh-r"><div class="bh-t"><b>' + esc(r.e) + '</b><span>' + Math.round(100 * r.av) + '%</span></div>' + barraH(r.x) + '<small><b>' + n0(r.x.in_p) + '</b> pzs · <b>' + kg(r.x.in_kg) + '</b> kg · ' + n0(r.x.lib_p) + ' libres · ' + n0(r.x.arm_p) + ' armadas · ' + n0(r.x.out_p) + ' salieron</small></div>'; }).join('') + '</div>';
-    var L = movimientos().slice(0, 5);
-    h += '<h2 class="sec-t">Últimos movimientos del período</h2><div class="card">' + (L.length ? L.map(function (m) { return vMov(m, false); }).join('') : '<div class="vacio">Sin movimientos en este período</div>') + '</div>';
+    // estructuras con más movimiento en el período (solo datos clave del período)
+    var te = {};
+    S.estado.salidas.forEach(function (x) { if (x.estado === 'ANULADA' || !enPer(String(x.fecha || '').slice(0, 10))) return; var k = x.elemento || '—', o = te[k] || (te[k] = { arm: 0, out: 0, p: 0 }); if (tp(x) === 'ARMADO') o.arm += +x.kg || 0; else o.out += +x.kg || 0; o.p += +x.cantidad || 0; });
+    var tl = Object.keys(te).map(function (k) { return { e: k, x: te[k], t: te[k].arm + te[k].out }; }).sort(function (a, b) { return b.t - a.t; }).slice(0, 6), mxe = Math.max.apply(null, tl.map(function (r) { return r.t; }).concat([1]));
+    h += '<div class="card gr"><h3>Estructuras con más movimiento</h3><p class="peq mut" style="margin:0 0 8px">Kilos armados y que salieron en el período</p>' +
+      (tl.length ? tl.map(function (r) { return '<div class="bh-r"><div class="bh-t"><b>' + esc(r.e) + '</b><span>' + kg(r.t) + ' kg</span></div><div class="bh"><i class="arm" style="width:' + (100 * r.x.arm / mxe).toFixed(1) + '%"></i><i class="out" style="width:' + (100 * r.x.out / mxe).toFixed(1) + '%"></i></div><small>Armado <b>' + kg(r.x.arm) + '</b> kg · Salió <b>' + kg(r.x.out) + '</b> kg</small></div>'; }).join('') : '<div class="vacio">Sin movimiento en este período</div>') + '</div>';
     return h;
   }
   function diamsDisponibles() {
@@ -704,6 +704,7 @@
       var x = S.calc.porElem[p.estructura] || { lib_p: 0, arm_p: 0, out_p: 0 };
       return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>' + fecha(p.fecha) + '</span></div><div class="pd-e">' + esc(p.estructura) + (p.descripcion ? '<em>' + esc(p.descripcion) + '</em>' : '') + '</div>' +
         '<div class="pd-m"><span><b>' + n0(p.piezas) + '</b> piezas</span><span><b>' + kg(p.kg) + '</b> kg</span><span>' + esc(p.usuario) + '</span></div>' +
+        '<button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar DLI</button>' +
         '<div class="pd-s"><span class="lib">✅ ' + n0(x.lib_p) + ' libres</span><span class="arm">🔧 ' + n0(x.arm_p) + ' armadas</span><span class="out">🚚 ' + n0(x.out_p) + ' salieron</span></div></div>';
     }).join('');
     if (pags > 1) h += '<div class="pag"><button class="btn sec" data-a="pagPed" data-v="-1"' + (S.ped.pag <= 0 ? ' disabled' : '') + '>← Anterior</button><span>Página ' + (S.ped.pag + 1) + ' de ' + pags + '</span><button class="btn sec" data-a="pagPed" data-v="1"' + (S.ped.pag >= pags - 1 ? ' disabled' : '') + '>Siguiente →</button></div>';
@@ -846,6 +847,17 @@
     });
   }
 
+  function descargarDLI(loadId) {
+    var p = null; S.estado.pedidos.forEach(function (x) { if (String(x.loadId) === String(loadId)) p = x; });
+    if (!p) return;
+    var q = function (v) { v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var num = function (n) { return String(n == null ? '' : n).replace('.', ','); };
+    var f = [['Pedido', 'Estructura', 'Descripcion', 'Posicion', 'Diametro', 'Cantidad', 'Largo_m', 'Kg_unit', 'Kg_total']];
+    S.estado.entradas.forEach(function (e) { if (String(e.loadId) === String(loadId)) f.push([e.pedido, e.estructura, p.descripcion || '', e.marca, e.diametro, e.cantidad, num(e.largo), num(e.kgUnit), num(e.kg)]); });
+    var blob = new Blob(['\ufeff' + f.map(function (r) { return r.map(q).join(';'); }).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'DLI_pedido_' + String(p.pedido).replace(/[^\w-]+/g, '_') + '_' + String(p.estructura).replace(/[^\w-]+/g, '_') + '.csv';
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
   function descargarCSV() {
     var q = function (v) { v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     var num = function (n) { return String(n == null ? '' : n).replace('.', ','); };
@@ -885,6 +897,7 @@
       case 'quitarCarga': S.cargas.splice(+v, 1); render(); break;
       case 'csv': descargarCSV(); break;
       case 'bajarInforme': descargarInforme(); break;
+      case 'dli': descargarDLI(v); break;
       case 'enviarCola': enviarCola(); break;
       case 'limpiarErrores': Api.limpiarErroresCola(); render(); break;
       case 'anularSalida':
