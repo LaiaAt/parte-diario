@@ -461,3 +461,19 @@ body.emb .tabs { display: none; }
 .cargando b { font-size: 1.3rem; color: #b3261e; } .cargando span { font-size: .95rem; color: #5b1a14; font-weight: 600; }
 .spin { display: inline-block; width: 28px; height: 28px; border: 4px solid #f1b8b3; border-top-color: #b3261e; border-radius: 50%; animation: giro .8s linear infinite; }
 .banda .spin { width: 14px; height: 14px; border-width: 2px; margin-right: 6px; } @keyframes giro { to { transform: rotate(360deg); } }
+
+/* ===== Apps de Acero (usuario y administrador): misma línea que Dashboard, Parte diario y Transportes ===== */
+body:not(.emb) { background: #eef0f3; }
+body:not(.emb) .top { background: #0a7f2e; border-bottom: 4px solid #1f2d3d; padding-top: calc(8px + env(safe-area-inset-top)); padding-bottom: 8px; }
+body:not(.emb) .top .logo { width: auto; height: 34px; background: #fff; border-radius: 6px; padding: 2px 5px; }
+body:not(.emb) .top .tit b { font-size: 1.1rem; }
+body:not(.emb) .top .ibtn { background: rgba(0,0,0,.28); border: 0; color: #fff; border-radius: 10px; }
+body:not(.emb) .tabs { background: #fff; border: 0; border-bottom: 1px solid #dde1e6; box-shadow: 0 2px 6px rgba(0,0,0,.06); display: flex; gap: 8px; padding: 8px 12px; overflow-x: auto; position: sticky; top: 0; z-index: 8; }
+body:not(.emb) .tabs button { flex: 0 0 auto; flex-direction: row; align-items: center; gap: 6px; min-width: 0; width: auto; padding: 8px 16px; background: #fff; color: #1f2d3d; border: 1px solid #dde1e6; border-radius: 20px; box-shadow: none; font-size: .92rem; font-weight: 600; }
+body:not(.emb) .tabs button span { font-size: 1.05rem; line-height: 1; }
+body:not(.emb) .tabs button em { font-style: normal; overflow: visible; max-width: none; }
+body:not(.emb) .tabs button.on { background: #0a7f2e; color: #fff; border-color: #0a7f2e; font-weight: 700; box-shadow: none; }
+body:not(.emb) .cab { position: sticky; top: 0; z-index: 20; }
+body:not(.emb) .cab .tabs { position: static; }
+.login .marca img { width: auto; height: 70px; border-radius: 8px; }
+.pie { color: #5b6672; }

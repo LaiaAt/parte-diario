@@ -69,7 +69,7 @@
 
   function vTop() {
     if (EMB) return '';
-    return '<header class="top"><img class="logo" src="' + BASE + 'icons/icon-192.png" alt=""><div class="tit"><b>' + esc(CFG.TITULO) + '</b><span>' +
+    return '<header class="top"><img class="logo" src="marca.png" alt=""><div class="tit"><b>' + esc(CFG.TITULO) + '</b><span>' +
       esc(S.ses.nombre) + ' · ' + (esAdmin() ? 'Administrador' : 'Supervisor') + (Api.remoto ? '' : ' · modo local') + '</span></div>' +
       (MODO === 'dashboard' ? '<a class="ibtn" href="admin.html" title="Volver al Dashboard" style="text-decoration:none;display:flex;align-items:center;justify-content:center">⌂</a>' : '') + '<button class="ibtn" data-a="refrescar" title="Actualizar">⟳</button><button class="ibtn" data-a="salir" title="Salir">⏻</button></header>';
   }
