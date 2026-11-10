@@ -91,6 +91,7 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
 .fotos .x{position:absolute;top:4px;right:4px;width:auto;min-height:0;padding:4px 12px;font-size:18px;border-radius:20px}
 .sub{color:var(--mut);font-size:15px;margin:-4px 0 10px}
 #form label{font-size:18px;font-weight:700}#form input,#form select{font-size:20px;padding:14px}#form .card h3{font-size:22px}#form .grande{font-size:24px;padding:20px}
+.dosbtn{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}.dosbtn button{margin:0!important;padding:14px 4px!important;font-size:18px!important}
 </style>
 </head>
 <body>
@@ -248,7 +249,7 @@ function abrirPend() {
   const L = listaPend();
   if (!L.length) P.appendChild(h('div', { class: 'card' }, '✅ No tienes pendientes.'));
   else P.appendChild(h('div', { style: 'background:#fde8e8;border:3px solid #b00000;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-weight:800;color:#7a0000;font-size:18px' }, 'OJO: tienes ' + L.length + ' registro(s) sin foto del albarán. Sube la foto de cada uno para liberarlo.'));
-  const G = h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px' }); L.forEach(v => G.appendChild(filaViaje(v, true))); P.appendChild(G);
+  L.forEach(v => { P.appendChild(h('small', { style: 'font-weight:700' }, fmtF(v.fecha))); P.appendChild(filaViaje(v, true)); });
   pantalla('pendientes');
 }
 function pintarInicio() {
@@ -312,11 +313,10 @@ function filaViaje(v, solo) {
   if (v.tiene_recibo) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🧾 Albarán'));
   if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🚛 Volqueta'));
   if (puedeEditar(v)) { bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); bs.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje')); }
-  if (solo) return h('div', { class: 'viaje falta', style: 'margin:0;padding:8px' },
-    h('small', { style: 'font-weight:700' }, fmtF(v.fecha)),
-    h('div', { style: 'font-size:17px;font-weight:800' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:0 6px;margin-right:4px' }, consecDe(v)), v.placa),
-    v.n_valera ? h('div', { style: 'font-size:16px;font-weight:800;margin:4px 0 6px' }, '🧾 ' + v.n_valera) : null,
-    selectorFotos({ camara: '📷 Foto', galeria: '🖼 Galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) }));
+  if (solo) return h('div', { class: 'viaje falta' },
+    h('div', { class: 't' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;margin-right:6px' }, 'N° ' + consecDe(v)), v.placa),
+    v.n_valera ? h('div', { style: 'font-size:20px;font-weight:800;margin:4px 0 8px' }, '🧾 Albarán N° ' + v.n_valera) : null,
+    h('div', { class: 'dosbtn' }, selectorFotos({ camara: '📷 Foto del albarán', galeria: '🖼 Galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) })));
   return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
     h('div', { class: 't' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;margin-right:6px' }, 'N° ' + consecDe(v)), v.placa, ' · ', v.material),
     v.n_valera ? h('div', { style: 'font-size:18px;font-weight:800;margin:2px 0' }, '🧾 Albarán N° ' + v.n_valera) : null,
