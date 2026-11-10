@@ -15,9 +15,11 @@
     var d = new Date(), z = function (n) { return String(n).padStart(2, '0'); };
     return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()) + ':' + z(d.getSeconds());
   }
-  function conFecha(dia) {
+  function conFecha(dia, hora) {
     var a = ahora();
-    return /^\d{4}-\d\d-\d\d$/.test(dia || '') ? dia + a.slice(10) : a;
+    if (/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$/.test(dia || '')) return dia;
+    if (!/^\d{4}-\d\d-\d\d$/.test(dia || '')) return a;
+    return dia + (/^\d\d:\d\d$/.test(hora || '') ? 'T' + hora + ':' + a.slice(17) : a.slice(10));
   }
   // Un solo servidor para Parte diario, Transportes y Acero: la llave viaja en el cuerpo (nunca en la URL).
   function post(body) {
@@ -72,27 +74,32 @@
       });
     },
 
+    infoDia: function (ses, dia) {
+      if (!remoto) return Promise.resolve({ ok: true, personal: [], fotos: [] });
+      return post({ action: 'infoDia', pin: ses.pin, fecha: dia }).catch(function () { return { ok: false }; });
+    },
     personal: function (ses, dia) {
       if (!remoto) return Promise.resolve({ ok: true, personal: [] });
       return post({ action: 'personal', pin: ses.pin, fecha: dia }).catch(function () { return { ok: false }; });
     },
 
-    cargarDLI: function (ses, parsed, pedido) {
+    cargarDLI: function (ses, parsed, pedido, llegada) {
       pedido = String(pedido).trim();
       var loadId = uid('L');
-      var entradas = C.aEntradas(parsed, pedido, loadId, ahora());
+      var fllega = /^\d{4}-\d\d-\d\d$/.test(llegada || '') ? llegada + 'T00:00:00' : ahora();
+      var entradas = C.aEntradas(parsed, pedido, loadId, fllega);
       if (!remoto) {
         var s = leer(K.local, vacio());
         if (s.pedidos.some(function (p) { return p.estructura === parsed.nombre; }))
           return Promise.resolve({ ok: false, error: 'Este DLI ya está cargado (' + parsed.nombre + '). No se permite repetirlo.' });
         s.entradas = s.entradas.concat(entradas);
         s.pedidos.push({ loadId: loadId, pedido: pedido, estructura: parsed.nombre, descripcion: parsed.descripcion, proyecto: parsed.proyecto,
-          archivo: parsed.archivo, fecha: ahora(), usuario: ses.nombre, piezas: parsed.totalPiezas, kg: parsed.totalKg });
+          archivo: parsed.archivo, fecha: fllega, usuario: ses.nombre, piezas: parsed.totalPiezas, kg: parsed.totalKg });
         guardar(K.local, s);
         return Promise.resolve({ ok: true });
       }
       return post({ action: 'cargarDLI', pin: ses.pin, usuario: ses.nombre, loadId: loadId, pedido: pedido, estructura: parsed.nombre,
-        descripcion: parsed.descripcion, proyecto: parsed.proyecto, archivo: parsed.archivo, entradas: entradas })
+        descripcion: parsed.descripcion, proyecto: parsed.proyecto, archivo: parsed.archivo, fechaLlegada: llegada, entradas: entradas })
         .catch(function () { return { ok: false, error: 'Sin conexión: la carga de un DLI necesita internet' }; });
     },
 
@@ -105,13 +112,13 @@
         var tipo = d.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA';
         var err = tipo === 'ARMADO' ? C.validarArmado(calc, d.elemento, d.diametro, d.cantidad, marca) : C.validarSalida(calc, d.elemento, d.diametro, d.cantidad, marca);
         if (err) return Promise.resolve({ ok: false, error: err });
-        s.salidas.push({ id: id, fecha: conFecha(d.fecha), diametro: d.diametro, cantidad: d.cantidad, elemento: d.elemento, marca: marca,
+        s.salidas.push({ id: id, fecha: conFecha(d.fecha, d.hora), diametro: d.diametro, cantidad: d.cantidad, elemento: d.elemento, marca: marca,
           kg: C.kgSalida(calc, d.elemento, d.diametro, d.cantidad, marca), usuario: ses.nombre, obs: d.obs || '', estado: 'ACTIVA', fase: d.fase || '', modo: d.modo || 'POS', pct: d.pct || 0, tipo: tipo });
         guardar(K.local, s);
         return Promise.resolve({ ok: true });
       }
       var body = { action: 'salida', pin: ses.pin, usuario: ses.nombre, id: id, diametro: d.diametro, cantidad: d.cantidad,
-        elemento: d.elemento, marca: marca, obs: d.obs || '', fecha: conFecha(d.fecha) };
+        elemento: d.elemento, marca: marca, obs: d.obs || '', fecha: conFecha(d.fecha, d.hora) };
       return post(body).catch(function () {
         var q = leer(K.cola, []), nb = JSON.parse(JSON.stringify(body)); delete nb.pin; q.push(nb); guardar(K.cola, q); // el PIN no se guarda en la cola
         return { ok: true, pendiente: true };
@@ -128,7 +135,7 @@
       }
       var q = leer(K.cola, []);
       if (!q.some(function (b) { return b.grupo === d.grupo; }))
-        q.push({ action: 'salidaLote', v: 2, grupo: d.grupo, usuario: ses.nombre, items: d.items, obs: d.obs || '', fecha: conFecha(d.fecha), fase: d.fase || '', modo: d.modo === 'PCT' ? 'PCT' : 'POS', pct: d.pct || 0, tipo: d.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA' });
+        q.push({ action: 'salidaLote', v: 2, grupo: d.grupo, usuario: ses.nombre, items: d.items, obs: d.obs || '', fecha: conFecha(d.fecha, d.hora), fase: d.fase || '', modo: d.modo === 'PCT' ? 'PCT' : 'POS', pct: d.pct || 0, tipo: d.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA' });
       guardar(K.cola, q);
       return Promise.resolve({ ok: true, pendiente: true });
     },

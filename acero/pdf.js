@@ -3,7 +3,7 @@
   'use strict';
   var W = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
   var AC = { 'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n', 'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ñ': 'N', 'ü': 'u' };
-  function Pdf(titulo, autor) { this.pages = []; this.cur = null; this.titulo = titulo || ''; this.autor = autor || ''; this.H = 842; this.W = 595; }
+  function Pdf(titulo, autor) { this.pages = []; this.imgs = []; this.cur = null; this.titulo = titulo || ''; this.autor = autor || ''; this.H = 842; this.W = 595; }
   Pdf.prototype.nueva = function () { this.cur = []; this.pages.push(this.cur); return this; };
   Pdf.prototype.ancho = function (s, size, bold) {
     var t = 0; s = String(s);
@@ -24,6 +24,23 @@
     var yy = (this.H - y - h).toFixed(2), g = x.toFixed(2) + ' ' + yy + ' ' + w.toFixed(2) + ' ' + h.toFixed(2) + ' re';
     if (fill) this.cur.push(col(fill) + ' rg ' + g + ' f');
     if (borde) this.cur.push('0.6 w ' + col(borde) + ' RG ' + g + ' S');
+  };
+  /** Inserta un JPEG (base64) en el recuadro x,y,w,h, ajustado sin deformar. Devuelve false si no es un JPEG válido. */
+  Pdf.prototype.imagen = function (x, y, w, h, b64) {
+    var bin; try { bin = atob(b64); } catch (e) { return false; }
+    if (bin.charCodeAt(0) !== 0xFF || bin.charCodeAt(1) !== 0xD8) return false;
+    var i = 2, pw = 0, ph = 0, nc = 3;
+    while (i < bin.length - 9) {
+      if (bin.charCodeAt(i) !== 0xFF) { i++; continue; }
+      var m = bin.charCodeAt(i + 1);
+      if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) { ph = bin.charCodeAt(i + 5) * 256 + bin.charCodeAt(i + 6); pw = bin.charCodeAt(i + 7) * 256 + bin.charCodeAt(i + 8); nc = bin.charCodeAt(i + 9); break; }
+      i += 2 + bin.charCodeAt(i + 2) * 256 + bin.charCodeAt(i + 3);
+    }
+    if (!pw || !ph) return false;
+    var k = Math.min(w / pw, h / ph), dw = pw * k, dh = ph * k, n = this.imgs.length;
+    this.imgs.push({ d: bin, w: pw, h: ph, nc: nc });
+    this.cur.push('q ' + dw.toFixed(2) + ' 0 0 ' + dh.toFixed(2) + ' ' + (x + (w - dw) / 2).toFixed(2) + ' ' + (this.H - y - h + (h - dh) / 2).toFixed(2) + ' cm /Im' + n + ' Do Q');
+    return true;
   };
   Pdf.prototype.linea = function (x1, y1, x2, y2) { this.cur.push('0.6 w 0 0 0 RG ' + x1.toFixed(2) + ' ' + (this.H - y1).toFixed(2) + ' m ' + x2.toFixed(2) + ' ' + (this.H - y2).toFixed(2) + ' l S'); };
   /** Parte el texto en líneas que caben en `w` puntos (también parte palabras muy largas). */
@@ -49,9 +66,13 @@
     objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
     objs[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
     objs[5] = '<< /Title (' + enc(this.titulo) + ') /Author (' + enc(this.autor) + ') /Producer (Almacén de aceros) >>';
+    var ib = 6 + 2 * n, xo = this.imgs.map(function (im, j) { return '/Im' + j + ' ' + (ib + j) + ' 0 R'; }).join(' ');
+    this.imgs.forEach(function (im, j) {
+      objs[ib + j] = '<< /Type /XObject /Subtype /Image /Width ' + im.w + ' /Height ' + im.h + ' /ColorSpace ' + (im.nc === 1 ? '/DeviceGray' : im.nc === 4 ? '/DeviceCMYK' : '/DeviceRGB') + ' /BitsPerComponent 8' + (im.nc === 4 ? ' /Decode [1 0 1 0 1 0 1 0]' : '') + ' /Filter /DCTDecode /Length ' + im.d.length + ' >>\nstream\n' + im.d + '\nendstream';
+    });
     this.pages.forEach(function (p, i) {
       var cont = p.join('\n');
-      objs[6 + 2 * i] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + self.W + ' ' + self.H + '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' + (7 + 2 * i) + ' 0 R >>';
+      objs[6 + 2 * i] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + self.W + ' ' + self.H + '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> ' + (xo ? '/XObject << ' + xo + ' >> ' : '') + '>> /Contents ' + (7 + 2 * i) + ' 0 R >>';
       objs[7 + 2 * i] = '<< /Length ' + cont.length + ' >>\nstream\n' + cont + '\nendstream';
     });
     var out = '%PDF-1.4\n', off = [];
