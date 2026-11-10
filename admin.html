@@ -158,10 +158,10 @@ button.chipm{cursor:pointer;font:inherit}
   </div>
 
   <div class="card" id="cPar" data-m="partes"><h2>Partes diarios <span id="nPar" class="small"></span></h2>
-    <div class="buscar"><input id="qPar" type="search" placeholder="🔍 Buscar en partes (código, nombre, lugar…)…"><button class="sec sm" data-limpiar>Limpiar</button></div>
-    <div class="row"><div><label>Llave</label><select id="fPar"></select></div>
-      <div><label>PDF</label><select id="fPdf"><option value="">Todos</option><option value="no">Solo sin PDF</option></select></div>
-      <button class="sec sm" id="todosPdf">Descargar todos los PDF de la lista</button></div>
+    <div class="buscar" style="align-items:center;flex-wrap:wrap"><input id="qPar" type="search" placeholder="🔍 Buscar en partes (nombre, lugar…)…" style="flex:1 1 220px">
+      <span style="display:flex;align-items:center;gap:6px"><label style="margin:0">Llave</label><select id="fPar"></select></span>
+      <span style="display:flex;align-items:center;gap:6px"><label style="margin:0">PDF</label><select id="fPdf"><option value="">Todos</option><option value="no">Solo sin PDF</option></select></span>
+      <button class="sec sm" id="todosPdf">⬇ Todos los PDF</button><button class="sec sm" data-limpiar>Limpiar</button></div>
     <div class="tw" style="margin-top:8px"><table id="tPar"></table></div>
   </div>
 
@@ -1075,12 +1075,12 @@ function partes() {
   const L = partesVisibles();
   $('nPar').textContent = '(' + L.length + ')';
   const t = $('tPar'); t.textContent = '';
-  t.appendChild(h('thead', {}, h('tr', {}, ['Código', 'Fecha', 'Llave', 'Usuario', 'Lugar', 'PK', 'Act.', 'Pers.', 'Máq.', 'Mat.', 'Ped.', 'Fot.', ''].map(x => h('th', {}, x)))));
+  t.appendChild(h('thead', {}, h('tr', {}, ['Fecha', 'Llave', 'Usuario', 'Lugar', 'PK', 'Act.', 'Pers.', 'Máq.', 'Mat.', 'Ped.', 'Fot.', ''].map(x => h('th', {}, x)))));
   const b = h('tbody');
-  L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, p._cod), h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
+  L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
     h('td', {}, p._n.ACTIVIDAD), h('td', {}, p._n.PERSONAL), h('td', {}, p._n.MAQUINA), h('td', {}, p._n.MATERIAL), h('td', {}, p._n.SOLICITUD), h('td', {}, nFotos(p.id) ? h('button', { class: 'sm sec', onclick: () => { $('qFot').value = p._cod; rerender(); ir('cFoto'); } }, '📷 ' + nFotos(p.id)) : '0'),
     h('td', {}, h('button', { class: 'sm sec', onclick: () => detalle(p) }, 'Detalle'), ' ', p.pdf ? h('button', { class: 'sm', onclick: () => bajarPdf(p) }, 'PDF') : h('button', { class: 'sm', onclick: e => crearPdf(p, e.target) }, 'Crear PDF')))));
-  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 13 }, 'No hay partes con esos filtros')));
+  if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 12 }, 'No hay partes con esos filtros')));
   t.appendChild(b);
 }
 /* ---- crear el PDF de un parte que no lo tiene (se arma aquí con los datos guardados) ---- */
