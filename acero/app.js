@@ -5,7 +5,7 @@
   var MODO = window.ACEROS_MODO === 'salidas' ? 'salidas' : 'dashboard', BASE = window.ACEROS_BASE || '', EMB = !!window.ACEROS_EMBED;
 
   var S = {
-    ses: null, estado: { pedidos: [], entradas: [], salidas: [] }, calc: null, tab: MODO === 'salidas' ? 'salida' : 'panel', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
+    cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [] }, calc: null, tab: MODO === 'salidas' ? 'salida' : 'panel', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
     sal: { q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', tipo: 'SALIDA', fase: '', pct: '', balElem: '' },
     inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, inf: { d: '' },
     cargas: [], loginErr: '', loginNom: ''
@@ -76,6 +76,7 @@
 
   function vBandas() {
     var h = '', pend = Api.pendientes(), errs = Api.erroresCola();
+    if (!S.cargado && S.estado.entradas.length) h += '<div class="banda bad"><i class="spin"></i> Cargando datos…</div>';
     if (!Api.remoto) h += '<div class="banda info">Modo local de prueba: los datos solo existen en este navegador.</div>';
     if (S.offline) h += '<div class="banda warn">Sin conexión: se muestran los últimos datos guardados en este celular.</div>';
     if (pend && S.enviando) h += '<div class="banda info env"><span>Enviando la salida al almacén…</span><i class="prog"><b></b></i></div>';
@@ -107,7 +108,9 @@
   function estCard(titulo, sub, x) {
     return '<div class="ec"><div class="ec-h"><b>' + titulo + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>' + apilada(x) + celdas(x) + '</div>';
   }
+  function vCargando() { return '<div class="cargando"><i class="spin"></i><b>Cargando datos…</b><span>Un momento, estamos trayendo el inventario.</span></div>'; }
   function sinInventario() {
+    if (!S.cargado) return vCargando();
     return '<div class="card vacio"><b>Aún no hay acero en el inventario.</b><br>' + (esAdmin()
       ? '<p>Cargue un archivo .dli y asígnele su número de pedido.</p><button class="btn" data-a="tab" data-v="cargar">Cargar DLI</button>'
       : '<p>El administrador debe cargar primero un DLI.</p>') + '</div>';
@@ -756,7 +759,7 @@
 
   function render() {
     var app = $('app');
-    if (!S.ses) { app.innerHTML = vLogin(); return; }
+    if (!S.ses) { app.innerHTML = S.auto ? '<main>' + vCargando() + '</main>' : vLogin(); return; }
     S.calc = C.calcular(S.estado);
     var fo = S.focus; S.focus = '';
     app.innerHTML = '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
@@ -769,9 +772,9 @@
       if (!r.ok) {
         if (r.error === 'Llave no válida') { Api.salir(); S.ses = null; S.loginErr = 'La llave ya no es válida. Ingresa de nuevo.'; }
         else toast(r.error);
-        render(); return;
+        S.cargado = true; render(); return;
       }
-      S.estado = r.estado; S.offline = !!r.offline; render();
+      S.estado = r.estado; S.offline = !!r.offline; S.cargado = true; render();
     });
   }
   function enviarCola() {
@@ -1000,9 +1003,10 @@
     render();
     // el panel entra solo con la llave de administrador del Dashboard (misma sesión)
     var l0 = ''; try { l0 = MODO === 'dashboard' ? (localStorage.getItem('adm') || sessionStorage.getItem('adm') || '') : ''; } catch (e) { }
+    if (l0) { S.auto = true; render(); }
     if (l0) Api.login(l0).then(function (r) {
-      if (!r.ok || r.ses.rol !== 'admin') { Api.salir(); return; }
+      if (!r.ok || r.ses.rol !== 'admin') { Api.salir(); S.auto = false; render(); return; }
       S.ses = r.ses; S.loginErr = ''; S.tab = 'panel'; render(); enviarCola().then(cargarEstado);
-    });
+    }).catch(function () { S.auto = false; S.loginErr = 'No se pudo conectar.'; render(); });
   }
 })();
