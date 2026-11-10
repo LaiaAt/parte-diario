@@ -312,7 +312,11 @@ function filaViaje(v, solo) {
   if (falta && !v.tiene_recibo) bs.appendChild(selectorFotos({ camara: '📷 Foto del recibo', galeria: '🖼 Desde galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) }));
   if (v.tiene_recibo) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🧾 Albarán'));
   if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🚛 Volqueta'));
-  if (puedeEditar(v)) { bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); bs.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje')); }
+  if (puedeEditar(v)) {
+    mas.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); mas.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje'));
+    const bm = h('button', { class: 'sec', onclick: () => { mas.hidden = !mas.hidden; bm.textContent = mas.hidden ? '⋯ Más' : '▲ Menos'; } }, '⋯ Más');
+    bs.appendChild(bm);
+  }
   if (solo) return h('div', { class: 'viaje falta' },
     h('div', { class: 't' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;margin-right:6px' }, 'N° ' + consecDe(v)), v.placa),
     v.n_valera ? h('div', { style: 'font-size:20px;font-weight:800;margin:4px 0 8px' }, '🧾 Albarán N° ' + v.n_valera) : null,
