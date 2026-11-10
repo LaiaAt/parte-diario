@@ -269,7 +269,7 @@ function pintarInicio() {
   B.appendChild(h('h3', { style: 'margin-top:14px' }, 'Viajes de hoy' + (hoyV.length ? ' · ' + hoyV.length + ' · ' + r2(vol) + ' m³' : '')));
   if (hoyV.length) B.appendChild(h('div', { style: 'background:#fff3cd;border:2px solid #12202b;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-weight:700' }, '🧾 Registros en la app: ' + hoyV.length + '. Al final del día debes tener ' + hoyV.length + ' albaranes de papel, numerados del 1 al ' + hoyV.length + '.'));
   if (!hoyV.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay viajes hoy. Toca el botón verde para empezar.'));
-  hoyV.forEach(v => B.appendChild(filaViaje(v)));
+  hoyV.slice().reverse().forEach(v => B.appendChild(filaViaje(v)));
   if (hoyV.length) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:14px', onclick: () => planilla(hoy()) }, '📄 Planilla de hoy'));
   if (VIAJES.some(v => v.fecha !== hoy())) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:6px', onclick: abrirAnteriores }, '📅 Días anteriores'));
 }
@@ -301,7 +301,7 @@ function abrirDia(f) {
     h('small', {}, puedeRecibo({ fecha: f }) ? 'Este día ya cerró. Aún puedes subir la foto del recibo.' : 'Este día ya cerró.'),
     h('button', { class: 'verde', onclick: () => planilla(f) }, '📄 Planilla del día')));
   if (!vs.length) D.appendChild(h('div', { class: 'card' }, 'No hay viajes este día.'));
-  vs.forEach(v => D.appendChild(filaViaje(v)));
+  vs.slice().reverse().forEach(v => D.appendChild(filaViaje(v)));
   pantalla('dia');
 }
 function filaViaje(v, solo) {
