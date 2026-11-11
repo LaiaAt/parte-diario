@@ -113,6 +113,7 @@
   function vCargando() { return '<div class="cargando"><i class="spin"></i><b>Cargando datos…</b><span>Un momento, estamos trayendo el inventario.</span></div>'; }
   function sinInventario() {
     if (!S.cargado) return vCargando();
+    if (EMB) return '<div class="card vacio"><div style="font-size:2.2rem">📭</div><b>Sin datos</b><br><span class="mut">Todavía no hay acero registrado en el inventario.</span></div>';
     return '<div class="card vacio"><b>Aún no hay acero en el inventario.</b><br>' + (esAdmin()
       ? '<p>Cargue un archivo .dli y asígnele su número de pedido.</p><button class="btn" data-a="tab" data-v="cargar">Cargar DLI</button>'
       : '<p>El administrador debe cargar primero un DLI.</p>') + '</div>';

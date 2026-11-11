@@ -786,9 +786,10 @@ async function guardarViaje() {
       const sim = DATOS.volquetas.map(x => normPlaca(x.placa)).filter(x => par(placa, x));
       if (sim.length && !confirm('⚠️ La placa ' + placa + ' NO está registrada y se parece a ' + sim.slice(0, 3).join(', ') + '.\n\n¿Está bien escrita? Aceptar = guardar así. Cancelar = corregir.')) { $('placa').focus(); return; }
     }
-    const nv = g('n_valera').toUpperCase();
-    const rep = VIAJES.find(x => x.cod !== editandoCod && String(x.n_valera || '').toUpperCase() === nv && (x.valera_de || '') === ($('valera_de').value || ''));
-    if (rep && !confirm('⚠️ El albarán ' + nv + ' ya fue registrado (' + rep.placa + ', ' + rep.fecha + ').\n\n¿Es otro viaje? Aceptar = guardar igual. Cancelar = revisar el número.')) { $('n_valera').focus(); return; }
+    const normA = x => { let t = String(x || '').toUpperCase().replace(/\s+/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
+    const nv = normA(g('n_valera'));
+    const rep = VIAJES.find(x => x.cod !== editandoCod && normA(x.n_valera) === nv && (x.valera_de || '') === ($('valera_de').value || ''));
+    if (rep) { alert('🚫 El albarán N° ' + g('n_valera').toUpperCase() + ' ya fue registrado (' + rep.placa + ', ' + rep.fecha + ').\n\nNo se puede registrar dos veces. Revisa el número del albarán.'); $('n_valera').focus(); return; }
   }
   const rec = $('mov').value === 'RECIBE';
   const antes = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;

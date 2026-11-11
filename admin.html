@@ -93,6 +93,27 @@ button.chipm{cursor:pointer;font:inherit}
 .tcard summary{font-size:18px;font-weight:700;padding:6px 0}.tcard label{display:block;font-size:14px;color:var(--mut)}
 #cTr .kpis2{grid-template-columns:repeat(2,1fr)}
 .btnl{display:block;text-align:center;margin-top:8px;padding:12px;background:var(--pri);color:#fff;border-radius:10px;text-decoration:none;font-size:17px}
+/* Consolidados: cajas grandes, tabla clara */
+.conAyuda{font-size:15px;color:var(--mut);margin:-4px 0 10px}
+.conTiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.conTiles .cTile{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 8px;border:2px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);cursor:pointer;font:inherit;text-align:center}
+.conTiles .cTile .ic{font-size:30px;line-height:1.1}
+.conTiles .cTile b{font-size:16px}
+.conTiles .cTile .n{font-size:22px;font-weight:800;color:var(--pri)}
+.conTiles .cTile.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.conTiles .cTile.on .n{color:#fff}
+.conFiltros{background:#f5f7f9;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px}
+.conBusca{display:flex;gap:8px;margin-bottom:8px}.conBusca input{flex:1;font-size:17px;padding:12px}
+.conBajar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.conTot{font-size:16px;font-weight:700;margin:6px 2px}
+.conTw{max-height:560px;border-radius:12px}
+.conTabla{font-size:15px;border-collapse:collapse;width:100%}
+.conTabla th{position:sticky;top:0;background:var(--pri);color:#fff;padding:10px 8px;text-align:left;white-space:nowrap;cursor:pointer;font-size:14px}
+.conTabla td{padding:9px 8px;border-top:1px solid #e3e7ea;vertical-align:top}
+.conTabla tbody tr:nth-child(even){background:#f7f9fa}
+.conTabla .chipE{display:inline-block;padding:2px 10px;border-radius:999px;font-weight:700;font-size:13px;background:#e3f3e6;color:#1b5e20}
+.conTabla .chipE.mal{background:#fde7e5;color:#b3261e}
+.conVacio{text-align:center;padding:26px 10px;font-size:18px;color:var(--mut)}
 </style>
 <link rel="manifest" href="manifest-admin.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -176,17 +197,19 @@ button.chipm{cursor:pointer;font:inherit}
     <div style="margin-top:10px"><button class="sec" id="masFotos" hidden>Ver más</button></div>
   </div>
 
-  <div class="card" id="cCon" data-m="consolidados"><h2>Consolidados <span id="nCon" class="small"></span></h2>
-    <div class="buscar"><input id="qCon" type="search" placeholder="🔍 Buscar en esta tabla (actividad, máquina, personal…)…"><button class="sec sm" data-limpiar>Limpiar</button></div>
-    <div class="small">Cada fila indica la llave y el código del parte. Toca un título de columna para ordenar.</div>
-    <div class="tabs" id="tabs"></div>
-    <div class="row"><div><label>Llave</label><select id="fCon"></select></div>
-      <div id="fEstW"><label id="fEstL">Estado</label><select id="fEst"></select></div>
-      <div id="fCCW"><label>Centro de costos</label><select id="fCC"></select></div>
-      <button class="sec sm" id="csv">Descargar esta tabla (CSV)</button>
-      <button class="sm" id="xlsx">Descargar todo (Excel)</button></div>
-    <div id="totales" class="small" style="margin:8px 0"></div>
-    <div class="tw"><table id="tCon"></table></div>
+  <div class="card" id="cCon" data-m="consolidados"><h2>📊 Consolidados <span id="nCon" class="small"></span></h2>
+    <div class="conAyuda">Toca una caja para ver esa información del parte diario.</div>
+    <div class="conTiles" id="tabs"></div>
+    <div class="conFiltros">
+      <div class="conBusca"><input id="qCon" type="search" placeholder="🔍 Escribe para buscar…"><button class="sec sm" data-limpiar>Limpiar</button></div>
+      <div class="row"><div><label>🔑 Llave</label><select id="fCon"></select></div>
+        <div id="fEstW"><label id="fEstL">Estado</label><select id="fEst"></select></div>
+        <div id="fCCW"><label>💰 Centro de costos</label><select id="fCC"></select></div></div>
+      <div class="conBajar"><button class="sec sm" id="csv">⬇ Descargar esta tabla (CSV)</button>
+        <button class="sm" id="xlsx">⬇ Descargar todo (Excel)</button></div>
+    </div>
+    <div id="totales" class="conTot"></div>
+    <div class="tw conTw"><table id="tCon" class="conTabla"></table></div>
   </div>
 </section>
 <div class="card" id="cTr" data-m="transportes" hidden><h2>🚛 Transportes</h2>
@@ -310,9 +333,19 @@ const botonesFoto = v => h('span', {},
   (v.fotos_r || []).length || v.nr ? h('button', { class: 'sec sm', style: 'margin:2px 4px 2px 0', onclick: () => verFotoTr(v.cod, 'recibo', (v.fotos_r || []).length || v.nr) }, '🧾 Albarán (' + ((v.fotos_r || []).length || v.nr) + ')') : h('span', { class: 'small' }, 'Sin albarán'));
 
 /* ----- sospechosos (sin GPS de volquetas: solo datos del formulario) ----- */
+const claveSosp = (tipo, vs) => tipo + '|' + vs.map(v => v.cod).sort().join(',');
+const revCods = () => { if (!TR._rs) { TR._rs = new Set(); (TR.revisados || []).forEach(r => r.cods.forEach(c => TR._rs.add(c))); } return TR._rs; };
+const alV = v => (v.alertas && !revCods().has(v.cod)) ? v.alertas : '';
+async function marcarRev(x, estado) {
+  try {
+    const r = await api({ accion: 'admin_tr_revisar', llave: LLAVE, clave: x.clave, tipo: x.tipo, cods: x.vs.map(v => v.cod), estado });
+    if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return; }
+    TR.revisados = r.revisados; TR._rs = null; pintarTr();
+  } catch (e) { alert('No se pudo conectar. Intenta de nuevo.'); }
+}
 function sospechosos() {
   const V = TR.viajes, S = [], hoy = TR.hoy;
-  const add = (tipo, msg, vs) => S.push({ tipo, msg, vs });
+  const add = (tipo, msg, vs) => { const clave = claveSosp(tipo, vs), r = (TR.revisados || []).find(x => x.clave === clave); S.push({ tipo, msg, vs, clave, rev: r || null }); };
   const porVal = {}; V.forEach(v => { if (v.n_valera) { const k = v.n_valera.toUpperCase() + '|' + v.valera_de; (porVal[k] = porVal[k] || []).push(v); } });
   Object.keys(porVal).forEach(k => { if (porVal[k].length > 1) add('Albarán repetido', 'La valera N° ' + porVal[k][0].n_valera + ' (' + (porVal[k][0].valera_de || '—') + ') está en ' + porVal[k].length + ' viajes', porVal[k]); });
   V.forEach(v => { const qa = Number(v.vol_albaran) || 0, qc = Number(v.cant) || 0; if (qa > 0 && qc > 0 && Math.abs(qa - qc) / qc > 0.10) add('Albarán ≠ confirmado', v.placa + ' el ' + fmtF(v.fecha) + ': albarán ' + nf1(qa) + ' m³ vs confirmado ' + nf1(qc) + ' m³ (' + (qa > qc ? '+' : '') + Math.round((qa - qc) / qc * 100) + ' %)', [v]); });
@@ -341,12 +374,24 @@ function sospechosos() {
   return S;
 }
 function vistaSosp(c) {
-  const S = sospechosos(), tipos = Array.from(new Set(S.map(x => x.tipo))).sort();
-  c.appendChild(h('div', { class: 'small' }, 'Revisa casos raros con los datos del formulario. No usa GPS de volquetas.'));
-  c.appendChild(chips([['', 'Todos (' + S.length + ')']].concat(tipos.map(t => [t, t + ' (' + S.filter(x => x.tipo === t).length + ')'])), TRSOSP, k => { TRSOSP = k; pintarTr(); }));
+  const todos = sospechosos(), S = todos.filter(x => !x.rev), R = todos.filter(x => x.rev), tipos = Array.from(new Set(S.map(x => x.tipo))).sort();
+  c.appendChild(h('div', { class: 'small' }, 'Revisa casos raros con los datos del formulario. Cuando ya lo verificaste, marca la casilla «Ya lo revisé» y deja de salir como sospechoso.'));
+  c.appendChild(chips([['', 'Pendientes (' + S.length + ')']].concat(tipos.map(t => [t, t + ' (' + S.filter(x => x.tipo === t).length + ')'])).concat([['__rev', '✔ Revisados (' + R.length + ')']]), TRSOSP, k => { TRSOSP = k; pintarTr(); }));
+  if (TRSOSP === '__rev') {
+    R.slice(0, 150).forEach(x => c.appendChild(h('div', { class: 'tcard', style: 'border-left:6px solid #2e7d32;background:#f3faf3' }, h('div', { class: 'big' }, '✔ ' + x.tipo), h('div', {}, x.msg),
+      h('div', { class: 'small' }, 'Revisado por ' + x.rev.por + ' · ' + fmtTs(x.rev.ts) + (x.rev.nota ? ' · ' + x.rev.nota : '')),
+      h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: () => marcarRev(x, 'quitar') }, '↩ Volver a sospechoso')))));
+    if (!R.length) c.appendChild(h('div', { class: 'small' }, 'Todavía no has marcado ninguno como revisado.'));
+    return;
+  }
   const L = S.filter(x => !TRSOSP || x.tipo === TRSOSP);
-  L.slice(0, 120).forEach(x => c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '⚠️ ' + x.tipo), h('div', {}, x.msg),
-    h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: () => { ALB.q = x.vs[0].n_valera || x.vs[0].cod; TRTAB = 'albaran'; pintarTr(); buscarAlb(); } }, '🔎 Ver albarán')))));
+  L.slice(0, 120).forEach(x => {
+    const cb = h('input', { type: 'checkbox', style: 'width:26px;height:26px;margin:0' });
+    cb.onchange = () => { cb.disabled = true; marcarRev(x, 'revisar'); };
+    c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '⚠️ ' + x.tipo), h('div', {}, x.msg),
+      h('label', { style: 'display:flex;gap:10px;align-items:center;margin:10px 0;font-weight:700;font-size:17px;cursor:pointer' }, cb, 'Ya lo revisé (quitar de sospechosos)'),
+      h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: () => { ALB.q = x.vs[0].n_valera || x.vs[0].cod; TRTAB = 'albaran'; pintarTr(); buscarAlb(); } }, '🔎 Ver albarán'))));
+  });
   if (!L.length) c.appendChild(h('div', { class: 'trok' }, '✅ Nada sospechoso en estas fechas'));
   if (L.length > 120) c.appendChild(h('div', { class: 'small' }, 'Se muestran 120 de ' + L.length));
 }
@@ -369,12 +414,12 @@ function pintaAlb() {
   box.appendChild(h('div', { class: 'small' }, r.total + (r.total === 1 ? ' resultado' : ' resultados')));
   r.viajes.forEach((v, i) => {
     const fo = h('div', { class: 'fotosAlb' });
-    box.appendChild(h('div', { class: 'tcard' + (v.alertas ? ' warn' : '') },
+    box.appendChild(h('div', { class: 'tcard' + (alV(v) ? ' warn' : '') },
       h('div', { class: 'big' }, 'Valera ' + (v.n_valera || '—'), h('span', { class: 'tag' }, v.valera_de || '—')),
       h('div', {}, v.placa + ' · ' + (v.conductor || '') + ' · ' + (v.empresa || '')),
       h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + (v.material || '—') + ' · ' + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—')),
       h('div', { class: 'small' }, (Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) : '—') + ' m³ albarán · ' + nf(v.cant) + ' m³ confirmado' + (pctV(v) !== null ? ' (' + pctV(v) + ' % de la tolva)' : '') + ' · ' + v.cod + ' · ' + v.usuario),
-      v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
+      alV(v) ? h('div', { class: 'alt' }, '⚠️ ' + alV(v)) : null,
       fo));
     // las fotos del albarán se muestran de una vez (primeros 3 resultados)
     if (v.nr && i < 3) {
@@ -611,7 +656,7 @@ function vistaVol(c) {
 /* ----- viajes (lista, fotos, CSV y Excel con fotos) ----- */
 function viajesTr() {
   const q = TRQ.trim().toUpperCase();
-  return TR.viajes.filter(v => (!TRFIL || (TRFIL === 'alerta' ? v.alertas : !v.tiene_recibo && v.fecha < TR.hoy))
+  return TR.viajes.filter(v => (!TRFIL || (TRFIL === 'alerta' ? alV(v) : !v.tiene_recibo && v.fecha < TR.hoy))
     && (!q || [v.cod, v.placa, v.conductor, v.empresa, v.material, v.origen, v.destino, v.alertas, v.usuario, v.n_valera, ufTxt(v)].join(' ').toUpperCase().indexOf(q) >= 0));
 }
 function vistaViajes(c) {
@@ -622,13 +667,13 @@ function vistaViajes(c) {
     h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px' }, h('button', { class: 'sec', onclick: csvTr }, '⬇ CSV'), h('button', { onclick: xlsxTr, id: 'btnXlsxTr' }, '⬇ Excel con fotos'), h('button', { class: 'sec', onclick: xlsxCambios, id: 'btnCamb' }, '⬇ Control de cambios (Excel)')), h('div', { id: 'xlsxMsg', class: 'small', style: 'margin:0 0 6px' }), lista);
   function pintaLista() {
     const L = viajesTr(); lista.textContent = '';
-    L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (v.alertas ? ' warn' : '') },
+    L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (alV(v) ? ' warn' : '') },
       h('div', { class: 'big' }, v.placa, ' · ', (Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) : '—') + ' alb. · ' + nf(v.cant) + ' conf. m³', pctV(v) !== null ? h('span', { class: 'tag' + (pctV(v) < 70 ? ' w' : '') }, pctV(v) + ' %') : null),
       h('div', {}, v.material || '—'),
       h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + (v.km ? ' · ' + nf(v.km) + ' km' : '')),
       h('div', { class: 'small' }, (v.conductor || '') + ' · valera ' + (v.n_valera || '—') + ' · ' + v.cod),
       tieneGps(v) ? h('div', { class: 'small' }, h('a', { href: mapaUrl(v), target: '_blank', rel: 'noopener' }, '📍 Ver origen en el mapa')) : null,
-      v.alertas ? h('div', { class: 'alt' }, '⚠️ ' + v.alertas) : null,
+      alV(v) ? h('div', { class: 'alt' }, '⚠️ ' + alV(v)) : null,
       h('div', { class: 'small', style: 'margin-top:4px' }, '🕒 Creado por ' + (v.creado_por || '—') + ' el ' + fmtTs(v.creado || v.registrado) + (v.modificado && v.modificado !== v.creado ? ' · Última modificación ' + fmtTs(v.modificado) : '')),
       h('div', { style: 'margin-top:6px' }, botonesFoto(v)))));
     if (!L.length) lista.appendChild(h('div', { class: 'trok' }, 'No hay viajes'));
@@ -757,7 +802,7 @@ async function xlsxCambios() {
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     const wb = new ExcelJS.Workbook(); wb.creator = 'Carlos Eduardo Bermúdez Castro'; wb.created = new Date();
     const VERDE = 'FF1B5E20', BORDE = { style: 'thin', color: { argb: 'FFB0BEC5' } }, B4 = { top: BORDE, left: BORDE, bottom: BORDE, right: BORDE };
-    const COL = { CREADO: 'FF2E7D32', MODIFICADO: 'FFEF6C00', ELIMINADO: 'FFC62828', 'FOTO ALBARÁN': 'FF0277BD', 'AJUSTE ADMIN': 'FF6A1B9A', 'MODIFICADO (ADMIN)': 'FFEF6C00', 'ELIMINADO (ADMIN)': 'FFC62828', VALIDADA: 'FF00838F' };
+    const COL = { CREADO: 'FF2E7D32', MODIFICADO: 'FFEF6C00', ELIMINADO: 'FFC62828', 'FOTO ALBARÁN': 'FF0277BD', 'AJUSTE ADMIN': 'FF6A1B9A', 'MODIFICADO (ADMIN)': 'FFEF6C00', 'REVISADO (ADMIN)': 'FF2E7D32', 'REVISIÓN QUITADA': 'FFEF6C00', 'ALBARÁN REPETIDO (BLOQUEADO)': 'FFC62828', 'ELIMINADO (ADMIN)': 'FFC62828', VALIDADA: 'FF00838F' };
     const ws = wb.addWorksheet('Control de cambios', { views: [{ state: 'frozen', ySplit: 4 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
     const H = [['Fecha y hora', 17], ['Vale / elemento', 30], ['Acción', 15], ['Usuario', 22], ['Llave', 12], ['Placa', 10], ['Fecha del viaje', 13], ['Detalle (antes → después)', 90]];
     ws.columns = H.map(x => ({ width: x[1] }));
@@ -896,7 +941,7 @@ function vistaGeo(c) {
 }
 function pintarTr() {
   const V = TR.viajes, hoy = TR.hoy;
-  const conAl = V.filter(v => v.alertas), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend);
+  const conAl = V.filter(v => alV(v)), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend);
   const top = $('trTop'); top.textContent = '';
   const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
   top.appendChild(h('div', { class: 'kpis' }, K('Viajes', V.length), K('📥 Llegaron', V.filter(v => v.mov === 'RECIBE').length), K('📤 Salieron', V.filter(v => v.mov !== 'RECIBE').length), K('m³ albarán', nf(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0))), K('m³ confirmado', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas', new Set(V.map(v => v.placa)).size)));
@@ -905,6 +950,15 @@ function pintarTr() {
     aviso(pend.length, pend.length === 1 ? 'volqueta nueva por confirmar' : 'volquetas nuevas por confirmar', () => { TRVOL = 'pend'; TRTAB = 'volquetas'; pintarTr(); }),
     aviso(conAl.length, conAl.length === 1 ? 'viaje con alerta' : 'viajes con alertas', () => { TRFIL = 'alerta'; TRTAB = 'viajes'; pintarTr(); }),
     aviso(sinRec.length, 'sin albarán', () => { TRFIL = 'sinrec'; TRTAB = 'viajes'; pintarTr(); })].filter(Boolean));
+  const dupA = sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev), blq = TR.dup_bloqueados || [];
+  if (dupA.length || blq.length) {
+    const cj = h('div', { class: 'trav', style: 'display:block;text-align:left;background:#b3261e;color:#fff;border-color:#7f1d17' }, h('b', {}, '🚨 ALBARÁN REPETIDO'));
+    if (dupA.length) cj.appendChild(h('div', { style: 'margin-top:6px' }, dupA.length + (dupA.length === 1 ? ' albarán está' : ' albaranes están') + ' en más de un viaje: ' + dupA.slice(0, 3).map(x => '#' + x.vs[0].n_valera).join(', '),
+      h('button', { style: 'margin-left:8px', onclick: () => { TRSOSP = 'Albarán repetido'; TRTAB = 'sosp'; pintarTr(); } }, 'Ver y revisar')));
+    blq.slice(0, 5).forEach(x => cj.appendChild(h('div', { style: 'margin-top:6px;font-size:14px' }, '🚫 Bloqueado ' + fmtTs(x.ts) + ' · ' + (x.usuario || '—') + ' · ' + x.placa + ' — ' + x.detalle)));
+    if (blq.length > 5) cj.appendChild(h('div', { style: 'margin-top:4px;font-size:13px' }, '…y ' + (blq.length - 5) + ' intentos más (ver el control de cambios).'));
+    top.appendChild(cj);
+  }
   const mp = (TR.maquinas || []).filter(x => x.pv);
   if (mp.length) top.appendChild(h('button', { class: 'trav', onclick: () => { TRTAB = 'geo'; pintarTr(); } }, '🏗️ ' + mp.length + (mp.length === 1 ? ' máquina nueva por validar: ' : ' máquinas nuevas por validar: ') + mp.slice(0, 3).map(x => x.n).join(', ') + (mp.length > 3 ? '…' : '')));
   const dp = (TR.dist || []).filter(x => x.pv);
@@ -914,7 +968,7 @@ function pintarTr() {
       h('button', { onclick: () => validarDist(x) }, 'Validar / corregir'))));
     top.appendChild(cj);
   }
-  if (!pend.length && !conAl.length && !sinRec.length && !dp.length && !mp.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
+  if (!pend.length && !conAl.length && !sinRec.length && !dp.length && !mp.length && !dupA.length && !blq.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
   navTr();
   const c = $('trBody'); c.textContent = '';
   ({ viajes: vistaViajes, albaran: vistaAlb, sosp: vistaSosp, resumen: vistaRes, mapa: vistaMapa, volquetas: vistaVol, geo: vistaGeo, planillas: vistaPlan })[TRTAB](c);
@@ -1365,18 +1419,19 @@ function datos(k, usarTab) {
 }
 function consolidado() {
   const tb = $('tabs'); tb.textContent = '';
-  Object.keys(DEF).forEach(k => tb.appendChild(h('button', { class: k === tab ? 'on' : '', onclick: () => { tab = k; SORT = { k: -1, d: 1 }; ESP = ''; consolidado(); } }, DEF[k].nombre + ' (' + (k === 'RESUMEN' ? resumen().length : base(k).length) + ')')));
+  const ICO = { ACTIVIDAD: '🏗️', PERSONAL: '👷', MAQUINA: '🚜', MATERIAL: '🧱', SOLICITUD: '📝', RESUMEN: '📊' };
+  Object.keys(DEF).forEach(k => tb.appendChild(h('button', { class: 'cTile' + (k === tab ? ' on' : ''), onclick: () => { tab = k; SORT = { k: -1, d: 1 }; ESP = ''; consolidado(); } }, h('span', { class: 'ic' }, ICO[k] || '📄'), h('b', {}, DEF[k].nombre), h('span', { class: 'n' }, String(k === 'RESUMEN' ? resumen().length : base(k).length)))));
   const d = DEF[tab], esRes = tab === 'RESUMEN';
   $('fEstW').hidden = esRes; $('fCCW').hidden = esRes || !D[tab].some(r => r.c_costo);
   if (!esRes) { $('fEstL').textContent = d.est[0]; llenarOpts('fEst', 'Todos', uniq(D[tab].map(r => String(r[d.est[1]])))); llenarOpts('fCC', 'Todos', uniq(D[tab].map(r => r.c_costo))); }
   const dt = datos(tab, true), t = $('tCon'); t.textContent = '';
   t.appendChild(h('thead', {}, h('tr', {}, dt.cols.map((c, i) => h('th', { class: 's', onclick: () => { SORT = { k: i, d: SORT.k === i ? -SORT.d : 1 }; consolidado(); } }, c + (SORT.k === i ? (SORT.d > 0 ? ' ▲' : ' ▼') : ''))))));
   const b = h('tbody');
-  dt.rows.slice(0, 1500).forEach(r => b.appendChild(h('tr', {}, r.map((v, i) => h('td', { class: /Observ|Detalle|Actividad$|Ítem|Llaves/.test(dt.cols[i]) ? 'w' : '' }, v)))));
-  if (!dt.rows.length) b.appendChild(h('tr', {}, h('td', { colspan: dt.cols.length }, 'Sin datos con estos filtros')));
+  dt.rows.slice(0, 1500).forEach(r => b.appendChild(h('tr', {}, r.map((v, i) => { const col = dt.cols[i], est = /^Estado$/.test(col) && v !== ''; return h('td', { class: /Observ|Detalle|Actividad$|Ítem|Llaves/.test(col) ? 'w' : '' }, est ? h('span', { class: 'chipE' + (/AUSENTE|NO ESTUVO|NO USADO|VAR/i.test(String(v)) ? ' mal' : '') }, v) : v); }))));
+  if (!dt.rows.length) b.appendChild(h('tr', {}, h('td', { colspan: dt.cols.length, class: 'conVacio' }, '📭 No hay nada para mostrar con estos filtros')));
   t.appendChild(b);
   const ih = dt.cols.indexOf('Horas');
-  let tot = dt.rows.length + ' filas';
+  let tot = '📋 ' + dt.rows.length + (dt.rows.length === 1 ? ' fila' : ' filas');
   if (ih >= 0) tot += ' · ' + (Math.round(dt.rows.reduce((a, r) => a + (Number(r[ih]) || 0), 0) * 100) / 100) + ' horas';
   if (ESP) tot += ' · filtro activo: ' + (ESP === 'var' ? 'máquinas varadas / que no estuvieron' : 'ausencias') + ' (usa "Limpiar filtros" para quitarlo)';
   if (dt.rows.length > 1500) tot += ' · se muestran 1500; la descarga trae todo';
