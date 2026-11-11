@@ -114,6 +114,11 @@ button.chipm{cursor:pointer;font:inherit}
 .conTabla .chipE{display:inline-block;padding:2px 10px;border-radius:999px;font-weight:700;font-size:13px;background:#e3f3e6;color:#1b5e20}
 .conTabla .chipE.mal{background:#fde7e5;color:#b3261e}
 .conVacio{text-align:center;padding:26px 10px;font-size:18px;color:var(--mut)}
+@keyframes pulsoDup{0%,100%{box-shadow:0 0 0 0 rgba(179,38,30,.55)}50%{box-shadow:0 0 0 10px rgba(179,38,30,0)}}
+.alertaDup{background:#b3261e;color:#fff;border:3px solid #7f1d17;border-radius:12px;padding:14px;margin:10px 0;font-size:16px;animation:pulsoDup 1.6s infinite}
+.alertaDupT{font-size:22px;font-weight:800;margin-bottom:6px}
+.alertaDupB{margin-top:10px;background:#fff;color:#b3261e;border:0;font-weight:800;font-size:17px;padding:12px 18px;border-radius:10px}
+.tabBadge{background:#b3261e;color:#fff;border-radius:999px;padding:1px 8px;margin-left:6px;font-size:13px;font-weight:800}
 </style>
 <link rel="manifest" href="manifest-admin.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -272,7 +277,8 @@ let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] ===
 const TR_TABS = [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
-  TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; selSet('tr', k); if (TR) pintarTr(); else navTr(); } }, t)));
+  const nDup = TR && TR.repetidos ? sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev).length : 0;
+  TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; selSet('tr', k); if (TR) pintarTr(); else navTr(); } }, t, k === 'sosp' && nDup ? h('span', { class: 'tabBadge' }, '🚨 ' + nDup) : null)));
 }
 function modulo(m) {
   if (m === 'acero' && !(D && D.acero)) m = 'resumen';
@@ -346,8 +352,7 @@ async function marcarRev(x, estado) {
 function sospechosos() {
   const V = TR.viajes, S = [], hoy = TR.hoy;
   const add = (tipo, msg, vs) => { const clave = claveSosp(tipo, vs), r = (TR.revisados || []).find(x => x.clave === clave); S.push({ tipo, msg, vs, clave, rev: r || null }); };
-  const porVal = {}; V.forEach(v => { if (v.n_valera) { const k = v.n_valera.toUpperCase() + '|' + v.valera_de; (porVal[k] = porVal[k] || []).push(v); } });
-  Object.keys(porVal).forEach(k => { if (porVal[k].length > 1) add('Albarán repetido', 'La valera N° ' + porVal[k][0].n_valera + ' (' + (porVal[k][0].valera_de || '—') + ') está en ' + porVal[k].length + ' viajes', porVal[k]); });
+  (TR.repetidos || []).forEach(g => add('Albarán repetido', 'El albarán N° ' + g.n_valera + ' (' + (g.valera_de || '—') + ') está en ' + g.viajes.length + ' viajes', g.viajes));
   V.forEach(v => { const qa = Number(v.vol_albaran) || 0, qc = Number(v.cant) || 0; if (qa > 0 && qc > 0 && Math.abs(qa - qc) / qc > 0.10) add('Albarán ≠ confirmado', v.placa + ' el ' + fmtF(v.fecha) + ': albarán ' + nf1(qa) + ' m³ vs confirmado ' + nf1(qc) + ' m³ (' + (qa > qc ? '+' : '') + Math.round((qa - qc) / qc * 100) + ' %)', [v]); });
   const pd = {}; V.forEach(v => { const k = v.placa + '|' + v.fecha; (pd[k] = pd[k] || []).push(v); });
   Object.keys(pd).forEach(k => {
@@ -373,10 +378,48 @@ function sospechosos() {
   V.forEach(v => { const uf = ufs.find(u => String(u.uf) === String(v.uf)), si = sit.find(x => x.n.toUpperCase() === String(sitioDe(v)).toUpperCase()); if (uf && si && uf.lat !== '' && si.lat !== '' && si.lat !== undefined && Number(v.km) > 0) { const est = kmLinea(uf, si) * 1.3; if (Number(v.km) > est * 1.8 + 2 || Number(v.km) < est * 0.4 - 2) add('Distancia vs UF', v.placa + ': declaró ' + nf1(v.km) + ' km; UF ' + v.uf + ' → ' + v.destino + ' ≈ ' + nf1(est) + ' km', [v]); } });
   return S;
 }
+function formAnular(v, pan) {
+  pan.textContent = '';
+  const mot = h('input', { placeholder: 'Motivo de la anulación (obligatorio)', style: 'width:100%' }), msg = h('div', { class: 'small', style: 'color:#b3261e;margin-top:6px' });
+  const ok = h('button', { style: 'background:#b3261e;color:#fff;border:0', onclick: async () => {
+    if (mot.value.trim().length < 3) { msg.textContent = 'Escribe el motivo.'; return; }
+    ok.disabled = true; msg.textContent = 'Anulando…';
+    try { const r = await api({ accion: 'admin_tr_anular', llave: LLAVE, cod: v.cod, motivo: mot.value.trim() }); if (!r.ok) { msg.textContent = r.mensaje || 'No se pudo anular'; ok.disabled = false; return; } await recargaTr(); }
+    catch (e) { msg.textContent = 'No se pudo conectar. Intenta de nuevo.'; ok.disabled = false; }
+  } }, 'Sí, anular este viaje');
+  pan.appendChild(h('div', { style: 'border:2px solid #b3261e;border-radius:8px;padding:10px;background:#fff5f4;margin-top:8px' }, h('b', {}, '🚫 Anular viaje ' + v.cod),
+    h('div', { class: 'small', style: 'margin:6px 0' }, 'Deja de contar en viajes, m³ y reportes. Se conserva con sus fotos y el motivo, y se puede restaurar.'), mot,
+    h('div', { class: 'acc', style: 'margin-top:8px' }, ok, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cancelar')), msg));
+}
+async function recargaTr() {
+  try { const r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (r.ok) { TR = r; pintarTr(); } else alert(r.mensaje || 'No se pudo actualizar'); } catch (e) { alert('No se pudo conectar.'); }
+}
+function cardRepetido(x) {
+  const caja = h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4' },
+    h('div', { class: 'big', style: 'color:#b3261e' }, '🚨 Albarán N° ' + x.vs[0].n_valera + ' repetido en ' + x.vs.length + ' viajes'),
+    h('div', { class: 'small' }, 'Compara las fotos y decide cuál es el correcto. Si fue un error de digitación, edita el número; si el viaje está registrado dos veces, anula el que sobra.'));
+  x.vs.forEach(v => {
+    const pan = h('div', {});
+    caja.appendChild(h('div', { style: 'background:#fff;border:1px solid #e0b4b0;border-radius:8px;padding:8px;margin-top:8px' },
+      h('div', { class: 'big' }, v.placa + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '')),
+      h('div', { class: 'small' }, (v.conductor || '—') + ' · ' + (v.empresa || '') + ' · ' + (v.material || '—') + ' · ' + nf(v.vol_albaran) + ' m³ albarán · registró ' + v.usuario + ' · ' + v.cod),
+      h('div', { style: 'margin-top:4px' }, botonesFoto(v)),
+      h('div', { class: 'acc', style: 'margin-top:6px' }, h('button', { class: 'sec', onclick: () => formEditAlb(v, 0, pan) }, '✏️ Editar número'), h('button', { class: 'sec', style: 'color:#b3261e;border-color:#b3261e', onclick: () => formAnular(v, pan) }, '🚫 Anular este viaje')), pan));
+  });
+  caja.appendChild(h('div', { class: 'acc', style: 'margin-top:10px' }, h('button', { class: 'sec', onclick: () => marcarRev(x, 'revisar') }, '✔ Son viajes distintos, dejar así')));
+  return caja;
+}
 function vistaSosp(c) {
   const todos = sospechosos(), S = todos.filter(x => !x.rev), R = todos.filter(x => x.rev), tipos = Array.from(new Set(S.map(x => x.tipo))).sort();
   c.appendChild(h('div', { class: 'small' }, 'Revisa casos raros con los datos del formulario. Cuando ya lo verificaste, marca la casilla «Ya lo revisé» y deja de salir como sospechoso.'));
-  c.appendChild(chips([['', 'Pendientes (' + S.length + ')']].concat(tipos.map(t => [t, t + ' (' + S.filter(x => x.tipo === t).length + ')'])).concat([['__rev', '✔ Revisados (' + R.length + ')']]), TRSOSP, k => { TRSOSP = k; pintarTr(); }));
+  c.appendChild(chips([['', 'Pendientes (' + S.length + ')']].concat(tipos.map(t => [t, t + ' (' + S.filter(x => x.tipo === t).length + ')'])).concat([['__rev', '✔ Revisados (' + R.length + ')'], ['__anu', '🚫 Anulados (' + (TR.anulados || []).length + ')']]), TRSOSP, k => { TRSOSP = k; pintarTr(); }));
+  if (TRSOSP === '__anu') {
+    (TR.anulados || []).forEach(v => c.appendChild(h('div', { class: 'tcard', style: 'border-left:6px solid #b3261e;background:#faf3f2' }, h('div', { class: 'big' }, '🚫 ' + v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha)),
+      h('div', { class: 'small' }, v.cod + ' · ' + (v.material || '—') + ' · registró ' + v.usuario), h('div', { class: 'small' }, v.anulado ? 'Anulado por ' + v.anulado.por + ' · ' + fmtTs(v.anulado.ts) + ' · Motivo: ' + v.anulado.motivo : ''),
+      h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: async () => { const r = await api({ accion: 'admin_tr_anular', llave: LLAVE, cod: v.cod, restaurar: true }); if (!r.ok) { alert(r.mensaje || 'No se pudo restaurar'); return; } await recargaTr(); } }, '↩ Restaurar viaje')))));
+    if (!(TR.anulados || []).length) c.appendChild(h('div', { class: 'small' }, 'No hay viajes anulados en estas fechas.'));
+    return;
+  }
   if (TRSOSP === '__rev') {
     R.slice(0, 150).forEach(x => c.appendChild(h('div', { class: 'tcard', style: 'border-left:6px solid #2e7d32;background:#f3faf3' }, h('div', { class: 'big' }, '✔ ' + x.tipo), h('div', {}, x.msg),
       h('div', { class: 'small' }, 'Revisado por ' + x.rev.por + ' · ' + fmtTs(x.rev.ts) + (x.rev.nota ? ' · ' + x.rev.nota : '')),
@@ -386,6 +429,7 @@ function vistaSosp(c) {
   }
   const L = S.filter(x => !TRSOSP || x.tipo === TRSOSP);
   L.slice(0, 120).forEach(x => {
+    if (x.tipo === 'Albarán repetido') { c.appendChild(cardRepetido(x)); return; }
     const cb = h('input', { type: 'checkbox', style: 'width:26px;height:26px;margin:0' });
     cb.onchange = () => { cb.disabled = true; marcarRev(x, 'revisar'); };
     c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '⚠️ ' + x.tipo), h('div', {}, x.msg),
@@ -420,6 +464,7 @@ function pintaAlb() {
       h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + (v.material || '—') + ' · ' + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—')),
       h('div', { class: 'small' }, (Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) : '—') + ' m³ albarán · ' + nf(v.cant) + ' m³ confirmado' + (pctV(v) !== null ? ' (' + pctV(v) + ' % de la tolva)' : '') + ' · ' + v.cod + ' · ' + v.usuario),
       alV(v) ? h('div', { class: 'alt' }, '⚠️ ' + alV(v)) : null,
+      v.estado === 'ANULADO' ? h('div', { class: 'alt', style: 'background:#b3261e;color:#fff' }, '🚫 VIAJE ANULADO' + (v.anulado && v.anulado.motivo ? ' · ' + (v.anulado.por || '') + ' · ' + v.anulado.motivo : '')) : null,
       fo));
     // las fotos del albarán se muestran de una vez (primeros 3 resultados)
     if (v.nr && i < 3) {
@@ -431,7 +476,8 @@ function pintaAlb() {
     const pan = h('div', { class: 'edAlb', style: 'margin-top:8px' });
     fo.appendChild(h('div', { class: 'acc', style: 'margin-top:8px' },
       h('button', { class: 'sec', onclick: () => formEditAlb(v, i, pan) }, '✏️ Editar'),
-      h('button', { class: 'sec', onclick: () => histAlb(v, pan) }, '🕘 Historial')));
+      h('button', { class: 'sec', onclick: () => histAlb(v, pan) }, '🕘 Historial'),
+      v.estado === 'ANULADO' ? h('button', { onclick: async () => { const r = await api({ accion: 'admin_tr_anular', llave: LLAVE, cod: v.cod, restaurar: true }); if (!r.ok) { alert(r.mensaje || 'No se pudo restaurar'); return; } await recargaTr(); buscarAlb(); } }, '↩ Restaurar') : h('button', { class: 'sec', style: 'color:#b3261e;border-color:#b3261e', onclick: () => formAnular(v, pan) }, '🚫 Anular')));
     fo.appendChild(pan);
   });
 }
@@ -439,7 +485,7 @@ function cierraTr(cod, nuevo) {
   /* eliminar no existe en el Dashboard: solo se edita */
   if (ALB.r) { const k = ALB.r.viajes.findIndex(x => x.cod === cod); if (k >= 0) { if (nuevo) ALB.r.viajes[k] = Object.assign({}, ALB.r.viajes[k], nuevo); else { ALB.r.viajes.splice(k, 1); ALB.r.total = Math.max(0, (ALB.r.total || 1) - 1); } } }
   if (TR && TR.viajes) { const k = TR.viajes.findIndex(x => x.cod === cod); if (k >= 0) { if (nuevo) TR.viajes[k] = Object.assign({}, TR.viajes[k], nuevo); else TR.viajes.splice(k, 1); } }
-  pintaAlb();
+  if (TRTAB === 'sosp') recargaTr(); else pintaAlb();
 }
 function formEditAlb(v, i, pan) {
   pan.textContent = '';
@@ -802,7 +848,7 @@ async function xlsxCambios() {
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     const wb = new ExcelJS.Workbook(); wb.creator = 'Carlos Eduardo Bermúdez Castro'; wb.created = new Date();
     const VERDE = 'FF1B5E20', BORDE = { style: 'thin', color: { argb: 'FFB0BEC5' } }, B4 = { top: BORDE, left: BORDE, bottom: BORDE, right: BORDE };
-    const COL = { CREADO: 'FF2E7D32', MODIFICADO: 'FFEF6C00', ELIMINADO: 'FFC62828', 'FOTO ALBARÁN': 'FF0277BD', 'AJUSTE ADMIN': 'FF6A1B9A', 'MODIFICADO (ADMIN)': 'FFEF6C00', 'REVISADO (ADMIN)': 'FF2E7D32', 'REVISIÓN QUITADA': 'FFEF6C00', 'ALBARÁN REPETIDO (BLOQUEADO)': 'FFC62828', 'ELIMINADO (ADMIN)': 'FFC62828', VALIDADA: 'FF00838F' };
+    const COL = { CREADO: 'FF2E7D32', MODIFICADO: 'FFEF6C00', ELIMINADO: 'FFC62828', 'FOTO ALBARÁN': 'FF0277BD', 'AJUSTE ADMIN': 'FF6A1B9A', 'MODIFICADO (ADMIN)': 'FFEF6C00', 'ANULADO (ADMIN)': 'FFC62828', 'RESTAURADO (ADMIN)': 'FF2E7D32', 'REVISADO (ADMIN)': 'FF2E7D32', 'REVISIÓN QUITADA': 'FFEF6C00', 'ALBARÁN REPETIDO (BLOQUEADO)': 'FFC62828', 'ELIMINADO (ADMIN)': 'FFC62828', VALIDADA: 'FF00838F' };
     const ws = wb.addWorksheet('Control de cambios', { views: [{ state: 'frozen', ySplit: 4 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
     const H = [['Fecha y hora', 17], ['Vale / elemento', 30], ['Acción', 15], ['Usuario', 22], ['Llave', 12], ['Placa', 10], ['Fecha del viaje', 13], ['Detalle (antes → después)', 90]];
     ws.columns = H.map(x => ({ width: x[1] }));
@@ -952,9 +998,11 @@ function pintarTr() {
     aviso(sinRec.length, 'sin albarán', () => { TRFIL = 'sinrec'; TRTAB = 'viajes'; pintarTr(); })].filter(Boolean));
   const dupA = sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev), blq = TR.dup_bloqueados || [];
   if (dupA.length || blq.length) {
-    const cj = h('div', { class: 'trav', style: 'display:block;text-align:left;background:#b3261e;color:#fff;border-color:#7f1d17' }, h('b', {}, '🚨 ALBARÁN REPETIDO'));
-    if (dupA.length) cj.appendChild(h('div', { style: 'margin-top:6px' }, dupA.length + (dupA.length === 1 ? ' albarán está' : ' albaranes están') + ' en más de un viaje: ' + dupA.slice(0, 3).map(x => '#' + x.vs[0].n_valera).join(', '),
-      h('button', { style: 'margin-left:8px', onclick: () => { TRSOSP = 'Albarán repetido'; TRTAB = 'sosp'; pintarTr(); } }, 'Ver y revisar')));
+    const cj = h('div', { class: 'alertaDup' }, h('div', { class: 'alertaDupT' }, dupA.length ? '🚨 HAY ' + dupA.length + (dupA.length === 1 ? ' ALBARÁN REPETIDO' : ' ALBARANES REPETIDOS') : '🚫 SE BLOQUEARON INTENTOS DE REPETIR UN ALBARÁN'));
+    if (dupA.length) {
+      cj.appendChild(h('div', {}, 'Revisados todos tus registros (no solo este rango): ' + dupA.slice(0, 6).map(x => 'N° ' + x.vs[0].n_valera + ' (' + x.vs.length + ' viajes)').join(' · ') + (dupA.length > 6 ? ' …' : '')));
+      cj.appendChild(h('button', { class: 'alertaDupB', onclick: () => { TRSOSP = 'Albarán repetido'; TRTAB = 'sosp'; selSet('tr', 'sosp'); pintarTr(); } }, 'Revisar ahora'));
+    }
     blq.slice(0, 5).forEach(x => cj.appendChild(h('div', { style: 'margin-top:6px;font-size:14px' }, '🚫 Bloqueado ' + fmtTs(x.ts) + ' · ' + (x.usuario || '—') + ' · ' + x.placa + ' — ' + x.detalle)));
     if (blq.length > 5) cj.appendChild(h('div', { style: 'margin-top:4px;font-size:13px' }, '…y ' + (blq.length - 5) + ' intentos más (ver el control de cambios).'));
     top.appendChild(cj);
