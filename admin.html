@@ -1501,10 +1501,11 @@ function consolidado() {
   $('fEstW').hidden = esRes; $('fCCW').hidden = esRes || !D[tab].some(r => r.c_costo);
   if (!esRes) { $('fEstL').textContent = d.est[0]; llenarOpts('fEst', 'Todos', uniq(D[tab].map(r => String(r[d.est[1]])))); llenarOpts('fCC', 'Todos', uniq(D[tab].map(r => r.c_costo))); }
   const dt = datos(tab, true), t = $('tCon'); t.textContent = '';
-  t.appendChild(h('thead', {}, h('tr', {}, dt.cols.map((c, i) => h('th', { class: 's', onclick: () => { SORT = { k: i, d: SORT.k === i ? -SORT.d : 1 }; consolidado(); } }, c + (SORT.k === i ? (SORT.d > 0 ? ' ▲' : ' ▼') : ''))))));
+  const oculta = c => c === 'Llave' || c === 'Código';
+  t.appendChild(h('thead', {}, h('tr', {}, dt.cols.map((c, i) => oculta(c) ? null : h('th', { class: 's', onclick: () => { SORT = { k: i, d: SORT.k === i ? -SORT.d : 1 }; consolidado(); } }, c + (SORT.k === i ? (SORT.d > 0 ? ' ▲' : ' ▼') : ''))))));
   const b = h('tbody');
-  dt.rows.slice(0, 1500).forEach(r => b.appendChild(h('tr', {}, r.map((v, i) => { const col = dt.cols[i], est = /^Estado$/.test(col) && v !== ''; return h('td', { class: /Observ|Detalle|Actividad$|Ítem|Llaves/.test(col) ? 'w' : '' }, est ? h('span', { class: 'chipE' + (/AUSENTE|NO ESTUVO|NO USADO|VAR/i.test(String(v)) ? ' mal' : '') }, v) : v); }))));
-  if (!dt.rows.length) b.appendChild(h('tr', {}, h('td', { colspan: dt.cols.length, class: 'conVacio' }, '📭 No hay nada para mostrar con estos filtros')));
+  dt.rows.slice(0, 1500).forEach(r => b.appendChild(h('tr', {}, r.map((v, i) => { const col = dt.cols[i]; if (oculta(col)) return null; const est = /^Estado$/.test(col) && v !== ''; return h('td', { class: /Observ|Detalle|Actividad$|Ítem|Llaves/.test(col) ? 'w' : '' }, est ? h('span', { class: 'chipE' + (/AUSENTE|NO ESTUVO|NO USADO|VAR/i.test(String(v)) ? ' mal' : '') }, v) : v); }))));
+  if (!dt.rows.length) b.appendChild(h('tr', {}, h('td', { colspan: dt.cols.filter(c => !oculta(c)).length, class: 'conVacio' }, '📭 No hay nada para mostrar con estos filtros')));
   t.appendChild(b);
   const ih = dt.cols.indexOf('Horas');
   let tot = '📋 ' + dt.rows.length + (dt.rows.length === 1 ? ' fila' : ' filas');
