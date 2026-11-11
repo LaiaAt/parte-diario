@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Dashboard</title>
@@ -119,6 +119,34 @@ button.chipm{cursor:pointer;font:inherit}
 .alertaDupT{font-size:22px;font-weight:800;margin-bottom:6px}
 .alertaDupB{margin-top:10px;background:#fff;color:#b3261e;border:0;font-weight:800;font-size:17px;padding:12px 18px;border-radius:10px}
 .tabBadge{background:#b3261e;color:#fff;border-radius:999px;padding:1px 8px;margin-left:6px;font-size:13px;font-weight:800}
+/* Celular: todo cabe en el ancho de la pantalla, sin zoom ni desplazamiento lateral de la página */
+html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%;touch-action:pan-x pan-y}
+input,select,textarea{font-size:16px}
+main,.card,section,.row>*,.buscar>*{min-width:0}
+.card{max-width:100%}.tw{max-width:100%;-webkit-overflow-scrolling:touch}
+img,svg,canvas{max-width:100%}
+@media (max-width:700px){
+  main{padding:8px 10px 40px}
+  .card{padding:10px;margin:10px 0}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end}
+  .row>div{min-width:0!important;width:100%}
+  .row>button,.row>span{grid-column:1/-1;width:100%}
+  .row select,.row input{width:100%;max-width:100%}
+  #panel>.card:first-child .row>div:first-child{grid-column:1/-1}
+  .buscar{flex-wrap:wrap}.buscar>input{flex:1 1 100%!important}.buscar>span{flex:1 1 45%}.buscar>span select{flex:1;min-width:0}.buscar>button{flex:1 1 40%}
+  .conFiltros .row{grid-template-columns:1fr}
+  .conBusca{flex-wrap:wrap}.conBusca input{flex:1 1 100%}
+  .conBajar button{flex:1 1 100%}
+  .conTiles{grid-template-columns:1fr 1fr}
+  .gal{grid-template-columns:1fr 1fr;gap:8px}
+  .ft img{height:110px}
+  .kpis{grid-template-columns:1fr 1fr}.kpi b{font-size:24px}
+  .conTabla{font-size:14px}.tw{max-height:60vh}
+  .tcard .acc{flex-wrap:wrap}.tcard .acc button{flex:1 1 45%;padding:12px 8px;font-size:16px}
+  .trtabs{grid-template-columns:1fr 1fr}
+  .alertaDupT{font-size:19px}
+  header{padding:8px 10px}header b{font-size:16px}
+}
 </style>
 <link rel="manifest" href="manifest-admin.json">
 <link rel="apple-touch-icon" href="icon-192.png">
