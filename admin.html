@@ -759,6 +759,34 @@ function viajesTr() {
   return TR.viajes.filter(v => (!TRFIL || (TRFIL === 'alerta' ? alV(v) : !v.tiene_recibo && v.fecha < TR.hoy))
     && (!q || [v.cod, v.placa, v.conductor, v.empresa, v.material, v.origen, v.destino, v.alertas, v.usuario, v.n_valera, ufTxt(v)].join(' ').toUpperCase().indexOf(q) >= 0));
 }
+// N° de reporte del viaje = su número dentro del parte del día (por fecha de reporte y usuario); el que asignó la app, o el orden de registro
+function repNum(v) {
+  if (Number(v.consec) > 0) return Number(v.consec);
+  if (!TR._rep) {
+    const G = {}, M = {};
+    TR.viajes.concat(TR.reportes_extra || []).forEach(x => { if (Number(x.consec) > 0) return; (G[(x.fecha_reporte || x.fecha) + '|' + (x.llave || x.usuario)] = G[(x.fecha_reporte || x.fecha) + '|' + (x.llave || x.usuario)] || []).push(x); });
+    Object.keys(G).forEach(k => G[k].sort((a, b) => String(a.creado || a.registrado || '').localeCompare(String(b.creado || b.registrado || '')) || String(a.hora_salida || '').localeCompare(String(b.hora_salida || ''))).forEach((x, n) => { M[x.cod] = n + 1; }));
+    TR._rep = M;
+  }
+  return TR._rep[v.cod] || '';
+}
+function cardViaje(v) {
+  const p = pctV(v), vol = Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) + ' m³' : '— m³', rn = repNum(v), al = alV(v);
+  const chip = (t, est) => h('span', { style: 'display:inline-block;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;margin:0 6px 4px 0;' + (est || 'background:#eceff1;color:#263238') }, t);
+  return h('div', { class: 'tcard' + (al ? ' warn' : ''), style: 'padding:14px' },
+    h('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' },
+      h('div', { style: 'font-size:22px;font-weight:800;letter-spacing:.5px' }, v.placa),
+      h('div', { style: 'font-size:13px;font-weight:800;color:#fff;background:#0d3b66;border-radius:8px;padding:4px 10px' }, rn ? 'REPORTE ' + rn : 'REPORTE —')),
+    h('div', { style: 'margin:6px 0 4px' }, chip(vol, 'background:#e3f2e5;color:#1b5e20'), p !== null ? chip(p + ' %', p < 70 ? 'background:#fde7b0;color:#6b4a00' : '') : null, chip(v.mov === 'RECIBE' ? '📥 Recibe' : '📤 Entrega'), chip(v.material || '—')),
+    h('div', { style: 'font-size:15px;font-weight:600;margin:2px 0' }, (v.origen || '—') + ' → ' + (v.destino || '—')),
+    h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.conductor || 'Sin conductor') + ' · Albarán ' + (v.n_valera || '—')),
+    al ? h('div', { class: 'alt', style: 'font-size:14px' }, '⚠️ ' + al) : null,
+    h('div', { style: 'margin-top:8px' }, botonesFoto(v)),
+    h('details', { style: 'margin-top:6px' }, h('summary', { style: 'font-size:13px;font-weight:600;color:var(--mut);padding:2px 0' }, 'Más datos'),
+      h('div', { class: 'small' }, ufTxt(v) + (v.km ? ' · ' + nf(v.km) + ' km' : '') + ' · ' + v.cod + (v.empresa ? ' · ' + v.empresa : '')),
+      tieneGps(v) ? h('div', { class: 'small' }, h('a', { href: mapaUrl(v), target: '_blank', rel: 'noopener' }, '📍 Ver origen en el mapa')) : null,
+      h('div', { class: 'small' }, '🕒 Registró ' + (v.creado_por || '—') + ' · ' + fmtTs(v.creado || v.registrado) + (v.modificado && v.modificado !== v.creado ? ' · modificado ' + fmtTs(v.modificado) : ''))));
+}
 function vistaViajes(c) {
   const lista = h('div', {});
   const bus = h('input', { type: 'search', placeholder: '🔍 Buscar placa, material, destino, valera…', value: TRQ });
@@ -767,15 +795,7 @@ function vistaViajes(c) {
     h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px' }, h('button', { class: 'sec', onclick: csvTr }, '⬇ CSV'), h('button', { onclick: xlsxTr, id: 'btnXlsxTr' }, '⬇ Excel con fotos'), h('button', { class: 'sec', onclick: xlsxCambios, id: 'btnCamb' }, '⬇ Control de cambios (Excel)'), h('button', { class: 'sec', onclick: zipAlbaranes, id: 'btnZip' }, '🖼️ Fotos de albaranes (ZIP)')), h('div', { id: 'xlsxMsg', class: 'small', style: 'margin:0 0 6px' }), lista);
   function pintaLista() {
     const L = viajesTr(); lista.textContent = '';
-    L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (alV(v) ? ' warn' : '') },
-      h('div', { class: 'big' }, v.placa, ' · ', (Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) : '—') + ' alb. · ' + nf(v.cant) + ' conf. m³', pctV(v) !== null ? h('span', { class: 'tag' + (pctV(v) < 70 ? ' w' : '') }, pctV(v) + ' %') : null),
-      h('div', {}, v.material || '—'),
-      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + (v.km ? ' · ' + nf(v.km) + ' km' : '')),
-      h('div', { class: 'small' }, (v.conductor || '') + ' · valera ' + (v.n_valera || '—') + ' · ' + v.cod),
-      tieneGps(v) ? h('div', { class: 'small' }, h('a', { href: mapaUrl(v), target: '_blank', rel: 'noopener' }, '📍 Ver origen en el mapa')) : null,
-      alV(v) ? h('div', { class: 'alt' }, '⚠️ ' + alV(v)) : null,
-      h('div', { class: 'small', style: 'margin-top:4px' }, '🕒 Creado por ' + (v.creado_por || '—') + ' el ' + fmtTs(v.creado || v.registrado) + (v.modificado && v.modificado !== v.creado ? ' · Última modificación ' + fmtTs(v.modificado) : '')),
-      h('div', { style: 'margin-top:6px' }, botonesFoto(v)))));
+    L.slice(0, 300).forEach(v => lista.appendChild(cardViaje(v)));
     if (!L.length) lista.appendChild(h('div', { class: 'trok' }, 'No hay viajes'));
     if (L.length > 300) lista.appendChild(h('div', { class: 'small' }, 'Se muestran 300 de ' + L.length + '. Usa la búsqueda o descarga el CSV.'));
   }
