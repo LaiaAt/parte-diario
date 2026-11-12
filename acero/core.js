@@ -11,6 +11,7 @@
 
   // ---------- Pesos teóricos (kg/m) — los que usa Paz del Río (NTC 2289) ----------
   const PESOS = {
+    'ALAMBRE': 1,
     '1/4': 0.249, '3/8': 0.560, '1/2': 0.994, '5/8': 1.552, '3/4': 2.235,
     '7/8': 3.042, '1': 3.973, '1-1/8': 5.060, '1-1/4': 6.404,
     'D4.0': 0.099, 'D4.5': 0.125, 'D5.0': 0.154, 'D5.5': 0.187, 'D6.0': 0.222,
@@ -71,7 +72,7 @@
     return cells;
   }
 
-  const RE_MARCA = /^\d+[a-z]?(?:\.\d+)?$/;
+  const RE_MARCA = /^[A-Za-z]{0,3}\d+[a-z]?(?:\.\d+)?$/;
   const RE_RECTA = /^(\d+)\s+"([^"]+)"\s+([0-9.]+)\s*(.*)$/;
   const RE_PATA = /^(\d+)\s+P\s+"?([^"\s]+)"?\s+([\d.]+)\/(-?[\d.]+)\s+([\d.]+)X\s+([\d.]+)\/(-?[\d.]+)/;
   const RE_PFORMA = /^(\d+)\s+P\s+"?([^"\s]+?)(?:'')?"?\s+((?:-?[\d.]+X?\s*)+)$/;
@@ -147,7 +148,8 @@
         // Forma desconocida: el largo se estima automáticamente sumando todas las medidas de la forma
         // (se verifica después contra el peso total del DLI y se marca como estimado)
         const resto = dato.replace(/^\d+\s+/, '').replace(/"[^"]*"|\d[\d\/\-]*''/, ' ');
-        const nums = (resto.match(/\d*\.\d+|\d+/g) || []).map(Number).filter((x) => x > 0 && x < 100);
+        const resto2 = resto.replace(/(-?\d*\.?\d+)\/(-?\d*\.?\d+)/g, (_, a, b) => String(Math.hypot(+a, +b))); // a/b = diagonal
+        const nums = (resto2.match(/\d*\.\d+|\d+/g) || []).map(Number).filter((x) => x > 0 && x < 100);
         if (nums.length) { largo = r2(nums.reduce((t, x) => t + x, 0)); forma = 'Forma ' + resto.replace(/\s+/g, ' ').trim(); estimado = true; }
         else aviso = 'Forma no reconocida';
       }
@@ -161,7 +163,7 @@
     const errores = [];
     if (!rows.length) {
       const iT = cells.indexOf('Total'), fin = iT < 0 ? cells.length : iT;
-      const RE_G = /^(\d+)\s+(?:([CE])\s+)?"([^"]+)"\s+(.*)$/;
+      const RE_G = /^(\d+)\s+(?:([A-Z]{1,2})\s+)?"([^"]+)"\s+(.*)$/;
       let g0 = -1;
       for (let i = 0; i + 2 < fin; i++) {
         if (/^\s\d+$/.test(cells[i + 1]) && /[A-Za-z]/.test(cells[i]) && !/^\s*\d/.test(cells[i]) && RE_G.test(cells[i + 2].trim())) { g0 = i; break; }
@@ -172,6 +174,11 @@
         for (let k = 0; k < n && i + 2 + k < fin; k++) {
           const dato = cells[i + 2 + k].trim(), mm = RE_G.exec(dato);
           if (!mm) { errores.push('Fila no entendida en ' + grupo + ': ' + dato); continue; }
+          if (/^ALAM/i.test(mm[3])) { // alambre: se maneja por kilos (1 pieza = 1 kg)
+            const kgA = parseFloat(mm[4]) * (+mm[1] || 1);
+            if (kgA > 0) rows.push({ marca: 'ALAMBRE', cantidad: kgA, diametro: 'ALAMBRE', largo: 1, forma: 'Alambre negro (kg)', aviso: '', estimado: false, peso: 1 });
+            continue;
+          }
           const cant = +mm[1], tipo = mm[2] || '', diam = normDiam(mm[3]), resto = mm[4];
           let largo = null, forma = '', aviso = '', x;
           if (tipo === 'E' && (x = /^([\d.]*)\*([\d.]+)\s+G([\d.]+)/.exec(resto))) {
