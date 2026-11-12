@@ -879,7 +879,9 @@
     return lista.reduce(function (p, f) {
       return p.then(function () { return f.arrayBuffer(); }).then(function (buf) {
         var parsed = C.parseDLI(new Uint8Array(buf), f.name);
-        S.cargas.push({ parsed: parsed, pedido: '', llegada: hoyISO(), err: '' });
+        var bin = '', u8 = new Uint8Array(buf);
+        for (var k = 0; k < u8.length; k += 8192) bin += String.fromCharCode.apply(null, u8.subarray(k, k + 8192));
+        S.cargas.push({ parsed: parsed, b64: btoa(bin), pedido: '', llegada: hoyISO(), err: '' });
       }).catch(function () { toast('No se pudo leer ' + f.name); });
     }, Promise.resolve()).then(render);
   }
@@ -903,7 +905,7 @@
       if (rep) c.err = 'Este DLI ya fue cargado (' + p.nombre + ', pedido ' + rep.pedido + '). No se puede guardar de nuevo, ni con otro número de pedido.';
     }
     if (c.err) { render(); return; }
-    Api.cargarDLI(S.ses, p, c.pedido, c.llegada).then(function (r) {
+    Api.cargarDLI(S.ses, p, c.pedido, c.llegada, c.b64).then(function (r) {
       if (!r.ok) { c.err = /sin conexi/i.test(r.error || '') ? 'Sin señal: este DLI NO se ha cargado todavía. Se queda aquí en pantalla; cuando tengas señal vuelve a pulsar Guardar.' : r.error; render(); return; }
       S.cargas.splice(i, 1);
       toast('Cargado: pedido ' + String(c.pedido).trim() + ' · ' + p.nombre);
@@ -954,6 +956,19 @@
   function descargarDLI(loadId) {
     var p = null; S.estado.pedidos.forEach(function (x) { if (String(x.loadId) === String(loadId)) p = x; });
     if (!p) return;
+    if (p.archivoId && Api.remoto) {
+      toast('Preparando el archivo DLI…');
+      return Api.dliArchivo(S.ses, loadId).then(function (r) {
+        if (!r || !r.ok) { toast((r && r.error) || 'No se pudo bajar el archivo original'); return descargarDLICsv(p, loadId); }
+        var bin = atob(r.data), u8 = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([u8], { type: 'application/octet-stream' })); a.download = r.nombre || ('pedido_' + p.pedido + '.dli');
+        document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+      }).catch(function () { toast('Sin conexión: no se pudo bajar el DLI'); });
+    }
+    descargarDLICsv(p, loadId);
+  }
+  function descargarDLICsv(p, loadId) {
     var q = function (v) { v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     var num = function (n) { return String(n == null ? '' : n).replace('.', ','); };
     var f = [['Pedido', 'Estructura', 'Descripcion', 'Posicion', 'Diametro', 'Cantidad', 'Largo_m', 'Kg_unit', 'Kg_total']];

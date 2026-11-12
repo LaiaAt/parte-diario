@@ -84,7 +84,7 @@
       return post({ action: 'personal', pin: ses.pin, fecha: dia }).catch(function () { return { ok: false }; });
     },
 
-    cargarDLI: function (ses, parsed, pedido, llegada) {
+    cargarDLI: function (ses, parsed, pedido, llegada, b64) {
       pedido = String(pedido).trim();
       var loadId = uid('L');
       var fllega = /^\d{4}-\d\d-\d\d$/.test(llegada || '') ? llegada + 'T00:00:00' : ahora();
@@ -100,8 +100,12 @@
         return Promise.resolve({ ok: true });
       }
       return post({ action: 'cargarDLI', pin: ses.pin, usuario: ses.nombre, loadId: loadId, pedido: pedido, estructura: parsed.nombre,
-        descripcion: parsed.descripcion, proyecto: parsed.proyecto, archivo: parsed.archivo, fechaLlegada: llegada, entradas: entradas })
+        descripcion: parsed.descripcion, proyecto: parsed.proyecto, archivo: parsed.archivo, fechaLlegada: llegada, entradas: entradas, archivoB64: b64 || '' })
         .catch(function () { return { ok: false, error: 'Sin conexión: la carga de un DLI necesita internet' }; });
+    },
+
+    dliArchivo: function (ses, loadId) {
+      return post({ action: 'dliArchivo', pin: ses.pin, loadId: loadId }).catch(function () { return { ok: false, error: 'Sin conexión' }; });
     },
 
     salida: function (ses, d) {
