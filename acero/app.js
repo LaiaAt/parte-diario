@@ -812,17 +812,18 @@
   }
   function vCargar() {
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador puede cargar un DLI.</div>';
-    var h = '<div class="card"><h2>Cargar archivos DLI</h2><p class="mut" style="margin-top:0">Seleccione uno o varios .dli. Cada uno se registra con su número de pedido y suma al inventario las piezas con cantidad mayor que cero.</p>' +
-      '<label class="btn" for="dli-file">Elegir archivos .dli</label><input id="dli-file" type="file" accept=".dli" multiple style="display:none"></div>';
+    var h = '<div class="card"><h2>Cargar archivos DLI</h2><p class="mut" style="margin-top:0">Seleccione uno o varios .dli (o el PDF de la cartilla). Cada uno se registra con su número de pedido y suma al inventario las piezas con cantidad mayor que cero.</p>' +
+      '<label class="btn" for="dli-file">Elegir archivos .dli o PDF</label><input id="dli-file" type="file" accept=".dli,.pdf,application/pdf" multiple style="display:none"></div>';
     S.cargas.forEach(function (c, i) {
       var p = c.parsed, por = resumenDiam(p), ya = S.estado.pedidos.filter(function (x) { return x.estructura === p.nombre; });
       h += '<div class="card"><h3>' + esc(p.nombre) + (p.descripcion ? '<span class="tag">' + esc(p.descripcion) + '</span>' : '') + '</h3>' +
         '<div class="peq mut">' + esc(p.archivo) + ' · ' + p.rows.length + ' filas · ' + n0(p.totalPiezas) + ' piezas · ' + kg(p.totalKg) + ' kg</div>';
       p.avisos.forEach(function (a) { h += '<div class="aviso">⚠ ' + esc(a) + '</div>'; });
+      if (c.pedirPdf) h += '<div class="error"><b>No pude leer este DLI con seguridad.</b> Para no equivocarnos, seleccione el <b>PDF de la cartilla</b> (el listado, sin -General ni -Resumen).<div style="margin-top:8px"><label class="btn" for="pdf-' + i + '">Elegir el PDF de la cartilla</label><input id="pdf-' + i + '" data-pdfpara="' + i + '" type="file" accept=".pdf,application/pdf" style="display:none"></div></div>';
       if (ya.length) h += '<div class="error"><b>🚫 Este DLI ya fue cargado</b> (pedido ' + ya.map(function (x) { return esc(x.pedido); }).join(', ') + '). No se puede guardar de nuevo, ni con otro número de pedido.</div>';
       h += '<div class="tw"><table><thead><tr><th>Diámetro</th><th class="n">Piezas</th><th class="n">Kg</th></tr></thead><tbody>' +
         Object.keys(por).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); }).map(function (d) { return '<tr><td>' + esc(C.diamLabel(d)) + '</td><td class="n">' + n0(por[d].p) + '</td><td class="n">' + kg(por[d].kg) + '</td></tr>'; }).join('') + '</tbody></table></div>';
-      var pend = p.rows.map(function (r, j) { return { r: r, j: j }; }).filter(function (o) { return !o.r.largo; });
+      var pend = [];
       if (pend.length) {
         h += '<div class="aviso"><b>Falta el largo de ' + pend.length + ' marca(s).</b> Escríbalo para poder registrar:</div><div class="tw"><table><tbody>' +
           pend.map(function (o) { return '<tr><td>Marca ' + esc(o.r.marca) + '</td><td>' + esc(o.r.cantidad) + ' pzs · ' + esc(o.r.forma) + '</td><td class="n"><input class="mini" type="number" step="0.01" min="0" placeholder="m" data-largo="' + i + ':' + o.j + '"></td></tr>'; }).join('') + '</tbody></table></div>';
@@ -890,16 +891,49 @@
     }).catch(function () { S.enviando = false; });
   }
 
+  // pdf.js se carga solo cuando hace falta (el archivo queda guardado para uso sin señal)
+  function cargarPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    return new Promise(function (ok, no) {
+      var sc = document.createElement('script'); sc.src = 'vendor/pdf.min.js';
+      sc.onload = function () { try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js'; ok(window.pdfjsLib); } catch (e) { no(e); } };
+      sc.onerror = function () { no(new Error('sin pdf.js')); }; document.head.appendChild(sc);
+    });
+  }
+  function leerPdf(buf, nombre) {
+    return cargarPdfJs().then(function (lib) { return lib.getDocument({ data: new Uint8Array(buf.slice ? buf.slice(0) : buf) }).promise; }).then(function (doc) {
+      var pgs = [], seq = Promise.resolve();
+      for (var i = 1; i <= doc.numPages; i++) (function (n) { seq = seq.then(function () { return doc.getPage(n); }).then(function (pg) { return pg.getTextContent(); }).then(function (t) { pgs.push(t.items.map(function (x) { return { s: x.str, x: x.transform[4], y: x.transform[5] }; })); }); })(i);
+      return seq.then(function () { return C.parsePDF(pgs, nombre); });
+    });
+  }
+  function b64De(buf) { var bin = '', u8 = new Uint8Array(buf); for (var k = 0; k < u8.length; k += 8192) bin += String.fromCharCode.apply(null, u8.subarray(k, k + 8192)); return btoa(bin); }
+  // Un DLI "falla" si no se entiende con seguridad: entonces se pide el PDF de la cartilla
+  function dliFalla(p) {
+    if (!p.rows.length || (p.errores && p.errores.length)) return true;
+    if (p.rows.some(function (r) { return !r.largo || !r.peso; })) return true;
+    return !!(p.kgDLI && Math.abs(p.totalKg - p.kgDLI) / p.kgDLI > 0.05);
+  }
   function leerArchivos(files) {
     var lista = Array.prototype.slice.call(files);
     return lista.reduce(function (p, f) {
       return p.then(function () { return f.arrayBuffer(); }).then(function (buf) {
+        if (/\.pdf$/i.test(f.name)) {
+          return leerPdf(buf, f.name).then(function (parsed) { S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', err: '' }); })
+            .catch(function () { toast('No se pudo leer el PDF ' + f.name + '. Sin señal por primera vez, o el archivo no es el listado.'); });
+        }
         var parsed = C.parseDLI(new Uint8Array(buf), f.name);
-        var bin = '', u8 = new Uint8Array(buf);
-        for (var k = 0; k < u8.length; k += 8192) bin += String.fromCharCode.apply(null, u8.subarray(k, k + 8192));
-        S.cargas.push({ parsed: parsed, b64: btoa(bin), pedido: '', llegada: hoyISO(), nEst: '1', err: '' });
+        S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', err: '', pedirPdf: dliFalla(parsed) });
       }).catch(function () { toast('No se pudo leer ' + f.name); });
     }, Promise.resolve()).then(render);
+  }
+  function usarPdf(i, file) {
+    var c = S.cargas[i]; if (!c || !file) return Promise.resolve();
+    return file.arrayBuffer().then(function (buf) { return leerPdf(buf, file.name).then(function (p) {
+      if (!p.rows.length || p.errores.length) { c.err = 'El PDF tampoco se pudo leer: ' + (p.errores[0] || 'no trae piezas') + ' Envíeme el archivo para ajustar el lector.'; return; }
+      var nom = c.parsed.nombre; p.nombre = nom && !/^\s*$/.test(nom) ? nom : p.nombre;
+      c.parsed = p; c.b64 = b64De(buf); c.pedirPdf = false; c.err = '';
+    }); }).catch(function () { c.err = 'No se pudo leer el PDF.'; }).then(render);
   }
 
   function registrarCarga(i) {
@@ -908,6 +942,7 @@
     c.err = '';
     if (!String(c.pedido).trim()) c.err = 'Escriba el número de pedido.';
     else if (!/^\d{4}-\d\d-\d\d$/.test(c.llegada || '') || c.llegada > hoyISO()) c.err = 'Elija la fecha en que llegó el pedido a obra (no puede ser futura).';
+    else if (c.pedirPdf) c.err = 'Falta el PDF de la cartilla: este DLI no se pudo leer con seguridad.';
     else if (!p.rows.length) c.err = 'El archivo no trae piezas.';
     else if (p.errores && p.errores.length) c.err = 'No se puede registrar: hay ' + p.errores.length + ' fila(s) del archivo que no se entendieron (ver avisos arriba). Envíe el archivo para ajustar el lector.';
     else if (!String(p.nombre).trim()) c.err = 'Escriba el nombre de la estructura.';
@@ -1108,6 +1143,7 @@
 
   document.addEventListener('change', function (ev) {
     var t = ev.target;
+    if (t.getAttribute('data-pdfpara') != null) { usarPdf(+t.getAttribute('data-pdfpara'), t.files[0]).then(function () { t.value = ''; }); return; }
     if (t.id === 'dli-file') { leerArchivos(t.files).then(function () { t.value = ''; }); return; }
     var f = t.getAttribute('data-f');
     if (/^carga\.\d+\.nombre$/.test(t.getAttribute('data-i') || '')) { var cn = S.cargas[+t.getAttribute('data-i').split('.')[1]]; if (cn) { cn.parsed.nombre = String(t.value).trim() || cn.parsed.nombre; cn.err = ''; render(); } return; }

@@ -213,6 +213,56 @@
     return { archivo: nombreArchivo || '', nombre, kgDLI, descripcion, empresa, proyecto, declarado, rows, avisos, errores, ...totales(rows) };
   }
 
+
+  /**
+   * Lector de la cartilla en PDF ("LISTADO PARA ESTRIBADORA" de DL-NET).
+   * pages: lista de páginas; cada página es una lista de textos {s, x, y} (coordenadas del PDF).
+   * Devuelve el mismo formato que parseDLI (rows, avisos, errores, nombre, totales).
+   */
+  function parsePDF(pages, nombreArchivo) {
+    const avisos = [], errores = [], rows = [];
+    let nombre = '', empresa = '', declKg = 0, titulo = '';
+    pages.forEach((pg, ip) => {
+      const its = pg.filter((t) => String(t.s).trim()).map((t) => ({ s: String(t.s).trim(), x: t.x, y: t.y }));
+      if (ip === 0) {
+        const cab = its.slice().sort((a, b) => b.y - a.y).filter((t) => t.y > 650);
+        empresa = (cab[0] || {}).s || ''; nombre = (cab[2] || cab[1] || {}).s || '';
+        titulo = (cab[3] || {}).s || '';
+        if (nombre && cab[1] && cab[1].s !== nombre && !/\d/.test(nombre)) nombre = cab[1].s + ' ' + nombre;
+      }
+      const hd = (n) => { const h = its.filter((t) => t.s.toUpperCase().indexOf(n) === 0 && t.y > 500)[0]; return h ? h.x : null; };
+      const xDiag = hd('DIAGRAMA'), xCant = hd('CANTIDAD'), xDiam = hd('DIAM'), xLong = hd('LONG'), xPeso = hd('PESO');
+      if (xCant === null || xDiam === null || xLong === null || xPeso === null) return;
+      const xMar = (xDiag === null ? 62 : xDiag - 50);
+      const colDe = (t) => { // columna por la cabecera más cercana (los números van alineados a la derecha del título)
+        const c = [['c', xCant + 20], ['d', xDiam + 8], ['l', xLong + 18], ['p', xPeso + 8]];
+        let m = null, md = 1e9; c.forEach((k) => { const d = Math.abs(t.x - k[1]); if (d < md) { md = d; m = k[0]; } });
+        return md < 38 ? m : null;
+      };
+      const diamRe = /^\d+(?:[\/\-]\d+)*''$/;
+      its.filter((t) => diamRe.test(t.s) && Math.abs(t.x - (xDiam + 8)) < 40).forEach((td) => {
+        const fila = its.filter((t) => Math.abs(t.y - td.y) <= 2.5 && t !== td);
+        const cant = fila.filter((t) => colDe(t) === 'c' && /^\d+$/.test(t.s))[0];
+        const lon = fila.filter((t) => colDe(t) === 'l' && /^\d*\.?\d+$/.test(t.s))[0];
+        const pes = fila.filter((t) => colDe(t) === 'p' && /^\d*\.?\d+$/.test(t.s))[0];
+        const mar = its.filter((t) => t.x < xMar && Math.abs(t.y - td.y) <= 4 && RE_MARCA.test(t.s))[0];
+        if (!cant || !lon || !mar) { errores.push('Fila no entendida en la página ' + (ip + 1) + ' (' + td.s + ' a y=' + Math.round(td.y) + ')'); return; }
+        const diam = normDiam(td.s.replace(/''$/, ''));
+        const peso = PESOS[diam];
+        rows.push({ marca: mar.s, cantidad: +cant.s, diametro: diam, largo: +lon.s, forma: '', aviso: peso ? '' : 'Diámetro sin peso definido (' + diam + ')', estimado: false, peso: peso || 0, kgPDF: pes ? +pes.s : null });
+      });
+    });
+    recalcular(rows);
+    const kgPDF = r2(rows.reduce((t, r) => t + (r.kgPDF || 0), 0));
+    const tot = totales(rows);
+    if (/ELEMENTO POR ELEMENTO|RESUMEN TOTAL/.test(titulo) || !titulo) errores.push('Este PDF no es el listado. Suba el PDF «LISTADO PARA ESTRIBADORA» (el que lleva el nombre del elemento, sin -General, -Resumen ni -Rectangulos).');
+    if (!rows.length) avisos.push('No se encontraron piezas en el PDF. Use el listado «LISTADO PARA ESTRIBADORA».');
+    if (rows.length && kgPDF && Math.abs(tot.totalKg - kgPDF) / kgPDF > 0.005) avisos.push('El peso calculado (' + tot.totalKg + ' kg) difiere del que trae el PDF (' + kgPDF + ' kg).');
+    errores.forEach((e) => avisos.push(e));
+    rows.forEach((r) => { if (r.aviso) avisos.push('Marca ' + r.marca + ': ' + r.aviso); });
+    return { archivo: nombreArchivo || '', nombre: nombre || String(nombreArchivo || '').replace(/\.pdf$/i, ''), kgDLI: kgPDF || null, descripcion: titulo === 'LISTADO PARA ESTRIBADORA' ? '' : titulo, empresa: '', proyecto: empresa, declarado: null, rows, avisos, errores, ...tot, origen: 'PDF' };
+  }
+
   function recalcular(rows) {
     rows.forEach((r) => {
       if (r.largo && r.peso) { r.kgUnit = r3(r.largo * r.peso); r.kg = r3(r.cantidad * r.largo * r.peso); }
@@ -328,5 +378,5 @@
     }));
   }
 
-  return { PESOS, NUMERO, parseDLI, recalcular, totales, calcular, disponible, kgSalida, validarSalida, validarArmado, aEntradas, diamLabel, diamOrder, normDiam, r2, r3 };
+  return { PESOS, NUMERO, parseDLI, parsePDF, recalcular, totales, calcular, disponible, kgSalida, validarSalida, validarArmado, aEntradas, diamLabel, diamOrder, normDiam, r2, r3 };
 });
