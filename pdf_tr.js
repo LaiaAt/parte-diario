@@ -190,7 +190,7 @@
         doc.setTextColor(0); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
         doc.rect(M, y, 130, 20); tx('ESTADO DEL TIEMPO:', M + 2, y + 5);
         doc.rect(M + 130, y, AN - 130, 20); tx('RESUMEN Y OBSERVACIONES', M + 132, y + 5);
-        const obs = g.v.map(r => r.obs).filter(Boolean).join(' | ');
+        const obs = g.v.map(r => r.obs).filter(Boolean).join(' | ') + (ctx.nota ? ' || ' + ctx.nota : '');
         doc.setFont('helvetica', 'normal'); doc.setFontSize(7); tx(obs, M + 132, y + 9, { maxWidth: AN - 134 });
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
         tx('VOLUMEN DE LA HOJA: ' + (Math.round(vol * 100) / 100) + ' m3 (alb.) / ' + (Math.round(volC * 100) / 100) + ' m3 (conf.)', M + 2, y + 11); tx('VIAJES DE LA HOJA: ' + viajesN, M + 2, y + 17);

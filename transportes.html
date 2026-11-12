@@ -189,6 +189,7 @@ async function cargarLocal() {
   aplicarSitios();
   VIAJES = (await kv.get('viajes_' + user.llave)) || [];
   COLA = (await kv.get('cola')) || [];
+  { const lim = sumDias(hoy(), -2), pend = new Set(COLA.map(o => o.cod)); VIAJES = VIAJES.filter(v => repDe(v) >= lim || v.fecha >= lim || pend.has(v.cod)); } // el celular solo guarda hoy y los 2 días anteriores
 }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
 async function ingresar() {
@@ -255,7 +256,7 @@ function abrirPend() {
 }
 function pintarInicio() {
   const B = $('inicio'); B.textContent = '';
-  const hoyV = VIAJES.filter(v => v.fecha === hoy()).sort((a, b) => consecDe(a) - consecDe(b) || a.cod.localeCompare(b.cod));
+  const hoyV = VIAJES.filter(v => repDe(v) === hoy()).sort((a, b) => consecDe(a) - consecDe(b) || a.cod.localeCompare(b.cod));
   const vol = hoyV.reduce((s, v) => s + volV(v), 0);
   B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()))));
   const nLleg = hoyV.filter(v => v.mov === 'RECIBE').length, nSal = hoyV.length - nLleg;
@@ -279,7 +280,7 @@ function abrirAnteriores() {
   const A = $('anteriores'); A.textContent = '';
   A.appendChild(h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;margin-bottom:12px', onclick: abrirInicio }, '← VOLVER AL INICIO'));
   A.appendChild(h('h3', {}, 'Días anteriores'));
-  const dias = {}; VIAJES.forEach(v => { if (v.fecha !== hoy()) (dias[v.fecha] = dias[v.fecha] || []).push(v); });
+  const dias = {}; VIAJES.forEach(v => { if (repDe(v) !== hoy()) (dias[repDe(v)] = dias[repDe(v)] || []).push(v); });
   const ks = Object.keys(dias).sort().reverse();
   if (!ks.length) A.appendChild(h('div', { class: 'card' }, 'No hay días anteriores.'));
   const card = h('div', { class: 'card' });
@@ -295,7 +296,7 @@ function abrirAnteriores() {
 function abrirDia(f) {
   diaActual = f; enPend = false; aviso('');
   const D = $('dia'); D.textContent = '';
-  const vs = VIAJES.filter(v => v.fecha === f).sort((a, b) => consecDe(a) - consecDe(b) || a.cod.localeCompare(b.cod));
+  const vs = VIAJES.filter(v => repDe(v) === f).sort((a, b) => consecDe(a) - consecDe(b) || a.cod.localeCompare(b.cod));
   D.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;box-shadow:0 2px 6px rgba(0,0,0,.35)', onclick: abrirAnteriores }, '← VOLVER A DÍAS ANTERIORES'),
     h('h3', { style: 'margin:6px 0 0' }, fmtF(f) + (f === hoy() ? ' (hoy)' : '')),
     h('small', {}, puedeRecibo({ fecha: f }) ? 'Este día ya cerró. Aún puedes subir la foto del recibo.' : 'Este día ya cerró.'),
@@ -402,7 +403,9 @@ function llenarListas() {
 }
 const volV = v => (num(v.vol_albaran) > 0 ? num(v.vol_albaran) : (num(v.cant) || 0));
 // N° consecutivo del viaje en el día (el que se escribe en el albarán de papel). Los viajes viejos sin número se numeran por orden de registro.
-const delDia = (fecha, nombre) => VIAJES.filter(x => x.fecha === fecha && (!nombre || x.usuario === nombre));
+// El parte de cada día se arma por la FECHA DE REPORTE (la del día en que salió el viaje): si el administrador corrige la fecha, el viaje sigue en su parte original y no mueve la numeración de ningún día.
+const repDe = v => v.fecha_reporte || v.fecha;
+const delDia = (fecha, nombre) => VIAJES.filter(x => repDe(x) === fecha && (!nombre || x.usuario === nombre));
 function consecDe(v) {
   if (Number(v.consec) > 0) return Number(v.consec);
   const L = delDia(v.fecha, v.usuario).filter(x => !(Number(x.consec) > 0)).sort((a, b) => String(a.creado || a.registrado || '').localeCompare(String(b.creado || b.registrado || '')) || String(a.hora_salida || '').localeCompare(String(b.hora_salida || '')));
@@ -676,7 +679,7 @@ function abrirForm(v, base) {
   turno.value = v ? v.turno : ((hh >= 6 && hh < 18) ? 'DIA' : 'NOCHE');
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
-  const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '1️⃣ 📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -3), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
+  const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '1️⃣ 📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -2), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
   const cMaq = h('div', { class: 'card paso' }, h('h3', {}, '6️⃣ 🏗️ Máquina que cargó'),
     campo('maquina', '¿Con qué máquina se cargó la volqueta?', val('maquina'), { ph: 'Elegir…' }), h('small', { class: 'sub' }, 'Si no está en la lista, toca «Escribir otra máquina». Queda guardada y el administrador la valida.'));
   const masDatos = h('div', { class: 'card paso' }, h('h3', {}, '7️⃣ 🧾 Datos del vale'),
@@ -795,7 +798,7 @@ async function guardarViaje() {
   const antes = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
   const cod = antes ? antes.cod : nuevoCod();
   const v = Object.assign({}, antes || {}, {
-    cod: cod, consec: antes ? consecDe(antes) : siguienteConsec($('fecha_vale').value || hoy(), user.nombre), llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : ($('fecha_vale').value || hoy()), registrado: antes ? (antes.registrado || antes.fecha) : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
+    cod: cod, consec: antes ? consecDe(antes) : siguienteConsec($('fecha_vale').value || hoy(), user.nombre), llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : ($('fecha_vale').value || hoy()), fecha_reporte: antes ? (antes.fecha_reporte || antes.fecha) : ($('fecha_vale').value || hoy()), registrado: antes ? (antes.registrado || antes.fecha) : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
     placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), vol_albaran: g('vol_albaran'), conductor: g('conductor'), material: g('material'), centro: g('centro'), maquina: g('maquina'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
     lat: '', lon: '', prec: '',
     uf: $('uf').value, pct: pct > 0 ? pct : '', cant: cant > 0 ? cant : '', peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
@@ -870,7 +873,7 @@ async function compartirVale(v) {
   catch (e) { console.error(e); aviso('No se pudo crear el PDF del vale.', 'err'); }
 }
 async function planilla(f) {
-  const vs = VIAJES.filter(v => v.fecha === f);
+  const vs = VIAJES.filter(v => repDe(v) === f);
   if (!vs.length) { aviso('Ese día no tiene viajes.', 'err'); return; }
   aviso('Generando planilla…');
   try {

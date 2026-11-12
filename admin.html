@@ -515,12 +515,38 @@ function cierraTr(cod, nuevo) {
   if (TR && TR.viajes) { const k = TR.viajes.findIndex(x => x.cod === cod); if (k >= 0) { if (nuevo) TR.viajes[k] = Object.assign({}, TR.viajes[k], nuevo); else TR.viajes.splice(k, 1); } }
   if (TRTAB === 'sosp') recargaTr(); else pintaAlb();
 }
+// Validación de fotos del albarán y de la volqueta, con opción de agregar la que falte
+function fotosEdit(v, pan) {
+  const msg = h('div', { class: 'small' }), caja = h('div', { style: 'margin-top:8px;padding:8px;border:1px dashed #999;border-radius:8px;background:#fff' }, h('b', { class: 'small' }, '📷 Fotos del viaje'));
+  const reducir = f => new Promise((ok, no) => { const r = new FileReader(); r.onerror = no; r.onload = () => { const im = new Image(); im.onerror = no; im.onload = () => { const k = Math.min(1, 1800 / Math.max(im.naturalWidth, im.naturalHeight)), cv = document.createElement('canvas'); cv.width = Math.round(im.naturalWidth * k); cv.height = Math.round(im.naturalHeight * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); ok(cv.toDataURL('image/jpeg', 0.85)); }; im.src = r.result; }; r.readAsDataURL(f); });
+  const fila = (cual, lab) => {
+    const n = cual === 'recibo' ? (v.nr !== undefined ? v.nr : (v.tiene_recibo ? 1 : 0)) : (v.nc !== undefined ? v.nc : (v.tiene_carga ? 1 : 0));
+    const inp = h('input', { type: 'file', accept: 'image/*', hidden: true });
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      msg.textContent = 'Subiendo foto…';
+      try {
+        const data = await reducir(f), r = await api({ accion: 'admin_tr_foto_add', llave: LLAVE, cod: v.cod, cual: cual, foto: data }, 90000);
+        if (!r.ok) { msg.textContent = r.mensaje || 'No se pudo subir'; return; }
+        const nv = Object.assign({}, v, r.viaje, { nr: (r.viaje.fotos_r || []).length, nc: (r.viaje.fotos_c || []).length });
+        cierraTr(v.cod, nv); formEditAlb(nv, 0, pan);
+      } catch (e) { msg.textContent = 'No se pudo subir la foto. Revisa tu conexión.'; }
+    };
+    return h('div', { style: 'display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap' },
+      h('span', { style: 'font-weight:700;color:' + (n ? '#1b5e20' : '#b3261e') }, (n ? '✔ ' : '✖ ') + lab + (n ? ' (' + n + ')' : ' · FALTA')),
+      h('button', { class: 'sec', style: 'padding:6px 10px', onclick: () => inp.click() }, n ? '➕ Agregar otra' : '📷 Agregar'), inp);
+  };
+  caja.append(fila('recibo', 'Foto del albarán'), fila('carga', 'Foto de la volqueta'), msg);
+  return caja;
+}
 function formEditAlb(v, i, pan) {
   pan.textContent = '';
   const campos = [['fecha', 'Fecha del albarán'], ['n_valera', 'N° de valera / albarán'], ['placa', 'Placa'], ['empresa', 'Empresa'], ['conductor', 'Conductor'], ['material', 'Material'], ['origen', 'Origen'], ['destino', 'Destino'],
     ['uf', 'UF (1 a 7 u OTRO)'], ['km', 'Km'], ['vol_albaran', 'm³ del albarán'], ['cant', 'm³ confirmado'], ['hora_salida', 'Hora de salida (HH:MM)'], ['hora_llegada', 'Hora de llegada (HH:MM)'], ['obs', 'Observaciones']];
   const el = {}, msg = h('div', { class: 'small', style: 'color:#b3261e;margin-top:6px' });
   const caja = h('div', { style: 'border:2px solid #12202b;border-radius:8px;padding:10px;background:#fffdf3' }, h('b', {}, '✏️ Editar viaje ' + v.cod));
+  caja.appendChild(h('div', { class: 'small', style: 'margin-top:4px' }, 'Parte de origen: ' + fmtF(v.fecha_reporte || v.fecha) + ' · si cambias la fecha, el viaje conserva su parte y su N° de origen: no cambia la numeración de ningún día.'));
+  caja.appendChild(fotosEdit(v, pan));
   campos.forEach(([k, lab]) => { el[k] = h('input', Object.assign({ value: v[k] === undefined || v[k] === null ? '' : v[k], style: 'width:100%' }, k === 'fecha' ? { type: 'date', max: bogota() } : {})); caja.appendChild(h('div', { style: 'margin-top:6px' }, h('label', { class: 'small' }, lab), el[k])); });
   el.valera_de = h('select', { style: 'width:100%' }, [['', '—'], ['NUESTRA', 'Nuestra'], ['VOLQUETERO', 'Del volquetero']].map(o => h('option', Object.assign({ value: o[0] }, v.valera_de === o[0] ? { selected: 'selected' } : {}), o[1])));
   el.mov = h('select', { style: 'width:100%' }, [['ENTREGA', 'Sale de la obra'], ['RECIBE', 'Llega a la obra']].map(o => h('option', Object.assign({ value: o[0] }, (v.mov || 'ENTREGA') === o[0] ? { selected: 'selected' } : {}), o[1])));
@@ -694,7 +720,7 @@ function vistaVol(c) {
   const V = TR.viajes;
   c.appendChild(chips([['pend', 'Por validar'], ['act', 'Activas'], ['inact', 'Inactivas'], ['todas', 'Todas']], TRVOL, k => { TRVOL = k; pintarTr(); }));
   const L = TR.volquetas.filter(x => TRVOL === 'pend' ? esPend(x) : TRVOL === 'act' ? !esIn(x) : TRVOL === 'inact' ? esIn(x) : true);
-  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Escribe el volumen validado (el que comprobaste en la tolva) y pulsa ✔ Validar o Enter. El nominal es el que dice el albarán.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Escribe el volumen comprobado (validado en la tolva) y pulsa ✔ Validar o Enter: se actualizan TODOS los viajes de esa placa (capacidad y m³ confirmado). Mientras no lo escribas, el comprobado es igual al del albarán y no se generan diferencias.'));
   const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;position:sticky;top:0;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
   const tb = h('table', { style: 'width:100%;border-collapse:collapse;font-size:15px' }, h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Conductor', 'Nominal albarán (m³)', 'Validado (m³)', 'Viajes', 'Estado', ''].map(th)));
   L.forEach(x => {
@@ -738,7 +764,7 @@ function vistaViajes(c) {
   const bus = h('input', { type: 'search', placeholder: '🔍 Buscar placa, material, destino, valera…', value: TRQ });
   bus.oninput = () => { TRQ = bus.value; pintaLista(); };
   c.append(bus, chips([['', 'Todos'], ['alerta', '⚠️ Con alerta'], ['sinrec', 'Sin albarán']], TRFIL, k => { TRFIL = k; pintarTr(); }),
-    h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px' }, h('button', { class: 'sec', onclick: csvTr }, '⬇ CSV'), h('button', { onclick: xlsxTr, id: 'btnXlsxTr' }, '⬇ Excel con fotos'), h('button', { class: 'sec', onclick: xlsxCambios, id: 'btnCamb' }, '⬇ Control de cambios (Excel)')), h('div', { id: 'xlsxMsg', class: 'small', style: 'margin:0 0 6px' }), lista);
+    h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px' }, h('button', { class: 'sec', onclick: csvTr }, '⬇ CSV'), h('button', { onclick: xlsxTr, id: 'btnXlsxTr' }, '⬇ Excel con fotos'), h('button', { class: 'sec', onclick: xlsxCambios, id: 'btnCamb' }, '⬇ Control de cambios (Excel)'), h('button', { class: 'sec', onclick: zipAlbaranes, id: 'btnZip' }, '🖼️ Fotos de albaranes (ZIP)')), h('div', { id: 'xlsxMsg', class: 'small', style: 'margin:0 0 6px' }), lista);
   function pintaLista() {
     const L = viajesTr(); lista.textContent = '';
     L.slice(0, 300).forEach(v => lista.appendChild(h('div', { class: 'tcard' + (alV(v) ? ' warn' : '') },
@@ -761,6 +787,40 @@ function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen']);
   const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => filaTr(v).concat([tieneGps(v) ? mapaUrl(v) : '']).map(csvCelda).join(';')));
   bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Transportes_' + $('desde').value + '_' + $('hasta').value + '.csv');
+}
+// Descarga las fotos de los albaranes del periodo filtrado (lo que se ve en la lista) en ZIP, en partes de máx. 50 fotos
+async function zipAlbaranes() {
+  const L = viajesTr().filter(v => (v.fotos_r || []).length).sort((a, b) => (a.fecha + (a.hora_salida || '')).localeCompare(b.fecha + (b.hora_salida || ''))), msg = $('xlsxMsg'), btn = $('btnZip');
+  const F = []; L.forEach(v => (v.fotos_r || []).forEach((u, i) => F.push({ v: v, i: i, n: v.fotos_r.length })));
+  if (!F.length) { msg.textContent = 'No hay fotos de albaranes en el periodo filtrado.'; return; }
+  const PARTE = 50, partes = Math.ceil(F.length / PARTE);
+  if (!confirm('Se descargarán ' + F.length + ' fotos de albaranes' + (partes > 1 ? ' en ' + partes + ' archivos ZIP' : '') + '. ¿Continuar?')) return;
+  btn.disabled = true;
+  try {
+    if (!window.JSZip) await new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; sc.onload = ok; sc.onerror = () => no(new Error('jszip')); document.head.appendChild(sc); });
+    const nombre = (v, i, n) => (v.fecha + '_' + v.placa + '_alb-' + String(v.n_valera || v.cod).replace(/[^A-Za-z0-9-]/g, '') + (n > 1 ? '_' + (i + 1) : '')).replace(/\s+/g, '') + '.jpg';
+    let falló = 0;
+    for (let p = 0; p < partes; p++) {
+      const zip = new JSZip(), lote = F.slice(p * PARTE, (p + 1) * PARTE), usados = {}; let k = 0;
+      const trabajo = async () => {
+        while (k < lote.length) {
+          const f = lote[k++]; msg.textContent = 'Descargando fotos… parte ' + (p + 1) + ' de ' + partes + ' · ' + k + '/' + lote.length;
+          try {
+            const r = await api({ accion: 'admin_tr_foto', llave: LLAVE, cod: f.v.cod, cual: 'recibo', i: f.i }, 60000);
+            if (!r.ok) { falló++; continue; }
+            let nm = nombre(f.v, f.i, f.n); if (usados[nm]) nm = nm.replace('.jpg', '_' + f.v.cod.slice(-5) + '.jpg'); usados[nm] = 1;
+            zip.file(nm, String(r.data).split(',')[1], { base64: true });
+          } catch (e) { falló++; }
+        }
+      };
+      await Promise.all([trabajo(), trabajo(), trabajo()]);
+      msg.textContent = 'Comprimiendo parte ' + (p + 1) + ' de ' + partes + '…';
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+      bajar(blob, 'Albaranes_' + $('desde').value + '_' + $('hasta').value + (partes > 1 ? '_parte' + (p + 1) + 'de' + partes : '') + '.zip');
+    }
+    msg.textContent = '✔ Fotos descargadas (' + (F.length - falló) + ' de ' + F.length + ').' + (falló ? ' ' + falló + ' no se pudieron abrir.' : '');
+  } catch (e) { console.error(e); msg.textContent = 'No se pudo crear el ZIP. Revisa tu conexión.'; }
+  btn.disabled = false;
 }
 function cargarScript(src) { return new Promise((ok, no) => { if (window.ExcelJS) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('script')); document.head.appendChild(s); }); }
 function miniatura(data, ancho) { return new Promise(res => { if (!data) return res(''); const im = new Image(); im.onload = () => { const k = Math.min(1, ancho / im.naturalWidth), cv = document.createElement('canvas'); cv.width = Math.round(im.naturalWidth * k); cv.height = Math.round(im.naturalHeight * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); res({ url: cv.toDataURL('image/jpeg', 0.72), w: cv.width, h: cv.height }); }; im.onerror = () => res(''); im.src = data; }); }
@@ -807,7 +867,7 @@ async function xlsxTr() {
     const rs = wb.addWorksheet('Resumen'); rs.columns = [{ width: 26 }, { width: 10 }, { width: 14 }, { width: 14 }, { width: 14 }];
     rs.getCell('A1').value = 'RESUMEN DEL PERIODO'; rs.getCell('A1').font = { bold: true, size: 14, color: { argb: VERDE } };
     let rr = 3;
-    for (const [tit, fn] of [['Por UF de origen', v => ufTxt(v)], ['Por destino / sitio', v => sitioDe(v) || '—'], ['Por material', v => v.material || '—'], ['Por volqueta', v => v.placa]]) {
+    for (const [tit, fn] of [['Por UF de origen', v => ufTxt(v)], ['Por destino / sitio', v => sitioDe(v) || '—'], ['Por material', v => v.material || '—'], ['Por volqueta', v => v.placa], ['Por máquina que cargó', v => v.maquina || 'Sin máquina registrada']]) {
       const M = {}; L.forEach(v => { const k = fn(v), o = (M[k] = M[k] || { n: 0, a: 0, c: 0 }); o.n++; o.a += Number(v.vol_albaran) || 0; o.c += Number(v.cant) || 0; });
       const h1 = rs.getRow(rr); [tit, 'Viajes', 'm³ albarán', 'm³ confirmado', 'Diferencia'].forEach((t, i) => { const ce = h1.getCell(i + 1); ce.value = t; ce.font = { bold: true, color: { argb: 'FFFFFFFF' } }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: VERDE } }; ce.border = B4; }); rr++;
       Object.keys(M).sort((x, y) => M[y].c - M[x].c).forEach(k => { const o = M[k], row = rs.getRow(rr++); [k, o.n, o.a, o.c, o.a - o.c].forEach((t, i) => { const ce = row.getCell(i + 1); ce.value = i >= 2 ? Math.round(t * 100) / 100 : t; ce.border = B4; if (i >= 2) ce.numFmt = '#,##0.0'; }); });
@@ -834,9 +894,12 @@ async function crearCierre(desde, hasta, usuario, msg) {
 function cargaJs(src, ok) { return new Promise((res, rej) => { if (ok()) return res(); const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script ' + src)); document.head.appendChild(s); }); }
 let LOGO_PL = null;
 async function planillasRango(desde, hasta, llave, msg) {
-  const V = TR.viajes.filter(v => v.fecha >= desde && v.fecha <= hasta && (!llave || v.llave === llave));
+  // Cada parte se arma por la FECHA DE REPORTE (el día en que salió el viaje): un viaje corregido de fecha NO cambia la numeración de ningún parte.
+  const REP = v => v.fecha_reporte || v.fecha;
+  const V = TR.viajes.concat(TR.reportes_extra || []).filter(v => REP(v) >= desde && REP(v) <= hasta && (!llave || v.llave === llave));
+  const llegan = TR.viajes.filter(v => v.fecha_reporte && v.fecha_reporte !== v.fecha && v.fecha >= desde && v.fecha <= hasta && (!llave || v.llave === llave));
   if (!V.length) { msg.textContent = 'No hay viajes en ese periodo.'; return; }
-  const dias = Array.from(new Set(V.map(v => v.fecha))).sort();
+  const dias = Array.from(new Set(V.map(REP))).sort();
   if (dias.length > 31) { msg.textContent = 'Máximo 31 días.'; return; }
   msg.textContent = 'Generando ' + dias.length + (dias.length === 1 ? ' planilla…' : ' planillas…');
   try {
@@ -844,7 +907,12 @@ async function planillasRango(desde, hasta, llave, msg) {
     await logoPl();
     let comp = null; const J = window.jspdf.jsPDF;
     function Comp(o) { if (!comp) comp = new J(o); else comp.addPage(); return comp; }
-    dias.forEach(d => { const vs = V.filter(v => v.fecha === d), nom = Array.from(new Set(vs.map(v => v.creado_por || v.usuario).filter(Boolean))).join(' / '); window.PDT.generarPlanilla(d, vs, { nombre: nom }, Comp, LOGO_PL); });
+    dias.forEach(d => {
+      const vs = V.filter(v => REP(v) === d), nom = Array.from(new Set(vs.map(v => v.creado_por || v.usuario).filter(Boolean))).join(' / ');
+      const sale = vs.filter(v => v.fecha !== d).map(v => v.placa + ' alb. ' + (v.n_valera || v.cod) + ' → ' + fmtF(v.fecha)), entra = llegan.filter(v => v.fecha === d).map(v => v.placa + ' alb. ' + (v.n_valera || v.cod) + ' (parte del ' + fmtF(v.fecha_reporte) + ')');
+      const nota = (sale.length ? 'REASIGNADOS A OTRA FECHA (siguen en este parte): ' + sale.join('; ') + '. ' : '') + (entra.length ? 'REASIGNADOS A ESTA FECHA (no cambian este parte): ' + entra.join('; ') + '.' : '');
+      window.PDT.generarPlanilla(d, vs, { nombre: nom, nota: nota }, Comp, LOGO_PL);
+    });
     bajar(comp.output('blob'), dias.length === 1 ? 'Planilla_viajes_' + (llave || 'TODAS') + '_' + dias[0] + '.pdf' : 'Planillas_viajes_' + (llave || 'TODAS') + '_' + dias[0] + '_a_' + dias[dias.length - 1] + '.pdf');
     msg.textContent = '✔ ' + dias.length + (dias.length === 1 ? ' planilla lista.' : ' planillas listas (una hoja por día).');
   } catch (e) { console.error(e); msg.textContent = 'No se pudo generar la planilla.'; }
