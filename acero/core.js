@@ -123,7 +123,7 @@
       if (!/^\d+\s+\S/.test(dato)) break;
 
       const m = parseInt(mult, 10) || 1;
-      let cant, diam, largo = null, forma = '', aviso = '';
+      let cant, diam, largo = null, forma = '', aviso = '', estimado = false;
       let mm;
       if ((mm = RE_RECTA.exec(dato))) {
         cant = +mm[1]; diam = normDiam(mm[2]); largo = +mm[3]; forma = mm[4].replace(/\s+/g, ' ').trim();
@@ -144,13 +144,18 @@
         const c = /^(\d+)\s+(.*)$/.exec(dato);
         cant = c ? +c[1] : 0; const dm = /"([^"]+)"|\s(\d[\d\/\-]*)''/.exec(dato) || []; diam = dm[1] || dm[2] || '';
         diam = normDiam(diam); forma = dato;
-        aviso = 'Forma no reconocida: indique el largo a mano';
+        // Forma desconocida: el largo se estima automáticamente sumando todas las medidas de la forma
+        // (se verifica después contra el peso total del DLI y se marca como estimado)
+        const resto = dato.replace(/^\d+\s+/, '').replace(/"[^"]*"|\d[\d\/\-]*''/, ' ');
+        const nums = (resto.match(/\d*\.\d+|\d+/g) || []).map(Number).filter((x) => x > 0 && x < 100);
+        if (nums.length) { largo = r2(nums.reduce((t, x) => t + x, 0)); forma = 'Forma ' + resto.replace(/\s+/g, ' ').trim(); estimado = true; }
+        else aviso = 'Forma no reconocida';
       }
       if (!cant) continue; // solo cantidades positivas
       const cantidad = cant * m;
       const peso = PESOS[diam];
       if (!peso) aviso = aviso || 'Diámetro sin peso definido (' + diam + ')';
-      rows.push({ marca, cantidad, diametro: diam, largo, forma, aviso, peso: peso || 0 });
+      rows.push({ marca, cantidad, diametro: diam, largo, forma, aviso, estimado, peso: peso || 0 });
     }
     // Formato por grupos (DL-NET "Comp."/Pilotes/Caisson): [nombre del grupo] [" n"] y n filas "cant [C|E] "diám" medidas".
     const errores = [];
