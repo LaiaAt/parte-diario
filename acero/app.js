@@ -815,7 +815,7 @@
     var h = '<div class="card"><h2>Cargar archivos DLI</h2><p class="mut" style="margin-top:0">Seleccione uno o varios .dli (o el PDF de la cartilla). Cada uno se registra con su número de pedido y suma al inventario las piezas con cantidad mayor que cero.</p>' +
       '<label class="btn" for="dli-file">Elegir archivos .dli o PDF</label><input id="dli-file" type="file" accept=".dli,.pdf,application/pdf" multiple style="display:none"></div>';
     S.cargas.forEach(function (c, i) {
-      var p = c.parsed, por = resumenDiam(p), ya = S.estado.pedidos.filter(function (x) { return x.estructura === p.nombre; });
+      var p = c.parsed, por = resumenDiam(p), ya = S.estado.pedidos.filter(function (x) { var b = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); }; return x.estructura === p.nombre || (p.archivo && b(x.archivo) === b(p.archivo)); });
       h += '<div class="card"><h3>' + esc(p.nombre) + (p.descripcion ? '<span class="tag">' + esc(p.descripcion) + '</span>' : '') + '</h3>' +
         '<div class="peq mut">' + esc(p.archivo) + ' · ' + p.rows.length + ' filas · ' + n0(p.totalPiezas) + ' piezas · ' + kg(p.totalKg) + ' kg</div>';
       p.avisos.forEach(function (a) { h += '<div class="aviso">⚠ ' + esc(a) + '</div>'; });
@@ -951,8 +951,9 @@
       if (mal) c.err = 'Complete la marca ' + mal.marca + ' (falta largo o peso del diámetro ' + mal.diametro + ').';
     }
     if (!c.err) {
-      var rep = S.estado.pedidos.filter(function (x) { return x.estructura === p.nombre; })[0];
-      if (!rep) rep = S.cargas.filter(function (x, j) { return j !== i && x.parsed.nombre === p.nombre; })[0] ? { pedido: 'en esta misma lista' } : null;
+      var baseArch = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); };
+      var rep = S.estado.pedidos.filter(function (x) { return x.estructura === p.nombre || (p.archivo && baseArch(x.archivo) === baseArch(p.archivo)); })[0];
+      if (!rep) rep = S.cargas.filter(function (x, j) { return j !== i && (x.parsed.nombre === p.nombre || baseArch(x.parsed.archivo) === baseArch(p.archivo)); })[0] ? { pedido: 'en esta misma lista' } : null;
       if (rep) c.err = 'Este DLI ya fue cargado (' + p.nombre + ', pedido ' + rep.pedido + '). No se puede guardar de nuevo, ni con otro número de pedido.';
     }
     if (c.err) { render(); return; }
