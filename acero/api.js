@@ -140,9 +140,18 @@
       }
       var q = leer(K.cola, []);
       if (!q.some(function (b) { return b.grupo === d.grupo; }))
-        q.push({ action: 'salidaLote', v: 2, grupo: d.grupo, usuario: ses.nombre, items: d.items, obs: d.obs || '', fecha: conFecha(d.fecha, d.hora), fase: d.fase || '', modo: d.modo === 'PCT' ? 'PCT' : 'POS', pct: d.pct || 0, tipo: d.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA' });
+        q.push({ action: 'salidaLote', v: 2, grupo: d.grupo, usuario: ses.nombre, items: d.items, obs: d.obs || '', fecha: conFecha(d.fecha, d.hora), fase: d.fase || '', modo: d.modo === 'PCT' ? 'PCT' : 'POS', pct: d.pct || 0, tipo: d.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA', destino: d.destino || '' });
       if (!guardar(K.cola, q)) return Promise.resolve({ ok: false, error: 'No hay espacio en este celular para guardar el registro. Libere espacio o conéctese y vuelva a intentar: NO se guardó.' });
       return Promise.resolve({ ok: true, pendiente: true });
+    },
+
+    cierreEstructura: function (ses, elem, items) {
+      if (!remoto) return Promise.resolve({ ok: false, error: 'Esta función necesita conexión con el servidor' });
+      return post({ action: 'cierreEstructura', pin: ses.pin, usuario: ses.nombre, elemento: elem, items: items }).catch(function () { return { ok: false, error: 'Sin conexión: el cierre necesita internet. Vuelva a intentarlo con señal.' }; });
+    },
+    verificar: function (ses, elem, items, obs) {
+      if (!remoto) return Promise.resolve({ ok: false, error: 'Esta función necesita conexión con el servidor' });
+      return post({ action: 'verificar', pin: ses.pin, usuario: ses.nombre, elemento: elem, items: items, obs: obs || '' }).catch(function () { return { ok: false, error: 'Sin conexión: la verificación necesita internet. Vuelva a intentarlo con señal.' }; });
     },
 
     anularSalida: function (ses, ids) {

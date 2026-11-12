@@ -483,3 +483,5 @@ body:not(.emb) .cab .tabs { position: static; }
 .mfil select { width: 100%; font-size: 1.05rem; font-weight: 700; color: #12202f; background: #fff8d6; border: 2px solid #12202f; border-radius: 10px; padding: 12px 10px; }
 .mfil select:focus { outline: 3px solid #0a7f2e; }
 .btn.chico.sec { background: #cfdcec; border: 2px solid #12202f; color: #0b1622; }
+.tw tr.dif td{background:#fff4d6}
+.tw input.mini{width:64px;text-align:right}

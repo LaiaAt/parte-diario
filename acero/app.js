@@ -6,7 +6,8 @@
 
   var S = {
     cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [] }, calc: null, tab: MODO === 'salidas' ? 'salida' : 'panel', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
-    sal: { q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', tipo: 'SALIDA', fase: '', pct: '', balElem: '' },
+    ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false },
+    sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', tipo: 'SALIDA', fase: '', pct: '', balElem: '' },
     inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, inf: { d: '' },
     cargas: [], loginErr: '', loginNom: ''
   };
@@ -89,8 +90,8 @@
 
   function vTabs() {
     var T = EMB ? [['panel', '', 'Panel'], ['inv', '', 'Inventario'], ['mov', '', 'Movimientos'], ['ped', '', 'Pedidos'], ['inf', '', 'Informe']] : MODO === 'salidas'
-      ? [['salida', '✍️', 'Registrar'], ['mov', '🧾', 'Movimientos'], ['inv', '📦', 'Inventario'], ['inf', '📄', 'Informe']]
-      : [['panel', '📊', 'Panel'], ['salida', '✍️', 'Registrar'], ['inv', '📦', 'Inventario'], ['mov', '🧾', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe'], ['cargar', '📥', 'Cargar DLI']];
+      ? [['salida', '✍️', 'Registrar'], ['ver', '✅', 'Verificar'], ['mov', '🧾', 'Movimientos'], ['inv', '📦', 'Inventario'], ['inf', '📄', 'Informe']]
+      : [['panel', '📊', 'Panel'], ['salida', '✍️', 'Registrar'], ['ver', '✅', 'Verificar'], ['inv', '📦', 'Inventario'], ['mov', '🧾', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe'], ['cargar', '📥', 'Cargar DLI']];
     return '<nav class="tabs">' + T.map(function (t) {
       return '<button class="' + (S.tab === t[0] ? 'on' : '') + '" data-a="tab" data-v="' + t[0] + '"><span>' + t[1] + '</span><em>' + t[2] + '</em></button>';
     }).join('') + '</nav>';
@@ -154,7 +155,7 @@
       g.map(function (x) { return '<tr' + (x.estado === 'ANULADA' && !anG ? ' class="anu"' : '') + '><td><b>' + esc(x.marca || '—') + '</b></td><td>' + esc(C.diamLabel(x.diametro)) + '</td><td class="n">' + n0(x.cantidad) + '</td><td class="n">' + kg(x.kg) + '</td></tr>'; }).join('') + '</tbody></table></details>';
     return '<div class="mv ' + (arm ? 'arm' : 'out') + (anG ? ' anul' : '') + '"><div class="mv-i">' + (arm ? '🔧' : '🚚') + '</div><div class="mv-c"><div class="mv-t">' + tit +
       (anG ? '<span class="chp anu">Anulada</span>' : '') + (pend ? '<span class="chp pen">Sin enviar</span>' : '') + '</div><div class="mv-s">' + els.map(esc).join(' · ') + '</div>' +
-      '<div class="mv-m"><span>' + kg(nK) + ' kg</span>' + (g0.modo !== 'PCT' && g0.fase ? '<span>Fase: ' + esc(g0.fase) + '</span>' : '') + '<span>' + esc(g0.usuario) + ' · ' + fecha(g0.fecha) + '</span>' + (g0.obs ? '<span>' + esc(g0.obs) + '</span>' : '') + '</div>' + det + '</div>' +
+      '<div class="mv-m"><span>' + kg(nK) + ' kg</span>' + (g0.modo !== 'PCT' && g0.fase ? '<span>Fase: ' + esc(g0.fase) + '</span>' : '') + (g0.destino ? '<span>Para: ' + esc(g0.destino) + '</span>' : '') + '<span>' + esc(g0.usuario) + ' · ' + fecha(g0.fecha) + '</span>' + (g0.obs ? '<span>' + esc(g0.obs) + '</span>' : '') + '</div>' + det + '</div>' +
       (conAcciones && esAdmin() && !anG && g.every(function (x) { return !x.pendiente; }) ? '<button class="btn chico sec" data-a="anularSalida" data-v="' + esc(activas.map(function (x) { return x.id; }).join(',')) + '">Anular</button>' : '') + '</div>';
   }
   // ---- gráficos del panel (SVG/CSS, sin librerías) ----
@@ -341,20 +342,67 @@
     s.items = s.elem && p > 0 && p <= rest + 1e-9 ? itemsPct(s.elem, p) : [];
     s.err = p > rest + 1e-9 ? 'Solo falta ' + fmtPct(rest) + ' % para completar la estructura.' : '';
   }
-  function vBalance(e) {
+  var STOCK = ['ACERO RECTO', 'ACERO FIGURADO'];
+  function esStock(e) { return STOCK.indexOf(e) >= 0; }
+  function filasPos(e) {
     var vistos = {}, filas = [];
     S.estado.entradas.forEach(function (x) {
       if (x.estructura !== e) return;
       var k = x.diametro + '|' + x.marca; if (vistos[k]) return; vistos[k] = 1;
       var v = S.calc.porMarca[e + '|' + x.diametro + '|' + x.marca]; if (!v) return;
-      filas.push({ marca: x.marca, diam: x.diametro, in_p: v.in_p, pct: tomadoPct(e, x.diametro, x.marca), sal_p: v.sal_p, sal_kg: v.sal_kg });
+      filas.push({ k: k, marca: x.marca, diam: x.diametro, largo: x.largo || 0, in_p: v.in_p, sal_p: v.sal_p, sal_kg: v.sal_kg });
     });
-    filas.sort(function (a, b) { return C.diamOrder(a.diam) - C.diamOrder(b.diam) || cmpMarca(a.marca, b.marca); });
-    var quedan = filas.filter(function (f) { return f.sal_p > 0; });
-    return '<div class="balance"><div class="paso-h"><b>' + esc(e) + ' llegó al 100 %</b><button type="button" class="lnk" data-a="cerrarBal">Cerrar</button></div>' +
-      (quedan.length ? '<p class="mut" style="margin:0 0 8px">Esto es lo que queda en almacén por posición:</p><div class="tw"><table><thead><tr><th>Posición</th><th>Varilla</th><th class="n">Ingresó</th><th class="n">Queda</th><th class="n">Kg</th></tr></thead><tbody>' +
-        quedan.map(function (f) { return '<tr><td><b>' + esc(f.marca) + '</b></td><td>' + esc(C.diamLabel(f.diam)) + '</td><td class="n">' + n0(f.in_p) + '</td><td class="n"><b>' + n0(f.sal_p) + '</b></td><td class="n">' + kg(f.sal_kg) + '</td></tr>'; }).join('') + '</tbody></table></div>'
-        : '<p class="mut" style="margin:0">No queda acero de esta estructura en el almacén.</p>') + '</div>';
+    return filas.sort(function (a, b) { return C.diamOrder(a.diam) - C.diamOrder(b.diam) || cmpMarca(a.marca, b.marca); });
+  }
+  // Lista de conteo (sirve para el cierre al 100 % y para VERIFICAR): por defecto muestra lo que el sistema cree que hay
+  function listaConteo(e, vals, q, pref, defNoCero) {
+    var filas = filasPos(e), ql = String(q || '').trim().toLowerCase().replace(',', '.');
+    var vis = filas.filter(function (f) { return f.sal_p > 0 || vals[f.k] !== undefined || (ql && (f.marca.toLowerCase().indexOf(ql) >= 0 || (f.largo && f.largo.toFixed(2).indexOf(ql) === 0))); });
+    var h = '<div class="busq"><input type="search" autocomplete="off" placeholder="Buscar otra posición (ej. 4.06) por si hay acero que el sistema no tiene" value="' + esc(q) + '" data-i="' + pref + '.q" id="' + pref + '-q"></div>';
+    if (!vis.length) return h + '<div class="vacio-s">El sistema no tiene acero de esta estructura. Busque una posición para agregarla.</div>';
+    h += '<div class="tw"><table><thead><tr><th>Posición</th><th>Varilla</th><th class="n">Sistema</th><th class="n">' + (defNoCero ? 'Quedó' : 'Contado') + '</th></tr></thead><tbody>';
+    vis.forEach(function (f) {
+      var val = vals[f.k] !== undefined ? vals[f.k] : f.sal_p, dif = Number(val) !== f.sal_p;
+      h += '<tr' + (dif ? ' class="dif"' : '') + '><td><b>' + esc(f.marca) + '</b>' + (f.largo ? '<small class="mut"> ' + f.largo.toFixed(2) + ' m</small>' : '') + '</td><td>' + esc(C.diamLabel(f.diam)) + '</td><td class="n">' + n0(f.sal_p) + '</td>' +
+        '<td class="n"><input class="mini" type="number" inputmode="numeric" min="0" step="1" value="' + esc(val) + '" data-cv="' + pref + ':' + esc(f.k) + '" aria-label="Cantidad"></td></tr>';
+    });
+    return h + '</tbody></table></div>';
+  }
+  function itemsConteo(e, vals, clave) {
+    return filasPos(e).filter(function (f) { return f.sal_p > 0 || vals[f.k] !== undefined; }).map(function (f) {
+      var v = vals[f.k] !== undefined ? Math.max(0, Math.floor(Number(vals[f.k]) || 0)) : f.sal_p;
+      var o = { diametro: f.diam, marca: f.marca }; o[clave] = v; return o;
+    });
+  }
+  function vBalance(e) {
+    var filas = filasPos(e), quedan = filas.filter(function (f) { return f.sal_p > 0; });
+    return '<div class="balance"><div class="paso-h"><b>' + esc(e) + ' llegó al 100 %</b><button type="button" class="lnk" data-a="cerrarBal">Ahora no</button></div>' +
+      '<p style="margin:0 0 8px"><b>Cuente el acero que quedó en el patio sin usar.</b> Todo lo que quede pasa automáticamente a <b>Acero figurado</b>. Si no quedó nada, ponga 0.</p>' +
+      listaConteo(e, S.cie.vals, S.cie.q, 'cie', true) +
+      (S.cie.err ? '<div class="error">' + esc(S.cie.err) + '</div>' : '') +
+      '<button type="button" class="btn" style="margin-top:10px" data-a="cierreOk"' + (S.cie.busy ? ' disabled' : '') + '>' + (S.cie.busy ? 'Guardando…' : '✓ Confirmar lo que quedó') + '</button></div>';
+  }
+  function ultimaVer(e) {
+    var f = ''; (S.estado.verificaciones || []).forEach(function (x) { if (x.estructura === e && String(x.fecha).slice(0, 10) > f) f = String(x.fecha).slice(0, 10); });
+    return f;
+  }
+  function diasDesde(f) { return Math.floor((new Date(hoyISO() + 'T12:00:00') - new Date(f + 'T12:00:00')) / 86400000); }
+  function vVerificar() {
+    var v = S.ver, es = todasElems(), h = '<div class="card"><h2>Verificar el inventario</h2><p class="mut" style="margin-top:0">Una vez al mes, cuente el acero que hay en el patio. Solo toque las posiciones que no coinciden.</p>';
+    if (S.estado.verificaciones === undefined && false) return h + '</div>';
+    if (!es.length) return h + '<div class="vacio">Todavía no hay acero cargado.</div></div>';
+    h += '<div class="fld"><label for="v-elem">Estructura</label><select id="v-elem" data-f="ver.elem">' + (v.elem ? '' : '<option value="">Elija la estructura…</option>') + es.map(function (e) {
+      var u = ultimaVer(e), tx = u ? 'verificada hace ' + diasDesde(u) + ' d' : 'nunca verificada';
+      return '<option value="' + esc(e) + '"' + (e === v.elem ? ' selected' : '') + '>' + esc(e) + ' · ' + tx + '</option>'; }).join('') + '</select></div>';
+    if (v.msg) h += '<div class="okmsg">✓ ' + esc(v.msg) + '</div>';
+    if (v.elem) {
+      var its = itemsConteo(v.elem, v.vals, 'contado'), dif = filasPos(v.elem).filter(function (f) { return v.vals[f.k] !== undefined && Number(v.vals[f.k]) !== f.sal_p; }).length;
+      h += listaConteo(v.elem, v.vals, v.q, 'ver', false) +
+        '<div class="fld" style="margin-top:8px"><label for="v-obs">Nota (opcional)</label><input id="v-obs" type="text" maxlength="120" placeholder="Ej. conteo de fin de mes" value="' + esc(v.obs) + '" data-i="ver.obs"></div>' +
+        (v.err ? '<div class="error">' + esc(v.err) + '</div>' : '') +
+        '<button type="button" class="btn" style="margin-top:10px" data-a="verOk"' + (v.busy || !its.length ? ' disabled' : '') + '>' + (v.busy ? 'Guardando…' : dif ? '✓ Guardar conteo (' + dif + (dif === 1 ? ' diferencia)' : ' diferencias)') : '✓ Todo coincide, guardar conteo') + '</button>';
+    }
+    return h + '</div>';
   }
   function ajustarSalida() {
     var s = S.sal, es = elemsDisp();
@@ -417,6 +465,7 @@
           var pzs = dispDe(S.calc.porElem[e]), ped = {};
           S.estado.pedidos.forEach(function (p) { if (p.estructura === e) ped[p.pedido] = 1; });
           return '<option value="' + esc(e) + '"' + (e === s.elem ? ' selected' : '') + (pzs > 0 || e === s.elem ? '' : ' disabled') + '>' + esc(e) + ' · ' + (pzs > 0 ? n0(pzs) + (arm ? ' libres' : ' piezas') : 'sin acero') + '</option>'; }).join('') + '</select></div>' +
+      (esStock(s.elem) ? '<div class="fld" style="grid-column: 1 / -1"><label for="s-dest">¿En qué estructura se va a usar este acero?</label><input id="s-dest" type="text" list="dests" maxlength="80" autocomplete="off" placeholder="Escoja una o escriba una nueva" value="' + esc(s.destino) + '" data-i="sal.destino"><datalist id="dests">' + todasElems().filter(function (e) { return !esStock(e); }).map(function (e) { return '<option value="' + esc(e) + '">'; }).join('') + '</datalist></div>' : '') +
       (s.modo === 'pos' && s.elem ? '<div class="fld" style="grid-column: 1 / -1"><label for="s-fase">Fase</label><input id="s-fase" type="text" list="fases" maxlength="60" autocomplete="off" placeholder="Ej. Losa de fondo, Muros, Cabezal" value="' + esc(s.fase) + '" data-i="sal.fase"><datalist id="fases">' + fasesDe(s.elem).map(function (f) { return '<option value="' + esc(f) + '">'; }).join('') + '</datalist></div>' : '') +
       '</div></section>';
     if (s.elem && s.modo === 'pct') {
@@ -815,7 +864,7 @@
     var h = '<div class="card"><h2>Cargar archivos DLI</h2><p class="mut" style="margin-top:0">Seleccione uno o varios .dli (o el PDF de la cartilla). Cada uno se registra con su número de pedido y suma al inventario las piezas con cantidad mayor que cero.</p>' +
       '<label class="btn" for="dli-file">Elegir archivos .dli o PDF</label><input id="dli-file" type="file" accept=".dli,.pdf,application/pdf" multiple style="display:none"></div>';
     S.cargas.forEach(function (c, i) {
-      var p = c.parsed, por = resumenDiam(p), ya = S.estado.pedidos.filter(function (x) { var b = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); }; return x.estructura === p.nombre || (p.archivo && b(x.archivo) === b(p.archivo)); });
+      var p = c.parsed, por = resumenDiam(p), ya = S.estado.pedidos.filter(function (x) { var b = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); }; return (c.dest === 'est' && x.estructura === p.nombre) || (p.archivo && b(x.archivo) === b(p.archivo)); });
       h += '<div class="card"><h3>' + esc(p.nombre) + (p.descripcion ? '<span class="tag">' + esc(p.descripcion) + '</span>' : '') + '</h3>' +
         '<div class="peq mut">' + esc(p.archivo) + ' · ' + p.rows.length + ' filas · ' + n0(p.totalPiezas) + ' piezas · ' + kg(p.totalKg) + ' kg</div>';
       p.avisos.forEach(function (a) { h += '<div class="aviso">⚠ ' + esc(a) + '</div>'; });
@@ -830,10 +879,12 @@
       }
       h += '<details><summary>Ver las ' + p.rows.length + ' filas</summary><div class="tw"><table><thead><tr><th>Marca</th><th class="n">Cant.</th><th>Diám.</th><th class="n">Largo m</th><th class="n">Kg</th></tr></thead><tbody>' +
         p.rows.map(function (r) { return '<tr><td>' + esc(r.marca) + '</td><td class="n">' + r.cantidad + '</td><td>' + esc(C.diamLabel(r.diametro)) + '</td><td class="n">' + (r.largo ? kg(r.largo) : '—') + '</td><td class="n">' + kg(r.kg) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
-      h += '<div class="fld" style="margin-top:10px"><label>Nombre de la estructura</label><input type="text" maxlength="80" value="' + esc(p.nombre) + '" data-i="carga.' + i + '.nombre"><div class="peq mut">Si es un complemento de otra estructura ya cargada, cámbiele el nombre (ej. «CAISSON AT COMPLEMENTO»).</div></div>';
+      h += '<div class="fld" style="margin-top:10px"><label>¿Para qué es este acero?</label><div class="seg"><button type="button" class="' + (c.dest === 'est' ? 'on' : '') + '" data-a="cdest" data-v="' + i + ':est">Una estructura</button><button type="button" class="' + (c.dest === 'rec' ? 'on' : '') + '" data-a="cdest" data-v="' + i + ':rec">Stock recto</button><button type="button" class="' + (c.dest === 'fig' ? 'on' : '') + '" data-a="cdest" data-v="' + i + ':fig">Stock figurado</button></div>' +
+        (c.dest !== 'est' ? '<div class="peq mut">Entra a <b>' + (c.dest === 'rec' ? 'ACERO RECTO' : 'ACERO FIGURADO') + '</b> (acero sin destino específico). Después, al sacarlo, podrá indicar en qué estructura se usa.</div>' : '') + '</div>';
+      if (c.dest === 'est') h += '<div class="fld" style="margin-top:10px"><label>Nombre de la estructura</label><input type="text" maxlength="80" value="' + esc(p.nombre) + '" data-i="carga.' + i + '.nombre"><div class="peq mut">Si es un complemento de otra estructura ya cargada, cámbiele el nombre (ej. «CAISSON AT COMPLEMENTO»).</div></div>';
       if (!ya.length) h += '<div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" inputmode="numeric" placeholder="Ej. 203192" value="' + esc(c.pedido) + '" data-i="carga.' + i + '.pedido"></div>' +
         '<div class="fld"><label>Fecha en que llegó a obra</label><input type="date" max="' + hoyISO() + '" value="' + esc(c.llegada || hoyISO()) + '" data-i="carga.' + i + '.llegada"></div></div>' +
-        '<div class="fld"><label>¿Para cuántas estructuras es esta cartilla?</label><input type="text" inputmode="numeric" placeholder="1" value="' + esc(c.nEst) + '" data-i="carga.' + i + '.nest"><div class="peq mut">Los kilos y cantidades de la cartilla son el total de esas estructuras (ej. 10 pilotes). Después podrá registrar el armado de 1 estructura a la vez.</div></div>';
+        (c.dest !== 'est' ? '' : '<div class="fld"><label>¿Para cuántas estructuras es esta cartilla?</label><input type="text" inputmode="numeric" placeholder="1" value="' + esc(c.nEst) + '" data-i="carga.' + i + '.nest"><div class="peq mut">Los kilos y cantidades de la cartilla son el total de esas estructuras (ej. 10 pilotes). Después podrá registrar el armado de 1 estructura a la vez.</div></div>');
       if (c.err && !ya.length) h += '<div class="error">' + esc(c.err) + '</div>';
       h += '<div class="row2" style="margin-top:12px">' + (ya.length ? '' : '<button class="btn" data-a="registrarCarga" data-v="' + i + '">Registrar en inventario</button>') + '<button class="btn sec" data-a="quitarCarga" data-v="' + i + '">Quitar</button></div></div>';
     });
@@ -844,6 +895,7 @@
     if (!S.cargado) return vCargando();
     switch (S.tab) {
       case 'salida': return vSalida();
+      case 'ver': return vVerificar();
       case 'inv': return vInv();
       case 'mov': return vMovs();
       case 'cargar': return vCargar();
@@ -919,11 +971,11 @@
     return lista.reduce(function (p, f) {
       return p.then(function () { return f.arrayBuffer(); }).then(function (buf) {
         if (/\.pdf$/i.test(f.name)) {
-          return leerPdf(buf, f.name).then(function (parsed) { S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', err: '' }); })
+          return leerPdf(buf, f.name).then(function (parsed) { S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: 'est', err: '' }); })
             .catch(function () { toast('No se pudo leer el PDF ' + f.name + '. Sin señal por primera vez, o el archivo no es el listado.'); });
         }
         var parsed = C.parseDLI(new Uint8Array(buf), f.name);
-        S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', err: '', pedirPdf: dliFalla(parsed) });
+        S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: 'est', err: '', pedirPdf: dliFalla(parsed) });
       }).catch(function () { toast('No se pudo leer ' + f.name); });
     }, Promise.resolve()).then(render);
   }
@@ -939,6 +991,10 @@
   function registrarCarga(i) {
     var c = S.cargas[i]; if (!c) return;
     var p = c.parsed;
+    if (c.dest && c.dest !== 'est') { // stock sin destino: las posiciones llevan el pedido delante para no mezclar cartillas
+      var ped0 = String(c.pedido).trim();
+      p = Object.assign({}, c.parsed, { nombre: c.dest === 'rec' ? 'ACERO RECTO' : 'ACERO FIGURADO', rows: c.parsed.rows.map(function (r) { return Object.assign({}, r, { marca: (ped0 + '-' + r.marca).slice(0, 20) }); }) });
+    }
     c.err = '';
     if (!String(c.pedido).trim()) c.err = 'Escriba el número de pedido.';
     else if (!/^\d{4}-\d\d-\d\d$/.test(c.llegada || '') || c.llegada > hoyISO()) c.err = 'Elija la fecha en que llegó el pedido a obra (no puede ser futura).';
@@ -951,9 +1007,10 @@
       if (mal) c.err = 'Complete la marca ' + mal.marca + ' (falta largo o peso del diámetro ' + mal.diametro + ').';
     }
     if (!c.err) {
+      var porNombre = !c.dest || c.dest === 'est';
       var baseArch = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); };
-      var rep = S.estado.pedidos.filter(function (x) { return x.estructura === p.nombre || (p.archivo && baseArch(x.archivo) === baseArch(p.archivo)); })[0];
-      if (!rep) rep = S.cargas.filter(function (x, j) { return j !== i && (x.parsed.nombre === p.nombre || baseArch(x.parsed.archivo) === baseArch(p.archivo)); })[0] ? { pedido: 'en esta misma lista' } : null;
+      var rep = S.estado.pedidos.filter(function (x) { return (porNombre && x.estructura === p.nombre) || (p.archivo && baseArch(x.archivo) === baseArch(p.archivo)); })[0];
+      if (!rep) rep = S.cargas.filter(function (x, j) { return j !== i && ((porNombre && x.parsed.nombre === p.nombre) || baseArch(x.parsed.archivo) === baseArch(p.archivo)); })[0] ? { pedido: 'en esta misma lista' } : null;
       if (rep) c.err = 'Este DLI ya fue cargado (' + p.nombre + ', pedido ' + rep.pedido + '). No se puede guardar de nuevo, ni con otro número de pedido.';
     }
     if (c.err) { render(); return; }
@@ -973,6 +1030,7 @@
     if (s.modo === 'pos' && !String(s.fase).trim()) { s.err = 'Escriba la fase.'; s.msg = ''; render(); return; }
     var pctV = s.modo === 'pct' ? (parseFloat(String(s.pct).replace(',', '.')) || 0) : 0, elemSel = s.elem;
     var llegaA100 = s.modo === 'pct' && tipoReg === 'SALIDA' && pctAcum(elemSel) + pctV >= 100 - 1e-9;
+    var restaAntes = (S.calc.porElem[elemSel] || {}).sal_p || 0, destinoSel = esStock(elemSel) ? String(s.destino || '').trim() : '';
     var fch = /^\d{4}-\d\d-\d\d$/.test(s.fecha) ? s.fecha : hoyISO();
     if (fch > hoyISO()) { s.err = 'La fecha no puede ser futura.'; s.msg = ''; render(); return; }
     // El acero tiene que existir en la fecha elegida (no se arma ni se saca lo que aún no había llegado).
@@ -993,15 +1051,44 @@
     var totKg = 0, totP = 0; lista.forEach(function (it) { totKg += it.kg; totP += it.cant; });
     var obs = s.obs;
     s.err = ''; s.msg = '';
-    Api.salidaLote(S.ses, { grupo: s.grupo, items: lista.map(function (it) { return { diametro: it.diam, cantidad: it.cant, elemento: it.elem, marca: it.marca }; }), obs: obs, fecha: fch, hora: horaAhora(), fase: s.modo === 'pos' ? String(s.fase).trim() : '', modo: s.modo === 'pct' ? 'PCT' : 'POS', pct: pctV, tipo: tipoReg }).then(function (r) {
+    Api.salidaLote(S.ses, { grupo: s.grupo, items: lista.map(function (it) { return { diametro: it.diam, cantidad: it.cant, elemento: it.elem, marca: it.marca }; }), obs: obs, fecha: fch, hora: horaAhora(), fase: s.modo === 'pos' ? String(s.fase).trim() : '', modo: s.modo === 'pct' ? 'PCT' : 'POS', pct: pctV, tipo: tipoReg, destino: destinoSel }).then(function (r) {
       if (!r.ok) { s.err = r.error; render(); return; }
       s.obs = ''; s.fecha = ''; s.hora = ''; s.err = ''; s.grupo = ''; s.n = 0; s.items = []; s.q = ''; s.pct = ''; s.elem = ''; s.diam = ''; s.marca = ''; s.pos = ''; s.cant = 1; s.fase = ''; s.fdiam = '';
-      s.balElem = '';
+      s.balElem = ''; s.destino = '';
+      var cierre = tipoReg === 'SALIDA' && !esStock(elemSel) && (llegaA100 || restaAntes - totP <= 0);
       s.msg = (tipoReg === 'ARMADO' ? 'Armado guardado: ' : 'Salida guardada: ') + pz(totP) + ' (≈ ' + kg(totKg) + ' kg)' + (s.modo === 'pct' ? ' · ' + fmtPct(pctV) + ' % de avance' : '') + '.';
       window.scrollTo(0, 0);
-      S.tab = 'panel'; try { sessionStorage.setItem('ac_tab_' + MODO, 'panel'); } catch (e) { } toast(s.msg); s.msg = '';
+      if (cierre) { s.balElem = elemSel; S.cie = { vals: {}, q: '', err: '', busy: false }; toast(s.msg); s.msg = ''; }
+      else { S.tab = 'panel'; try { sessionStorage.setItem('ac_tab_' + MODO, 'panel'); } catch (e) { } toast(s.msg); s.msg = ''; }
       if (Api.remoto) { S.estado = Api.conCola(S.estado); render(); return enviarCola(); }
       return cargarEstado();
+    });
+  }
+
+  function cierreOk() {
+    var e = S.sal.balElem; if (!e || S.cie.busy) return;
+    var items = itemsConteo(e, S.cie.vals, 'queda');
+    if (items.some(function (x) { return x.queda > 100000; })) { S.cie.err = 'Revise las cantidades.'; render(); return; }
+    S.cie.busy = true; S.cie.err = ''; render();
+    Api.cierreEstructura(S.ses, e, items).then(function (r) {
+      S.cie.busy = false;
+      if (!r.ok) { S.cie.err = r.error || 'No se pudo guardar'; render(); return; }
+      var pasan = items.reduce(function (t, x) { return t + x.queda; }, 0);
+      S.sal.balElem = ''; S.cie = { vals: {}, q: '', err: '', busy: false };
+      toast(pasan ? 'Listo: ' + pz(pasan) + ' pasaron a Acero figurado' : 'Listo: no quedó acero sin usar');
+      return cargarEstado();
+    });
+  }
+  function verOk() {
+    var v = S.ver; if (!v.elem || v.busy) return;
+    var items = itemsConteo(v.elem, v.vals, 'contado');
+    v.busy = true; v.err = ''; render();
+    Api.verificar(S.ses, v.elem, items, v.obs).then(function (r) {
+      v.busy = false;
+      if (!r.ok) { v.err = r.error || 'No se pudo guardar'; render(); return; }
+      var el = v.elem; v.vals = {}; v.q = ''; v.obs = ''; v.elem = '';
+      v.msg = 'Conteo de ' + el + ' guardado: ' + (r.diferencias ? r.diferencias + ' diferencia(s) ajustada(s)' : 'todo coincide') + '.';
+      toast(v.msg); return cargarEstado();
     });
   }
 
@@ -1095,6 +1182,9 @@
       case 'tipo': if (S.sal.tipo !== v) { S.sal.tipo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; S.sal.q = ''; } render(); break;
       case 'modo': if (S.sal.modo !== v) { S.sal.modo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; predefinir1(); } render(); break;
       case 'pctset': S.sal.pct = String(v); S.sal.msg = ''; aplicarPct(); render(); break;
+      case 'cdest': { var pv = String(v).split(':'), cc = S.cargas[+pv[0]]; if (cc) { cc.dest = pv[1]; cc.err = ''; } render(); break; }
+      case 'cierreOk': cierreOk(); break;
+      case 'verOk': verOk(); break;
       case 'cerrarBal': S.sal.balElem = ''; render(); break;
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'per': S.per.k = v; render(); break;
@@ -1144,6 +1234,8 @@
 
   document.addEventListener('change', function (ev) {
     var t = ev.target;
+    if (t.getAttribute('data-cv')) { var pp = t.getAttribute('data-cv').split(':'), kk = pp.slice(1).join(':'), vv = Math.max(0, Math.floor(Number(t.value) || 0)); (pp[0] === 'cie' ? S.cie : S.ver).vals[kk] = vv; S.ver.msg = ''; render(); return; }
+    if (t.getAttribute('data-f') === 'ver.elem') { S.ver.elem = t.value; S.ver.vals = {}; S.ver.q = ''; S.ver.err = ''; S.ver.msg = ''; render(); return; }
     if (t.getAttribute('data-pdfpara') != null) { usarPdf(+t.getAttribute('data-pdfpara'), t.files[0]).then(function () { t.value = ''; }); return; }
     if (t.id === 'dli-file') { leerArchivos(t.files).then(function () { t.value = ''; }); return; }
     var f = t.getAttribute('data-f');
@@ -1175,6 +1267,9 @@
     if (i === 'sal.obs') S.sal.obs = t.value;
     else if (i === 'sal.q') { S.sal.q = t.value; S.focus = 's-q'; render(); var e3 = $('s-q'); if (e3) { try { e3.setSelectionRange(e3.value.length, e3.value.length); } catch (x) { } } }
     else if (i === 'ped.q') { S.ped.q = t.value; S.ped.pag = 0; S.focus = 'p-q'; render(); var e5 = $('p-q'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }
+    else if (i === 'cie.q' || i === 'ver.q') { (i === 'cie.q' ? S.cie : S.ver).q = t.value; S.focus = i.slice(0, 3) + '-q'; render(); var e7 = $(i.slice(0, 3) + '-q'); if (e7) { try { e7.setSelectionRange(e7.value.length, e7.value.length); } catch (x) { } } }
+    else if (i === 'ver.obs') S.ver.obs = t.value;
+    else if (i === 'sal.destino') S.sal.destino = t.value;
     else if (i === 'sal.fecha') S.sal.fecha = t.value;
     else if (i === 'mov.q') { S.mq = t.value; S.focus = 'm-q'; render(); var e6 = $('m-q'); if (e6) { try { e6.setSelectionRange(e6.value.length, e6.value.length); } catch (x) { } } }
     else if (i === 'sal.fase') S.sal.fase = t.value;
@@ -1225,7 +1320,7 @@
   }
 
   // ---------- Inicio ----------
-  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(panel|inv|mov|ped|inf|salida|cargar)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
+  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(panel|inv|mov|ped|inf|salida|cargar|ver)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
   S.ses = Api.sesion();
   if (S.ses && MODO === 'dashboard' && S.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; }
   if (S.ses) { render(); enviarCola().then(cargarEstado); }
