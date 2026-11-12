@@ -327,6 +327,15 @@
     });
     return r.sort(function (a, b) { return C.diamOrder(a.diam) - C.diamOrder(b.diam) || cmpMarca(a.marca, b.marca); });
   }
+  function nEstDe(e) {
+    var p = S.estado.pedidos.filter(function (x) { return x.estructura === e; })[0];
+    return Math.max(1, Math.round(+(p && p.nEstructuras) || 1));
+  }
+  function predefinir1() { // si la cartilla es para varias estructuras, se propone 1 estructura
+    var s = S.sal; if (s.modo !== 'pct' || !s.elem) return;
+    var N = nEstDe(s.elem), rest = Math.max(0, 100 - pctAcum(s.elem));
+    if (N > 1 && rest > 0) { s.pct = String(Math.round(Math.min(rest, 100 / N) * 100) / 100); aplicarPct(); }
+  }
   function aplicarPct() {
     var s = S.sal, p = parseFloat(String(s.pct).replace(',', '.')) || 0, rest = Math.max(0, 100 - pctAcum(s.elem));
     s.items = s.elem && p > 0 && p <= rest + 1e-9 ? itemsPct(s.elem, p) : [];
@@ -415,7 +424,13 @@
       h += '<section class="paso"><div class="paso-h"><i>2</i><b>¿Qué porcentaje?</b></div>' +
         '<div class="avance"><div class="av-b"><i style="width:' + Math.min(100, ac) + '%"></i></div><span>Ya ' + (arm ? 'se armó ' : 'salió ') + '<b>' + fmtPct(ac) + ' %</b>' + (rest <= 0 ? ' · completa' : '') + '</span></div>';
       if (rest <= 0) h += '<div class="vacio-s">Esta estructura ya está al 100 %.</div>';
-      else h += '<div class="fch">' + [10, 25, 50, 75].filter(function (x) { return x < rest; }).map(function (x) { return '<button type="button" class="fc" data-a="pctset" data-v="' + x + '">' + x + ' %</button>'; }).join('') +
+      else if (nEstDe(s.elem) > 1) {
+        var NE = nEstDe(s.elem), kEst = Math.max(1, Math.min(NE, Math.round((parseFloat(String(s.pct).replace(',', '.')) || 0) * NE / 100)));
+        h += '<div class="peq mut" style="margin:6px 0">Esta cartilla es para <b>' + NE + ' estructuras</b>: cada una es ' + fmtPct(Math.round(10000 / NE) / 100) + ' %.</div>' +
+          '<div class="fch">' + [1, 2, 3, 5].filter(function (x) { return x < NE && x * 100 / NE <= rest + 1e-9; }).map(function (x) { return '<button type="button" class="fc' + (Math.abs((parseFloat(String(s.pct).replace(',', '.')) || 0) - x * 100 / NE) < 1e-6 ? ' on' : '') + '" data-a="pctset" data-v="' + (x * 100 / NE) + '">' + x + (x === 1 ? ' estructura' : ' estructuras') + '</button>'; }).join('') +
+          '<button type="button" class="fc" data-a="pctset" data-v="' + rest + '">Todo lo que falta (' + fmtPct(rest) + ' %)</button></div>' +
+          '<div class="pctin"><input id="s-pct" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(s.pct) + '" data-i="sal.pct"><span>% de la cartilla</span></div>';
+      } else h += '<div class="fch">' + [10, 25, 50, 75].filter(function (x) { return x < rest; }).map(function (x) { return '<button type="button" class="fc" data-a="pctset" data-v="' + x + '">' + x + ' %</button>'; }).join('') +
         '<button type="button" class="fc" data-a="pctset" data-v="' + rest + '">Completar ' + fmtPct(rest) + ' %</button></div>' +
         '<div class="pctin"><input id="s-pct" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(s.pct) + '" data-i="sal.pct"><span>% de la estructura</span></div>';
       h += '</section>';
@@ -435,7 +450,7 @@
       else if (!lista.length) h += '<div class="vacio-s">No hay posiciones que coincidan con “' + esc(s.q) + '”.</div>';
       else h += '<div class="rlist">' + lista.map(function (p) {
         var a1 = ' data-v="' + esc(p.marca) + '" data-d="' + esc(p.diam) + '"';
-        return '<div class="rr"><div class="rr-i"><b>' + esc(p.marca) + '</b><span>' + esc(C.diamLabel(p.diam)) + (p.largo ? ' · ' + p.largo.toFixed(2) + ' m' : '') + ' · ' + (arm ? 'libres ' : 'quedan ') + n0(p.disp) + '</span></div>' +
+        return '<div class="rr"><div class="rr-i"><b>' + esc(p.marca) + '</b><span>' + esc(C.diamLabel(p.diam)) + (p.largo ? ' · ' + p.largo.toFixed(2) + ' m' : '') + ' · ' + (arm ? 'libres ' : 'quedan ') + n0(p.disp) + (nEstDe(s.elem) > 1 ? ' · por estructura ' + fmtPct(Math.round(((S.calc.porMarca[s.elem + '|' + p.diam + '|' + p.marca] || {}).in_p || 0) / nEstDe(s.elem) * 100) / 100) : '') + '</span></div>' +
           '<button type="button" class="b1" data-a="sumar"' + a1 + '>+1</button>' +
           (p.disp > 1 ? '<button type="button" class="bt" data-a="todas"' + a1 + '>Todas · ' + n0(p.disp) + '</button>' : '') + '</div>'; }).join('') + '</div>';
       h += '</section>';
@@ -816,7 +831,8 @@
         p.rows.map(function (r) { return '<tr><td>' + esc(r.marca) + '</td><td class="n">' + r.cantidad + '</td><td>' + esc(C.diamLabel(r.diametro)) + '</td><td class="n">' + (r.largo ? kg(r.largo) : '—') + '</td><td class="n">' + kg(r.kg) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
       h += '<div class="fld" style="margin-top:10px"><label>Nombre de la estructura</label><input type="text" maxlength="80" value="' + esc(p.nombre) + '" data-i="carga.' + i + '.nombre"><div class="peq mut">Si es un complemento de otra estructura ya cargada, cámbiele el nombre (ej. «CAISSON AT COMPLEMENTO»).</div></div>';
       if (!ya.length) h += '<div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" inputmode="numeric" placeholder="Ej. 203192" value="' + esc(c.pedido) + '" data-i="carga.' + i + '.pedido"></div>' +
-        '<div class="fld"><label>Fecha en que llegó a obra</label><input type="date" max="' + hoyISO() + '" value="' + esc(c.llegada || hoyISO()) + '" data-i="carga.' + i + '.llegada"></div></div>';
+        '<div class="fld"><label>Fecha en que llegó a obra</label><input type="date" max="' + hoyISO() + '" value="' + esc(c.llegada || hoyISO()) + '" data-i="carga.' + i + '.llegada"></div></div>' +
+        '<div class="fld"><label>¿Para cuántas estructuras es esta cartilla?</label><input type="text" inputmode="numeric" placeholder="1" value="' + esc(c.nEst) + '" data-i="carga.' + i + '.nest"><div class="peq mut">Los kilos y cantidades de la cartilla son el total de esas estructuras (ej. 10 pilotes). Después podrá registrar el armado de 1 estructura a la vez.</div></div>';
       if (c.err && !ya.length) h += '<div class="error">' + esc(c.err) + '</div>';
       h += '<div class="row2" style="margin-top:12px">' + (ya.length ? '' : '<button class="btn" data-a="registrarCarga" data-v="' + i + '">Registrar en inventario</button>') + '<button class="btn sec" data-a="quitarCarga" data-v="' + i + '">Quitar</button></div></div>';
     });
@@ -881,7 +897,7 @@
         var parsed = C.parseDLI(new Uint8Array(buf), f.name);
         var bin = '', u8 = new Uint8Array(buf);
         for (var k = 0; k < u8.length; k += 8192) bin += String.fromCharCode.apply(null, u8.subarray(k, k + 8192));
-        S.cargas.push({ parsed: parsed, b64: btoa(bin), pedido: '', llegada: hoyISO(), err: '' });
+        S.cargas.push({ parsed: parsed, b64: btoa(bin), pedido: '', llegada: hoyISO(), nEst: '1', err: '' });
       }).catch(function () { toast('No se pudo leer ' + f.name); });
     }, Promise.resolve()).then(render);
   }
@@ -905,7 +921,7 @@
       if (rep) c.err = 'Este DLI ya fue cargado (' + p.nombre + ', pedido ' + rep.pedido + '). No se puede guardar de nuevo, ni con otro número de pedido.';
     }
     if (c.err) { render(); return; }
-    Api.cargarDLI(S.ses, p, c.pedido, c.llegada, c.b64).then(function (r) {
+    Api.cargarDLI(S.ses, p, c.pedido, c.llegada, c.b64, Math.max(1, parseInt(c.nEst, 10) || 1)).then(function (r) {
       if (!r.ok) { c.err = /sin conexi/i.test(r.error || '') ? 'Sin señal: este DLI NO se ha cargado todavía. Se queda aquí en pantalla; cuando tengas señal vuelve a pulsar Guardar.' : r.error; render(); return; }
       S.cargas.splice(i, 1);
       toast('Cargado: pedido ' + String(c.pedido).trim() + ' · ' + p.nombre);
@@ -1041,7 +1057,7 @@
     var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
     switch (a) {
       case 'tipo': if (S.sal.tipo !== v) { S.sal.tipo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; S.sal.q = ''; } render(); break;
-      case 'modo': if (S.sal.modo !== v) { S.sal.modo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; } render(); break;
+      case 'modo': if (S.sal.modo !== v) { S.sal.modo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; predefinir1(); } render(); break;
       case 'pctset': S.sal.pct = String(v); S.sal.msg = ''; aplicarPct(); render(); break;
       case 'cerrarBal': S.sal.balElem = ''; render(); break;
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
@@ -1098,7 +1114,7 @@
     if (f === 'mov.q') { S.mq = t.value; render(); return; }
     if (f) {
       var p = f.split('.'); S[p[0]][p[1]] = t.value;
-      if (f === 'sal.elem') { S.sal.q = ''; S.sal.fdiam = ''; S.sal.items = []; S.sal.pct = ''; S.sal.balElem = ''; S.sal.fase = ''; }
+      if (f === 'sal.elem') { S.sal.q = ''; S.sal.fdiam = ''; S.sal.items = []; S.sal.pct = ''; S.sal.balElem = ''; S.sal.fase = ''; predefinir1(); }
       S.sal.err = ''; S.sal.msg = '';
       render(); return;
     }
@@ -1131,6 +1147,7 @@
       var m = /^carga\.(\d+)\.pedido$/.exec(i), m2 = /^carga\.(\d+)\.llegada$/.exec(i);
       if (m && S.cargas[+m[1]]) S.cargas[+m[1]].pedido = t.value;
       if (m2 && S.cargas[+m2[1]]) S.cargas[+m2[1]].llegada = t.value;
+      var m3 = /^carga\.(\d+)\.nest$/.exec(i); if (m3 && S.cargas[+m3[1]]) S.cargas[+m3[1]].nEst = t.value.replace(/\D/g, '');
     }
   });
 

@@ -84,7 +84,7 @@
       return post({ action: 'personal', pin: ses.pin, fecha: dia }).catch(function () { return { ok: false }; });
     },
 
-    cargarDLI: function (ses, parsed, pedido, llegada, b64) {
+    cargarDLI: function (ses, parsed, pedido, llegada, b64, nEst) {
       pedido = String(pedido).trim();
       var loadId = uid('L');
       var fllega = /^\d{4}-\d\d-\d\d$/.test(llegada || '') ? llegada + 'T00:00:00' : ahora();
@@ -95,12 +95,12 @@
           return Promise.resolve({ ok: false, error: 'Este DLI ya está cargado (' + parsed.nombre + '). No se permite repetirlo.' });
         s.entradas = s.entradas.concat(entradas);
         s.pedidos.push({ loadId: loadId, pedido: pedido, estructura: parsed.nombre, descripcion: parsed.descripcion, proyecto: parsed.proyecto,
-          archivo: parsed.archivo, fecha: fllega, usuario: ses.nombre, piezas: parsed.totalPiezas, kg: parsed.totalKg });
+          archivo: parsed.archivo, fecha: fllega, usuario: ses.nombre, piezas: parsed.totalPiezas, kg: parsed.totalKg, nEstructuras: nEst || 1 });
         guardar(K.local, s);
         return Promise.resolve({ ok: true });
       }
       return post({ action: 'cargarDLI', pin: ses.pin, usuario: ses.nombre, loadId: loadId, pedido: pedido, estructura: parsed.nombre,
-        descripcion: parsed.descripcion, proyecto: parsed.proyecto, archivo: parsed.archivo, fechaLlegada: llegada, entradas: entradas, archivoB64: b64 || '' })
+        descripcion: parsed.descripcion, proyecto: parsed.proyecto, archivo: parsed.archivo, fechaLlegada: llegada, entradas: entradas, archivoB64: b64 || '', nEstructuras: nEst || 1 })
         .catch(function () { return { ok: false, error: 'Sin conexión: la carga de un DLI necesita internet' }; });
     },
 
