@@ -788,12 +788,12 @@ function csvTr() {
   const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => filaTr(v).concat([tieneGps(v) ? mapaUrl(v) : '']).map(csvCelda).join(';')));
   bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Transportes_' + $('desde').value + '_' + $('hasta').value + '.csv');
 }
-// Descarga las fotos de los albaranes del periodo filtrado (lo que se ve en la lista) en ZIP, en partes de máx. 50 fotos
+// Descarga las fotos de los albaranes del periodo filtrado (lo que se ve en la lista) en ZIP, en partes de máx. 120 fotos
 async function zipAlbaranes() {
   const L = viajesTr().filter(v => (v.fotos_r || []).length).sort((a, b) => (a.fecha + (a.hora_salida || '')).localeCompare(b.fecha + (b.hora_salida || ''))), msg = $('xlsxMsg'), btn = $('btnZip');
   const F = []; L.forEach(v => (v.fotos_r || []).forEach((u, i) => F.push({ v: v, i: i, n: v.fotos_r.length })));
   if (!F.length) { msg.textContent = 'No hay fotos de albaranes en el periodo filtrado.'; return; }
-  const PARTE = 50, partes = Math.ceil(F.length / PARTE);
+  const PARTE = 120, partes = Math.ceil(F.length / PARTE);
   if (!confirm('Se descargarán ' + F.length + ' fotos de albaranes' + (partes > 1 ? ' en ' + partes + ' archivos ZIP' : '') + '. ¿Continuar?')) return;
   btn.disabled = true;
   try {
