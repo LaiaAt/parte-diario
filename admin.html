@@ -1634,7 +1634,7 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
   const pad = n => String(n).padStart(2, '0');
   let y = Number(hy.slice(0, 4)), m = Number(hy.slice(5, 7));
   if (Number(hy.slice(8, 10)) > 20) { m++; if (m > 12) { m = 1; y++; } }   // corte actual: termina el 20 del mes siguiente
-  const s = $('mes'); s.appendChild(h('option', { value: '__rec' }, 'Reciente (hoy y 2 días antes)')); s.appendChild(h('option', { value: '' }, 'Rango propio (máx. 31 días)'));
+  const s = $('mes'); s.appendChild(h('option', { value: '__hoy' }, 'Hoy')); s.appendChild(h('option', { value: '__rec' }, 'Reciente (hoy y 2 días antes)')); s.appendChild(h('option', { value: '' }, 'Rango propio (máx. 31 días)'));
   const cortes = {};
   for (let i = 0; i < 24; i++) {
     let py = y, pm = m - 1; if (!pm) { pm = 12; py--; }
@@ -1645,11 +1645,12 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
   }
   s.onchange = () => {
     if (!s.value) return;
+    if (s.value === '__hoy') { $('desde').value = hy; $('hasta').value = hy; if (LLAVE) cargar(false); return; }
     if (s.value === '__rec') { $('desde').value = sumDias(hy, -2); $('hasta').value = hy; if (LLAVE) cargar(false); return; }
     const c = cortes[s.value]; $('desde').value = c[0]; $('hasta').value = c[1] > hy ? hy : c[1];
     if (LLAVE) cargar(false);
   };
-  s.value = '__rec'; $('desde').value = sumDias(hy, -2); $('hasta').value = hy;
+  s.value = '__hoy'; $('desde').value = hy; $('hasta').value = hy;
   ['desde', 'hasta'].forEach(i => $(i).onchange = () => { s.value = ''; });
 })();
 (function () { let l = ''; try { l = localStorage.getItem('adm') || sessionStorage.getItem('adm') || ''; } catch (e) {} if (l) { $('llave').value = l; entrar(); } })();
