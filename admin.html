@@ -780,12 +780,12 @@ function cardViaje(v) {
       h('div', { style: 'font-size:22px;font-weight:800;letter-spacing:.5px' }, v.placa),
       h('div', { style: 'font-size:13px;font-weight:800;color:#fff;background:#0d3b66;border-radius:8px;padding:4px 10px' }, rn ? 'REPORTE ' + rn : 'REPORTE —')),
     h('div', { style: 'margin:6px 0 4px' }, chip(vol, 'background:#e3f2e5;color:#1b5e20'), p !== null ? chip(p + ' %', p < 70 ? 'background:#fde7b0;color:#6b4a00' : '') : null, chip(v.mov === 'RECIBE' ? '📥 Recibe' : '📤 Entrega'), chip(v.material || '—')),
-    h('div', { style: 'font-size:15px;font-weight:600;margin:2px 0' }, (v.origen || '—') + ' → ' + (v.destino || '—')),
-    h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.conductor || 'Sin conductor') + ' · Albarán ' + (v.n_valera || '—')),
+    h('div', { style: 'font-size:15px;margin:4px 0;line-height:1.5' }, h('div', {}, h('span', { style: 'color:#607d8b;font-weight:600' }, '📍 Origen: '), h('b', {}, v.origen || '—')), h('div', {}, h('span', { style: 'color:#607d8b;font-weight:600' }, '🏁 Destino: '), h('b', {}, v.destino || '—'))),
+    h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + 'Albarán ' + (v.n_valera || '—')),
     al ? h('div', { class: 'alt', style: 'font-size:14px' }, '⚠️ ' + al) : null,
     h('div', { style: 'margin-top:8px' }, botonesFoto(v)),
     h('details', { style: 'margin-top:6px' }, h('summary', { style: 'font-size:13px;font-weight:600;color:var(--mut);padding:2px 0' }, 'Más datos'),
-      h('div', { class: 'small' }, ufTxt(v) + (v.km ? ' · ' + nf(v.km) + ' km' : '') + ' · ' + v.cod + (v.empresa ? ' · ' + v.empresa : '')),
+      h('div', { class: 'small' }, ufTxt(v) + (v.km ? ' · ' + nf(v.km) + ' km' : '') + (v.empresa ? ' · ' + v.empresa : '')),
       tieneGps(v) ? h('div', { class: 'small' }, h('a', { href: mapaUrl(v), target: '_blank', rel: 'noopener' }, '📍 Ver origen en el mapa')) : null,
       h('div', { class: 'small' }, '🕒 Registró ' + (v.creado_por || '—') + ' · ' + fmtTs(v.creado || v.registrado) + (v.modificado && v.modificado !== v.creado ? ' · modificado ' + fmtTs(v.modificado) : ''))));
 }
