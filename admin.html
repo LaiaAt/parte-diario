@@ -746,7 +746,11 @@ function vistaMapa(c) {
 }
 
 /* ----- volquetas (crear, editar, activar / inactivar) ----- */
-let VDIRTY = {};
+let VDIRTY = {}, VMEM = {};
+const memData = f => new Promise((ok, no) => {
+  if (f.type === 'application/pdf') { if (f.size > 4500000) return no(new Error('El PDF pesa más de 4,5 MB')); const r = new FileReader(); r.onerror = no; r.onload = () => ok(r.result); r.readAsDataURL(f); return; }
+  const r = new FileReader(); r.onerror = no; r.onload = () => { const im = new Image(); im.onerror = () => no(new Error('No se pudo leer la imagen')); im.onload = () => { const k = Math.min(1, 2200 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.8)); }; im.src = r.result; }; r.readAsDataURL(f);
+});
 function contarVol() { const b = $('btnVolTodos'); if (!b) return; const n = Object.keys(VDIRTY).length; b.textContent = n ? '💾 Guardar todos los cambios (' + n + ')' : '💾 Guardar todos los cambios'; b.disabled = !n; b.style.opacity = n ? 1 : .5; }
 async function guardarVolTodos() {
   const ks = Object.keys(VDIRTY); if (!ks.length) return;
@@ -754,10 +758,15 @@ async function guardarVolTodos() {
   const items = ks.map(p => ({ placa: p, nominal: String(VDIRTY[p].nominal).replace(',', '.').trim(), capacidad: String(VDIRTY[p].capacidad).replace(',', '.').trim() }));
   const mal = items.filter(i => i.nominal !== '' && !(Number(i.nominal) > 0 && Number(i.nominal) <= 60)).map(i => i.placa);
   if (mal.length) { alert('Volumen del albarán no válido en: ' + mal.join(', ')); return; }
-  items.forEach(i => { const x = TR.volquetas.find(v => v.placa === i.placa); if (x) { x.nominal = num(i.nominal); x.capacidad = num(i.capacidad); x.validada = 'SI'; } });
+  const sinMem = items.filter(i => { const x = TR.volquetas.find(v => v.placa === i.placa); return i.capacidad !== '' && String(x && x.capacidad) !== String(num(i.capacidad)) && !VMEM[i.placa] && !(x && (x.memorias || []).length); }).map(i => i.placa);
+  if (sinMem.length) { alert('Adjunta la memoria de cálculo (foto o escáner) con el botón 📎 en: ' + sinMem.join(', ')); return; }
+  const mems = Object.keys(VMEM).filter(p => items.some(i => i.placa === p)).map(p => ({ placa: p, nombre: VMEM[p].nombre, data: VMEM[p].data }));
+  items.forEach(i => { const x = TR.volquetas.find(v => v.placa === i.placa); if (x) { x.capacidad = num(i.capacidad); x.validada = 'SI'; } });
+  items.forEach(i => delete VMEM[i.placa]);
   VDIRTY = {}; pintarTr(); VQN++; pillGuardando();
   VQ = VQ.then(async () => {
     try {
+      for (const m of mems) { const rm = await api({ accion: 'admin_tr_vol', llave: LLAVE, cambio: 'memoria', placa: m.placa, nombre: m.nombre, data: m.data }, 90000); if (!rm.ok) { alert(m.placa + ': ' + (rm.mensaje || 'no se pudo cargar la memoria')); VQN--; pillGuardando(); await recargaTr(); return; } }
       const r = await api({ accion: 'admin_tr_vol', llave: LLAVE, cambio: 'lote', items: items }, 90000);
       VQN--; pillGuardando();
       if (!r.ok) { alert((r.mensaje || 'No se pudo guardar') + '\nSe recarga la lista.'); await recargaTr(); return; }
@@ -798,11 +807,11 @@ function formVol(x, msg) {
   const id = p => (x ? 'ev_' + x.placa + '_' : 'nv') + p;
   const inp = (k, lab, extra) => h('div', {}, h('label', {}, lab), h('input', Object.assign({ id: id(k) }, extra || {})));
   const f = [inp('Placa', 'Placa *', { maxlength: 7, autocapitalize: 'characters', value: x ? x.placa : '' }), inp('Emp', 'Empresa', { list: 'dl-nvemp', value: x ? x.empresa : '' }), inp('Tipo', 'Tipo (elige o escribe)', { list: 'dl-nvtipo', value: x ? x.tipo : '' }),
-    inp('Cap', 'Comprobación CCSN en tolva (m³)', { inputmode: 'decimal', value: x ? x.capacidad : '' }), inp('Cond', 'Conductor', { value: x ? x.conductor : '' })];
+    inp('Cond', 'Conductor', { value: x ? x.conductor : '' })];
   const g = k => $(id(k)).value;
   f.push(h('div', { class: 'acc' }, h('button', { onclick: async () => {
     msg.textContent = ''; const p = g('Placa').trim(); if (!p) { msg.textContent = 'Escribe la placa.'; return; }
-    const d = { placa: x ? x.placa : p, empresa: g('Emp'), tipo: g('Tipo'), capacidad: g('Cap'), conductor: g('Cond') };
+    const d = { placa: x ? x.placa : p, empresa: g('Emp'), tipo: g('Tipo'), conductor: g('Cond') };
     if (x) { d.cambio = 'editar'; d.placa_nueva = p; } else d.cambio = 'crear';
     if (!await cambioVol(d)) msg.textContent = 'No se guardó.';
   } }, x ? '💾 Guardar cambios' : 'Guardar')), msg);
@@ -821,7 +830,7 @@ function vistaVol(c) {
   const V = TR.viajes;
   c.appendChild(chips([['pend', 'Por validar'], ['act', 'Activas'], ['inact', 'Inactivas'], ['todas', 'Todas']], TRVOL, k => { TRVOL = k; pintarTr(); }));
   const L = TR.volquetas.filter(x => TRVOL === 'pend' ? esPend(x) : TRVOL === 'act' ? !esIn(x) : TRVOL === 'inact' ? esIn(x) : true);
-  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Edita los volúmenes de las volquetas que necesites (las filas cambiadas se resaltan) y pulsa «Guardar todos los cambios». La comprobación CCSN solo se escribe después de conciliar con el proveedor; si la dejas vacía, el confirmado es igual al del albarán.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Escribe la comprobación CCSN solo después de conciliar con el proveedor y adjunta la memoria de cálculo (📎, foto o escáner). Al guardar, se recalculan automáticamente todos los viajes de esa volqueta. Mientras esté vacía, el volumen confirmado queda vacío.'));
   const gb = h('button', { id: 'btnVolTodos', style: 'width:100%;padding:12px;font-size:17px;margin:6px 0', onclick: guardarVolTodos }, '💾 Guardar todos los cambios'); c.appendChild(gb); setTimeout(contarVol, 0);
   const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;position:sticky;top:0;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
   const tb = h('table', { style: 'width:100%;border-collapse:collapse;font-size:15px' }, h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Conductor', 'Comprobación CCSN (m³)', 'Viajes', 'Estado', ''].map(th)));
@@ -832,11 +841,17 @@ function vistaVol(c) {
     const iV = h('input', { type: 'text', inputmode: 'decimal', value: dv.capacidad !== undefined ? dv.capacidad : (x.capacidad === undefined || x.capacidad === '' ? '' : x.capacidad), style: 'width:72px;font-size:15px;padding:6px;font-weight:700' });
     const marca = () => { VDIRTY[x.placa] = { nominal: '', capacidad: iV.value }; fila.style.background = '#fff8e1'; contarVol(); };
     iV.addEventListener('input', marca);
+    const mem = VMEM[x.placa], nM = (x.memorias || []).length;
+    const fi = h('input', { type: 'file', accept: 'image/*,application/pdf', hidden: true });
+    fi.onchange = async () => { const f = fi.files && fi.files[0]; if (!f) return; try { const data = await memData(f); VMEM[x.placa] = { nombre: f.name, data: data }; marca(); pintarTr(); } catch (e) { alert(e && e.message ? e.message : 'No se pudo leer el archivo'); } };
+    const celCap = h('div', {}, iV, h('div', { style: 'margin-top:4px;white-space:nowrap' }, fi,
+      h('button', { class: 'sec', style: 'padding:5px 8px;font-size:13px', title: 'Foto o escáner de la memoria de cálculo', onclick: () => fi.click() }, mem ? '📎 ' + mem.nombre.slice(0, 14) : '📎 Memoria de cálculo'),
+      nM ? h('a', { href: x.memorias[nM - 1], target: '_blank', style: 'margin-left:6px;font-size:13px' }, '📄 Ver (' + nM + ')') : null));
     if (VDIRTY[x.placa]) setTimeout(() => { fila.style.background = '#fff8e1'; }, 0);
     const ed = h('tr', { hidden: true }, h('td', { colspan: 8, style: 'padding:6px 10px;background:#fafafa' }, formVol(x, msg)));
     const fila = h('tr', { style: esPend(x) ? 'background:#fffaf0' : '' },
       td(h('b', {}, x.placa), esPend(x) ? h('span', { class: 'tag w', style: 'margin-left:6px' }, 'Nueva') : null),
-      td(x.empresa || '—'), td(x.tipo || '—'), td(h('span', { style: 'display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: x.conductor || '' }, x.conductor || '—')), td(iV), td(String(n)),
+      td(x.empresa || '—'), td(x.tipo || '—'), td(h('span', { style: 'display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: x.conductor || '' }, x.conductor || '—')), td(celCap), td(String(n)),
       td(esIn(x) ? 'Inactiva' : (esPend(x) ? 'Por validar' : '✔ Validada')),
       td(h('div', { style: 'display:flex;gap:4px;white-space:nowrap' }, h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Editar datos', onclick: () => { ed.hidden = !ed.hidden; } }, '✏️'),
         h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: esIn(x) ? 'Activar' : 'Desactivar', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? '▶' : '⏸'))));
