@@ -567,3 +567,8 @@ body:not(.emb) .cab .tabs { position: static; }
 .kg { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 12px; background: #fff; border: 0; border-left: 5px solid var(--acc); border-radius: 14px; box-shadow: var(--sombra); cursor: pointer; }
 .kg span { font-size: .8rem; font-weight: 700; color: #475569; } .kg b { font-size: 1.7rem; color: #0f172a; } .kg small { color: var(--mut); }
 @media print { .subtabs { display: none !important; } }
+
+/* Nada contraído: toda la información queda visible */
+details > summary { pointer-events: none; list-style: none; cursor: default; font-weight: 700; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::marker { content: ''; }
