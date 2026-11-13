@@ -1507,7 +1507,17 @@ function cargarPdfGen() {
   PDFG.catch(() => { PDFG = null; });
   return PDFG;
 }
+async function subirPdf(p, btn) {
+  const t0 = btn.textContent; btn.disabled = true; btn.textContent = 'Guardando en Drive…';
+  try {
+    const s = await api({ accion: 'admin_crear_pdf', llave: LLAVE, id: p.id, pdf: p._b64 }, 120000);
+    if (!s.ok) throw new Error(s.mensaje || 'No se pudo guardar el PDF');
+    p.pdf = s.nombre; p._b64 = null; btn.textContent = '✔ Guardado en Drive';
+    try { partes(); kpis(); } catch (e) {}
+  } catch (e) { btn.disabled = false; btn.textContent = t0; alert('No se pudo guardar en Drive: ' + (e.message || e)); }
+}
 async function crearPdf(p, btn) {
+  if (p._b64) return subirPdf(p, btn);
   const t0 = btn.textContent; btn.disabled = true; btn.textContent = 'Creando…';
   try {
     const w = await cargarPdfGen();
@@ -1519,10 +1529,9 @@ async function crearPdf(p, btn) {
     }
     const doc = w.PD.generarParteDoc(parte, { llave: r.llave, encargado: r.usuario, residente: 'INGENIERO RESIDENTE AUXILIAR', control: 'CONTROL DE GESTION' }, w.jspdf.jsPDF);
     const b64 = doc.output('datauristring').split(',')[1];
-    const s = await api({ accion: 'admin_crear_pdf', llave: LLAVE, id: p.id, pdf: b64 }, 120000);
-    if (!s.ok) throw new Error(s.mensaje || 'No se pudo guardar el PDF');
-    p.pdf = s.nombre; btn.textContent = '✔ Listo';
-    try { partes(); kpis(); } catch (e) {}
+    p._b64 = b64; bajarB64(b64, 'Parte_' + p.id + '.pdf');
+    btn.disabled = false; btn.textContent = '☁ Guardar en Drive';
+    alert('Paso 1 listo: el PDF se descargó en este dispositivo.\nPaso 2 (opcional): pulsa «☁ Guardar en Drive» si quieres guardarlo en la carpeta de partes.');
   } catch (e) { btn.disabled = false; btn.textContent = t0; alert('No se pudo crear el PDF: ' + (e.message || e)); }
 }
 async function todosPdf() {
