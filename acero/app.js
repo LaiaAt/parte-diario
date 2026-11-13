@@ -940,7 +940,14 @@
     parsed.rows.forEach(function (r) { var x = por[r.diametro] || (por[r.diametro] = { p: 0, kg: 0 }); x.p += r.cantidad; x.kg += r.kg; });
     return por;
   }
+  /** Un DLI ya cargado no abre tarjeta: solo se avisa por qué no se cargó. */
+  function sacarRepetidos() {
+    var mal = [];
+    S.cargas = S.cargas.filter(function (c) { var d = yaCargado(c.parsed, c.dest); if (d) mal.push('«' + (c.parsed.archivo || c.parsed.nombre) + '» ya estaba cargado (pedido ' + d + ')'); return !d; });
+    if (mal.length) { S.avisoBaja = 'ℹ️ No se cargó: ' + mal.join(' · ') + '. No se duplicó nada.'; }
+  }
   function vCargar() {
+    sacarRepetidos();
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador puede cargar un DLI.</div>';
     var h = '<div class="card"><h2>Cargar archivos DLI</h2><p class="mut" style="margin-top:0">Seleccione uno o varios .dli (o el PDF de la cartilla). Cada uno se registra con su número de pedido y suma al inventario las piezas con cantidad mayor que cero.</p>' +
       '<label class="btn" for="dli-file">📂 Elegir archivos</label><input id="dli-file" type="file" multiple style="display:none"></div>';
@@ -1147,6 +1154,7 @@
     }
     if (c.err) { if (!lote) render(); return Promise.resolve(false); }
     return Api.cargarDLI(S.ses, p, c.pedido, c.llegada, c.b64, Math.max(1, parseInt(c.nEst, 10) || 1)).then(function (r) {
+      if (!r.ok && /ya est[aá] cargado/i.test(r.error || '')) { S.cargas.splice(S.cargas.indexOf(c), 1); S.avisoBaja = 'ℹ️ No se cargó «' + (p.archivo || p.nombre) + '»: ' + r.error; if (!lote) render(); return false; }
       if (!r.ok) { c.err = /sin conexi/i.test(r.error || '') ? 'Sin señal: este DLI NO se ha cargado todavía. Se queda aquí en pantalla; cuando tengas señal vuelve a pulsar Guardar.' : r.error; if (!lote) render(); return false; }
       S.cargas.splice(S.cargas.indexOf(c), 1);
       if (lote) return p.nombre;

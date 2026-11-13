@@ -11,7 +11,7 @@
     return S.reg || (S.reg = {
       arm: { q: '' }, fin: { id: '', modo: '', vals: {}, stk: 'ACERO RECTO', sv: {}, err: '', busy: false, ok: '' },
       sal: { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' },
-      stk: { k: 'ACERO RECTO' }, ing: { stock: 'ACERO RECTO', rows: [], d: '1/2', l: '12', c: '', pedido: '', err: '', busy: false }
+      stk: { k: 'ACERO RECTO' }, ing: { stock: 'ACERO RECTO', rows: [], d: '1/2', l: '12', c: '', k: '', file: null, pedido: '', err: '', busy: false }
     });
   }
   function esc(s) { return X.esc(s); }
@@ -107,10 +107,12 @@
     var lista = Object.keys(X.C.PESOS).filter(function (k) { return k !== 'ALAMBRE'; }).sort(function (a, b) { return X.C.diamOrder(a) - X.C.diamOrder(b); });
     h += '<div class="fgrid"><div class="fld"><label>Varilla</label><select data-r="ing.d">' + lista.map(function (k) { return '<option value="' + esc(k) + '"' + (r.d === k ? ' selected' : '') + '>' + esc(X.C.diamLabel(k)) + '</option>'; }).join('') + '</select></div>' +
       '<div class="fld"><label>Largo (m)</label>' + (r.stock === 'ACERO RECTO' ? '<div class="seg" style="margin:0"><button type="button" class="' + (r.l === '6' ? 'on' : '') + '" data-a="ingL" data-v="6">6 m</button><button type="button" class="' + (r.l === '12' ? 'on' : '') + '" data-a="ingL" data-v="12">12 m</button></div>' : '<input type="text" inputmode="decimal" value="' + esc(r.l) + '" data-r="ing.l">') + '</div>' +
-      '<div class="fld"><label>Cantidad</label><input type="text" inputmode="numeric" placeholder="Ej. 50" value="' + esc(r.c) + '" data-r="ing.c"></div></div>' +
+      '<div class="fld"><label>Cantidad (piezas)</label><input type="text" inputmode="numeric" placeholder="Ej. 50" value="' + esc(r.c) + '" data-r="ing.c"></div>' +
+      '<div class="fld"><label>Kilos que llegaron</label><input type="text" inputmode="decimal" placeholder="' + (r.c ? 'Aprox. ' + X.kg((X.C.PESOS[r.d] || 0) * (parseFloat(String(r.l).replace(',', '.')) || 0) * (parseInt(r.c, 10) || 0)) : 'Según la remisión') + '" value="' + esc(r.k) + '" data-r="ing.k"></div></div>' +
       '<button class="btn blk" data-a="ingAdd" style="margin-top:8px">➕ Agregar a la lista</button>';
     if (r.rows.length) {
-      h += '<div class="lst">' + r.rows.map(function (x, i) { return '<div class="fila"><div><b>' + pz(x.c) + '</b> · ' + esc(X.C.diamLabel(x.d)) + ' · ' + x.l + ' m</div><button class="btn chico sec" data-a="ingDel" data-v="' + i + '">Quitar</button></div>'; }).join('') + '</div>' +
+      h += '<div class="lst">' + r.rows.map(function (x, i) { return '<div class="fila"><div><b>' + pz(x.c) + '</b> · ' + esc(X.C.diamLabel(x.d)) + ' · ' + x.l + ' m · ' + X.kg(x.k) + ' kg</div><button class="btn chico sec" data-a="ingDel" data-v="' + i + '">Quitar</button></div>'; }).join('') + '</div>' +
+        '<div class="fld" style="margin-top:8px"><label>📎 Foto o PDF de la remisión (obligatorio)</label><input id="ing-file" type="file" accept="image/*,application/pdf" data-r="ing.file">' + (r.file ? '<div class="peq" style="margin-top:4px">✅ ' + esc(r.file.nombre) + '</div>' : '<div class="peq mut" style="margin-top:4px">No puede llegar acero sin soporte.</div>') + '</div>' +
         '<div class="fld" style="margin-top:8px"><label>Número de pedido o remisión (opcional)</label><input type="text" value="' + esc(r.pedido) + '" data-r="ing.pedido"></div>' +
         '<button class="btn blk ok" data-a="ingOk"' + (r.busy ? ' disabled' : '') + '>' + (r.busy ? 'Guardando…' : '✅ Guardar la llegada') + '</button>';
     }
@@ -267,17 +269,19 @@
         if (!(c > 0)) { r.ing.err = 'Escribe cuántas piezas llegaron.'; X.render(); return true; }
         if (!(l > 0) || l > 30) { r.ing.err = 'Escribe el largo en metros.'; X.render(); return true; }
         if (r.ing.stock === 'ACERO RECTO' && l !== 6 && l !== 12) { r.ing.err = 'En el stock estándar solo entran barras de 6 m o 12 m.'; X.render(); return true; }
-        r.ing.rows.push({ d: r.ing.d, l: l, c: c }); r.ing.c = ''; r.ing.err = ''; X.render(); return true;
+        var kl = parseFloat(String(r.ing.k).replace(',', '.'));
+        if (!(kl > 0)) { r.ing.err = 'Escribe los kilos que llegaron de esta varilla (según la remisión).'; X.render(); return true; }
+        r.ing.rows.push({ d: r.ing.d, l: l, c: c, k: kl }); r.ing.k = ''; r.ing.c = ''; r.ing.err = ''; X.render(); return true;
       }
       case 'ingDel': r.ing.rows.splice(+v, 1); X.render(); return true;
       case 'ingOk': {
         if (r.ing.busy || !r.ing.rows.length) return true;
-        var items = r.ing.rows.map(function (w) { return { diametro: w.d, largo: w.l, cantidad: w.c, kgUnit: X.C.r3((X.C.PESOS[w.d] || 0) * w.l) }; });
-        if (items.some(function (w) { return !(w.kgUnit > 0); })) { r.ing.err = 'Falta el peso de una varilla.'; X.render(); return true; }
+        var items = r.ing.rows.map(function (w) { return { diametro: w.d, largo: w.l, cantidad: w.c, kg: w.k }; });
+        if (!r.ing.file) { r.ing.err = 'Falta la foto o el PDF de la remisión: no puede llegar acero sin soporte.'; X.render(); return true; }
         r.ing.busy = true; r.ing.err = ''; X.render();
-        X.Api.accion(S.ses, 'ingresoStock', { stock: r.ing.stock, items: items, pedido: r.ing.pedido, id: 'G' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }).then(function (res) {
+        X.Api.accion(S.ses, 'ingresoStock', { stock: r.ing.stock, items: items, pedido: r.ing.pedido, archivoB64: r.ing.file.b64, archivoNombre: r.ing.file.nombre, id: 'G' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }).then(function (res) {
           if (!res.ok) return fallo(r.ing, res.error);
-          var k = r.ing.stock; r.ing = { stock: k, rows: [], d: r.ing.d, l: r.ing.l, c: '', pedido: '', err: '', busy: false };
+          var k = r.ing.stock; r.ing = { stock: k, rows: [], d: r.ing.d, l: r.ing.l, c: '', k: '', file: null, pedido: '', err: '', busy: false };
           X.toast('✅ Llegada guardada en ' + NOM[k]); r.stk.k = k; S.tab = 'stock'; recargar();
         });
         return true;
@@ -369,12 +373,23 @@
     var k = t.getAttribute('data-r'); if (!k) return false;
     var r = R(), p = k.split('.'), val = t.value;
     if (k === 'ing.c') val = val.replace(/[^\d]/g, '');
+    if (k === 'ing.k') val = val.replace(/[^\d.,]/g, '');
     r[p[0]][p[1]] = val;
     if (k === 'arm.q') { X.S.focus = 'r-arm'; X.render(); var e = document.getElementById('r-arm'); if (e) { try { e.setSelectionRange(e.value.length, e.value.length); } catch (x) { } } }
     return true;
   }
+  /** Foto o PDF: se reduce la foto para que suba rápido. */
+  function leerSoporte(f) {
+    var r = R().ing; if (!f) return;
+    var fin = function (b64, nombre) { r.file = { nombre: nombre, b64: b64 }; r.err = ''; X.render(); };
+    if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) { var fr = new FileReader(); fr.onload = function () { fin(String(fr.result).split(',')[1], f.name); }; fr.readAsDataURL(f); return; }
+    var img = new Image(), u = URL.createObjectURL(f);
+    img.onload = function () { var m = 1600, k = Math.min(1, m / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(u); fin(cv.toDataURL('image/jpeg', 0.8).split(',')[1], f.name.replace(/\.[^.]+$/, '') + '.jpg'); };
+    img.onerror = function () { r.err = 'No se pudo leer la foto.'; X.render(); }; img.src = u;
+  }
   function cambio(t) { // listas desplegables
     var k = t.getAttribute('data-r'); if (!k) return false;
+    if (k === 'ing.file') { leerSoporte(t.files && t.files[0]); return true; }
     var p = k.split('.'); R()[p[0]][p[1]] = t.value; if (k === 'ing.d') X.render(); return true;
   }
 
