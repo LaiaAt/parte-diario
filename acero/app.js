@@ -387,7 +387,13 @@
     var filas = filasPos(e), ql = String(q || '').trim().toLowerCase().replace(',', '.');
     var vis = filas.filter(function (f) { return todas || f.sal_p > 0 || vals[f.k] !== undefined || (ql && (posTxt(e, f.marca).toLowerCase().indexOf(ql) >= 0 || (f.largo && f.largo.toFixed(2).indexOf(ql) === 0))); });
     if (todas && ql) vis = vis.filter(function (f) { return posTxt(e, f.marca).toLowerCase().indexOf(ql) >= 0 || vals[f.k] !== undefined; });
+    var est0 = pref === 'cie' ? S.cie : S.ver, dms = [];
+    vis.forEach(function (f) { if (dms.indexOf(f.diam) < 0) dms.push(f.diam); });
+    if (est0.fd && dms.indexOf(est0.fd) < 0) est0.fd = '';
+    var chips = dms.length > 1 && vis.length > 12 ? '<div class="fch" style="margin:6px 0">' + [''].concat(dms).map(function (d) { return '<button type="button" class="fc' + ((est0.fd || '') === d ? ' on' : '') + '" data-a="cfd" data-v="' + pref + ':' + esc(d) + '">' + (d ? esc(C.diamLabel(d)) : 'Todas (' + vis.length + ')') + '</button>'; }).join('') + '</div>' : '';
+    if (est0.fd) vis = vis.filter(function (f) { return f.diam === est0.fd; });
     var h = '<div class="busq"><input type="search" autocomplete="off" placeholder="' + (todas ? 'Buscar posición (ej. 4.06)' : '¿Hay acero que no está en la lista? Búsquelo aquí') + '" value="' + esc(q) + '" data-i="' + pref + '.q" id="' + pref + '-q"></div>';
+    h += chips;
     if (!vis.length) return h + '<div class="vacio-s">' + (ql ? 'No hay posiciones que coincidan.' : 'El sistema no tiene acero de esta estructura. Busque una posición para agregarla.') + '</div>';
     h += '<div class="cnt">';
     vis.forEach(function (f) {
@@ -630,7 +636,7 @@
   }
 
   function vHoy() {
-    var hoy = hoyISO(), L = movimientos().filter(function (m) { return m.t === 'S' && esHoy(m.f); }), mios = L.filter(function (m) { return esPropio(m.s); });
+    var hoy = hoyISO(), L = movimientos().filter(function (m) { return m.t === 'S' && esHoy(m.f); }), mios = L.filter(function (m) { return esPropio(m.s) && m.g.some(function (x) { return x.estado !== 'ANULADA'; }) && m.g.every(function (x) { return !x.pendiente; }); });
     var tA = 0, tS = 0; L.forEach(function (m) { m.g.forEach(function (x) { if (x.estado !== 'ANULADA') { if (tp(x) === 'ARMADO') tA += +x.kg || 0; else tS += +x.kg || 0; } }); });
     return '<div class="hero"><small>Hoy ' + fechaDia(hoy) + '</small><b>' + kg(tA) + '<em> kg armados</em></b><span>' + kg(tS) + ' kg salieron de la playa</span></div>' +
       '<div class="card"><h2 style="margin-top:0">Lo registrado hoy</h2>' + (mios.length ? '<p class="peq mut" style="margin-top:0">Si se equivocó, toque <b>↩ Deshacer</b> y vuelva a registrarlo bien. Solo se puede el mismo día.</p>' : '') +
@@ -1030,7 +1036,7 @@
   // Si ya existe una estructura con ese nombre pero el archivo es otro, es un complemento: se le da un nombre propio
   function nombreAuto(p) {
     var b = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); };
-    var usado = function (n) { return S.estado.pedidos.some(function (x) { return x.estructura === n; }) || S.cargas.some(function (c) { return c.parsed.nombre === n; }); };
+    var usado = function (n) { return S.estado.pedidos.some(function (x) { return x.estructura === n; }); };
     var mismoArch = S.estado.pedidos.some(function (x) { return p.archivo && b(x.archivo) === b(p.archivo); });
     if (mismoArch || !usado(p.nombre)) return '';
     var cola = String(p.archivo || '').replace(/\.(dli|pdf)$/i, '').replace(/^.*?(fase\s*ii|fase\s*2)\s*[-_]?\s*/i, '').replace(/[_]+/g, ' ').trim();
@@ -1039,7 +1045,25 @@
     var viejo = p.nombre; p.nombre = n;
     return 'Ya existía la estructura «' + viejo + '». Como este archivo es otro, lo guardo como «' + n + '». Puede cambiar el nombre abajo.';
   }
-  function destAuto(p) { return /stock|est[aá]ndar|alambre/i.test(String(p.nombre || '') + ' ' + String(p.archivo || '')) ? 'rec' : 'est'; }
+  // Dos archivos de la misma lista con el mismo nombre: conserva el nombre el archivo que se llama así; el otro es complemento
+  function resolverNombres() {
+    var b = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').toLowerCase(); }, G = {};
+    S.cargas.forEach(function (c) { if (c.dest === 'est') (G[c.parsed.nombre] = G[c.parsed.nombre] || []).push(c); });
+    Object.keys(G).forEach(function (n) {
+      var L = G[n]; if (L.length < 2) return;
+      var dueño = L.filter(function (c) { return b(c.parsed.archivo).slice(-n.length) === n.toLowerCase(); })[0] || L[0];
+      L.forEach(function (c) { if (c !== dueño) c.nota = nombreAuto2(c.parsed, n); });
+    });
+  }
+  function nombreAuto2(p, n) {
+    var cola = String(p.archivo || '').replace(/\.(dli|pdf)$/i, '').replace(/^.*?(fase\s*ii|fase\s*2)\s*[-_]?\s*/i, '').replace(/[_]+/g, ' ').trim();
+    var usado = function (x) { return S.estado.pedidos.some(function (y) { return y.estructura === x; }) || S.cargas.some(function (c) { return c.parsed !== p && c.parsed.nombre === x; }); };
+    var nn = (n + ' · ' + (cola && cola.toLowerCase() !== n.toLowerCase() ? cola : 'complemento')).slice(0, 80), k = 2;
+    while (usado(nn)) nn = (n + ' · complemento ' + (k++)).slice(0, 80);
+    p.nombre = nn;
+    return 'Hay otro archivo con la estructura «' + n + '». Este lo guardo como «' + nn + '». Puede cambiar el nombre abajo.';
+  }
+  function destAuto(p) { return /stock|est[aá]ndar|alambre|tach[oó]n/i.test(String(p.nombre || '') + ' ' + String(p.archivo || '')) ? 'rec' : 'est'; }
   function leerArchivos(files) {
     var lista = Array.prototype.slice.call(files);
     return lista.reduce(function (p, f) {
@@ -1053,7 +1077,7 @@
         var dA = destAuto(parsed), na = dA === 'est' ? nombreAuto(parsed) : '';
         S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: dA, err: '', pedirPdf: dliFalla(parsed), nota: na });
       }).catch(function () { toast('No se pudo leer ' + f.name); });
-    }, Promise.resolve()).then(function () { S.cargaRes = null; render(); });
+    }, Promise.resolve()).then(function () { resolverNombres(); S.cargaRes = null; render(); });
   }
   function usarPdf(i, file) {
     var c = S.cargas[i]; if (!c || !file) return Promise.resolve();
@@ -1073,6 +1097,7 @@
     }
     c.err = '';
     if (!String(c.pedido).trim()) c.err = 'Escriba el número de pedido.';
+    else if (!/^[A-Za-z0-9._\-]{1,30}$/.test(String(c.pedido).trim())) c.err = 'El número de pedido solo puede tener números, letras, punto o guion (sin espacios).';
     else if (!/^\d{4}-\d\d-\d\d$/.test(c.llegada || '') || c.llegada > hoyISO()) c.err = 'Elija la fecha en que llegó el pedido a obra (no puede ser futura).';
     else if (c.pedirPdf) c.err = 'Falta el PDF de la cartilla: este DLI no se pudo leer con seguridad.';
     else if (!p.rows.length) c.err = 'El archivo no trae piezas.';
@@ -1114,6 +1139,8 @@
     e.err = '';
     if (!/^[A-Za-z0-9._\-]{1,30}$/.test(String(e.pedido).trim())) e.err = 'Escriba un número de pedido válido.';
     else if (!/^\d{4}-\d\d-\d\d$/.test(e.f) || e.f > hoyISO()) e.err = 'Revise la fecha de llegada (no puede ser futura).';
+    if (!e.err) { var pp = S.estado.pedidos.filter(function (x) { return x.loadId === id; })[0] || {}, antes = S.estado.salidas.filter(function (x) { return x.estado !== 'ANULADA' && x.elemento === pp.estructura && String(x.fecha).slice(0, 10) < e.f; }).length;
+      if (antes) e.err = 'No se puede poner esa fecha: ya hay ' + antes + ' registro(s) de armado o salida de esta estructura antes del ' + fechaDia(e.f) + '.'; }
     if (e.err) { render(); return; }
     Api.editarCarga(S.ses, id, { pedido: String(e.pedido).trim(), fechaLlegada: e.f, nEstructuras: Math.max(1, parseInt(e.n, 10) || 1) }).then(function (r) {
       if (!r.ok) { e.err = r.error || 'No se pudo guardar'; render(); return; }
@@ -1122,6 +1149,7 @@
   }
 
   function registrarSalida() {
+    if (S.guardando) return;
     var s = S.sal, lista = s.items.slice(), actual = null, tipoReg = s.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA';
     S.tipo2 = tipoReg;
     if (!lista.length) { s.err = s.modo === 'pct' ? 'Escriba el porcentaje de avance.' : 'Elija al menos una pieza.'; s.msg = ''; render(); return; }
@@ -1153,7 +1181,9 @@
     var totKg = 0, totP = 0; lista.forEach(function (it) { totKg += it.kg; totP += it.cant; });
     var obs = s.obs;
     s.err = ''; s.msg = '';
+    S.guardando = true; setTimeout(function () { S.guardando = false; }, 4000);
     Api.salidaLote(S.ses, { grupo: s.grupo, items: lista.map(function (it) { return { diametro: it.diam, cantidad: it.cant, elemento: it.elem, marca: it.marca }; }), obs: obs, fecha: fch, hora: horaAhora(), fase: s.modo === 'pos' ? String(s.fase).trim() : '', modo: s.modo === 'pct' ? 'PCT' : 'POS', pct: pctV, tipo: tipoReg, destino: destinoSel }).then(function (r) {
+      S.guardando = false;
       if (!r.ok) { s.err = r.error; render(); return; }
       s.obs = ''; s.fecha = ''; s.hora = ''; s.err = ''; s.grupo = ''; s.n = 0; s.items = []; s.q = ''; s.pct = ''; s.elem = ''; s.diam = ''; s.marca = ''; s.pos = ''; s.cant = 1; s.fase = ''; s.fdiam = '';
       s.balElem = ''; s.destino = '';
@@ -1281,13 +1311,14 @@
     var el = ev.target.closest('[data-a]'); if (!el) return;
     var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
     switch (a) {
-      case 'tipo': if (S.sal.tipo !== v) { S.sal.tipo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; S.sal.q = ''; S.sal.fdiam = ''; } S.okSal = null; render(); break;
-      case 'modo': if (S.sal.modo !== v) { S.sal.modo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; predefinir1(); } render(); break;
+      case 'tipo': if (S.sal.tipo !== v && S.sal.items.length && !confirm('Se borra la lista de piezas que lleva. ¿Cambiar?')) break; if (S.sal.tipo !== v) { S.sal.tipo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; S.sal.q = ''; S.sal.fdiam = ''; } S.okSal = null; render(); break;
+      case 'modo': if (S.sal.modo !== v && S.sal.items.length && S.sal.modo === 'pos' && !confirm('Se borra la lista de piezas que lleva. ¿Cambiar?')) break; if (S.sal.modo !== v) { S.sal.modo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; predefinir1(); } render(); break;
       case 'pctset': S.sal.pct = String(v); S.sal.msg = ''; aplicarPct(); render(); break;
       case 'cdest': { var pv = String(v).split(':'), cc = S.cargas[+pv[0]]; if (cc) { cc.dest = pv[1]; cc.err = ''; } render(); break; }
       case 'cierreOk': cierreOk(); break;
       case 'infHoy': S.inf.d = ''; S.inf.h = ''; render(); break;
       case 'cierreNo': S.cie.vals = {}; cierreOk(); break;
+      case 'cfd': { var cf = String(v).split(':'); (cf[0] === 'cie' ? S.cie : S.ver).fd = cf.slice(1).join(':'); render(); break; }
       case 'cierreSi': S.cie.si = true; render(); break;
       case 'verConf': S.ver.conf = true; render(); break;
       case 'verNo': S.ver.conf = false; render(); break;
@@ -1356,6 +1387,7 @@
     if (/^carga\.\d+\.nombre$/.test(t.getAttribute('data-i') || '')) { var cn = S.cargas[+t.getAttribute('data-i').split('.')[1]]; if (cn) { cn.parsed.nombre = String(t.value).trim() || cn.parsed.nombre; cn.err = ''; render(); } return; }
     if (f === 'mov.q') { S.mq = t.value; render(); return; }
     if (f) {
+      if (f === 'sal.elem' && S.sal.items.length && S.sal.modo === 'pos' && t.value !== S.sal.elem && !confirm('Se borra la lista de piezas que lleva. ¿Cambiar de estructura?')) { t.value = S.sal.elem; return; }
       var p = f.split('.'); S[p[0]][p[1]] = t.value;
       if (f === 'sal.elem') { S.sal.q = ''; S.sal.fdiam = ''; S.sal.items = []; S.sal.pct = ''; S.sal.balElem = ''; S.sal.fase = ''; predefinir1(); }
       S.sal.err = ''; S.sal.msg = '';

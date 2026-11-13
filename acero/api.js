@@ -35,12 +35,12 @@
     if (!q.length) return estado;
     var e = { pedidos: estado.pedidos, entradas: estado.entradas, salidas: estado.salidas.slice() };
     q.forEach(function (b) {
-      var partes = b.items ? b.items.map(function (it, k) { return Object.assign({}, it, { id: b.grupo + '-' + (k + 1), fecha: b.fecha, usuario: b.usuario, obs: b.obs, fase: b.fase, modo: b.modo, pct: b.pct, tipo: b.tipo }); }) : [b];
+      var partes = b.items ? b.items.map(function (it, k) { return Object.assign({}, it, { id: b.grupo + '-' + (k + 1), fecha: b.fecha, usuario: b.usuario, obs: b.obs, fase: b.fase, modo: b.modo, pct: b.pct, tipo: b.tipo, destino: b.destino }); }) : [b];
       partes.forEach(function (b) {
         if (e.salidas.some(function (s) { return s.id === b.id; })) return;
         var calc = C.calcular(e);
         e.salidas.push({ id: b.id, fecha: conFecha(b.fecha), diametro: b.diametro, cantidad: b.cantidad, elemento: b.elemento, marca: b.marca || '',
-          kg: C.kgSalida(calc, b.elemento, b.diametro, b.cantidad, b.marca || ''), usuario: b.usuario, obs: b.obs || '', estado: 'ACTIVA', fase: b.fase || '', modo: b.modo || 'POS', pct: b.pct || 0, tipo: b.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA', pendiente: true });
+          kg: C.kgSalida(calc, b.elemento, b.diametro, b.cantidad, b.marca || ''), usuario: b.usuario, obs: b.obs || '', estado: 'ACTIVA', fase: b.fase || '', modo: b.modo || 'POS', pct: b.pct || 0, tipo: b.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA', destino: b.destino || '', pendiente: true });
       });
     });
     return e;
@@ -91,7 +91,7 @@
       var entradas = C.aEntradas(parsed, pedido, loadId, fllega);
       if (!remoto) {
         var s = leer(K.local, vacio());
-        if (s.pedidos.some(function (p) { return p.estructura === parsed.nombre; }))
+        if (['ACERO RECTO', 'ACERO FIGURADO'].indexOf(parsed.nombre) < 0 && s.pedidos.some(function (p) { return p.estructura === parsed.nombre; }))
           return Promise.resolve({ ok: false, error: 'Este DLI ya está cargado (' + parsed.nombre + '). No se permite repetirlo.' });
         s.entradas = s.entradas.concat(entradas);
         s.pedidos.push({ loadId: loadId, pedido: pedido, estructura: parsed.nombre, descripcion: parsed.descripcion, proyecto: parsed.proyecto,
@@ -118,7 +118,7 @@
         var err = tipo === 'ARMADO' ? C.validarArmado(calc, d.elemento, d.diametro, d.cantidad, marca) : C.validarSalida(calc, d.elemento, d.diametro, d.cantidad, marca);
         if (err) return Promise.resolve({ ok: false, error: err });
         s.salidas.push({ id: id, fecha: conFecha(d.fecha, d.hora), diametro: d.diametro, cantidad: d.cantidad, elemento: d.elemento, marca: marca,
-          kg: C.kgSalida(calc, d.elemento, d.diametro, d.cantidad, marca), usuario: ses.nombre, obs: d.obs || '', estado: 'ACTIVA', fase: d.fase || '', modo: d.modo || 'POS', pct: d.pct || 0, tipo: tipo });
+          kg: C.kgSalida(calc, d.elemento, d.diametro, d.cantidad, marca), usuario: ses.nombre, obs: d.obs || '', estado: 'ACTIVA', fase: d.fase || '', modo: d.modo || 'POS', pct: d.pct || 0, tipo: tipo, destino: d.destino || '' });
         guardar(K.local, s);
         return Promise.resolve({ ok: true });
       }
@@ -135,7 +135,7 @@
       var self = this;
       if (!remoto) {
         return d.items.reduce(function (p, it, k) {
-          return p.then(function (r) { return r && !r.ok ? r : self.salida(ses, { id: d.grupo + '-' + (k + 1), diametro: it.diametro, cantidad: it.cantidad, elemento: it.elemento, marca: it.marca, obs: d.obs, fecha: d.fecha, fase: d.fase, modo: d.modo, pct: d.pct, tipo: d.tipo }); });
+          return p.then(function (r) { return r && !r.ok ? r : self.salida(ses, { id: d.grupo + '-' + (k + 1), diametro: it.diametro, cantidad: it.cantidad, elemento: it.elemento, marca: it.marca, obs: d.obs, fecha: d.fecha, fase: d.fase, modo: d.modo, pct: d.pct, tipo: d.tipo, destino: d.destino }); });
         }, Promise.resolve({ ok: true }));
       }
       var q = leer(K.cola, []);
