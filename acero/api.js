@@ -164,6 +164,18 @@
       return post({ action: 'anularSalida', pin: ses.pin, ids: ids }).catch(function () { return { ok: false, error: 'Sin conexión' }; });
     },
 
+    editarCarga: function (ses, loadId, d) {
+      if (!remoto) {
+        var s = leer(K.local, vacio()), c = s.pedidos.filter(function (p) { return p.loadId === loadId; })[0];
+        if (!c) return Promise.resolve({ ok: false, error: 'No se encontró el pedido' });
+        var f = d.fechaLlegada + 'T00:00:00';
+        c.pedido = d.pedido; c.fecha = f; c.nEstructuras = d.nEstructuras;
+        s.entradas.forEach(function (e) { if (e.loadId === loadId) { e.pedido = d.pedido; e.fecha = f; } });
+        guardar(K.local, s); return Promise.resolve({ ok: true });
+      }
+      return post({ action: 'editarCarga', pin: ses.pin, loadId: loadId, pedido: d.pedido, fechaLlegada: d.fechaLlegada, nEstructuras: d.nEstructuras }).catch(function () { return { ok: false, error: 'Sin conexión' }; });
+    },
+
     anularCarga: function (ses, loadId) {
       if (!remoto) {
         var s = leer(K.local, vacio());

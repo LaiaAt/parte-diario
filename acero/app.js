@@ -6,8 +6,8 @@
 
   var S = {
     cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [] }, calc: null, tab: MODO === 'salidas' ? 'salida' : 'panel', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
-    ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false },
-    sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', tipo: 'SALIDA', fase: '', pct: '', balElem: '' },
+    ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false, si: false },
+    sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', tipo: '', fase: '', pct: '', balElem: '' }, okSal: null, edPed: {}, cargaRes: null,
     inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, inf: { d: '' },
     cargas: [], loginErr: '', loginNom: ''
   };
@@ -53,6 +53,9 @@
     var x = f(a), y = f(b);
     return x[0] - y[0] || (x[1] < y[1] ? -1 : x[1] > y[1] ? 1 : 0) || x[2] - y[2];
   }
+  var STOCKS = ['ACERO RECTO', 'ACERO FIGURADO'];
+  function posTxt(e, m) { m = String(m || ''); return STOCKS.indexOf(e) >= 0 ? m.replace(/^[^-]+-/, '') : m; }
+  var esPropio = function (x) { return S.ses && String(x.usuario) === String(S.ses.nombre); };
   var tp = function (x) { return x && x.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA'; };
   var esArm = function () { return S.sal.tipo === 'ARMADO'; };
   var dispDe = function (v) { return v ? (esArm() ? v.lib_p : v.sal_p) : 0; };
@@ -90,8 +93,8 @@
 
   function vTabs() {
     var T = EMB ? [['panel', '', 'Panel'], ['inv', '', 'Inventario'], ['mov', '', 'Movimientos'], ['ped', '', 'Pedidos'], ['inf', '', 'Informe']] : MODO === 'salidas'
-      ? [['salida', '✍️', 'Registrar'], ['ver', '✅', 'Verificar'], ['mov', '🧾', 'Movimientos'], ['inv', '📦', 'Inventario'], ['inf', '📄', 'Informe']]
-      : [['panel', '📊', 'Panel'], ['salida', '✍️', 'Registrar'], ['ver', '✅', 'Verificar'], ['inv', '📦', 'Inventario'], ['mov', '🧾', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe'], ['cargar', '📥', 'Cargar DLI']];
+      ? [['salida', '✍️', 'Registrar'], ['hoy', '🗓️', 'Lo de hoy'], ['ver', '✅', 'Contar'], ['inf', '📄', 'Informe']]
+      : [['panel', '📊', 'Panel'], ['salida', '✍️', 'Registrar'], ['ver', '✅', 'Contar'], ['inv', '📦', 'Inventario'], ['mov', '🧾', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe'], ['cargar', '📥', 'Cargar DLI']];
     return '<nav class="tabs">' + T.map(function (t) {
       return '<button class="' + (S.tab === t[0] ? 'on' : '') + '" data-a="tab" data-v="' + t[0] + '"><span>' + t[1] + '</span><em>' + t[2] + '</em></button>';
     }).join('') + '</nav>';
@@ -152,11 +155,11 @@
     var tit = g0.modo === 'PCT' ? (arm ? 'Armado del ' : 'Salida del ') + fmtPct(g0.pct) + ' %' : (arm ? (nP === 1 ? 'Se armó ' : 'Se armaron ') : (nP === 1 ? 'Salió ' : 'Salieron ')) + pz(nP);
     var pend = g.some(function (x) { return x.pendiente; });
     var det = '<details class="mv-d"><summary>Ver las ' + g.length + (g.length === 1 ? ' posición' : ' posiciones') + '</summary><table><thead><tr><th>Posición</th><th>Varilla</th><th class="n">Piezas</th><th class="n">Kg</th></tr></thead><tbody>' +
-      g.map(function (x) { return '<tr' + (x.estado === 'ANULADA' && !anG ? ' class="anu"' : '') + '><td><b>' + esc(x.marca || '—') + '</b></td><td>' + esc(C.diamLabel(x.diametro)) + '</td><td class="n">' + n0(x.cantidad) + '</td><td class="n">' + kg(x.kg) + '</td></tr>'; }).join('') + '</tbody></table></details>';
+      g.map(function (x) { return '<tr' + (x.estado === 'ANULADA' && !anG ? ' class="anu"' : '') + '><td><b>' + esc(posTxt(x.elemento, x.marca) || '—') + '</b></td><td>' + esc(C.diamLabel(x.diametro)) + '</td><td class="n">' + n0(x.cantidad) + '</td><td class="n">' + kg(x.kg) + '</td></tr>'; }).join('') + '</tbody></table></details>';
     return '<div class="mv ' + (arm ? 'arm' : 'out') + (anG ? ' anul' : '') + '"><div class="mv-i">' + (arm ? '🔧' : '🚚') + '</div><div class="mv-c"><div class="mv-t">' + tit +
       (anG ? '<span class="chp anu">Anulada</span>' : '') + (pend ? '<span class="chp pen">Sin enviar</span>' : '') + '</div><div class="mv-s">' + els.map(esc).join(' · ') + '</div>' +
       '<div class="mv-m"><span>' + kg(nK) + ' kg</span>' + (g0.modo !== 'PCT' && g0.fase ? '<span>Fase: ' + esc(g0.fase) + '</span>' : '') + (g0.destino ? '<span>Para: ' + esc(g0.destino) + '</span>' : '') + '<span>' + esc(g0.usuario) + ' · ' + fecha(g0.fecha) + '</span>' + (g0.obs ? '<span>' + esc(g0.obs) + '</span>' : '') + '</div>' + det + '</div>' +
-      (conAcciones && esAdmin() && !anG && g.every(function (x) { return !x.pendiente; }) ? '<button class="btn chico sec" data-a="anularSalida" data-v="' + esc(activas.map(function (x) { return x.id; }).join(',')) + '">Anular</button>' : '') + '</div>';
+      (conAcciones && !anG && g.every(function (x) { return !x.pendiente; }) && (esAdmin() || (esPropio(g0) && esHoy(g0.fecha))) ? '<button class="btn chico sec" data-a="anularSalida" data-v="' + esc(activas.map(function (x) { return x.id; }).join(',')) + '">' + (esAdmin() ? 'Anular' : '↩ Deshacer') + '</button>' : '') + '</div>';
   }
   // ---- gráficos del panel (SVG/CSS, sin librerías) ----
   function donut(l, a, o) {
@@ -221,11 +224,26 @@
   function kpiPer(tit, cls, x) {
     return '<div class="kp ' + cls + '"><small>' + tit + '</small><b>' + n0(x.p) + '<em> pzs</em></b><strong>' + kg(x.kg) + '<em> kg</em></strong></div>';
   }
+  // Lo que el administrador necesita ver primero: cómo va cada estructura y si se ha contado
+  function vAvance() {
+    var es = Object.keys(S.calc.porElem).filter(function (e) { return STOCKS.indexOf(e) < 0; }).sort();
+    if (!es.length) return '';
+    var difs = 0, hace30 = isoDe(new Date(Date.now() - 30 * 86400000));
+    (S.estado.verificaciones || []).forEach(function (v) { if (String(v.fecha).slice(0, 10) >= hace30 && Number(v.dif)) difs++; });
+    var filas = es.map(function (e) {
+      var x = S.calc.porElem[e], a = pctDe(e, 'ARMADO'), o = pctDe(e, 'SALIDA'), u = ultimaVer(e), d = u ? diasDesde(u) : null, sem = d === null || d > 30 ? '🔴' : d > 20 ? '🟡' : '🟢';
+      var br = function (cl, v) { return '<div class="av-r"><span>' + (cl === 'arm' ? 'Armado' : 'Salió') + '</span><div class="av-b2"><i class="' + cl + '" style="width:' + Math.min(100, v) + '%"></i></div><b>' + fmtPct(v) + ' %</b></div>'; };
+      return '<div class="av-e"><div class="av-h"><b>' + esc(e) + '</b><span title="Conteo">' + sem + ' ' + (u ? 'contada hace ' + d + ' d' : 'nunca contada') + '</span></div>' + br('arm', a) + br('out', o) +
+        '<small class="mut">Llegaron ' + kg(x.in_kg) + ' kg · en la playa ' + kg(x.sal_kg) + ' kg</small></div>';
+    }).join('');
+    return '<div class="card gr"><h3>Avance por estructura</h3>' + filas +
+      '<p class="peq mut" style="margin:6px 0 0">🟢 contada hace menos de 20 días · 🟡 20 a 30 días · 🔴 más de 30 días o nunca.' + (difs ? ' <b>' + difs + ' diferencia(s)</b> en los conteos del último mes.' : '') + '</p></div>';
+  }
   function vPanel() {
     if (!S.estado.entradas.length) return sinInventario();
     var c = S.calc, t = c.tot, ag = aggPeriodo();
     var diams = Object.keys(c.porDiam).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); });
-    var h = '<div class="hero"><small>Hoy en la playa de hierros</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg · de ' + n0(t.in_p) + ' piezas (' + kg(t.in_kg) + ' kg) que llegaron en total</span>' + apilada(t) + '</div>';
+    var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>' + vAvance();
     h += vFiltro();
     h += '<h2 class="sec-t">Movimiento del período <small>' + textoPeriodo() + '</small></h2><div class="kp3">' + kpiPer('Llegó', 'lib', ag.lle) + kpiPer('Armado', 'arm', ag.arm) + kpiPer('Salió', 'out', ag.out) + '</div>';
     h += graficoDias(ag);
@@ -297,13 +315,23 @@
     });
     return r;
   }
-  function pctAcum(e) {
-    var G = {};
-    S.estado.salidas.forEach(function (x) { if (x.elemento === e && x.estado !== 'ANULADA' && x.modo === 'PCT' && tp(x) === S.sal.tipo) G[String(x.id).replace(/-\d+$/, '')] = x.pct || 0; });
-    return Object.keys(G).reduce(function (t, k) { return t + G[k]; }, 0);
+  var esAjuste = function (x) { return /^(Ajuste de conteo|Cierre al 100)/.test(String(x.obs || '')); };
+  function tipoSel() { return S.sal.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA'; }
+  // Avance real: piezas registradas (por posiciones o por %) sobre las que llegaron de esa estructura
+  function pctDe(e, tipo) {
+    var tot = (S.calc && S.calc.porElem[e] || {}).in_p || 0; if (!tot) return 0;
+    var hecho = S.estado.salidas.reduce(function (t, x) { return t + (x.elemento === e && x.estado !== 'ANULADA' && !esAjuste(x) && tp(x) === tipo ? (+x.cantidad || 0) : 0); }, 0);
+    return Math.min(100, Math.round(10000 * hecho / tot) / 100);
   }
+  function fasesSug(e) {
+    var L = fasesDe(e).slice(0, 6);
+    ['Canasta', 'Cabezal', 'Losa', 'Muros', 'Columnas', 'Vigas'].forEach(function (f) { if (L.length < 6 && L.indexOf(f) < 0) L.push(f); });
+    return L;
+  }
+  function pctAcum(e) { return pctDe(e, tipoSel()); }
   function tomadoPct(e, d, m) {
-    return S.estado.salidas.reduce(function (t, x) { return t + (x.elemento === e && x.diametro === d && x.marca === m && x.estado !== 'ANULADA' && x.modo === 'PCT' && tp(x) === S.sal.tipo ? x.cantidad : 0); }, 0);
+    var t0 = tipoSel();
+    return S.estado.salidas.reduce(function (t, x) { return t + (x.elemento === e && x.diametro === d && x.marca === m && x.estado !== 'ANULADA' && !esAjuste(x) && tp(x) === t0 ? x.cantidad : 0); }, 0);
   }
   function itemsPct(e, p) {
     var cum = Math.min(100, pctAcum(e) + p), r = [], vistos = {}, pos = [], totP = 0;
@@ -355,32 +383,37 @@
     return filas.sort(function (a, b) { return C.diamOrder(a.diam) - C.diamOrder(b.diam) || cmpMarca(a.marca, b.marca); });
   }
   // Lista de conteo (sirve para el cierre al 100 % y para VERIFICAR): por defecto muestra lo que el sistema cree que hay
-  function listaConteo(e, vals, q, pref, defNoCero) {
+  function listaConteo(e, vals, q, pref, todas) {
     var filas = filasPos(e), ql = String(q || '').trim().toLowerCase().replace(',', '.');
-    var vis = filas.filter(function (f) { return f.sal_p > 0 || vals[f.k] !== undefined || (ql && (f.marca.toLowerCase().indexOf(ql) >= 0 || (f.largo && f.largo.toFixed(2).indexOf(ql) === 0))); });
-    var h = '<div class="busq"><input type="search" autocomplete="off" placeholder="Buscar otra posición (ej. 4.06) por si hay acero que el sistema no tiene" value="' + esc(q) + '" data-i="' + pref + '.q" id="' + pref + '-q"></div>';
-    if (!vis.length) return h + '<div class="vacio-s">El sistema no tiene acero de esta estructura. Busque una posición para agregarla.</div>';
-    h += '<div class="tw"><table><thead><tr><th>Posición</th><th>Varilla</th><th class="n">Sistema</th><th class="n">' + (defNoCero ? 'Quedó' : 'Contado') + '</th></tr></thead><tbody>';
+    var vis = filas.filter(function (f) { return todas || f.sal_p > 0 || vals[f.k] !== undefined || (ql && (posTxt(e, f.marca).toLowerCase().indexOf(ql) >= 0 || (f.largo && f.largo.toFixed(2).indexOf(ql) === 0))); });
+    if (todas && ql) vis = vis.filter(function (f) { return posTxt(e, f.marca).toLowerCase().indexOf(ql) >= 0 || vals[f.k] !== undefined; });
+    var h = '<div class="busq"><input type="search" autocomplete="off" placeholder="' + (todas ? 'Buscar posición (ej. 4.06)' : '¿Hay acero que no está en la lista? Búsquelo aquí') + '" value="' + esc(q) + '" data-i="' + pref + '.q" id="' + pref + '-q"></div>';
+    if (!vis.length) return h + '<div class="vacio-s">' + (ql ? 'No hay posiciones que coincidan.' : 'El sistema no tiene acero de esta estructura. Busque una posición para agregarla.') + '</div>';
+    h += '<div class="cnt">';
     vis.forEach(function (f) {
-      var val = vals[f.k] !== undefined ? vals[f.k] : f.sal_p, dif = Number(val) !== f.sal_p;
-      h += '<tr' + (dif ? ' class="dif"' : '') + '><td><b>' + esc(f.marca) + '</b>' + (f.largo ? '<small class="mut"> ' + f.largo.toFixed(2) + ' m</small>' : '') + '</td><td>' + esc(C.diamLabel(f.diam)) + '</td><td class="n">' + n0(f.sal_p) + '</td>' +
-        '<td class="n"><input class="mini" type="number" inputmode="numeric" min="0" step="1" value="' + esc(val) + '" data-cv="' + pref + ':' + esc(f.k) + '" aria-label="Cantidad"></td></tr>';
+      var def = todas ? 0 : f.sal_p, val = vals[f.k] !== undefined ? vals[f.k] : def, dif = vals[f.k] !== undefined && Number(val) !== f.sal_p;
+      h += '<div class="cn' + (dif ? ' dif' : '') + '"><div class="cn-i"><b>' + esc(posTxt(e, f.marca)) + '</b><span>' + esc(C.diamLabel(f.diam)) + (f.largo ? ' · ' + f.largo.toFixed(2) + ' m' : '') + (todas ? '' : ' · sistema: <b>' + n0(f.sal_p) + '</b>') + '</span></div>' +
+        '<input class="cn-q" type="number" inputmode="numeric" min="0" step="1" value="' + esc(val) + '" data-cv="' + pref + ':' + esc(f.k) + '" aria-label="Cantidad contada"></div>';
     });
-    return h + '</tbody></table></div>';
+    return h + '</div>';
   }
-  function itemsConteo(e, vals, clave) {
+  function itemsConteo(e, vals, clave, todas) {
     return filasPos(e).filter(function (f) { return f.sal_p > 0 || vals[f.k] !== undefined; }).map(function (f) {
-      var v = vals[f.k] !== undefined ? Math.max(0, Math.floor(Number(vals[f.k]) || 0)) : f.sal_p;
+      var v = vals[f.k] !== undefined ? Math.max(0, Math.floor(Number(vals[f.k]) || 0)) : (todas ? 0 : f.sal_p);
       var o = { diametro: f.diam, marca: f.marca }; o[clave] = v; return o;
     });
   }
+  function sinSenal() { return navigator.onLine === false ? '<div class="aviso">📵 No hay señal. Para guardar esto necesita internet: espere a tener señal.</div>' : ''; }
   function vBalance(e) {
-    var filas = filasPos(e), quedan = filas.filter(function (f) { return f.sal_p > 0; });
-    return '<div class="balance"><div class="paso-h"><b>' + esc(e) + ' llegó al 100 %</b><button type="button" class="lnk" data-a="cerrarBal">Ahora no</button></div>' +
-      '<p style="margin:0 0 8px"><b>Cuente el acero que quedó en el patio sin usar.</b> Todo lo que quede pasa automáticamente a <b>Acero figurado</b>. Si no quedó nada, ponga 0.</p>' +
-      listaConteo(e, S.cie.vals, S.cie.q, 'cie', true) +
-      (S.cie.err ? '<div class="error">' + esc(S.cie.err) + '</div>' : '') +
-      '<button type="button" class="btn" style="margin-top:10px" data-a="cierreOk"' + (S.cie.busy ? ' disabled' : '') + '>' + (S.cie.busy ? 'Guardando…' : '✓ Confirmar lo que quedó') + '</button></div>';
+    var c = S.cie;
+    var h = '<div class="balance"><div class="paso-h"><b>✅ ' + esc(e) + ' quedó completa</b><button type="button" class="lnk" data-a="cerrarBal">Ahora no</button></div>' + sinSenal();
+    if (!c.si) return h + '<p class="grande">¿Quedó acero de esta estructura sin usar en el patio?</p>' +
+      '<div class="sino"><button type="button" class="btn" data-a="cierreNo"' + (c.busy ? ' disabled' : '') + '>' + (c.busy ? 'Guardando…' : 'No, no quedó nada') + '</button><button type="button" class="btn sec" data-a="cierreSi">Sí, quedó acero</button></div>' +
+      (c.err ? '<div class="error">' + esc(c.err) + '</div>' : '') + '</div>';
+    return h + '<p style="margin:0 0 8px"><b>Escriba cuántas piezas quedaron de cada posición.</b> Las que deje en 0 no quedaron. Lo que quede pasa solo a <b>Acero figurado</b>.</p>' +
+      listaConteo(e, c.vals, c.q, 'cie', true) +
+      (c.err ? '<div class="error">' + esc(c.err) + '</div>' : '') +
+      '<button type="button" class="btn" style="margin-top:10px" data-a="cierreOk"' + (c.busy ? ' disabled' : '') + '>' + (c.busy ? 'Guardando…' : '✓ Guardar lo que quedó') + '</button></div>';
   }
   function ultimaVer(e) {
     var f = ''; (S.estado.verificaciones || []).forEach(function (x) { if (x.estructura === e && String(x.fecha).slice(0, 10) > f) f = String(x.fecha).slice(0, 10); });
@@ -388,11 +421,11 @@
   }
   function diasDesde(f) { return Math.floor((new Date(hoyISO() + 'T12:00:00') - new Date(f + 'T12:00:00')) / 86400000); }
   function vVerificar() {
-    var v = S.ver, es = todasElems(), h = '<div class="card"><h2>Verificar el inventario</h2><p class="mut" style="margin-top:0">Una vez al mes, cuente el acero que hay en el patio. Solo toque las posiciones que no coinciden.</p>';
+    var v = S.ver, es = todasElems(), h = '<div class="card"><h2>Contar el acero del patio</h2><p class="mut" style="margin-top:0">Una vez al mes. Elija la estructura, cuente y cambie solo el número de las posiciones que no coinciden.</p>' + sinSenal();
     if (S.estado.verificaciones === undefined && false) return h + '</div>';
     if (!es.length) return h + '<div class="vacio">Todavía no hay acero cargado.</div></div>';
     h += '<div class="fld"><label for="v-elem">Estructura</label><select id="v-elem" data-f="ver.elem">' + (v.elem ? '' : '<option value="">Elija la estructura…</option>') + es.map(function (e) {
-      var u = ultimaVer(e), tx = u ? 'verificada hace ' + diasDesde(u) + ' d' : 'nunca verificada';
+      var u = ultimaVer(e), tx = u ? 'contada hace ' + diasDesde(u) + ' d' : 'nunca contada';
       return '<option value="' + esc(e) + '"' + (e === v.elem ? ' selected' : '') + '>' + esc(e) + ' · ' + tx + '</option>'; }).join('') + '</select></div>';
     if (v.msg) h += '<div class="okmsg">✓ ' + esc(v.msg) + '</div>';
     if (v.elem) {
@@ -400,7 +433,8 @@
       h += listaConteo(v.elem, v.vals, v.q, 'ver', false) +
         '<div class="fld" style="margin-top:8px"><label for="v-obs">Nota (opcional)</label><input id="v-obs" type="text" maxlength="120" placeholder="Ej. conteo de fin de mes" value="' + esc(v.obs) + '" data-i="ver.obs"></div>' +
         (v.err ? '<div class="error">' + esc(v.err) + '</div>' : '') +
-        '<button type="button" class="btn" style="margin-top:10px" data-a="verOk"' + (v.busy || !its.length ? ' disabled' : '') + '>' + (v.busy ? 'Guardando…' : dif ? '✓ Guardar conteo (' + dif + (dif === 1 ? ' diferencia)' : ' diferencias)') : '✓ Todo coincide, guardar conteo') + '</button>';
+        (v.conf && !dif ? '<div class="aviso"><b>¿Contó todas las posiciones de la lista y todas coinciden?</b><div class="sino" style="margin-top:8px"><button type="button" class="btn" data-a="verOk">Sí, todo coincide</button><button type="button" class="btn sec" data-a="verNo">No, voy a revisar</button></div></div>'
+          : '<button type="button" class="btn" style="margin-top:10px" data-a="' + (dif ? 'verOk' : 'verConf') + '"' + (v.busy || !its.length ? ' disabled' : '') + '>' + (v.busy ? 'Guardando…' : dif ? '✓ Guardar conteo (' + dif + (dif === 1 ? ' diferencia)' : ' diferencias)') : '✓ Guardar conteo') + '</button>');
     }
     return h + '</div>';
   }
@@ -452,12 +486,18 @@
     if (!S.estado.entradas.length) return sinInventario();
     ajustarSalida();
     var s = S.sal, arm = esArm(), todas = todasElems(), conSaldo = elemsDisp();
-    var h = '<div class="card sal ' + (arm ? 't-arm' : 't-out') + '"><div class="tipo"><button type="button" class="tp arm' + (arm ? ' on' : '') + '" data-a="tipo" data-v="ARMADO"><span>🔧</span><b>Armar</b><small>Se usa. Sigue en la playa.</small></button>' +
-      '<button type="button" class="tp out' + (!arm ? ' on' : '') + '" data-a="tipo" data-v="SALIDA"><span>🚚</span><b>Sacar</b><small>Sale de la playa.</small></button></div>';
+    if (S.okSal) return '<div class="card okbig"><div class="ok-i">✅</div><b>¡Guardado!</b><p>' + esc(S.okSal.txt) + '</p>' + (S.okSal.pend ? '<p class="peq">Se envía al almacén apenas haya señal.</p>' : '') +
+      '<button type="button" class="btn blk" data-a="otraVez">✍️ Registrar otra cosa</button><button type="button" class="btn blk sec" data-a="tab" data-v="' + (MODO === 'salidas' ? 'hoy' : 'mov') + '" style="margin-top:8px">🗓️ Ver lo registrado</button></div>';
+    if (!s.tipo && !s.balElem) return '<div class="card sal"><h2 class="preg">¿Qué va a registrar?</h2><div class="tipo">' +
+      '<button type="button" class="tp arm" data-a="tipo" data-v="ARMADO"><span>🔧</span><b>Armé</b><small>Usé acero para armar. Sigue en la playa.</small></button>' +
+      '<button type="button" class="tp out" data-a="tipo" data-v="SALIDA"><span>🚚</span><b>Saqué</b><small>El acero salió de la playa.</small></button></div></div>';
+    var h = '<div class="card sal ' + (arm ? 't-arm' : 't-out') + '"><div class="tipo"><button type="button" class="tp arm' + (arm ? ' on' : '') + '" data-a="tipo" data-v="ARMADO"><span>🔧</span><b>Armé</b><small>Sigue en la playa.</small></button>' +
+      '<button type="button" class="tp out' + (!arm ? ' on' : '') + '" data-a="tipo" data-v="SALIDA"><span>🚚</span><b>Saqué</b><small>Salió de la playa.</small></button></div>';
     if (s.msg) h += '<div class="okmsg">✓ ' + esc(s.msg) + '</div>';
-    if (s.balElem && !arm) h += vBalance(s.balElem);
+    if (s.balElem) return '<div class="card sal t-out">' + vBalance(s.balElem) + '</div>';
     if (!conSaldo.length && !s.items.length) return h + '<div class="vacio">' + (arm ? 'No queda acero libre para armar.' : 'No queda acero en la playa.') + '</div></div>';
-    h += '<div class="seg"><button type="button" class="' + (s.modo === 'pos' ? 'on' : '') + '" data-a="modo" data-v="pos">Por posiciones</button><button type="button" class="' + (s.modo === 'pct' ? 'on' : '') + '" data-a="modo" data-v="pct">Por % de avance</button></div>';
+    if (esStock(s.elem) && s.modo !== 'pos') { s.modo = 'pos'; s.items = []; s.pct = ''; }
+    if (!esStock(s.elem)) h += '<div class="seg"><button type="button" class="' + (s.modo === 'pos' ? 'on' : '') + '" data-a="modo" data-v="pos">Pieza por pieza</button><button type="button" class="' + (s.modo === 'pct' ? 'on' : '') + '" data-a="modo" data-v="pct">Estructura completa</button></div>';
     h += '<section class="paso"><div class="paso-h"><i>1</i><b>¿Cuándo y dónde?</b></div><div class="fgrid">' +
       '<div class="fld"><label for="s-fecha">Fecha</label><input id="s-fecha" type="date" max="' + hoyISO() + '" value="' + esc(s.fecha || hoyISO()) + '" data-i="sal.fecha"></div>' +
       '<div class="fld" style="grid-column: 1 / -1"><label for="s-elem">Estructura</label><select id="s-elem" data-f="sal.elem">' + (s.elem ? '' : '<option value="">Elija la estructura…</option>') +
@@ -466,7 +506,8 @@
           S.estado.pedidos.forEach(function (p) { if (p.estructura === e) ped[p.pedido] = 1; });
           return '<option value="' + esc(e) + '"' + (e === s.elem ? ' selected' : '') + (pzs > 0 || e === s.elem ? '' : ' disabled') + '>' + esc(e) + ' · ' + (pzs > 0 ? n0(pzs) + (arm ? ' libres' : ' piezas') : 'sin acero') + '</option>'; }).join('') + '</select></div>' +
       (esStock(s.elem) ? '<div class="fld" style="grid-column: 1 / -1"><label for="s-dest">¿En qué estructura se va a usar este acero?</label><input id="s-dest" type="text" list="dests" maxlength="80" autocomplete="off" placeholder="Escoja una o escriba una nueva" value="' + esc(s.destino) + '" data-i="sal.destino"><datalist id="dests">' + todasElems().filter(function (e) { return !esStock(e); }).map(function (e) { return '<option value="' + esc(e) + '">'; }).join('') + '</datalist></div>' : '') +
-      (s.modo === 'pos' && s.elem ? '<div class="fld" style="grid-column: 1 / -1"><label for="s-fase">Fase</label><input id="s-fase" type="text" list="fases" maxlength="60" autocomplete="off" placeholder="Ej. Losa de fondo, Muros, Cabezal" value="' + esc(s.fase) + '" data-i="sal.fase"><datalist id="fases">' + fasesDe(s.elem).map(function (f) { return '<option value="' + esc(f) + '">'; }).join('') + '</datalist></div>' : '') +
+      (s.modo === 'pos' && s.elem ? '<div class="fld" style="grid-column: 1 / -1"><label for="s-fase">Fase</label><input id="s-fase" type="text" list="fases" maxlength="60" autocomplete="off" placeholder="Toque una o escriba. Ej. Canasta" value="' + esc(s.fase) + '" data-i="sal.fase" id="s-fase"><datalist id="fases">' + fasesDe(s.elem).map(function (f) { return '<option value="' + esc(f) + '">'; }).join('') + '</datalist>' +
+        '<div class="fch" style="margin-top:6px">' + fasesSug(s.elem).map(function (f) { return '<button type="button" class="fc' + (s.fase === f ? ' on' : '') + '" data-a="fase" data-v="' + esc(f) + '">' + esc(f) + '</button>'; }).join('') + '</div></div>' : '') +
       '</div></section>';
     if (s.elem && s.modo === 'pct') {
       var ac = pctAcum(s.elem), rest = Math.max(0, 100 - ac);
@@ -475,13 +516,13 @@
       if (rest <= 0) h += '<div class="vacio-s">Esta estructura ya está al 100 %.</div>';
       else if (nEstDe(s.elem) > 1) {
         var NE = nEstDe(s.elem), kEst = Math.max(1, Math.min(NE, Math.round((parseFloat(String(s.pct).replace(',', '.')) || 0) * NE / 100)));
-        h += '<div class="peq mut" style="margin:6px 0">Esta cartilla es para <b>' + NE + ' estructuras</b>: cada una es ' + fmtPct(Math.round(10000 / NE) / 100) + ' %.</div>' +
-          '<div class="fch">' + [1, 2, 3, 5].filter(function (x) { return x < NE && x * 100 / NE <= rest + 1e-9; }).map(function (x) { return '<button type="button" class="fc' + (Math.abs((parseFloat(String(s.pct).replace(',', '.')) || 0) - x * 100 / NE) < 1e-6 ? ' on' : '') + '" data-a="pctset" data-v="' + (x * 100 / NE) + '">' + x + (x === 1 ? ' estructura' : ' estructuras') + '</button>'; }).join('') +
-          '<button type="button" class="fc" data-a="pctset" data-v="' + rest + '">Todo lo que falta (' + fmtPct(rest) + ' %)</button></div>' +
-          '<div class="pctin"><input id="s-pct" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(s.pct) + '" data-i="sal.pct"><span>% de la cartilla</span></div>';
-      } else h += '<div class="fch">' + [10, 25, 50, 75].filter(function (x) { return x < rest; }).map(function (x) { return '<button type="button" class="fc" data-a="pctset" data-v="' + x + '">' + x + ' %</button>'; }).join('') +
-        '<button type="button" class="fc" data-a="pctset" data-v="' + rest + '">Completar ' + fmtPct(rest) + ' %</button></div>' +
-        '<div class="pctin"><input id="s-pct" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(s.pct) + '" data-i="sal.pct"><span>% de la estructura</span></div>';
+        h += '<div class="peq mut" style="margin:6px 0">Esta cartilla es para <b>' + NE + ' estructuras</b>. Van <b>' + fmtPct(ac * NE / 100) + '</b> de ' + NE + '. ¿Cuántas ' + (arm ? 'armó' : 'sacó') + ' hoy?</div>' +
+          '<div class="fch">' + [1, 2, 3, 5].filter(function (x) { return x <= NE && x * 100 / NE <= rest + 1e-9; }).map(function (x) { return '<button type="button" class="fc' + (Math.abs((parseFloat(String(s.pct).replace(',', '.')) || 0) - x * 100 / NE) < 1e-6 ? ' on' : '') + '" data-a="pctset" data-v="' + (x * 100 / NE) + '">' + x + (x === 1 ? ' estructura' : ' estructuras') + '</button>'; }).join('') +
+          '</div>' +
+          '<details class="mas"><summary>Otro porcentaje</summary><div class="pctin"><input id="s-pct" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(s.pct) + '" data-i="sal.pct"><span>% de la cartilla</span></div></details>';
+      } else h += '<div class="fch"><button type="button" class="fc grande' + (Math.abs((parseFloat(String(s.pct).replace(',', '.')) || 0) - rest) < 1e-6 ? ' on' : '') + '" data-a="pctset" data-v="' + rest + '">✅ ' + (ac > 0 ? 'Todo lo que faltaba (' + fmtPct(rest) + ' %)' : 'La estructura completa') + '</button></div>' +
+        '<details class="mas"><summary>Solo una parte (porcentaje)</summary><div class="fch">' + [10, 25, 50, 75].filter(function (x) { return x < rest; }).map(function (x) { return '<button type="button" class="fc" data-a="pctset" data-v="' + x + '">' + x + ' %</button>'; }).join('') + '</div>' +
+        '<div class="pctin"><input id="s-pct" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(s.pct) + '" data-i="sal.pct"><span>% de la estructura</span></div></details>';
       h += '</section>';
     } else if (s.elem) {
       var todasP = piezasSalida(s.elem), diams = [];
@@ -490,25 +531,28 @@
       var lista = todasP.filter(function (p) {
         if (p.disp <= 0) return false;
         if (s.fdiam && p.diam !== s.fdiam) return false;
-        return p.marca.toLowerCase().indexOf(q) >= 0 || (p.largo && p.largo.toFixed(2).indexOf(q) === 0);
+        return posTxt(s.elem, p.marca).toLowerCase().indexOf(q) >= 0 || (p.largo && p.largo.toFixed(2).indexOf(q) === 0);
       });
+      var verTodo = !!q || !!s.fdiam || lista.length <= 25, NEs = nEstDe(s.elem);
       h += '<section class="paso"><div class="paso-h"><i>2</i><b>Busque la posición</b></div>' +
-        '<div class="busq"><input id="s-q" type="search" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Escriba la posición. Ej. 4.06 o 2a" value="' + esc(s.q) + '" data-i="sal.q"></div>';
+        '<div class="busq"><input id="s-q" type="search" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Escriba la posición. Ej. 4.06 o 2a" value="' + esc(s.q) + '" data-i="sal.q"></div>' + (diams.length > 1 ? '<div class="peq mut" style="margin:4px 0">O toque el tipo de varilla:</div>' : '');
       if (diams.length > 1) h += '<div class="fch">' + diams.map(function (d) { return '<button type="button" class="fc' + (s.fdiam === d ? ' on' : '') + '" data-a="fdiam" data-v="' + (s.fdiam === d ? '' : esc(d)) + '">' + esc(C.diamLabel(d)) + '</button>'; }).join('') + '</div>';
-      if (!q) h += '<div class="vacio-s">Las posiciones aparecen aquí cuando usted escribe.</div>';
-      else if (!lista.length) h += '<div class="vacio-s">No hay posiciones que coincidan con “' + esc(s.q) + '”.</div>';
+      if (!verTodo) h += '<div class="vacio-s">Toque un tipo de varilla o escriba la posición.</div>';
+      else if (!lista.length) h += '<div class="vacio-s">No hay posiciones que coincidan' + (s.q ? ' con “' + esc(s.q) + '”' : '') + '.</div>';
       else h += '<div class="rlist">' + lista.map(function (p) {
         var a1 = ' data-v="' + esc(p.marca) + '" data-d="' + esc(p.diam) + '"';
-        return '<div class="rr"><div class="rr-i"><b>' + esc(p.marca) + '</b><span>' + esc(C.diamLabel(p.diam)) + (p.largo ? ' · ' + p.largo.toFixed(2) + ' m' : '') + ' · ' + (arm ? 'libres ' : 'quedan ') + n0(p.disp) + (nEstDe(s.elem) > 1 ? ' · por estructura ' + fmtPct(Math.round(((S.calc.porMarca[s.elem + '|' + p.diam + '|' + p.marca] || {}).in_p || 0) / nEstDe(s.elem) * 100) / 100) : '') + '</span></div>' +
+        var k1 = NEs > 1 ? Math.min(p.disp, Math.max(1, Math.round(((S.calc.porMarca[s.elem + '|' + p.diam + '|' + p.marca] || {}).in_p || 0) / NEs))) : 0;
+        var stk = esStock(s.elem);
+        return '<div class="rr"><div class="rr-i"><b>' + (stk ? (p.diam === 'ALAMBRE' ? 'Alambre' : 'Varilla ' + esc(C.diamLabel(p.diam))) + (p.largo ? ' · ' + p.largo.toFixed(2) + ' m' : '') : esc(posTxt(s.elem, p.marca))) + '</b><span>' + (stk ? '' : esc(C.diamLabel(p.diam)) + (p.largo ? ' · ' + p.largo.toFixed(2) + ' m' : '') + ' · ') + (arm ? 'libres ' : 'quedan ') + n0(p.disp) + '</span></div>' +
           '<button type="button" class="b1" data-a="sumar"' + a1 + '>+1</button>' +
-          (p.disp > 1 ? '<button type="button" class="bt" data-a="todas"' + a1 + '>Todas · ' + n0(p.disp) + '</button>' : '') + '</div>'; }).join('') + '</div>';
+          (NEs > 1 && k1 > 1 ? '<button type="button" class="bt" data-a="una" data-n="' + k1 + '"' + a1 + '>1 estructura · ' + n0(k1) + '</button>' : p.disp > 1 ? '<button type="button" class="bt" data-a="todas"' + a1 + '>Todas · ' + n0(p.disp) + '</button>' : '') + '</div>'; }).join('') + '</div>';
       h += '</section>';
     }
     h += '<section class="paso"><div class="paso-h"><i>3</i><b>' + (arm ? 'Lo que se arma' : 'Lo que sale') + '</b>' + (s.items.length ? '<button type="button" class="lnk" data-a="vaciar">Vaciar</button>' : '') + '</div>';
     if (!s.items.length) h += '<div class="vacio-s">Todavía no ha agregado piezas.</div>';
     else h += '<div class="rlist">' + s.items.map(function (it, ix) {
       var v = S.calc.porMarca[it.elem + '|' + it.diam + '|' + it.marca], mx = v ? dispDe(v) : it.cant, a1 = ' data-v="' + esc(it.marca) + '" data-d="' + esc(it.diam) + '"';
-      return '<div class="rr en"><div class="rr-i"><b>' + esc(it.marca) + '</b><span>' + esc(C.diamLabel(it.diam)) + (it.largo ? ' · ' + it.largo.toFixed(2) + ' m' : '') + ' · ' + kg(it.kg) + ' kg</span></div>' +
+      return '<div class="rr en"><div class="rr-i"><b>' + esc(posTxt(it.elem, it.marca)) + '</b><span>' + esc(C.diamLabel(it.diam)) + (it.largo ? ' · ' + it.largo.toFixed(2) + ' m' : '') + ' · ' + kg(it.kg) + ' kg</span></div>' +
         '<div class="pc-ctl"><button type="button" data-a="restar"' + a1 + ' aria-label="Quitar una">−</button><input class="qn" type="number" inputmode="numeric" min="0" max="' + mx + '" value="' + it.cant + '" data-q="' + ix + '" aria-label="Cantidad"><button type="button" data-a="sumar"' + a1 + ' aria-label="Agregar una"' + (it.cant >= mx ? ' disabled' : '') + '>+</button></div>' +
         '<button type="button" class="bx" data-a="quitar" data-v="' + ix + '" aria-label="Quitar">✕</button></div>'; }).join('') + '</div>';
     h += '<details class="mas"><summary>Agregar una nota (opcional)</summary><input id="s-obs" type="text" maxlength="120" placeholder="Ej. turno noche" value="' + esc(s.obs) + '" data-i="sal.obs"></details></section>';
@@ -585,6 +629,14 @@
       (!Api.remoto && esAdmin() ? '<div style="margin-top:14px"><button class="btn chico peligro" data-a="borrarLocal">Borrar datos de prueba de este navegador</button></div>' : '') + '</div>';
   }
 
+  function vHoy() {
+    var hoy = hoyISO(), L = movimientos().filter(function (m) { return m.t === 'S' && esHoy(m.f); }), mios = L.filter(function (m) { return esPropio(m.s); });
+    var tA = 0, tS = 0; L.forEach(function (m) { m.g.forEach(function (x) { if (x.estado !== 'ANULADA') { if (tp(x) === 'ARMADO') tA += +x.kg || 0; else tS += +x.kg || 0; } }); });
+    return '<div class="hero"><small>Hoy ' + fechaDia(hoy) + '</small><b>' + kg(tA) + '<em> kg armados</em></b><span>' + kg(tS) + ' kg salieron de la playa</span></div>' +
+      '<div class="card"><h2 style="margin-top:0">Lo registrado hoy</h2>' + (mios.length ? '<p class="peq mut" style="margin-top:0">Si se equivocó, toque <b>↩ Deshacer</b> y vuelva a registrarlo bien. Solo se puede el mismo día.</p>' : '') +
+      (L.length ? L.map(function (m) { return vMov(m, true); }).join('') : '<div class="vacio">Hoy todavía no hay nada registrado.</div>') + '</div>';
+  }
+
   // ---------- Informe diario (PDF de armado por estructura) ----------
   function numVar(d) { var n = C.NUMERO[d]; return n || (d ? C.diamLabel(d) : ''); }
   function datosInforme(dia) {
@@ -621,7 +673,7 @@
           var k = x.elemento + '|' + x.diametro + '|' + pt[0];
           if (!G[k]) { G[k] = { e: x.elemento, d: x.diametro, est: pt[0], p: 0, kg: 0, fases: {}, us: {}, pos: {} }; ord.push(k); }
           var g = G[k]; g.p += pt[1]; g.kg += c ? kgx * pt[1] / c : 0;
-          if (x.fase) g.fases[x.fase] = 1; if (x.usuario) g.us[x.usuario] = 1; if (x.marca) g.pos[x.marca] = 1;
+          if (x.fase) g.fases[x.fase] = 1; if (x.usuario) g.us[x.usuario] = 1; if (x.marca) g.pos[posTxt(x.elemento, x.marca)] = 1;
         });
       });
       ord.sort(function (a, b) { var x = G[a], y = G[b]; return x.e < y.e ? -1 : x.e > y.e ? 1 : C.diamOrder(x.d) - C.diamOrder(y.d) || (x.est < y.est ? -1 : 1); });
@@ -647,11 +699,13 @@
   }
   function vInforme() {
     var dia = S.inf.d || hoyISO(), hasta = S.inf.h && S.inf.h >= dia ? S.inf.h : dia, nd = diasRango(dia, hasta).length, D = datosInforme(dia);
-    return '<div class="card inf-ctl"><h2 style="margin-top:0">Informe</h2><div class="fgrid"><label class="f" style="margin:0">Desde<input type="date" max="' + hoyISO() + '" value="' + esc(dia) + '" data-f="inf.d"></label>' +
-      '<label class="f" style="margin:0">Hasta<input type="date" max="' + hoyISO() + '" min="' + esc(dia) + '" value="' + esc(hasta) + '" data-f="inf.h"></label></div>' +
+    var esHoyInf = dia === hoyISO() && hasta === dia;
+    return '<div class="card inf-ctl"><h2 style="margin-top:0">Informe ' + (esHoyInf ? 'de hoy' : (nd === 1 ? 'del ' + fechaDia(dia) : 'del ' + fechaDia(dia) + ' al ' + fechaDia(hasta))) + '</h2>' +
+      '<details class="mas"' + (esHoyInf ? '' : ' open') + '><summary>Cambiar el día</summary><div class="fgrid"><label class="f" style="margin:0">Desde<input type="date" max="' + hoyISO() + '" value="' + esc(dia) + '" data-f="inf.d"></label>' +
+      '<label class="f" style="margin:0">Hasta<input type="date" max="' + hoyISO() + '" min="' + esc(dia) + '" value="' + esc(hasta) + '" data-f="inf.h"></label></div>' + (esHoyInf ? '' : '<button type="button" class="lnk" data-a="infHoy">Volver a hoy</button>') + '</details>' +
       (nd === 1 ? '<div class="inf-res"><div><b>' + D.nEst + '</b><small>estructuras armadas</small></div><div><b>' + kg(D.kgArm) + '</b><small>kg armados</small></div><div><b>' + kg(D.kgSal) + '</b><small>kg que salieron</small></div></div>'
         : '<div class="inf-res"><div><b>' + nd + '</b><small>días: una hoja de informe por cada día</small></div></div>') +
-      '<button class="btn blk" data-a="bajarInforme">⬇️ Descargar informe (PDF)</button>' +
+      '<button class="btn blk" data-a="bajarInforme">📄 Descargar el informe (PDF)</button>' +
       '<button class="btn blk sec" data-a="bajarExcel" style="margin-top:8px">📊 Descargar datos en Excel</button>' +
       '<p class="peq mut">PDF: un día o un rango (máx. 31 días), una hoja por día, con el personal y las fotos de acero del Parte diario.<br>Excel: el saldo consolidado anterior al período y, después, las entradas y los movimientos del período.</p></div>';
   }
@@ -845,9 +899,12 @@
     if (!vis.length) return h + '<div class="card vacio">' + (S.estado.pedidos.length ? 'Ningún pedido coincide con “' + esc(S.ped.q) + '”.' : 'Aún no hay pedidos cargados.') + '</div>';
     h += vis.map(function (p) {
       var x = S.calc.porElem[p.estructura] || { lib_p: 0, arm_p: 0, out_p: 0 };
-      return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>' + fechaDia(p.fecha) + '</span></div><div class="pd-e">' + esc(p.estructura) + (p.descripcion ? '<em>' + esc(p.descripcion) + '</em>' : '') + '</div>' +
+      return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>' + fechaDia(p.fecha) + '</span></div><div class="pd-e">' + esc(p.estructura) + (p.descripcion && String(p.descripcion).trim().toLowerCase() !== String(p.estructura).trim().toLowerCase() ? '<em>' + esc(p.descripcion) + '</em>' : '') + '</div>' +
         '<div class="pd-m"><span><b>' + n0(p.piezas) + '</b> piezas</span><span><b>' + kg(p.kg) + '</b> kg</span><span>' + esc(p.usuario) + '</span></div>' +
-        '<div class="acc"><button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar DLI</button> <button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '" style="margin-top:8px">🗑 Dar de baja</button></div>' +
+        '<div class="acc"><button class="btn chico sec" data-a="edPed" data-v="' + esc(p.loadId) + '" style="margin-top:8px">✏️ Corregir</button> <button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar DLI</button> <button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '" style="margin-top:8px">🗑 Dar de baja</button></div>' +
+        (S.edPed[p.loadId] ? (function (e) { return '<div class="edp"><div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" value="' + esc(e.pedido) + '" data-i="edp.' + esc(p.loadId) + '.pedido"></div><div class="fld"><label>Fecha en que llegó</label><input type="date" max="' + hoyISO() + '" value="' + esc(e.f) + '" data-i="edp.' + esc(p.loadId) + '.f"></div></div>' +
+          (STOCKS.indexOf(p.estructura) < 0 ? '<div class="fld"><label>¿Para cuántas estructuras es la cartilla?</label><input type="text" inputmode="numeric" value="' + esc(e.n) + '" data-i="edp.' + esc(p.loadId) + '.n"></div>' : '') +
+          (e.err ? '<div class="error">' + esc(e.err) + '</div>' : '') + '<div class="row2"><button class="btn" data-a="edPedOk" data-v="' + esc(p.loadId) + '">Guardar corrección</button><button class="btn sec" data-a="edPed" data-v="' + esc(p.loadId) + '">Cancelar</button></div></div>'; })(S.edPed[p.loadId]) : '') +
         '<div class="pd-s"><span class="lib">✅ ' + n0(x.lib_p) + ' libres</span><span class="arm">🔧 ' + n0(x.arm_p) + ' armadas</span><span class="out">🚚 ' + n0(x.out_p) + ' salieron</span></div></div>';
     }).join('');
     if (pags > 1) h += '<div class="pag"><button class="btn sec" data-a="pagPed" data-v="-1"' + (S.ped.pag <= 0 ? ' disabled' : '') + '>← Anterior</button><span>Página ' + (S.ped.pag + 1) + ' de ' + pags + '</span><button class="btn sec" data-a="pagPed" data-v="1"' + (S.ped.pag >= pags - 1 ? ' disabled' : '') + '>Siguiente →</button></div>';
@@ -862,16 +919,19 @@
   function vCargar() {
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador puede cargar un DLI.</div>';
     var h = '<div class="card"><h2>Cargar archivos DLI</h2><p class="mut" style="margin-top:0">Seleccione uno o varios .dli (o el PDF de la cartilla). Cada uno se registra con su número de pedido y suma al inventario las piezas con cantidad mayor que cero.</p>' +
-      '<label class="btn" for="dli-file">Elegir archivos .dli o PDF</label><input id="dli-file" type="file" accept=".dli,.pdf,application/pdf" multiple style="display:none"></div>';
+      '<label class="btn" for="dli-file">📂 Elegir archivos</label><input id="dli-file" type="file" multiple style="display:none"></div>';
+    if (S.cargaRes) h += '<div class="card okmsg2"><b>' + (S.cargaRes.ok.length ? '✅ Cargados: ' + S.cargaRes.ok.map(esc).join(', ') : '') + '</b>' + (S.cargaRes.mal ? '<div class="error" style="margin-top:6px">⚠️ ' + S.cargaRes.mal + (S.cargaRes.mal === 1 ? ' archivo quedó' : ' archivos quedaron') + ' sin cargar. Revise el aviso en rojo de cada uno abajo.</div>' : '') + '<button type="button" class="lnk" data-a="cerrarRes">Cerrar</button></div>';
+    if (S.cargas.length > 1) h += '<div class="card"><button class="btn" data-a="guardarTodos">💾 Guardar los ' + S.cargas.length + ' archivos</button><div class="peq mut" style="margin-top:6px">Antes, escriba el número de pedido de cada uno.</div></div>';
     S.cargas.forEach(function (c, i) {
       var p = c.parsed, por = resumenDiam(p), ya = S.estado.pedidos.filter(function (x) { var b = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); }; return (c.dest === 'est' && x.estructura === p.nombre) || (p.archivo && b(x.archivo) === b(p.archivo)); });
-      h += '<div class="card"><h3>' + esc(p.nombre) + (p.descripcion ? '<span class="tag">' + esc(p.descripcion) + '</span>' : '') + '</h3>' +
+      h += '<div class="card"><h3>' + esc(p.nombre) + (p.descripcion && String(p.descripcion).trim().toLowerCase() !== String(p.nombre).trim().toLowerCase() ? '<span class="tag">' + esc(p.descripcion) + '</span>' : '') + '</h3>' +
         '<div class="peq mut">' + esc(p.archivo) + ' · ' + p.rows.length + ' filas · ' + n0(p.totalPiezas) + ' piezas · ' + kg(p.totalKg) + ' kg</div>';
+      if (c.nota) h += '<div class="aviso">ℹ️ ' + esc(c.nota) + '</div>';
       p.avisos.forEach(function (a) { h += '<div class="aviso">⚠ ' + esc(a) + '</div>'; });
       if (c.pedirPdf) h += '<div class="error"><b>No pude leer este DLI con seguridad.</b> Para no equivocarnos, seleccione el <b>PDF de la cartilla</b> (el listado, sin -General ni -Resumen).<div style="margin-top:8px"><label class="btn" for="pdf-' + i + '">Elegir el PDF de la cartilla</label><input id="pdf-' + i + '" data-pdfpara="' + i + '" type="file" accept=".pdf,application/pdf" style="display:none"></div></div>';
       if (ya.length) h += '<div class="error"><b>🚫 Este DLI ya fue cargado</b> (pedido ' + ya.map(function (x) { return esc(x.pedido); }).join(', ') + '). No se puede guardar de nuevo, ni con otro número de pedido.</div>';
-      h += '<div class="tw"><table><thead><tr><th>Diámetro</th><th class="n">Piezas</th><th class="n">Kg</th></tr></thead><tbody>' +
-        Object.keys(por).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); }).map(function (d) { return '<tr><td>' + esc(C.diamLabel(d)) + '</td><td class="n">' + n0(por[d].p) + '</td><td class="n">' + kg(por[d].kg) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+      h += '<details><summary>Ver kilos por varilla</summary><div class="tw"><table><thead><tr><th>Diámetro</th><th class="n">Piezas</th><th class="n">Kg</th></tr></thead><tbody>' +
+        Object.keys(por).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); }).map(function (d) { return '<tr><td>' + esc(C.diamLabel(d)) + '</td><td class="n">' + n0(por[d].p) + '</td><td class="n">' + kg(por[d].kg) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
       var pend = [];
       if (pend.length) {
         h += '<div class="aviso"><b>Falta el largo de ' + pend.length + ' marca(s).</b> Escríbalo para poder registrar:</div><div class="tw"><table><tbody>' +
@@ -881,7 +941,7 @@
         p.rows.map(function (r) { return '<tr><td>' + esc(r.marca) + '</td><td class="n">' + r.cantidad + '</td><td>' + esc(C.diamLabel(r.diametro)) + '</td><td class="n">' + (r.largo ? kg(r.largo) : '—') + '</td><td class="n">' + kg(r.kg) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
       h += '<div class="fld" style="margin-top:10px"><label>¿Para qué es este acero?</label><div class="seg"><button type="button" class="' + (c.dest === 'est' ? 'on' : '') + '" data-a="cdest" data-v="' + i + ':est">Una estructura</button><button type="button" class="' + (c.dest === 'rec' ? 'on' : '') + '" data-a="cdest" data-v="' + i + ':rec">Stock recto</button><button type="button" class="' + (c.dest === 'fig' ? 'on' : '') + '" data-a="cdest" data-v="' + i + ':fig">Stock figurado</button></div>' +
         (c.dest !== 'est' ? '<div class="peq mut">Entra a <b>' + (c.dest === 'rec' ? 'ACERO RECTO' : 'ACERO FIGURADO') + '</b> (acero sin destino específico). Después, al sacarlo, podrá indicar en qué estructura se usa.</div>' : '') + '</div>';
-      if (c.dest === 'est') h += '<div class="fld" style="margin-top:10px"><label>Nombre de la estructura</label><input type="text" maxlength="80" value="' + esc(p.nombre) + '" data-i="carga.' + i + '.nombre"><div class="peq mut">Si es un complemento de otra estructura ya cargada, cámbiele el nombre (ej. «CAISSON AT COMPLEMENTO»).</div></div>';
+      if (c.dest === 'est') h += '<details class="mas"' + (ya.length ? ' open' : '') + '><summary>Cambiar el nombre de la estructura</summary><div class="fld" style="margin-top:6px"><input type="text" maxlength="80" value="' + esc(p.nombre) + '" data-i="carga.' + i + '.nombre"><div class="peq mut">Solo si es un complemento de otra estructura ya cargada (ej. «CAISSON AT COMPLEMENTO»).</div></div></details>';
       if (!ya.length) h += '<div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" inputmode="numeric" placeholder="Ej. 203192" value="' + esc(c.pedido) + '" data-i="carga.' + i + '.pedido"></div>' +
         '<div class="fld"><label>Fecha en que llegó a obra</label><input type="date" max="' + hoyISO() + '" value="' + esc(c.llegada || hoyISO()) + '" data-i="carga.' + i + '.llegada"></div></div>' +
         (c.dest !== 'est' ? '' : '<div class="fld"><label>¿Para cuántas estructuras es esta cartilla?</label><input type="text" inputmode="numeric" placeholder="1" value="' + esc(c.nEst) + '" data-i="carga.' + i + '.nest"><div class="peq mut">Los kilos y cantidades de la cartilla son el total de esas estructuras (ej. 10 pilotes). Después podrá registrar el armado de 1 estructura a la vez.</div></div>');
@@ -895,6 +955,7 @@
     if (!S.cargado) return vCargando();
     switch (S.tab) {
       case 'salida': return vSalida();
+      case 'hoy': return vHoy();
       case 'ver': return vVerificar();
       case 'inv': return vInv();
       case 'mov': return vMovs();
@@ -966,18 +1027,33 @@
     if (p.rows.some(function (r) { return !r.largo || !r.peso; })) return true;
     return !!(p.kgDLI && Math.abs(p.totalKg - p.kgDLI) / p.kgDLI > 0.05);
   }
+  // Si ya existe una estructura con ese nombre pero el archivo es otro, es un complemento: se le da un nombre propio
+  function nombreAuto(p) {
+    var b = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); };
+    var usado = function (n) { return S.estado.pedidos.some(function (x) { return x.estructura === n; }) || S.cargas.some(function (c) { return c.parsed.nombre === n; }); };
+    var mismoArch = S.estado.pedidos.some(function (x) { return p.archivo && b(x.archivo) === b(p.archivo); });
+    if (mismoArch || !usado(p.nombre)) return '';
+    var cola = String(p.archivo || '').replace(/\.(dli|pdf)$/i, '').replace(/^.*?(fase\s*ii|fase\s*2)\s*[-_]?\s*/i, '').replace(/[_]+/g, ' ').trim();
+    var n = (p.nombre + ' · ' + (cola && cola.toLowerCase() !== String(p.nombre).toLowerCase() ? cola : 'complemento')).slice(0, 80), k = 2;
+    while (usado(n)) n = (p.nombre + ' · complemento ' + (k++)).slice(0, 80);
+    var viejo = p.nombre; p.nombre = n;
+    return 'Ya existía la estructura «' + viejo + '». Como este archivo es otro, lo guardo como «' + n + '». Puede cambiar el nombre abajo.';
+  }
+  function destAuto(p) { return /stock|est[aá]ndar|alambre/i.test(String(p.nombre || '') + ' ' + String(p.archivo || '')) ? 'rec' : 'est'; }
   function leerArchivos(files) {
     var lista = Array.prototype.slice.call(files);
     return lista.reduce(function (p, f) {
       return p.then(function () { return f.arrayBuffer(); }).then(function (buf) {
         if (/\.pdf$/i.test(f.name)) {
-          return leerPdf(buf, f.name).then(function (parsed) { S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: 'est', err: '' }); })
+          return leerPdf(buf, f.name).then(function (parsed) { S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: destAuto(parsed), err: '' }); })
             .catch(function () { toast('No se pudo leer el PDF ' + f.name + '. Sin señal por primera vez, o el archivo no es el listado.'); });
         }
+        if (!/\.dli$/i.test(f.name)) { toast('«' + f.name + '» no es un archivo .dli ni un PDF'); return; }
         var parsed = C.parseDLI(new Uint8Array(buf), f.name);
-        S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: 'est', err: '', pedirPdf: dliFalla(parsed) });
+        var dA = destAuto(parsed), na = dA === 'est' ? nombreAuto(parsed) : '';
+        S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: dA, err: '', pedirPdf: dliFalla(parsed), nota: na });
       }).catch(function () { toast('No se pudo leer ' + f.name); });
-    }, Promise.resolve()).then(render);
+    }, Promise.resolve()).then(function () { S.cargaRes = null; render(); });
   }
   function usarPdf(i, file) {
     var c = S.cargas[i]; if (!c || !file) return Promise.resolve();
@@ -988,8 +1064,8 @@
     }); }).catch(function () { c.err = 'No se pudo leer el PDF.'; }).then(render);
   }
 
-  function registrarCarga(i) {
-    var c = S.cargas[i]; if (!c) return;
+  function registrarCarga(i, lote) {
+    var c = S.cargas[i]; if (!c) return Promise.resolve(false);
     var p = c.parsed;
     if (c.dest && c.dest !== 'est') { // stock sin destino: las posiciones llevan el pedido delante para no mezclar cartillas
       var ped0 = String(c.pedido).trim();
@@ -1013,13 +1089,35 @@
       if (!rep) rep = S.cargas.filter(function (x, j) { return j !== i && ((porNombre && x.parsed.nombre === p.nombre) || baseArch(x.parsed.archivo) === baseArch(p.archivo)); })[0] ? { pedido: 'en esta misma lista' } : null;
       if (rep) c.err = 'Este DLI ya fue cargado (' + p.nombre + ', pedido ' + rep.pedido + '). No se puede guardar de nuevo, ni con otro número de pedido.';
     }
-    if (c.err) { render(); return; }
-    Api.cargarDLI(S.ses, p, c.pedido, c.llegada, c.b64, Math.max(1, parseInt(c.nEst, 10) || 1)).then(function (r) {
-      if (!r.ok) { c.err = /sin conexi/i.test(r.error || '') ? 'Sin señal: este DLI NO se ha cargado todavía. Se queda aquí en pantalla; cuando tengas señal vuelve a pulsar Guardar.' : r.error; render(); return; }
-      S.cargas.splice(i, 1);
-      toast('Cargado: pedido ' + String(c.pedido).trim() + ' · ' + p.nombre);
-      S.tab = 'panel';
+    if (c.err) { if (!lote) render(); return Promise.resolve(false); }
+    return Api.cargarDLI(S.ses, p, c.pedido, c.llegada, c.b64, Math.max(1, parseInt(c.nEst, 10) || 1)).then(function (r) {
+      if (!r.ok) { c.err = /sin conexi/i.test(r.error || '') ? 'Sin señal: este DLI NO se ha cargado todavía. Se queda aquí en pantalla; cuando tengas señal vuelve a pulsar Guardar.' : r.error; if (!lote) render(); return false; }
+      S.cargas.splice(S.cargas.indexOf(c), 1);
+      if (lote) return p.nombre;
+      S.cargaRes = { ok: [p.nombre], mal: 0 };
+      if (!S.cargas.length) { S.cargaRes = null; toast('Cargado: pedido ' + String(c.pedido).trim() + ' · ' + p.nombre); S.tab = 'panel'; }
+      else toast('Cargado ' + p.nombre + '. Faltan ' + S.cargas.length + ' por guardar.');
+      return cargarEstado().then(function () { return p.nombre; });
+    });
+  }
+  function guardarTodos() {
+    var lista = S.cargas.slice(), ok = [];
+    toast('Guardando…');
+    return lista.reduce(function (pr, c) { return pr.then(function () { var i = S.cargas.indexOf(c); return i < 0 ? null : registrarCarga(i, true).then(function (n) { if (n) ok.push(n); }); }); }, Promise.resolve()).then(function () {
+      S.cargaRes = { ok: ok, mal: S.cargas.length };
+      if (!S.cargas.length) { S.cargaRes = null; toast('✅ Se cargaron los ' + ok.length + ' archivos'); S.tab = 'panel'; }
       return cargarEstado();
+    });
+  }
+  function guardarEdPed(id) {
+    var e = S.edPed[id]; if (!e) return;
+    e.err = '';
+    if (!/^[A-Za-z0-9._\-]{1,30}$/.test(String(e.pedido).trim())) e.err = 'Escriba un número de pedido válido.';
+    else if (!/^\d{4}-\d\d-\d\d$/.test(e.f) || e.f > hoyISO()) e.err = 'Revise la fecha de llegada (no puede ser futura).';
+    if (e.err) { render(); return; }
+    Api.editarCarga(S.ses, id, { pedido: String(e.pedido).trim(), fechaLlegada: e.f, nEstructuras: Math.max(1, parseInt(e.n, 10) || 1) }).then(function (r) {
+      if (!r.ok) { e.err = r.error || 'No se pudo guardar'; render(); return; }
+      S.edPed[id] = null; toast('Pedido corregido'); return cargarEstado();
     });
   }
 
@@ -1027,8 +1125,12 @@
     var s = S.sal, lista = s.items.slice(), actual = null, tipoReg = s.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA';
     S.tipo2 = tipoReg;
     if (!lista.length) { s.err = s.modo === 'pct' ? 'Escriba el porcentaje de avance.' : 'Elija al menos una pieza.'; s.msg = ''; render(); return; }
-    if (s.modo === 'pos' && !String(s.fase).trim()) { s.err = 'Escriba la fase.'; s.msg = ''; render(); return; }
+    if (esStock(s.elem) && !String(s.destino || '').trim()) { s.err = 'Escriba en qué estructura se va a usar este acero.'; s.msg = ''; render(); return; }
+    if (s.modo === 'pos' && !String(s.fase).trim()) { s.err = 'Toque o escriba la fase.'; s.msg = ''; render(); return; }
     var pctV = s.modo === 'pct' ? (parseFloat(String(s.pct).replace(',', '.')) || 0) : 0, elemSel = s.elem;
+    var NEr = nEstDe(elemSel), nRegE = Math.round(pctV * NEr / 100 * 100) / 100;
+    if (s.modo === 'pct' && NEr > 1 && nRegE > 1.0001 && !confirm('Va a registrar ' + fmtPct(nRegE) + ' estructuras de una vez (de ' + NEr + '). ¿Es correcto?')) return;
+    if (s.modo === 'pos' && s.items.some(function (it) { return it.cant > 200; }) && !confirm('Hay una posición con más de 200 piezas. ¿Es correcto?')) return;
     var llegaA100 = s.modo === 'pct' && tipoReg === 'SALIDA' && pctAcum(elemSel) + pctV >= 100 - 1e-9;
     var restaAntes = (S.calc.porElem[elemSel] || {}).sal_p || 0, destinoSel = esStock(elemSel) ? String(s.destino || '').trim() : '';
     var fch = /^\d{4}-\d\d-\d\d$/.test(s.fecha) ? s.fecha : hoyISO();
@@ -1058,8 +1160,8 @@
       var cierre = tipoReg === 'SALIDA' && !esStock(elemSel) && (llegaA100 || restaAntes - totP <= 0);
       s.msg = (tipoReg === 'ARMADO' ? 'Armado guardado: ' : 'Salida guardada: ') + pz(totP) + ' (≈ ' + kg(totKg) + ' kg)' + (s.modo === 'pct' ? ' · ' + fmtPct(pctV) + ' % de avance' : '') + '.';
       window.scrollTo(0, 0);
-      if (cierre) { s.balElem = elemSel; S.cie = { vals: {}, q: '', err: '', busy: false }; toast(s.msg); s.msg = ''; }
-      else { S.tab = 'panel'; try { sessionStorage.setItem('ac_tab_' + MODO, 'panel'); } catch (e) { } toast(s.msg); s.msg = ''; }
+      if (cierre) { s.balElem = elemSel; S.cie = { vals: {}, q: '', err: '', busy: false, si: false }; toast(s.msg); s.msg = ''; }
+      else { S.okSal = { txt: s.msg.replace(/\.$/, '') + (elemSel ? ' · ' + elemSel : ''), pend: !!Api.remoto }; s.tipo = ''; s.msg = ''; }
       if (Api.remoto) { S.estado = Api.conCola(S.estado); render(); return enviarCola(); }
       return cargarEstado();
     });
@@ -1067,14 +1169,14 @@
 
   function cierreOk() {
     var e = S.sal.balElem; if (!e || S.cie.busy) return;
-    var items = itemsConteo(e, S.cie.vals, 'queda');
+    var items = itemsConteo(e, S.cie.vals, 'queda', true);
     if (items.some(function (x) { return x.queda > 100000; })) { S.cie.err = 'Revise las cantidades.'; render(); return; }
     S.cie.busy = true; S.cie.err = ''; render();
     Api.cierreEstructura(S.ses, e, items).then(function (r) {
       S.cie.busy = false;
       if (!r.ok) { S.cie.err = r.error || 'No se pudo guardar'; render(); return; }
       var pasan = items.reduce(function (t, x) { return t + x.queda; }, 0);
-      S.sal.balElem = ''; S.cie = { vals: {}, q: '', err: '', busy: false };
+      S.sal.balElem = ''; S.sal.tipo = ''; S.cie = { vals: {}, q: '', err: '', busy: false, si: false };
       toast(pasan ? 'Listo: ' + pz(pasan) + ' pasaron a Acero figurado' : 'Listo: no quedó acero sin usar');
       return cargarEstado();
     });
@@ -1087,7 +1189,7 @@
       v.busy = false;
       if (!r.ok) { v.err = r.error || 'No se pudo guardar'; render(); return; }
       var el = v.elem; v.vals = {}; v.q = ''; v.obs = ''; v.elem = '';
-      v.msg = 'Conteo de ' + el + ' guardado: ' + (r.diferencias ? r.diferencias + ' diferencia(s) ajustada(s)' : 'todo coincide') + '.';
+      v.conf = false; v.msg = 'Conteo de ' + el + ' guardado: ' + (r.diferencias ? r.diferencias + ' diferencia(s) ajustada(s)' : 'todo coincide') + '.';
       toast(v.msg); return cargarEstado();
     });
   }
@@ -1179,16 +1281,28 @@
     var el = ev.target.closest('[data-a]'); if (!el) return;
     var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
     switch (a) {
-      case 'tipo': if (S.sal.tipo !== v) { S.sal.tipo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; S.sal.q = ''; } render(); break;
+      case 'tipo': if (S.sal.tipo !== v) { S.sal.tipo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; S.sal.q = ''; S.sal.fdiam = ''; } S.okSal = null; render(); break;
       case 'modo': if (S.sal.modo !== v) { S.sal.modo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; predefinir1(); } render(); break;
       case 'pctset': S.sal.pct = String(v); S.sal.msg = ''; aplicarPct(); render(); break;
       case 'cdest': { var pv = String(v).split(':'), cc = S.cargas[+pv[0]]; if (cc) { cc.dest = pv[1]; cc.err = ''; } render(); break; }
       case 'cierreOk': cierreOk(); break;
+      case 'infHoy': S.inf.d = ''; S.inf.h = ''; render(); break;
+      case 'cierreNo': S.cie.vals = {}; cierreOk(); break;
+      case 'cierreSi': S.cie.si = true; render(); break;
+      case 'verConf': S.ver.conf = true; render(); break;
+      case 'verNo': S.ver.conf = false; render(); break;
+      case 'otraVez': S.okSal = null; S.sal.tipo = ''; render(); window.scrollTo(0, 0); break;
+      case 'fase': S.sal.fase = v; S.sal.err = ''; render(); break;
+      case 'una': { var it1 = S.sal.items.filter(function (x) { return x.elem === S.sal.elem && x.diam === el.getAttribute('data-d') && x.marca === v; })[0]; setCant(S.sal.elem, el.getAttribute('data-d'), v, (it1 ? it1.cant : 0) + (+el.getAttribute('data-n') || 1)); render(); break; }
+      case 'guardarTodos': guardarTodos(); break;
+      case 'edPed': S.edPed[v] = S.edPed[v] ? null : (function () { var pp = S.estado.pedidos.filter(function (x) { return x.loadId === v; })[0] || {}; return { pedido: pp.pedido, f: String(pp.fecha || '').slice(0, 10), n: String(pp.nEstructuras || 1), err: '' }; })(); render(); break;
+      case 'edPedOk': guardarEdPed(v); break;
+      case 'cerrarRes': S.cargaRes = null; render(); break;
       case 'verOk': verOk(); break;
-      case 'cerrarBal': S.sal.balElem = ''; render(); break;
+      case 'cerrarBal': if (confirm('Si sale ahora, lo que quedó sin usar no se registra. ¿Salir de todos modos?')) { S.sal.balElem = ''; S.sal.tipo = ''; render(); } break;
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'per': S.per.k = v; render(); break;
-      case 'tab': S.tab = v; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
+      case 'tab': S.tab = v; S.okSal = null; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
       case 'refrescar': cargarEstado().then(function () { toast('Actualizado'); }); break;
       case 'salir': Api.salir(); S.ses = null; S.loginErr = ''; render(); break;
       case 'todas': setCant(S.sal.elem, el.getAttribute('data-d'), v, 99999); render(); break;
@@ -1208,11 +1322,11 @@
       case 'enviarCola': enviarCola(); break;
       case 'limpiarErrores': Api.limpiarErroresCola(); render(); break;
       case 'anularSalida':
-        if (confirm('¿Anular esto? El acero vuelve a como estaba antes.')) {
+        if (confirm(esAdmin() ? '¿Anular esto? El acero vuelve a como estaba antes.' : '¿Deshacer este registro? El acero vuelve a como estaba antes.')) {
           toast('Anulando…');
           Api.anularSalida(S.ses, String(v).split(',')).then(function (r) {
             toast(r.ok ? 'Anulado' : r.error);
-            if (r.ok) { S.tab = MODO === 'salidas' ? 'inv' : 'panel'; window.scrollTo(0, 0); }
+            if (r.ok && MODO !== 'salidas') { S.tab = 'panel'; window.scrollTo(0, 0); }
             return cargarEstado();
           });
         }
@@ -1279,6 +1393,7 @@
       var m = /^carga\.(\d+)\.pedido$/.exec(i), m2 = /^carga\.(\d+)\.llegada$/.exec(i);
       if (m && S.cargas[+m[1]]) S.cargas[+m[1]].pedido = t.value;
       if (m2 && S.cargas[+m2[1]]) S.cargas[+m2[1]].llegada = t.value;
+      var me = /^edp\.(.+)\.(pedido|f|n)$/.exec(i); if (me && S.edPed[me[1]]) S.edPed[me[1]][me[2]] = me[2] === 'n' ? t.value.replace(/\D/g, '') : t.value;
       var m3 = /^carga\.(\d+)\.nest$/.exec(i); if (m3 && S.cargas[+m3[1]]) S.cargas[+m3[1]].nEst = t.value.replace(/\D/g, '');
     }
   });
@@ -1320,7 +1435,8 @@
   }
 
   // ---------- Inicio ----------
-  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(panel|inv|mov|ped|inf|salida|cargar|ver)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
+  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(panel|inv|mov|ped|inf|salida|cargar|ver|hoy)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
+  if (MODO === 'salidas' && !/^(salida|hoy|ver|inf)$/.test(S.tab)) S.tab = 'salida';
   S.ses = Api.sesion();
   if (S.ses && MODO === 'dashboard' && S.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; }
   if (S.ses) { render(); enviarCola().then(cargarEstado); }

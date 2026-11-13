@@ -27,6 +27,7 @@
     return String(d).replace(/["'”“′″]/g, '').trim();
   }
   function diamLabel(d) {
+    if (d === 'ALAMBRE') return 'Alambre (kg)';
     if (!d) return '';
     if (d[0] === 'D') return d.replace('D', 'Ø') + ' mm';
     return d + '"' + (NUMERO[d] ? ' (' + NUMERO[d] + ')' : '');
