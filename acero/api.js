@@ -145,6 +145,12 @@
       return Promise.resolve({ ok: true, pendiente: true });
     },
 
+    /** Acciones nuevas (armado, stock): una sola llamada al servidor. */
+    accion: function (ses, action, d) {
+      if (!remoto) return Promise.resolve({ ok: false, error: 'Esta función necesita conexión con el servidor' });
+      return post(Object.assign({ action: action, pin: ses.pin, usuario: ses.nombre }, d || {})).catch(function () { return { ok: false, error: 'Sin conexión: intenta de nuevo cuando haya señal' }; });
+    },
+
     cierreEstructura: function (ses, elem, items) {
       if (!remoto) return Promise.resolve({ ok: false, error: 'Esta función necesita conexión con el servidor' });
       return post({ action: 'cierreEstructura', pin: ses.pin, usuario: ses.nombre, elemento: elem, items: items }).catch(function () { return { ok: false, error: 'Sin conexión: el cierre necesita internet. Vuelva a intentarlo con señal.' }; });

@@ -5,7 +5,7 @@
   var MODO = window.ACEROS_MODO === 'salidas' ? 'salidas' : 'dashboard', BASE = window.ACEROS_BASE || '', EMB = !!window.ACEROS_EMBED;
 
   var S = {
-    cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [] }, calc: null, tab: MODO === 'salidas' ? 'salida' : 'panel', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
+    cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [], armados: [] }, calc: null, tab: 'reg', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
     ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false, si: false },
     sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', modoSel: '', eq: '', tipo: '', fase: '', pct: '', balElem: '' }, okSal: null, edPed: {}, cargaRes: null,
     inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, inf: { d: '' },
@@ -92,9 +92,10 @@
   }
 
   function vTabs() {
+    var base = [['reg', '🏠', 'Registro'], ['llego', '📥', 'Llegó'], ['armar', '🔧', 'Armar'], ['fin', '✅', 'Fin de armado'], ['salio', '🚚', 'Salió'], ['stock', '📦', 'Stock']];
     var T = EMB ? [['panel', '', 'Panel'], ['inv', '', 'Inventario'], ['mov', '', 'Movimientos'], ['ped', '', 'Pedidos'], ['inf', '', 'Informe']] : MODO === 'salidas'
-      ? [['salida', '✍️', 'Registrar'], ['hoy', '🗓️', 'Lo de hoy'], ['ver', '✅', 'Contar'], ['inf', '📄', 'Informe']]
-      : [['panel', '📊', 'Panel'], ['salida', '✍️', 'Registrar'], ['ver', '✅', 'Contar'], ['inv', '📦', 'Inventario'], ['mov', '🧾', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe'], ['cargar', '📥', 'Cargar DLI']];
+      ? base.concat([['ver', '🧮', 'Contar'], ['inf', '📄', 'Informe']])
+      : base.concat([['ver', '🧮', 'Contar'], ['inf', '📄', 'Informe'], ['panel', '📊', 'Panel'], ['ped', '📋', 'Pedidos'], ['mov', '🧾', 'Movimientos']]);
     return '<nav class="tabs">' + T.map(function (t) {
       return '<button class="' + (S.tab === t[0] ? 'on' : '') + '" data-a="tab" data-v="' + t[0] + '"><span>' + t[1] + '</span><em>' + t[2] + '</em></button>';
     }).join('') + '</nav>';
@@ -966,6 +967,7 @@
 
   function vista() {
     if (!S.cargado) return vCargando();
+    var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return nv;
     switch (S.tab) {
       case 'salida': return vSalida();
       case 'hoy': return vHoy();
@@ -1127,7 +1129,7 @@
       S.cargas.splice(S.cargas.indexOf(c), 1);
       if (lote) return p.nombre;
       S.cargaRes = { ok: [p.nombre], mal: 0 };
-      if (!S.cargas.length) { S.cargaRes = null; toast('Cargado: pedido ' + String(c.pedido).trim() + ' · ' + p.nombre); S.tab = 'panel'; }
+      if (!S.cargas.length) { S.cargaRes = null; toast('Cargado: pedido ' + String(c.pedido).trim() + ' · ' + p.nombre); S.tab = 'reg'; }
       else toast('Cargado ' + p.nombre + '. Faltan ' + S.cargas.length + ' por guardar.');
       return cargarEstado().then(function () { return p.nombre; });
     });
@@ -1137,7 +1139,7 @@
     toast('Guardando…');
     return lista.reduce(function (pr, c) { return pr.then(function () { var i = S.cargas.indexOf(c); return i < 0 ? null : registrarCarga(i, true).then(function (n) { if (n) ok.push(n); }); }); }, Promise.resolve()).then(function () {
       S.cargaRes = { ok: ok, mal: S.cargas.length };
-      if (!S.cargas.length) { S.cargaRes = null; toast('✅ Se cargaron los ' + ok.length + ' archivos'); S.tab = 'panel'; }
+      if (!S.cargas.length) { S.cargaRes = null; toast('✅ Se cargaron los ' + ok.length + ' archivos'); S.tab = 'reg'; }
       return cargarEstado();
     });
   }
@@ -1328,10 +1330,13 @@
   }
 
 
+  if (window.AcReg) AcReg.init({ S: S, render: render, toast: toast, esc: esc, n0: n0, kg: kg, fecha: fecha, fechaDia: fechaDia, hoyISO: hoyISO, horaAhora: horaAhora, pz: pz, vMov: vMov, vCargar: vCargar, vFiltro: vFiltro, enPer: enPer, Api: Api, C: C, cargarEstado: cargarEstado, enviarCola: enviarCola, esAdmin: esAdmin, posTxt: posTxt });
+
   // ---------- Eventos ----------
   document.addEventListener('click', function (ev) {
     var el = ev.target.closest('[data-a]'); if (!el) return;
     var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
+    if (window.AcReg && AcReg.click(a, v, el)) return;
     switch (a) {
       case 'tipo': if (S.sal.tipo && S.sal.tipo !== v && !confSal()) break; if (S.sal.tipo !== v) { reinicioSal('tipo'); S.sal.tipo = v; } S.okSal = null; render(); window.scrollTo(0, 0); break;
       case 'irA': if (!confSal()) break; reinicioSal(v === 'tipo' ? 'tipo' : 'elem'); if (v === 'tipo') S.sal.tipo = ''; render(); window.scrollTo(0, 0); break;
@@ -1358,7 +1363,7 @@
       case 'cerrarBal': if (confirm('Si sale ahora, lo que quedó sin usar no se registra. ¿Salir de todos modos?')) { S.sal.balElem = ''; S.sal.tipo = ''; render(); } break;
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'per': S.per.k = v; render(); break;
-      case 'tab': S.tab = v; S.okSal = null; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
+      case 'tab': if (window.AcReg) AcReg.reset(v); S.tab = v; S.okSal = null; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
       case 'refrescar': cargarEstado().then(function () { toast('Actualizado'); }); break;
       case 'salir': Api.salir(); S.ses = null; S.loginErr = ''; render(); break;
       case 'todas': setCant(S.sal.elem, el.getAttribute('data-d'), v, 99999); render(); break;
@@ -1404,6 +1409,7 @@
 
   document.addEventListener('change', function (ev) {
     var t = ev.target;
+    if (window.AcReg && t.getAttribute('data-r') && AcReg.cambio(t)) return;
     if (t.getAttribute('data-cv')) { var pp = t.getAttribute('data-cv').split(':'), kk = pp.slice(1).join(':'), vv = Math.max(0, Math.floor(Number(t.value) || 0)); (pp[0] === 'cie' ? S.cie : S.ver).vals[kk] = vv; S.ver.msg = ''; render(); return; }
     if (t.getAttribute('data-f') === 'ver.elem') { S.ver.elem = t.value; S.ver.vals = {}; S.ver.q = ''; S.ver.err = ''; S.ver.msg = ''; render(); return; }
     if (t.getAttribute('data-pdfpara') != null) { usarPdf(+t.getAttribute('data-pdfpara'), t.files[0]).then(function () { t.value = ''; }); return; }
@@ -1434,7 +1440,8 @@
   });
 
   document.addEventListener('input', function (ev) {
-    var t = ev.target, i = t.getAttribute('data-i'); if (!i) return;
+    var t = ev.target; if (window.AcReg && t.getAttribute('data-r') && AcReg.input(t)) return;
+    var i = t.getAttribute('data-i'); if (!i) return;
     if (i === 'sal.obs') S.sal.obs = t.value;
     else if (i === 'sal.eq') { S.sal.eq = t.value; S.focus = 's-eq'; render(); var e5 = $('s-eq'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }
     else if (i === 'sal.q') { S.sal.q = t.value; S.focus = 's-q'; render(); var e3 = $('s-q'); if (e3) { try { e3.setSelectionRange(e3.value.length, e3.value.length); } catch (x) { } } }
@@ -1468,7 +1475,7 @@
     Api.login(pin).then(function (r) {
       if (!r.ok) { S.loginErr = r.error; render(); return; }
       if (MODO === 'dashboard' && r.ses.rol !== 'admin') { Api.salir(); S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; render(); return; }
-      S.ses = r.ses; S.loginErr = ''; S.tab = MODO === 'salidas' ? 'salida' : 'panel';
+      S.ses = r.ses; S.loginErr = ''; S.tab = 'reg';
       render(); enviarCola().then(cargarEstado);
     });
   });
@@ -1486,15 +1493,15 @@
     window.addEventListener('message', function (ev) {
       if (ev.origin !== location.origin || !ev.data || ev.data.t !== 'per') return;
       S.per = { k: 'rango', d: ev.data.d || '', h: ev.data.h || '' };
-      if (/^(panel|inv|mov|ped|inf)$/.test(ev.data.tab || '')) S.tab = ev.data.tab;
+      if (/^(reg|llego|armar|fin|salio|stock|ver|panel|inv|mov|ped|inf)$/.test(ev.data.tab || '')) S.tab = ev.data.tab;
       if (ev.data.r && S.ses) cargarEstado(); else render();
     });
     try { parent.postMessage({ t: 'acero-listo' }, location.origin); } catch (e) { }
   }
 
   // ---------- Inicio ----------
-  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(panel|inv|mov|ped|inf|salida|cargar|ver|hoy)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
-  if (MODO === 'salidas' && !/^(salida|hoy|ver|inf)$/.test(S.tab)) S.tab = 'salida';
+  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(reg|llego|armar|fin|salio|stock|panel|inv|mov|ped|inf|salida|cargar|ver|hoy)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
+  if (MODO === 'salidas' && !/^(reg|llego|armar|fin|salio|stock|ver|inf)$/.test(S.tab)) S.tab = 'reg';
   S.ses = Api.sesion();
   if (S.ses && MODO === 'dashboard' && S.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; }
   if (S.ses) { render(); enviarCola().then(cargarEstado); }
