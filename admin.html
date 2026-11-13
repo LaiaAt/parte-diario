@@ -321,7 +321,7 @@ let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] ===
 const TR_TABS = [['viajes', '📋 Viajes'], ['albaran', '🔎 Búsquedas'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
-  const nDup = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán') && !x.rev).length : 0;
+  const nDup = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán' || x.tipo === 'Sin m³ de albarán') && !x.rev).length : 0;
   TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; selSet('tr', k); if (TR) pintarTr(); else navTr(); } }, t, k === 'sosp' && nDup ? h('span', { class: 'tabBadge' }, '🚨 ' + nDup) : null)));
 }
 function modulo(m) {
@@ -406,6 +406,7 @@ function sospechosos() {
   V.forEach(v => {
     if (/Material no corresponde|NO autorizado/.test(v.alertas)) add('Material / destino', v.alertas.split('; ').filter(a => /Material no corresponde|NO autorizado/.test(a)).join('; '), [v]);
     if (/Placa (nueva|parecida)/.test(v.alertas)) add('Placa dudosa', v.placa + ': ' + v.alertas.split('; ').filter(a => /Placa/.test(a)).join('; '), [v]);
+    if (v.estado !== 'ANULADO' && !(Number(v.vol_albaran) > 0)) add('Sin m³ de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' · ' + oriV(v) + ' → ' + desV(v) + ' · falta el volumen del albarán', [v]);
     if (!v.tiene_carga) add('Sin foto de volqueta', v.placa + ' · ' + v.cod + ' (' + fmtF(v.fecha) + ')', [v]);
     if (!TR.sin_albaran && !v.tiene_recibo && v.estado !== 'ANULADO') add('Sin foto de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + oriV(v) + ' → ' + desV(v) + ' · registró ' + (v.creado_por || v.usuario || '—'), [v]);
   });
@@ -498,14 +499,14 @@ async function buscarAlb() {
     ALB.r = r; pintaAlb();
   } catch (e) { box.textContent = 'No se pudo conectar.'; }
 }
-const ALB_F = [['material', 'Material', v => v.material || ''], ['mov', 'Movimiento', v => v.mov === 'RECIBE' ? 'Recibido' : 'Entregado'], ['estado', 'Estado (RECIBIDO = con foto de albarán)', v => v.estado || ''], ['empresa', 'Empresa', v => v.empresa || ''], ['ori', 'Origen', v => oriV(v) || ''], ['des', 'Destino', v => desV(v) || ''], ['uf', 'UF', v => ufTxt(v) || '']];
+const ALB_F = [['material', 'Material', v => v.material || ''], ['mov', 'Movimiento', v => v.mov === 'RECIBE' ? 'Recibido' : 'Entregado'], ['estado', 'Foto de albarán', v => v.estado || ''], ['empresa', 'Empresa', v => v.empresa || ''], ['ori', 'Origen', v => oriV(v) || ''], ['des', 'Destino', v => desV(v) || ''], ['uf', 'UF', v => ufTxt(v) || '']];
 function pintaAlb(foco) {
   const box = $('albRes'); if (!box) return; box.textContent = '';
   const base = ALB.r ? ALB.r.viajes : viajesTr().slice().sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || '')));
   ALB.f = ALB.f || {};
   const fil = $('albFil'); if (fil && !foco) {
     fil.textContent = '';
-    const todos = ((TR && TR.viajes) || []).concat(base);
+    const todos = (TR && TR.viajes && TR.viajes.length) ? TR.viajes : base;
     ALB_F.forEach(([k, et, fn]) => {
       const op = Array.from(new Set(todos.map(fn).filter(Boolean))).sort((x, y) => x.localeCompare(y, 'es'));
       const dl = h('datalist', { id: 'dl_' + k }, ...op.map(x => h('option', { value: x })));
@@ -618,7 +619,7 @@ async function xlsxBusqueda() {
   try {
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Búsqueda');
-    const C = [['Fecha', 11, v => v.fecha], ['Hora', 7, v => v.hora_salida || ''], ['Vale', 17, v => v.cod], ['N° albarán', 11, v => v.n_valera || ''], ['Placa', 9, v => v.placa], ['Empresa', 18, v => v.empresa || ''], ['Conductor', 18, v => v.conductor || ''], ['Material', 20, v => v.material || ''], ['Movimiento', 11, v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['Origen', 22, v => oriV(v)], ['Destino', 22, v => desV(v)], ['m³ albarán', 11, v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Estado', 12, v => v.estado || ''], ['Alertas', 32, v => alV(v) || '']];
+    const C = [['Fecha', 11, v => v.fecha], ['Hora', 7, v => v.hora_salida || ''], ['Vale', 17, v => v.cod], ['N° albarán', 11, v => v.n_valera || ''], ['Placa', 9, v => v.placa], ['Empresa', 18, v => v.empresa || ''], ['Conductor', 18, v => v.conductor || ''], ['Material', 20, v => v.material || ''], ['Movimiento', 11, v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['Origen', 22, v => oriV(v)], ['Destino', 22, v => desV(v)], ['m³ albarán', 11, v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Foto albarán', 12, v => v.estado || ''], ['Alertas', 32, v => alV(v) || '']];
     ws.columns = C.map(c => ({ header: c[0], width: c[1] }));
     r.viajes.forEach(v => ws.addRow(C.map(c => { try { return c[2](v); } catch (e) { return ''; } })));
     const hr = ws.getRow(1); hr.font = { bold: true, color: { argb: 'FFFFFFFF' } }; hr.eachCell(ce => { ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B5E20' } }; });
@@ -922,7 +923,7 @@ async function xlsxTr() {
       ['Empresa', 18, 't', v => v.empresa || ''], ['Conductor', 18, 't', v => v.conductor || ''], ['Material', 20, 't', v => v.material || ''], ['Máquina que cargó', 26, 't', v => v.maquina || ''],
       ['Movimiento', 11, 't', v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['UF', 8, 't', v => ufTxt(v)], ['Origen', 22, 't', v => oriV(v)], ['Destino', 22, 't', v => desV(v)], ['Km', 7, 'n', v => v.km === '' ? '' : Number(v.km)],
       ['m³ albarán', 11, 'n', v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, 'n', v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Diferencia m³', 11, 'n', v => Number(v.vol_albaran) > 0 && Number(v.cant) > 0 ? Math.round((Number(v.vol_albaran) - Number(v.cant)) * 100) / 100 : ''],
-      ['% carga', 8, 'n0', v => pctV(v) === null ? '' : pctV(v)], ['Estado', 12, 't', v => v.estado || ''], ['Alertas', 32, 't', v => v.alertas || ''], ['Ubicación', 18, 'l', v => v], ['Foto volqueta', 24, 'img', null], ['Foto albarán', 24, 'img', null]];
+      ['% carga', 8, 'n0', v => pctV(v) === null ? '' : pctV(v)], ['Foto albarán', 12, 't', v => v.estado || ''], ['Alertas', 32, 't', v => v.alertas || ''], ['Ubicación', 18, 'l', v => v], ['Foto volqueta', 24, 'img', null], ['Foto albarán', 24, 'img', null]];
     ws.columns = C.map(c => ({ width: c[1] }));
     ws.mergeCells(1, 1, 1, C.length); ws.getCell('A1').value = 'REGISTRO DE TRANSPORTES — Consorcio Constructor Sabana Norte'; ws.getCell('A1').font = { bold: true, size: 15, color: { argb: VERDE } }; ws.getRow(1).height = 24;
     ws.mergeCells(2, 1, 2, C.length); ws.getCell('A2').value = 'Periodo: ' + fmtF($('desde').value) + ' al ' + fmtF($('hasta').value) + '  ·  ' + L.length + ' viajes  ·  Generado ' + new Date().toLocaleString('es-CO') + '  ·  Autor: Carlos Eduardo Bermúdez Castro'; ws.getCell('A2').font = { size: 10, color: { argb: 'FF455A64' } };

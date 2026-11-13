@@ -358,7 +358,7 @@ async function fotoRecibo(v, data, quedarse) {
   const pendiente = COLA.some(o => o.t === 'r' && o.cod === v.cod);
   const previas = pendiente ? asArr(await kv.get('f_' + v.cod + '_r')) : [];
   await kv.set('f_' + v.cod + '_r', previas.concat(asArr(data)).slice(0, 10));
-  v.tiene_recibo = true; v.recibo_local = true; v.estado = 'RECIBIDO';
+  v.tiene_recibo = true; v.recibo_local = true; v.estado = 'CON FOTO';
   COLA = COLA.filter(o => !(o.t === 'r' && o.cod === v.cod));
   COLA.push({ id: Date.now() + Math.random(), t: 'r', llave: user.llave, cod: v.cod });
   await guardarViajes(); await guardarCola();
@@ -807,7 +807,7 @@ async function guardarViaje() {
     placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), vol_albaran: g('vol_albaran'), conductor: g('conductor'), material: g('material'), centro: g('centro'), maquina: g('maquina'), origen: rec ? g('destino') : origenFinal(), destino: rec ? origenFinal() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
     lat: '', lon: '', prec: '',
     uf: $('uf').value, pct: pct > 0 ? pct : '', cant: cant > 0 ? cant : '', peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
-    tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'RECIBIDO' : (antes ? antes.estado : 'DESPACHADO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
+    tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'CON FOTO' : (antes ? antes.estado : 'SIN FOTO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
   });
   const i = VIAJES.findIndex(x => x.cod === cod); if (i >= 0) VIAJES[i] = v; else VIAJES.push(v);
   // catalogo local: que aparezcan ya los valores nuevos
