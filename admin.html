@@ -744,6 +744,26 @@ function vistaMapa(c) {
 }
 
 /* ----- volquetas (crear, editar, activar / inactivar) ----- */
+let VDIRTY = {};
+function contarVol() { const b = $('btnVolTodos'); if (!b) return; const n = Object.keys(VDIRTY).length; b.textContent = n ? '💾 Guardar todos los cambios (' + n + ')' : '💾 Guardar todos los cambios'; b.disabled = !n; b.style.opacity = n ? 1 : .5; }
+async function guardarVolTodos() {
+  const ks = Object.keys(VDIRTY); if (!ks.length) return;
+  const num = v => { const n = Number(String(v).replace(',', '.')); return String(v).trim() === '' || isNaN(n) ? '' : n; };
+  const items = ks.map(p => ({ placa: p, nominal: String(VDIRTY[p].nominal).replace(',', '.').trim(), capacidad: String(VDIRTY[p].capacidad).replace(',', '.').trim() }));
+  const mal = items.filter(i => !(Number(i.nominal) > 0 && Number(i.nominal) <= 60)).map(i => i.placa);
+  if (mal.length) { alert('Falta el volumen del albarán (obligatorio) en: ' + mal.join(', ')); return; }
+  items.forEach(i => { const x = TR.volquetas.find(v => v.placa === i.placa); if (x) { x.nominal = num(i.nominal); x.capacidad = num(i.capacidad); x.validada = 'SI'; } });
+  VDIRTY = {}; pintarTr(); VQN++; pillGuardando();
+  VQ = VQ.then(async () => {
+    try {
+      const r = await api({ accion: 'admin_tr_vol', llave: LLAVE, cambio: 'lote', items: items }, 90000);
+      VQN--; pillGuardando();
+      if (!r.ok) { alert((r.mensaje || 'No se pudo guardar') + '\nSe recarga la lista.'); await recargaTr(); return; }
+      if (r.errores && r.errores.length) alert('No se guardaron:\n' + r.errores.join('\n'));
+      if (VQN === 0) { TR.volquetas = r.volquetas; await recargaTr(); }
+    } catch (e) { VQN--; pillGuardando(); alert('No se pudo guardar (sin conexión). Se recarga la lista.'); try { await recargaTr(); } catch (e2) {} }
+  });
+}
 let VQ = Promise.resolve(), VQN = 0;
 function pillGuardando() {
   let p = $('pillG');
@@ -800,28 +820,26 @@ function vistaVol(c) {
   const V = TR.viajes;
   c.appendChild(chips([['pend', 'Por validar'], ['act', 'Activas'], ['inact', 'Inactivas'], ['todas', 'Todas']], TRVOL, k => { TRVOL = k; pintarTr(); }));
   const L = TR.volquetas.filter(x => TRVOL === 'pend' ? esPend(x) : TRVOL === 'act' ? !esIn(x) : TRVOL === 'inact' ? esIn(x) : true);
-  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Escribe la comprobación CCSN (m³ medidos en la tolva) y pulsa ✔ Validar o Enter: se actualizan TODOS los viajes de esa placa (capacidad y m³ confirmado). Mientras no lo escribas, el comprobado es igual al del albarán y no se generan diferencias.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Edita los volúmenes de las volquetas que necesites (las filas cambiadas se resaltan) y pulsa «Guardar todos los cambios». La comprobación CCSN solo se escribe después de conciliar con el proveedor; si la dejas vacía, el confirmado es igual al del albarán.'));
+  const gb = h('button', { id: 'btnVolTodos', style: 'width:100%;padding:12px;font-size:17px;margin:6px 0', onclick: guardarVolTodos }, '💾 Guardar todos los cambios'); c.appendChild(gb); setTimeout(contarVol, 0);
   const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;position:sticky;top:0;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
   const tb = h('table', { style: 'width:100%;border-collapse:collapse;font-size:15px' }, h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Conductor', 'Volumen albarán (m³)', 'Comprobación CCSN (m³)', 'Viajes', 'Estado', ''].map(th)));
   L.forEach(x => {
     const n = V.filter(v => v.placa === x.placa).length, msg = h('div', { class: 'small' });
-    const iN = h('input', { type: 'text', inputmode: 'decimal', value: x.nominal === undefined || x.nominal === '' ? '' : x.nominal, style: 'width:72px;font-size:15px;padding:6px' });
-    const iV = h('input', { type: 'text', inputmode: 'decimal', value: x.capacidad === undefined || x.capacidad === '' ? '' : x.capacidad, style: 'width:72px;font-size:15px;padding:6px;font-weight:700' });
-    const guardar = async () => {
-      const vv = iV.value.trim().replace(',', '.'), nn = iN.value.trim().replace(',', '.');
-      if (!(Number(vv) > 0)) { iV.style.outline = '3px solid #b3261e'; iV.focus(); return; }
-      await cambioVol({ cambio: 'validar', placa: x.placa, capacidad: vv, nominal: nn });
-    };
-    [iN, iV].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') guardar(); }));
+    const dv = VDIRTY[x.placa] || {};
+    const iN = h('input', { type: 'text', inputmode: 'decimal', value: dv.nominal !== undefined ? dv.nominal : (x.nominal === undefined || x.nominal === '' ? '' : x.nominal), style: 'width:72px;font-size:15px;padding:6px' });
+    const iV = h('input', { type: 'text', inputmode: 'decimal', value: dv.capacidad !== undefined ? dv.capacidad : (x.capacidad === undefined || x.capacidad === '' ? '' : x.capacidad), style: 'width:72px;font-size:15px;padding:6px;font-weight:700' });
+    const marca = () => { VDIRTY[x.placa] = { nominal: iN.value, capacidad: iV.value }; fila.style.background = '#fff8e1'; contarVol(); };
+    [iN, iV].forEach(i => i.addEventListener('input', marca));
+    if (VDIRTY[x.placa]) setTimeout(() => { fila.style.background = '#fff8e1'; }, 0);
     const ed = h('tr', { hidden: true }, h('td', { colspan: 9, style: 'padding:6px 10px;background:#fafafa' }, formVol(x, msg)));
-    tb.appendChild(h('tr', { style: esPend(x) ? 'background:#fffaf0' : '' },
+    const fila = h('tr', { style: esPend(x) ? 'background:#fffaf0' : '' },
       td(h('b', {}, x.placa), esPend(x) ? h('span', { class: 'tag w', style: 'margin-left:6px' }, 'Nueva') : null),
       td(x.empresa || '—'), td(x.tipo || '—'), td(h('span', { style: 'display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: x.conductor || '' }, x.conductor || '—')), td(iN), td(iV), td(String(n)),
       td(esIn(x) ? 'Inactiva' : (esPend(x) ? 'Por validar' : '✔ Validada')),
-      td(h('div', { style: 'display:flex;gap:4px;white-space:nowrap' }, h('button', { style: 'padding:8px 10px;font-size:14px', onclick: guardar }, esPend(x) ? '✔ Validar' : '💾'),
-        h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Editar datos', onclick: () => { ed.hidden = !ed.hidden; } }, '✏️'),
-        h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: esIn(x) ? 'Activar' : 'Desactivar', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? '▶' : '⏸')))));
-    tb.appendChild(ed);
+      td(h('div', { style: 'display:flex;gap:4px;white-space:nowrap' }, h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Editar datos', onclick: () => { ed.hidden = !ed.hidden; } }, '✏️'),
+        h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: esIn(x) ? 'Activar' : 'Desactivar', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? '▶' : '⏸'))));
+    tb.appendChild(fila); tb.appendChild(ed);
   });
   c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tb));
   L.forEach(x => tipoAuto('ev_' + x.placa + '_'));
