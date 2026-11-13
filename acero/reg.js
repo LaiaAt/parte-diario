@@ -6,12 +6,13 @@
   var STK = ['ACERO RECTO', 'ACERO FIGURADO'], NOM = { 'ACERO RECTO': 'Stock estándar', 'ACERO FIGURADO': 'Stock figurado' };
   var SISTEMA = /^(Sobrante del armado|Pas[oó] a |Cierre al 100|Ajuste de conteo|Armado de |Armado con acero)/;
 
+  function nuevoRec() { return { load: '', fecha: '', hora: '', vals: {}, kgs: {}, file: null, id: '', err: '', busy: false, ok: '' }; }
   function R() {
     var S = X.S;
     return S.reg || (S.reg = {
       arm: { q: '' }, fin: { id: '', modo: '', vals: {}, stk: 'ACERO RECTO', sv: {}, err: '', busy: false, ok: '' },
       sal: { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' },
-      stk: { k: 'ACERO RECTO' }, ing: { modo: '', stock: 'ACERO RECTO', rows: [], d: '1/2', l: '12', c: '', k: '', file: null, pedido: '', err: '', busy: false }
+      stk: { k: 'ACERO RECTO' }, rec: nuevoRec(), ing: { modo: '', stock: 'ACERO RECTO', rows: [], d: '1/2', l: '12', c: '', k: '', file: null, pedido: '', err: '', busy: false }
     });
   }
   function esc(s) { return X.esc(s); }
@@ -66,7 +67,18 @@
     var S = X.S, L = [], G = {}, orden = [];
     S.estado.pedidos.forEach(function (p) {
       if (/^(SOBRANTE|TRASLADO|AJUSTE|STOCK)$/.test(String(p.pedido))) return;
+      if (X.recibo(p.loadId)) { // pedido nuevo: montado en oficina, por recibir
+        L.push({ f: p.fecha, est: p.estructura, h: '<div class="mv"><div class="mv-i">📄</div><div class="mv-c"><div class="mv-t">Pedido montado<span class="chp pen">por recibir</span></div><div class="mv-s">' + esc(p.estructura) + '</div><div class="mv-m"><span>Pedido ' + esc(p.pedido) + '</span><span>' + X.pz(p.piezas) + ' · ' + X.kg(p.kg) + ' kg</span><span>' + esc(p.usuario || '') + ' · ' + X.fecha(p.fecha) + '</span></div></div></div>' });
+        return;
+      }
       L.push({ f: p.fecha, est: p.estructura, h: X.vMov({ t: 'E', f: p.fecha, p: p }, true) });
+    });
+    var RG = {}, ro = [];
+    (S.estado.recepciones || []).forEach(function (e) { var k = String(e.id).replace(/-\d+$/, ''); if (!RG[k]) { RG[k] = []; ro.push(k); } RG[k].push(e); });
+    ro.forEach(function (k) {
+      var g = RG[k], tp = 0, tk = 0, est = {}; g.forEach(function (e) { tp += e.cantidad; tk += e.kg; est[e.estructura] = 1; });
+      var ns = Object.keys(est);
+      L.push({ f: g[0].fecha, est: ns[0], ests: est, h: '<div class="mv ent"><div class="mv-i">📥</div><div class="mv-c"><div class="mv-t">Llegó acero a la obra</div><div class="mv-s">' + esc(ns.slice(0, 4).join(', ')) + (ns.length > 4 ? ' +' + (ns.length - 4) : '') + '</div><div class="mv-m"><span>Pedido ' + esc(g[0].pedido) + '</span><span>' + X.pz(tp) + ' · ' + X.kg(tk) + ' kg</span><span>' + esc(g[0].usuario || '') + ' · ' + X.fecha(g[0].fecha) + '</span></div></div></div>' });
     });
     armados().forEach(function (a) {
       if (a.estado === 'ANULADO') return;
@@ -81,7 +93,7 @@
     var q = String(S.mq || '').trim().toLowerCase();
     if (q) {
       var est = {}; S.estado.pedidos.forEach(function (p) { if (String(p.pedido).toLowerCase() === q) est[p.estructura] = 1; });
-      L = L.filter(function (e) { return e.est ? !!est[e.est] : false; });
+      L = L.filter(function (e) { return e.ests ? Object.keys(e.ests).some(function (n) { return est[n]; }) : (e.est ? !!est[e.est] : false); });
     }
     return L.filter(function (e) { return q || X.enPer(e.f); }).sort(function (a, b) { return a.f < b.f ? 1 : a.f > b.f ? -1 : 0; });
   }
@@ -103,14 +115,26 @@
   }
 
   // ---------------------------------------------------------------- Llegó
+  /** Posiciones de un pedido que aún faltan por llegar, siempre en el mismo orden. */
+  function pend(loadId) {
+    var rc = X.recibo(loadId); if (!rc) return [];
+    return rc.rows.filter(function (e) { return e.cantidad - e.recibida > 0; }).sort(function (a, b) {
+      return a.estructura < b.estructura ? -1 : a.estructura > b.estructura ? 1 : (X.C.diamOrder(a.diametro) - X.C.diamOrder(b.diametro)) || (a.marca < b.marca ? -1 : a.marca > b.marca ? 1 : 0);
+    });
+  }
+  function porRecibir() { // pedidos con algo pendiente
+    var seen = {}, L = [];
+    (X.S.estado.cartilla || []).forEach(function (e) { if (seen[e.loadId]) return; seen[e.loadId] = 1; var rc = X.recibo(e.loadId); if (rc && rc.est !== 'COMPLETO') L.push({ id: e.loadId, pedido: e.pedido, rc: rc, fecha: e.fecha }); });
+    return L.sort(function (a, b) { return a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0; });
+  }
+  function totRec(rc) { var t = 0, p = 0; pend(rc).forEach(function (e) { var q = R().rec.vals[e.diametro + '|' + e.marca] || 0; p += q; t += q * e.kgUnit; }); return { p: p, kg: t }; }
   function vLlego() {
-    var r = R().ing, h = '', m = r.modo || '';
-    h += '<div class="card"><h2>📥 ¿Para qué llegó el acero?</h2></div><div class="bgs">' + grande('llegoModo', 'est', '🏗️', 'Para una estructura', 'Con cartilla (DLI o PDF)', m === 'est' ? 'sel' : '') +
-      grande('llegoModo', 'rec', '📦', 'Stock estándar', 'Barras rectas de 6 y 12 m', m === 'rec' ? 'sel' : '') + grande('llegoModo', 'fig', '🧵', 'Stock figurado', 'Todo lo demás', m === 'fig' ? 'sel' : '') + '</div>';
-    if (!m) return h;
-    if (m === 'est') return h + (X.esAdmin() ? X.vCargar() : '<div class="card"><p class="mut" style="margin:0">La cartilla de una estructura la carga el administrador.</p></div>');
+    var r = R().ing, h = '', m = r.modo || 'ped', pl = porRecibir();
+    h += '<div class="card"><h2>📥 ¿Qué llegó a la obra?</h2></div><div class="bgs">' + grande('llegoModo', 'ped', '📦', 'Un pedido', pl.length ? pl.length + ' por recibir' : 'Con cartilla (DLI o PDF)', m === 'ped' ? 'sel' : '') +
+      grande('llegoModo', 'rec', '🧱', 'Stock estándar', 'Sin pedido · barras 6 y 12 m', m === 'rec' ? 'sel' : '') + grande('llegoModo', 'fig', '🧵', 'Stock figurado', 'Sin pedido · todo lo demás', m === 'fig' ? 'sel' : '') + '</div>';
+    if (m === 'ped') return h + vLlegoPedido(pl);
     r.stock = m === 'rec' ? 'ACERO RECTO' : 'ACERO FIGURADO'; if (r.stock === 'ACERO RECTO' && r.l !== '6' && r.l !== '12') r.l = '12';
-    h += '<div class="card"><h2>' + (m === 'rec' ? '📦 Llegó al Stock estándar' : '🧵 Llegó al Stock figurado') + '</h2><div class="peq mut" style="margin-bottom:8px">' + (m === 'rec' ? 'Solo barras rectas de 6 m o 12 m.' : 'Estribos, ganchos, cortes y otros largos.') + ' Es obligatorio adjuntar la foto o el PDF de la remisión.</div>';
+    h += '<div class="card"><h2>' + (m === 'rec' ? '🧱 Llegó al Stock estándar' : '🧵 Llegó al Stock figurado') + '</h2><div class="peq mut" style="margin-bottom:8px">' + (m === 'rec' ? 'Solo barras rectas de 6 m o 12 m.' : 'Estribos, ganchos, cortes y otros largos.') + ' Es obligatorio adjuntar la foto o el PDF de la remisión.</div>';
     var lista = Object.keys(X.C.PESOS).filter(function (k) { return k !== 'ALAMBRE'; }).sort(function (a, b) { return X.C.diamOrder(a) - X.C.diamOrder(b); });
     h += '<div class="fgrid"><div class="fld"><label>Varilla</label><select data-r="ing.d">' + lista.map(function (k) { return '<option value="' + esc(k) + '"' + (r.d === k ? ' selected' : '') + '>' + esc(X.C.diamLabel(k)) + '</option>'; }).join('') + '</select></div>' +
       '<div class="fld"><label>Largo (m)</label>' + (r.stock === 'ACERO RECTO' ? '<div class="seg" style="margin:0"><button type="button" class="' + (r.l === '6' ? 'on' : '') + '" data-a="ingL" data-v="6">6 m</button><button type="button" class="' + (r.l === '12' ? 'on' : '') + '" data-a="ingL" data-v="12">12 m</button></div>' : '<input type="text" inputmode="decimal" value="' + esc(r.l) + '" data-r="ing.l">') + '</div>' +
@@ -124,6 +148,38 @@
         '<button class="btn blk ok" data-a="ingOk"' + (r.busy ? ' disabled' : '') + '>' + (r.busy ? 'Guardando…' : '✅ Guardar la llegada') + '</button>';
     }
     if (r.err) h += '<div class="error">' + esc(r.err) + '</div>';
+    return h + '</div>';
+  }
+  /** Confirmar llegada de un pedido: elegir pedido → día y hora → «llegó todo» o lista por posición (✓ o kilos). */
+  function vLlegoPedido(pl) {
+    var rc = R().rec, h = '';
+    if (rc.ok) h += '<div class="card"><div class="rec ok">' + esc(rc.ok) + '</div></div>';
+    if (!pl.length) return h + '<div class="card vacio">No hay pedidos por recibir.' + (X.esAdmin() ? ' Móntalos en la pestaña «Pedidos».' : ' El administrador los monta desde la oficina.') + '</div>';
+    if (!rc.load || !pl.some(function (q) { return q.id === rc.load; })) {
+      h += '<div class="card"><h2>Pedidos por recibir</h2><div class="peq mut" style="margin-bottom:6px">Toca el pedido que llegó.</div>' + pl.map(function (q) {
+        var t = q.rc, est = {}; t.rows.forEach(function (e) { est[e.estructura] = 1; }); var ns = Object.keys(est);
+        return '<button type="button" class="fila btn sec blk" style="text-align:left;margin-bottom:6px" data-a="recSel" data-v="' + esc(q.id) + '"><div><b>Pedido ' + esc(q.pedido) + '</b> · ' + esc(ns.slice(0, 3).join(', ')) + (ns.length > 3 ? ' +' + (ns.length - 3) : '') + '<div class="peq mut">' + (t.est === 'PARCIAL' ? '🟡 Parcial · llegó ' + X.kg(t.rk) + ' de ' + X.kg(t.tk) + ' kg' : '⏳ ' + X.kg(t.tk) + ' kg por recibir') + '</div></div><span>›</span></button>';
+      }).join('') + '</div>';
+      return h;
+    }
+    var q = pl.filter(function (z) { return z.id === rc.load; })[0], P = pend(rc.load), t = q.rc, falta = t.tk - t.rk;
+    if (!rc.fecha) { rc.fecha = X.hoyISO(); rc.hora = X.horaAhora(); }
+    h += '<div class="card"><div class="row2" style="justify-content:space-between"><h2 style="margin:0">Pedido ' + esc(q.pedido) + '</h2><button class="btn chico sec" data-a="recAtras">‹ Otros pedidos</button></div>' +
+      '<div class="peq mut" style="margin:4px 0 8px">Faltan por llegar <b>' + X.kg(falta) + ' kg</b>' + (t.rk > 0 ? ' (ya llegó ' + X.kg(t.rk) + ' de ' + X.kg(t.tk) + ' kg)' : '') + '</div>' +
+      '<div class="fgrid"><div class="fld"><label>📅 Día en que llegó</label><input type="date" max="' + X.hoyISO() + '" value="' + esc(rc.fecha) + '" data-r="rec.fecha"></div><div class="fld"><label>🕒 Hora</label><input type="time" value="' + esc(rc.hora) + '" data-r="rec.hora"></div></div>' +
+      '<button class="btn blk ok" style="margin-top:10px" data-a="recTodo"' + (rc.busy ? ' disabled' : '') + '>' + (rc.busy ? 'Guardando…' : '✅ Llegó TODO lo que falta (' + X.kg(falta) + ' kg)') + '</button></div>';
+    h += '<div class="card"><h2>¿Llegó solo una parte?</h2><div class="peq mut" style="margin-bottom:6px">Marca ✓ si llegó toda la posición, o escribe los kilos que llegaron.</div>';
+    var est = '';
+    P.forEach(function (e, i) {
+      var key = e.diametro + '|' + e.marca, pe = e.cantidad - e.recibida, v = rc.vals[key] || 0, kgx = rc.kgs[key] === undefined ? '' : rc.kgs[key];
+      if (e.estructura !== est) { est = e.estructura; h += '<div class="peq" style="margin:8px 0 2px"><b>' + esc(est) + '</b></div>'; }
+      h += '<div class="fila" style="gap:8px"><label style="display:flex;align-items:center;gap:8px;flex:1"><input type="checkbox" data-rc="' + i + '"' + (v >= pe ? ' checked' : '') + ' style="width:22px;height:22px"><span><b>' + esc(e.marca) + '</b> · ' + esc(X.C.diamLabel(e.diametro)) + ' · ' + e.largo + ' m<div class="peq mut">Faltan ' + pz(pe) + ' · ' + X.kg(pe * e.kgUnit) + ' kg</div></span></label>' +
+        '<div style="width:96px"><input type="text" inputmode="decimal" placeholder="kg" value="' + esc(kgx) + '" data-rk="' + i + '" id="rk' + i + '" aria-label="Kilos recibidos de ' + esc(e.marca) + '"><div class="peq mut" id="rp' + i + '">' + (v > 0 ? pz(v) + ' · ' + X.kg(v * e.kgUnit) + ' kg' : '') + '</div></div></div>';
+    });
+    var tt = totRec(rc.load);
+    h += '<div class="fld" style="margin-top:10px"><label>📎 Foto o PDF de la remisión (opcional)</label><input type="file" accept="image/*,application/pdf" data-r="rec.file">' + (rc.file ? '<div class="peq" style="margin-top:4px">✅ ' + esc(rc.file.nombre) + '</div>' : '') + '</div>' +
+      '<button class="btn blk ok" style="margin-top:10px" data-a="recOk" id="rec-ok"' + (rc.busy || tt.p <= 0 ? ' disabled' : '') + '>' + (rc.busy ? 'Guardando…' : '✅ Confirmar llegada · <span id="rec-tot">' + X.kg(tt.kg) + '</span> kg') + '</button>';
+    if (rc.err) h += '<div class="error">' + esc(rc.err) + '</div>';
     return h + '</div>';
   }
 
@@ -262,6 +318,23 @@
   // ---------------------------------------------------------------- Acciones
   function fallo(o, msg) { o.busy = false; o.err = msg || 'No se pudo guardar'; X.render(); }
   function recargar() { return X.cargarEstado(); }
+  function recConfirmar(todo) {
+    var S = X.S, rc = R().rec; if (rc.busy || !rc.load) return;
+    if (!rc.fecha || !rc.hora) { rc.err = 'Indica el día y la hora en que llegó.'; X.render(); return; }
+    var data = { loadId: rc.load, fecha: rc.fecha + 'T' + rc.hora, id: rc.id || ('R' + Date.now().toString(36)) };
+    if (todo) data.todo = true; else {
+      data.items = []; pend(rc.load).forEach(function (e) { var q = rc.vals[e.diametro + '|' + e.marca] || 0; if (q > 0) data.items.push({ diametro: e.diametro, marca: e.marca, cantidad: q }); });
+      if (!data.items.length) { rc.err = 'Marca al menos una posición.'; X.render(); return; }
+    }
+    if (rc.file) { data.archivoB64 = rc.file.b64; data.archivoNombre = rc.file.nombre; }
+    rc.busy = true; rc.err = ''; X.render();
+    X.Api.accion(S.ses, 'recibirPedido', data).then(function (res) {
+      if (!res.ok) return fallo(rc, res.error);
+      var kgOk = res.kg !== undefined ? X.kg(res.kg) + ' kg' : '';
+      var n = nuevoRec(); n.ok = '✅ Llegada confirmada' + (kgOk ? ': ' + kgOk : '') + ' · ya está en el almacén'; R().rec = n; X.toast('✅ Llegada confirmada'); recargar();
+    });
+  }
+
   function listaItems(P, vals) { var L = []; P.forEach(function (p) { var q = vals[p.k + '|' + p.m] || 0; if (q > 0) L.push({ p: p, q: q }); }); return L; }
 
   function click(a, v, el) {
@@ -274,7 +347,11 @@
         o[key] = Math.max(0, Math.min(mx, (o[key] || 0) + d)); X.render(); return true;
       }
       // ---- Llegó / ingreso a stock
-      case 'llegoModo': r.ing.modo = v; r.ing.rows = []; r.ing.err = ''; X.render(); return true;
+      case 'llegoModo': r.ing.modo = v; r.ing.rows = []; r.ing.err = ''; S.tab = 'llego'; X.render(); window.scrollTo(0, 0); return true;
+      case 'recSel': r.rec = nuevoRec(); r.rec.load = v; r.rec.id = 'R' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); X.render(); window.scrollTo(0, 0); return true;
+      case 'recAtras': r.rec = nuevoRec(); X.render(); return true;
+      case 'recTodo': recConfirmar(true); return true;
+      case 'recOk': recConfirmar(false); return true;
       case 'ingL': r.ing.l = v; X.render(); return true;
       case 'ingAdd': {
         var c = parseInt(String(r.ing.c).replace(/\D/g, ''), 10), l = parseFloat(String(r.ing.l).replace(',', '.'));
@@ -384,6 +461,16 @@
 
   /** Campos de texto: se guardan al escribir, sin redibujar (no se pierde el cursor). */
   function input(t) {
+    var rk = t.getAttribute('data-rk');
+    if (rk !== null) { // kilos recibidos de una posición
+      var rc = R().rec, e = pend(rc.load)[+rk]; if (!e) return true;
+      var txt = t.value.replace(/[^\d.,]/g, ''), kgv = parseFloat(txt.replace(',', '.')), pe = e.cantidad - e.recibida, q = kgv > 0 ? Math.min(pe, Math.max(1, Math.round(kgv / e.kgUnit))) : 0;
+      rc.kgs[e.diametro + '|' + e.marca] = txt; rc.vals[e.diametro + '|' + e.marca] = q; rc.err = '';
+      var sp = document.getElementById('rp' + rk); if (sp) sp.textContent = q > 0 ? pz(q) + ' · ' + X.kg(q * e.kgUnit) + ' kg' : '';
+      var cb = document.querySelector('input[data-rc="' + rk + '"]'); if (cb) cb.checked = q >= pe;
+      var tt = totRec(rc.load), tg = document.getElementById('rec-tot'), bt = document.getElementById('rec-ok'); if (tg) tg.textContent = X.kg(tt.kg); if (bt) bt.disabled = tt.p <= 0 || rc.busy;
+      return true;
+    }
     var k = t.getAttribute('data-r'); if (!k) return false;
     var r = R(), p = k.split('.'), val = t.value;
     if (k === 'ing.c') val = val.replace(/[^\d]/g, '');
@@ -393,8 +480,8 @@
     return true;
   }
   /** Foto o PDF: se reduce la foto para que suba rápido. */
-  function leerSoporte(f) {
-    var r = R().ing; if (!f) return;
+  function leerSoporte(f, tgt) {
+    var r = tgt || R().ing; if (!f) return;
     var fin = function (b64, nombre) { r.file = { nombre: nombre, b64: b64 }; r.err = ''; X.render(); };
     if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) { var fr = new FileReader(); fr.onload = function () { fin(String(fr.result).split(',')[1], f.name); }; fr.readAsDataURL(f); return; }
     var img = new Image(), u = URL.createObjectURL(f);
@@ -402,7 +489,13 @@
     img.onerror = function () { r.err = 'No se pudo leer la foto.'; X.render(); }; img.src = u;
   }
   function cambio(t) { // listas desplegables
+    var rcx = t.getAttribute('data-rc');
+    if (rcx !== null) { // ✓ llegó toda la posición
+      var rc0 = R().rec, e0 = pend(rc0.load)[+rcx]; if (!e0) return true; var ky = e0.diametro + '|' + e0.marca;
+      rc0.vals[ky] = t.checked ? e0.cantidad - e0.recibida : 0; if (t.checked) rc0.kgs[ky] = String(Math.round((e0.cantidad - e0.recibida) * e0.kgUnit * 100) / 100); else delete rc0.kgs[ky]; rc0.err = ''; X.render(); return true;
+    }
     var k = t.getAttribute('data-r'); if (!k) return false;
+    if (k === 'rec.file') { leerSoporte(t.files && t.files[0], R().rec); return true; }
     if (k === 'ing.file') { leerSoporte(t.files && t.files[0]); return true; }
     var p = k.split('.'); R()[p[0]][p[1]] = t.value; if (k === 'ing.d') X.render(); return true;
   }
@@ -413,7 +506,9 @@
     E.forEach(function (e) { arm += e.arm; armKg += e.armKg; lib += e.lib; libKg += e.libKg; });
     var r = calc.porElem['ACERO RECTO'] || {}, f = calc.porElem['ACERO FIGURADO'] || {};
     function k(ico, t, v, sub, tab) { return '<button type="button" class="kg" data-a="tab" data-v="' + tab + '"><span>' + ico + ' ' + t + '</span><b>' + v + '</b><small>' + sub + '</small></button>'; }
-    return '<div class="kgs">' + k('📦', 'Stock estándar', X.n0(r.sal_p || 0), X.kg(r.sal_kg || 0) + ' kg', 'stock') + k('🧵', 'Stock figurado', X.n0(f.sal_p || 0), X.kg(f.sal_kg || 0) + ' kg', 'stock') +
+    var pl = porRecibir(), pk = 0; pl.forEach(function (q) { pk += q.rc.tk - q.rc.rk; });
+    var ban = pl.length ? '<button type="button" class="kg" style="width:100%;margin-bottom:8px;text-align:left" data-a="llegoModo" data-v="ped"><span>⏳ Por llegar a la obra</span><b>' + X.kg(pk) + ' kg</b><small>' + pl.length + (pl.length === 1 ? ' pedido' : ' pedidos') + ' esperando confirmación · toca para confirmar la llegada</small></button>' : '';
+    return ban + '<div class="kgs">' + k('📦', 'Stock estándar', X.n0(r.sal_p || 0), X.kg(r.sal_kg || 0) + ' kg', 'stock') + k('🧵', 'Stock figurado', X.n0(f.sal_p || 0), X.kg(f.sal_kg || 0) + ' kg', 'stock') +
       k('🔧', 'Armando ahora', enCurso().length, enCurso().length === 1 ? 'estructura' : 'estructuras', 'armar') + k('🚚', 'Armado listo para salir', X.n0(arm), X.kg(armKg) + ' kg', 'salio') + '</div>';
   }
   /** Estructuras: una barra por estructura (salió | armado | libre) — se ve de un vistazo en qué va cada una. */
@@ -423,7 +518,7 @@
     var h = '<div class="card gr"><h3>Estructuras</h3><div class="ley"><span><i class="out"></i>Salió</span><span><i class="arm"></i>Armado</span><span><i class="lib"></i>Libre</span></div>';
     E.forEach(function (e) {
       var x = calc.porElem[e.n] || {}, t = x.in_p || 1, o = x.out_p || 0, a = e.arm, l = e.lib, en = enCurso().some(function (q) { return q.elemento === e.n; });
-      h += '<div class="bh-r"><div class="bh-t"><b>' + esc(e.n) + '</b><span>' + (en ? '🔧 armando · ' : '') + Math.round(100 * o / t) + ' % salió</span></div><div class="pila"><i class="out" style="width:' + (100 * o / t).toFixed(1) + '%"></i><i class="arm" style="width:' + (100 * a / t).toFixed(1) + '%"></i><i class="lib" style="width:' + (100 * l / t).toFixed(1) + '%"></i></div>' +
+      h += '<div class="bh-r"><div class="bh-t"><b>' + esc(e.n) + '</b><span>' + (en ? '🔧 armando · ' : '') + (x.in_p ? Math.round(100 * o / t) + ' % salió' : '⏳ por recibir') + '</span></div><div class="pila"><i class="out" style="width:' + (100 * o / t).toFixed(1) + '%"></i><i class="arm" style="width:' + (100 * a / t).toFixed(1) + '%"></i><i class="lib" style="width:' + (100 * l / t).toFixed(1) + '%"></i></div>' +
         '<div class="peq mut">Libre ' + X.n0(l) + ' · Armado ' + X.n0(a) + ' · Salió ' + X.n0(o) + ' pzs</div></div>';
     });
     return h + '</div>';

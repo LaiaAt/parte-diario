@@ -250,7 +250,7 @@
       '<p class="peq mut" style="margin:6px 0 0">🟢 contada hace menos de 20 días · 🟡 20 a 30 días · 🔴 más de 30 días o nunca.' + (difs ? ' <b>' + difs + ' diferencia(s)</b> en los conteos del último mes.' : '') + '</p></div>';
   }
   function vPanel() {
-    if (!S.estado.entradas.length) return sinInventario();
+    if (!S.estado.entradas.length && !(S.estado.cartilla || []).length) return sinInventario();
     var c = S.calc, t = c.tot, ag = aggPeriodo();
     var diams = Object.keys(c.porDiam).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); });
     var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>' + (window.AcReg ? AcReg.kpis() + AcReg.estructuras() : '');
@@ -480,7 +480,7 @@
   }
 
   function vSalida() {
-    if (!S.estado.entradas.length) return sinInventario();
+    if (!S.estado.entradas.length && !(S.estado.cartilla || []).length) return sinInventario();
     ajustarSalida();
     var s = S.sal, arm = esArm(), todas = todasElems(), conSaldo = elemsDisp();
     if (S.okSal) return '<div class="card okbig"><div class="ok-i">✅</div><b>¡Guardado!</b><p>' + esc(S.okSal.txt) + '</p>' + (S.okSal.pend ? '<p class="peq">Se envía al almacén apenas haya señal.</p>' : '') +
@@ -581,7 +581,7 @@
   }
 
   function vInv() {
-    if (!S.estado.entradas.length) return sinInventario();
+    if (!S.estado.entradas.length && !(S.estado.cartilla || []).length) return sinInventario();
     var c = S.calc, v = S.inv, t = c.tot, filas = [];
     var elems = Object.keys(c.porElem).sort();
     var diams = Object.keys(c.porDiam).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); });
@@ -890,8 +890,22 @@
   }
 
   var PAG = 15;
+  /** Estado de recepción de un pedido: por recibir / parcial / completo (los anteriores al sistema nuevo cuentan como recibidos). */
+  function recibo(loadId) {
+    var rows = (S.estado.cartilla || []).filter(function (e) { return e.loadId === loadId; });
+    if (!rows.length) return null;
+    var tp = 0, rp = 0, tk = 0, rk = 0;
+    rows.forEach(function (e) { tp += e.cantidad; rp += e.recibida; tk += e.kg; rk += e.recibida * e.kgUnit; });
+    return { rows: rows, tp: tp, rp: rp, tk: tk, rk: rk, est: rp <= 0 ? 'POR RECIBIR' : rp >= tp ? 'COMPLETO' : 'PARCIAL' };
+  }
+  function recepTxt(loadId) {
+    var r = recibo(loadId); if (!r) return '';
+    var cl = r.est === 'COMPLETO' ? 'ok' : r.est === 'PARCIAL' ? 'warn' : 'bad';
+    return '<div class="rec ' + cl + '">' + (r.est === 'COMPLETO' ? '✅ Recibido completo' : r.est === 'PARCIAL' ? '🟡 Recibido parcial' : '⏳ Por recibir en obra') + ' · ' + kg(r.rk) + ' de ' + kg(r.tk) + ' kg</div>';
+  }
   function vPedidos() {
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador ve los pedidos.</div>';
+    var montar = vCargar();
     var q = String(S.ped.q || '').trim().toLowerCase();
     var L = S.estado.pedidos.filter(function (p) {
       return !q || (String(p.pedido) + ' ' + p.estructura + ' ' + (p.archivo || '') + ' ' + (p.usuario || '')).toLowerCase().indexOf(q) >= 0;
@@ -901,15 +915,17 @@
     var vis = L.slice(S.ped.pag * PAG, S.ped.pag * PAG + PAG);
     var h = '<div class="hero"><small>Pedidos' + (q ? ' que coinciden' : ' cargados') + '</small><b>' + n0(L.length) + (L.length === 1 ? ' pedido' : ' pedidos') + '</b><span>' + pz(tp2) + ' · ' + kg(tk) + ' kg</span></div>' +
       '<div class="card"><input id="p-q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Buscar por pedido, estructura o archivo" value="' + esc(S.ped.q) + '" data-i="ped.q"></div>';
+    h = montar + h;
     if (!vis.length) return h + '<div class="card vacio">' + (S.estado.pedidos.length ? 'Ningún pedido coincide con “' + esc(S.ped.q) + '”.' : 'Aún no hay pedidos cargados.') + '</div>';
     h += vis.map(function (p) {
       var x = S.calc.porElem[p.estructura] || { lib_p: 0, arm_p: 0, out_p: 0 };
       return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>' + fechaDia(p.fecha) + '</span></div><div class="pd-e">' + esc(p.estructura) + (p.descripcion && String(p.descripcion).trim().toLowerCase() !== String(p.estructura).trim().toLowerCase() ? '<em>' + esc(p.descripcion) + '</em>' : '') + '</div>' +
         '<div class="pd-m"><span><b>' + n0(p.piezas) + '</b> piezas</span><span><b>' + kg(p.kg) + '</b> kg</span><span>' + esc(p.usuario) + '</span></div>' +
         '<div class="acc"><button class="btn chico sec" data-a="edPed" data-v="' + esc(p.loadId) + '" style="margin-top:8px">✏️ Corregir</button> <button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar DLI</button> <button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '" style="margin-top:8px">🗑 Dar de baja</button></div>' +
-        (S.edPed[p.loadId] ? (function (e) { return '<div class="edp"><div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" value="' + esc(e.pedido) + '" data-i="edp.' + esc(p.loadId) + '.pedido"></div><div class="fld"><label>Fecha en que llegó</label><input type="date" max="' + hoyISO() + '" value="' + esc(e.f) + '" data-i="edp.' + esc(p.loadId) + '.f"></div></div>' +
+        (S.edPed[p.loadId] ? (function (e) { return '<div class="edp"><div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" value="' + esc(e.pedido) + '" data-i="edp.' + esc(p.loadId) + '.pedido"></div>' + (recibo(p.loadId) ? '' : '<div class="fld"><label>Fecha en que llegó</label><input type="date" max="' + hoyISO() + '" value="' + esc(e.f) + '" data-i="edp.' + esc(p.loadId) + '.f"></div>') + '</div>' +
           (STOCKS.indexOf(p.estructura) < 0 ? '<div class="fld"><label>¿Para cuántas estructuras es la cartilla?</label><input type="text" inputmode="numeric" value="' + esc(e.n) + '" data-i="edp.' + esc(p.loadId) + '.n"></div>' : '') +
           (e.err ? '<div class="error">' + esc(e.err) + '</div>' : '') + '<div class="row2"><button class="btn" data-a="edPedOk" data-v="' + esc(p.loadId) + '">Guardar corrección</button><button class="btn sec" data-a="edPed" data-v="' + esc(p.loadId) + '">Cancelar</button></div></div>'; })(S.edPed[p.loadId]) : '') +
+        recepTxt(p.loadId) +
         '<div class="pd-s"><span class="lib">✅ ' + n0(x.lib_p) + ' libres</span><span class="arm">🔧 ' + n0(x.arm_p) + ' armadas</span><span class="out">🚚 ' + n0(x.out_p) + ' salieron</span></div></div>';
     }).join('');
     if (pags > 1) h += '<div class="pag"><button class="btn sec" data-a="pagPed" data-v="-1"' + (S.ped.pag <= 0 ? ' disabled' : '') + '>← Anterior</button><span>Página ' + (S.ped.pag + 1) + ' de ' + pags + '</span><button class="btn sec" data-a="pagPed" data-v="1"' + (S.ped.pag >= pags - 1 ? ' disabled' : '') + '>Siguiente →</button></div>';
@@ -930,7 +946,7 @@
   function vCargar() {
     sacarRepetidos();
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador puede cargar un DLI.</div>';
-    var h = '<div class="card"><h2>Cargar archivos DLI</h2><p class="mut" style="margin-top:0">Seleccione uno o varios .dli (o el PDF de la cartilla). Cada uno se registra con su número de pedido y suma al inventario las piezas con cantidad mayor que cero.</p>' +
+    var h = '<div class="card"><h2>🏢 Montar un pedido nuevo (DLI o PDF)</h2><p class="mut" style="margin-top:0">Seleccione uno o varios .dli (o el PDF de la cartilla). Cada uno queda como pedido <b>por recibir</b>. El almacén se actualiza solo cuando en obra se confirma la llegada (con fecha, hora y kilos).</p>' +
       '<label class="btn" for="dli-file">📂 Elegir archivos</label><input id="dli-file" type="file" multiple style="display:none"></div>';
     if (S.cargaRes) h += '<div class="card okmsg2"><b>' + (S.cargaRes.ok.length ? '✅ Cargados: ' + S.cargaRes.ok.map(esc).join(', ') : '') + '</b>' + (S.cargaRes.mal ? '<div class="error" style="margin-top:6px">⚠️ ' + S.cargaRes.mal + (S.cargaRes.mal === 1 ? ' archivo quedó' : ' archivos quedaron') + ' sin cargar. Revise el aviso en rojo de cada uno abajo.</div>' : '') + '<button type="button" class="lnk" data-a="cerrarRes">Cerrar</button></div>';
     if (S.cargas.length > 1) h += '<div class="card"><button class="btn" data-a="guardarTodos">💾 Guardar los ' + S.cargas.length + ' archivos</button><div class="peq mut" style="margin-top:6px">Antes, escriba el número de pedido de cada uno.</div></div>';
@@ -955,7 +971,7 @@
         (c.dest !== 'est' ? '<div class="peq mut">Entra a <b>' + (c.dest === 'rec' ? 'ACERO RECTO' : 'ACERO FIGURADO') + '</b> (acero sin destino específico). Después, al sacarlo, podrá indicar en qué estructura se usa.</div>' : '') + '</div>';
       if (c.dest === 'est') h += '<details class="mas"' + (ya.length ? ' open' : '') + '><summary>Cambiar el nombre de la estructura</summary><div class="fld" style="margin-top:6px"><input type="text" maxlength="80" value="' + esc(p.nombre) + '" data-i="carga.' + i + '.nombre"><div class="peq mut">Solo si es un complemento de otra estructura ya cargada (ej. «CAISSON AT COMPLEMENTO»).</div></div></details>';
       if (!ya.length) h += '<div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" inputmode="numeric" placeholder="Ej. 203192" value="' + esc(c.pedido) + '" data-i="carga.' + i + '.pedido"></div>' +
-        '<div class="fld"><label>Fecha en que llegó a obra</label><input type="date" max="' + hoyISO() + '" value="' + esc(c.llegada || hoyISO()) + '" data-i="carga.' + i + '.llegada"></div></div>' +
+        '</div>' +
         (c.dest !== 'est' ? '' : '<div class="fld"><label>¿Para cuántas estructuras es esta cartilla?</label><input type="text" inputmode="numeric" placeholder="1" value="' + esc(c.nEst) + '" data-i="carga.' + i + '.nest"><div class="peq mut">Los kilos y cantidades de la cartilla son el total de esas estructuras (ej. 10 pilotes). Después podrá registrar el armado de 1 estructura a la vez.</div></div>');
       if (c.err && !ya.length) h += '<div class="error">' + esc(c.err) + '</div>';
       h += '<div class="row2" style="margin-top:12px">' + (ya.length ? '' : '<button class="btn" data-a="registrarCarga" data-v="' + i + '">Registrar en inventario</button>') + '<button class="btn sec" data-a="quitarCarga" data-v="' + i + '">Quitar</button></div></div>';
@@ -1160,8 +1176,8 @@
     var e = S.edPed[id]; if (!e) return;
     e.err = '';
     if (!/^[A-Za-z0-9._\-]{1,30}$/.test(String(e.pedido).trim())) e.err = 'Escriba un número de pedido válido.';
-    else if (!/^\d{4}-\d\d-\d\d$/.test(e.f) || e.f > hoyISO()) e.err = 'Revise la fecha de llegada (no puede ser futura).';
-    if (!e.err) { var pp = S.estado.pedidos.filter(function (x) { return x.loadId === id; })[0] || {}, antes = S.estado.salidas.filter(function (x) { return x.estado !== 'ANULADA' && x.elemento === pp.estructura && String(x.fecha).slice(0, 10) < e.f; }).length;
+    else if (!recibo(id) && (!/^\d{4}-\d\d-\d\d$/.test(e.f) || e.f > hoyISO())) e.err = 'Revise la fecha de llegada (no puede ser futura).';
+    if (!e.err && !recibo(id)) { var pp = S.estado.pedidos.filter(function (x) { return x.loadId === id; })[0] || {}, antes = S.estado.salidas.filter(function (x) { return x.estado !== 'ANULADA' && x.elemento === pp.estructura && String(x.fecha).slice(0, 10) < e.f; }).length;
       if (antes) e.err = 'No se puede poner esa fecha: ya hay ' + antes + ' registro(s) de armado o salida de esta estructura antes del ' + fechaDia(e.f) + '.'; }
     if (e.err) { render(); return; }
     Api.editarCarga(S.ses, id, { pedido: String(e.pedido).trim(), fechaLlegada: e.f, nEstructuras: Math.max(1, parseInt(e.n, 10) || 1) }).then(function (r) {
@@ -1343,7 +1359,7 @@
   }
 
 
-  if (window.AcReg) AcReg.init({ S: S, render: render, toast: toast, esc: esc, n0: n0, kg: kg, fecha: fecha, fechaDia: fechaDia, hoyISO: hoyISO, horaAhora: horaAhora, pz: pz, vMov: vMov, vCargar: vCargar, vFiltro: vFiltro, enPer: enPer, pedidosLista: pedidosLista, esc2: esc, Api: Api, C: C, cargarEstado: cargarEstado, enviarCola: enviarCola, esAdmin: esAdmin, posTxt: posTxt });
+  if (window.AcReg) AcReg.init({ S: S, render: render, toast: toast, esc: esc, n0: n0, kg: kg, fecha: fecha, fechaDia: fechaDia, hoyISO: hoyISO, horaAhora: horaAhora, pz: pz, vMov: vMov, vCargar: vCargar, vFiltro: vFiltro, enPer: enPer, pedidosLista: pedidosLista, recibo: recibo, esc2: esc, Api: Api, C: C, cargarEstado: cargarEstado, enviarCola: enviarCola, esAdmin: esAdmin, posTxt: posTxt });
 
   // ---------- Eventos ----------
   document.addEventListener('click', function (ev) {
@@ -1422,7 +1438,7 @@
 
   document.addEventListener('change', function (ev) {
     var t = ev.target;
-    if (window.AcReg && t.getAttribute('data-r') && AcReg.cambio(t)) return;
+    if (window.AcReg && (t.getAttribute('data-r') || t.getAttribute('data-rc') !== null) && AcReg.cambio(t)) return;
     if (t.getAttribute('data-cv')) { var pp = t.getAttribute('data-cv').split(':'), kk = pp.slice(1).join(':'), vv = Math.max(0, Math.floor(Number(t.value) || 0)); (pp[0] === 'cie' ? S.cie : S.ver).vals[kk] = vv; S.ver.msg = ''; render(); return; }
     if (t.getAttribute('data-f') === 'ver.elem') { S.ver.elem = t.value; S.ver.vals = {}; S.ver.q = ''; S.ver.err = ''; S.ver.msg = ''; render(); return; }
     if (t.getAttribute('data-pdfpara') != null) { usarPdf(+t.getAttribute('data-pdfpara'), t.files[0]).then(function () { t.value = ''; }); return; }
@@ -1453,7 +1469,7 @@
   });
 
   document.addEventListener('input', function (ev) {
-    var t = ev.target; if (window.AcReg && t.getAttribute('data-r') && AcReg.input(t)) return;
+    var t = ev.target; if (window.AcReg && (t.getAttribute('data-r') || t.getAttribute('data-rk') !== null) && AcReg.input(t)) return;
     var i = t.getAttribute('data-i'); if (!i) return;
     if (i === 'sal.obs') S.sal.obs = t.value;
     else if (i === 'sal.eq') { S.sal.eq = t.value; S.focus = 's-eq'; render(); var e5 = $('s-eq'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }

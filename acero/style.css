@@ -594,3 +594,6 @@ details.mv-d[open] th { color: #cbd5e1; }
 
 .pila { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #e2e8f0; margin: 4px 0; }
 .pila i { display: block; height: 100%; } .pila i.lib { background: var(--ok); } .pila i.arm { background: #94a3b8; } .pila i.out { background: #1e4f8a; }
+
+.rec { margin: 6px 0; padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: .86rem; }
+.rec.ok { background: #e6f6ee; color: #14633a; } .rec.warn { background: #fff4dc; color: #7a5200; } .rec.bad { background: #fde8e8; color: #8a2323; }
