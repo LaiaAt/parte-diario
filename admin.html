@@ -498,23 +498,24 @@ async function buscarAlb() {
     ALB.r = r; pintaAlb();
   } catch (e) { box.textContent = 'No se pudo conectar.'; }
 }
-const ALB_F = [['material', 'Material', v => v.material || ''], ['mov', 'Movimiento', v => v.mov === 'RECIBE' ? 'Recibido' : 'Entregado'], ['estado', 'Estado', v => v.estado || ''], ['empresa', 'Empresa', v => v.empresa || ''], ['ori', 'Origen', v => oriV(v) || ''], ['des', 'Destino', v => desV(v) || ''], ['uf', 'UF', v => ufTxt(v) || '']];
-function pintaAlb() {
+const ALB_F = [['material', 'Material', v => v.material || ''], ['mov', 'Movimiento', v => v.mov === 'RECIBE' ? 'Recibido' : 'Entregado'], ['estado', 'Estado (RECIBIDO = con foto de albarán)', v => v.estado || ''], ['empresa', 'Empresa', v => v.empresa || ''], ['ori', 'Origen', v => oriV(v) || ''], ['des', 'Destino', v => desV(v) || ''], ['uf', 'UF', v => ufTxt(v) || '']];
+function pintaAlb(foco) {
   const box = $('albRes'); if (!box) return; box.textContent = '';
   const base = ALB.r ? ALB.r.viajes : viajesTr().slice().sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || '')));
   ALB.f = ALB.f || {};
-  const fil = $('albFil'); if (fil) {
+  const fil = $('albFil'); if (fil && !foco) {
     fil.textContent = '';
+    const todos = ((TR && TR.viajes) || []).concat(base);
     ALB_F.forEach(([k, et, fn]) => {
-      const op = Array.from(new Set(base.map(fn).filter(Boolean))).sort();
-      if (ALB.f[k] && !op.includes(ALB.f[k])) ALB.f[k] = '';
-      const sel = h('select', { style: 'width:100%' }, h('option', { value: '' }, et + ': todos'), ...op.map(x => h('option', { value: x }, x)));
-      sel.value = ALB.f[k] || ''; sel.onchange = () => { ALB.f[k] = sel.value; pintaAlb(); };
-      fil.appendChild(h('span', { style: 'flex:1 1 150px;min-width:0' }, sel));
+      const op = Array.from(new Set(todos.map(fn).filter(Boolean))).sort((x, y) => x.localeCompare(y, 'es'));
+      const dl = h('datalist', { id: 'dl_' + k }, ...op.map(x => h('option', { value: x })));
+      const inp = h('input', { type: 'search', list: 'dl_' + k, placeholder: et + ': todos (escribe o elige)', value: ALB.f[k] || '', style: 'width:100%' });
+      inp.oninput = () => { ALB.f[k] = inp.value; clearTimeout(ALB.t); ALB.t = setTimeout(() => pintaAlb(k), 250); };
+      fil.appendChild(h('span', { style: 'flex:1 1 170px;min-width:0' }, inp, dl));
     });
     fil.appendChild(h('button', { class: 'sec sm', onclick: () => { ALB.f = {}; pintaAlb(); } }, 'Quitar filtros'));
   }
-  const vis = base.filter(v => ALB_F.every(([k, , fn]) => !ALB.f[k] || fn(v) === ALB.f[k]));
+  const vis = base.filter(v => ALB_F.every(([k, , fn]) => !ALB.f[k] || fn(v).toLowerCase().includes(String(ALB.f[k]).trim().toLowerCase())));
   ALB.vis = vis;
   const r = { viajes: vis.slice(0, 80), total: vis.length };
   if (!vis.length) { box.appendChild(h('div', { class: 'trok', style: 'color:var(--mut)' }, 'No hay viajes con esos datos')); return; }
