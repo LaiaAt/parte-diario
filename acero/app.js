@@ -1083,20 +1083,32 @@
     return 'Hay otro archivo con la estructura «' + n + '». Este lo guardo como «' + nn + '». Puede cambiar el nombre abajo.';
   }
   function destAuto(p) { return /stock|est[aá]ndar|alambre|tach[oó]n/i.test(String(p.nombre || '') + ' ' + String(p.archivo || '')) ? 'rec' : 'est'; }
+  /** ¿Este DLI ya está cargado? (mismo archivo, o misma estructura). Devuelve el pedido que lo tiene o ''. */
+  function yaCargado(parsed, dest) {
+    var b = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); };
+    var x = S.estado.pedidos.filter(function (q) { return (dest === 'est' && q.estructura === parsed.nombre) || (parsed.archivo && b(q.archivo) === b(parsed.archivo)); })[0];
+    return x ? x.pedido + (x.estructura ? ', ' + x.estructura : '') : '';
+  }
   function leerArchivos(files) {
-    var lista = Array.prototype.slice.call(files);
+    var lista = Array.prototype.slice.call(files), rech = [];
     return lista.reduce(function (p, f) {
       return p.then(function () { return f.arrayBuffer(); }).then(function (buf) {
         if (/\.pdf$/i.test(f.name)) {
-          return leerPdf(buf, f.name).then(function (parsed) { S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: destAuto(parsed), err: '' }); })
+          return leerPdf(buf, f.name).then(function (parsed) { var d0 = yaCargado(parsed, destAuto(parsed)); if (d0) { rech.push('«' + f.name + '» ya estaba cargado (pedido ' + d0 + ')'); return; } S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: destAuto(parsed), err: '' }); })
             .catch(function () { toast('No se pudo leer el PDF ' + f.name + '. Sin señal por primera vez, o el archivo no es el listado.'); });
         }
         if (!/\.dli$/i.test(f.name)) { toast('«' + f.name + '» no es un archivo .dli ni un PDF'); return; }
         var parsed = C.parseDLI(new Uint8Array(buf), f.name);
-        var dA = destAuto(parsed), na = dA === 'est' ? nombreAuto(parsed) : '';
+        var dA = destAuto(parsed), d1 = yaCargado(parsed, dA);
+        if (d1) { rech.push('«' + f.name + '» ya estaba cargado (pedido ' + d1 + ')'); return; }
+        var na = dA === 'est' ? nombreAuto(parsed) : '';
         S.cargas.push({ parsed: parsed, b64: b64De(buf), pedido: '', llegada: hoyISO(), nEst: '1', dest: dA, err: '', pedirPdf: dliFalla(parsed), nota: na });
       }).catch(function () { toast('No se pudo leer ' + f.name); });
-    }, Promise.resolve()).then(function () { resolverNombres(); S.cargaRes = null; render(); });
+    }, Promise.resolve()).then(function () {
+      resolverNombres(); S.cargaRes = null;
+      if (rech.length) { S.avisoBaja = 'ℹ️ No se cargó: ' + rech.join(' · ') + '. No se duplicó nada.'; toast('No se cargó: el DLI ya estaba cargado'); }
+      render();
+    });
   }
   function usarPdf(i, file) {
     var c = S.cargas[i]; if (!c || !file) return Promise.resolve();
