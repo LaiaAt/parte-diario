@@ -505,10 +505,7 @@ function pintaAlb() {
   r.viajes.forEach((v, i) => {
     const fo = h('div', { class: 'fotosAlb' });
     box.appendChild(h('div', { class: 'tcard' + (alV(v) ? ' warn' : '') },
-      h('div', { class: 'big' }, 'Valera ' + (v.n_valera || '—'), h('span', { class: 'tag' }, v.valera_de || '—')),
-      h('div', {}, v.placa + ' · ' + (v.conductor || '') + ' · ' + (v.empresa || '')),
-      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + (v.material || '—') + ' · ' + oriV(v) + ' → ' + desV(v)),
-      h('div', { class: 'small' }, (Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) : '—') + ' m³ albarán · ' + nf(v.cant) + ' m³ confirmado' + (pctV(v) !== null ? ' (' + pctV(v) + ' % de la tolva)' : '') + ' · ' + v.cod + ' · ' + v.usuario),
+      cabViaje(v),
       alV(v) ? h('div', { class: 'alt' }, '⚠️ ' + alV(v)) : null,
       v.estado === 'ANULADO' ? h('div', { class: 'alt', style: 'background:#b3261e;color:#fff' }, '🚫 VIAJE ANULADO' + (v.anulado && v.anulado.motivo ? ' · ' + (v.anulado.por || '') + ' · ' + v.anulado.motivo : '')) : null,
       fo));
@@ -787,6 +784,19 @@ function repNum(v) {
     TR._rep = M;
   }
   return TR._rep[v.cod] || '';
+}
+// Parte superior común de la tarjeta de viaje (placa, N° de reporte, m³, origen y destino)
+function cabViaje(v) {
+  const p = pctV(v), vol = Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) + ' m³' : '— m³', rn = repNum(v);
+  const chip = (t, est) => h('span', { style: 'display:inline-block;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;margin:0 6px 4px 0;' + (est || 'background:#eceff1;color:#263238') }, t);
+  const fila = (t, x) => h('div', {}, h('span', { style: 'color:#607d8b;font-weight:600' }, t), h('b', {}, x));
+  return h('div', {},
+    h('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' },
+      h('div', { style: 'font-size:22px;font-weight:800;letter-spacing:.5px' }, v.placa),
+      h('div', { style: 'font-size:13px;font-weight:800;color:#fff;background:#0d3b66;border-radius:8px;padding:4px 10px' }, rn ? 'REPORTE ' + rn : 'REPORTE —')),
+    h('div', { style: 'margin:6px 0 4px' }, chip(vol, 'background:#e3f2e5;color:#1b5e20'), p !== null ? chip(p + ' %', p < 70 ? 'background:#fde7b0;color:#6b4a00' : '') : null, chip(v.mov === 'RECIBE' ? '📥 Recibe' : '📤 Entrega'), chip(v.material || '—')),
+    h('div', { style: 'font-size:15px;margin:4px 0;line-height:1.5' }, fila('📍 Origen: ', oriV(v)), fila('🏁 Destino: ', desV(v))),
+    h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · Albarán ' + (v.n_valera || '—') + (v.valera_de ? ' · ' + v.valera_de : '')));
 }
 function cardViaje(v) {
   const p = pctV(v), vol = Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) + ' m³' : '— m³', rn = repNum(v), al = alV(v);
