@@ -396,8 +396,9 @@ function sospechosos() {
     if (/Material no corresponde|NO autorizado/.test(v.alertas)) add('Material / destino', v.alertas.split('; ').filter(a => /Material no corresponde|NO autorizado/.test(a)).join('; '), [v]);
     if (/Placa (nueva|parecida)/.test(v.alertas)) add('Placa dudosa', v.placa + ': ' + v.alertas.split('; ').filter(a => /Placa/.test(a)).join('; '), [v]);
     if (!v.tiene_carga) add('Sin foto de volqueta', v.placa + ' · ' + v.cod + ' (' + fmtF(v.fecha) + ')', [v]);
-    if (!v.tiene_recibo && v.estado !== 'ANULADO') add('Sin foto de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + oriV(v) + ' → ' + desV(v) + ' · registró ' + (v.creado_por || v.usuario || '—'), [v]);
+    if (!TR.sin_albaran && !v.tiene_recibo && v.estado !== 'ANULADO') add('Sin foto de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + oriV(v) + ' → ' + desV(v) + ' · registró ' + (v.creado_por || v.usuario || '—'), [v]);
   });
+  (TR.sin_albaran || []).forEach(v => add('Sin foto de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + oriV(v) + ' → ' + desV(v) + ' · registró ' + (v.creado_por || v.usuario || '—'), [v]));
   const pares = {}; V.forEach(v => { if (Number(v.km) > 0) { const k = oriV(v) + '→' + desV(v); (pares[k] = pares[k] || []).push(v); } });
   Object.keys(pares).forEach(k => { const L = pares[k]; if (L.length < 3) return; const s = L.map(v => Number(v.km)).sort((a, b) => a - b), med = s[Math.floor(s.length / 2)]; L.forEach(v => { const x = Number(v.km); if (x > med * 2 || x < med * 0.5) add('Distancia atípica', v.placa + ': ' + nf1(x) + ' km en ' + k + ' (lo normal ≈ ' + nf1(med) + ' km)', [v]); }); });
   const ufs = TR.ufs || [], sit = TR.sitios || [];
