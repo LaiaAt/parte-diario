@@ -306,7 +306,7 @@ let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] ===
 const TR_TABS = [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
-  const nDup = TR && TR.repetidos ? sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev).length : 0;
+  const nDup = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán') && !x.rev).length : 0;
   TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; selSet('tr', k); if (TR) pintarTr(); else navTr(); } }, t, k === 'sosp' && nDup ? h('span', { class: 'tabBadge' }, '🚨 ' + nDup) : null)));
 }
 function modulo(m) {
@@ -382,7 +382,6 @@ function sospechosos() {
   const V = TR.viajes, S = [], hoy = TR.hoy;
   const add = (tipo, msg, vs) => { const clave = claveSosp(tipo, vs), r = (TR.revisados || []).find(x => x.clave === clave); S.push({ tipo, msg, vs, clave, rev: r || null }); };
   (TR.repetidos || []).forEach(g => add('Albarán repetido', 'El albarán N° ' + g.n_valera + ' (' + (g.valera_de || '—') + ') está en ' + g.viajes.length + ' viajes', g.viajes));
-  V.forEach(v => { const qa = Number(v.vol_albaran) || 0, qc = Number(v.cant) || 0; if (qa > 0 && qc > 0 && Math.abs(qa - qc) / qc > 0.10) add('Albarán ≠ confirmado', v.placa + ' el ' + fmtF(v.fecha) + ': albarán ' + nf1(qa) + ' m³ vs confirmado ' + nf1(qc) + ' m³ (' + (qa > qc ? '+' : '') + Math.round((qa - qc) / qc * 100) + ' %)', [v]); });
   const pd = {}; V.forEach(v => { const k = v.placa + '|' + v.fecha; (pd[k] = pd[k] || []).push(v); });
   Object.keys(pd).forEach(k => {
     const L = pd[k], cond = new Set(L.map(v => String(v.conductor).toUpperCase().replace(/\s+/g, ' ').trim()).filter(Boolean));
@@ -394,18 +393,17 @@ function sospechosos() {
     }
   });
   V.forEach(v => {
-    const p = pctV(v);
-    if (p !== null && p > 105) add('Carga mayor a la tolva', v.placa + ' llevaba ' + p + ' % de la tolva (' + fmtF(v.fecha) + ')', [v]);
     if (/Material no corresponde|NO autorizado/.test(v.alertas)) add('Material / destino', v.alertas.split('; ').filter(a => /Material no corresponde|NO autorizado/.test(a)).join('; '), [v]);
     if (/Placa (nueva|parecida)/.test(v.alertas)) add('Placa dudosa', v.placa + ': ' + v.alertas.split('; ').filter(a => /Placa/.test(a)).join('; '), [v]);
     if (!v.tiene_carga) add('Sin foto de volqueta', v.placa + ' · ' + v.cod + ' (' + fmtF(v.fecha) + ')', [v]);
-    if (!v.tiene_recibo && v.fecha < hoy) add('Sin albarán', v.placa + ' · valera ' + (v.n_valera || '—') + ' (' + fmtF(v.fecha) + ')', [v]);
+    if (!v.tiene_recibo && v.estado !== 'ANULADO') add('Sin foto de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + ' · registró ' + (v.creado_por || v.usuario || '—'), [v]);
   });
   const pares = {}; V.forEach(v => { if (Number(v.km) > 0) { const k = (v.origen || '') + '→' + (v.destino || ''); (pares[k] = pares[k] || []).push(v); } });
   Object.keys(pares).forEach(k => { const L = pares[k]; if (L.length < 3) return; const s = L.map(v => Number(v.km)).sort((a, b) => a - b), med = s[Math.floor(s.length / 2)]; L.forEach(v => { const x = Number(v.km); if (x > med * 2 || x < med * 0.5) add('Distancia atípica', v.placa + ': ' + nf1(x) + ' km en ' + k + ' (lo normal ≈ ' + nf1(med) + ' km)', [v]); }); });
   const ufs = TR.ufs || [], sit = TR.sitios || [];
   V.forEach(v => { const uf = ufs.find(u => String(u.uf) === String(v.uf)), si = sit.find(x => x.n.toUpperCase() === String(sitioDe(v)).toUpperCase()); if (uf && si && uf.lat !== '' && si.lat !== '' && si.lat !== undefined && Number(v.km) > 0) { const est = kmLinea(uf, si) * 1.3; if (Number(v.km) > est * 1.8 + 2 || Number(v.km) < est * 0.4 - 2) add('Distancia vs UF', v.placa + ': declaró ' + nf1(v.km) + ' km; UF ' + v.uf + ' → ' + v.destino + ' ≈ ' + nf1(est) + ' km', [v]); } });
-  return S;
+  const PRI = t => t === 'Sin foto de albarán' ? 0 : t === 'Albarán repetido' ? 1 : 2;
+  return S.sort((a, b) => PRI(a.tipo) - PRI(b.tipo));
 }
 function formAnular(v, pan) {
   pan.textContent = '';
@@ -460,6 +458,12 @@ function vistaSosp(c) {
   const L = S.filter(x => !TRSOSP || x.tipo === TRSOSP);
   L.slice(0, 120).forEach(x => {
     if (x.tipo === 'Albarán repetido') { c.appendChild(cardRepetido(x)); return; }
+    if (x.tipo === 'Sin foto de albarán') {
+      const v = x.vs[0], pan = h('div', {});
+      c.appendChild(h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4' }, h('div', { class: 'big', style: 'color:#b3261e' }, '📄 Sin foto de albarán'), h('div', {}, x.msg), h('div', { class: 'small' }, v.cod),
+        h('div', { class: 'acc', style: 'margin-top:8px' }, h('button', { onclick: () => formEditAlb(v, 0, pan) }, '📷 Agregar foto / revisar'), h('button', { class: 'sec', onclick: () => marcarRev(x, 'revisar') }, '✔ Ya lo revisé')), pan));
+      return;
+    }
     const cb = h('input', { type: 'checkbox', style: 'width:26px;height:26px;margin:0' });
     cb.onchange = () => { cb.disabled = true; marcarRev(x, 'revisar'); };
     c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '⚠️ ' + x.tipo), h('div', {}, x.msg),
