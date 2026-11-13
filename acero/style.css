@@ -580,3 +580,5 @@ details.mv-d[open] { background: #0f172a; color: #fff; border-radius: 10px; padd
 details.mv-d[open] > summary { color: #fcd34d; }
 details.mv-d[open] table, details.mv-d[open] td, details.mv-d[open] th { color: #fff; border-color: rgba(255,255,255,.25); background: transparent; }
 details.mv-d[open] th { color: #cbd5e1; }
+
+.bg.sel { border-bottom-color: #0f172a; background: #fff7ed; box-shadow: 0 0 0 3px var(--acc); }

@@ -11,7 +11,7 @@
     return S.reg || (S.reg = {
       arm: { q: '' }, fin: { id: '', modo: '', vals: {}, stk: 'ACERO RECTO', sv: {}, err: '', busy: false, ok: '' },
       sal: { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' },
-      stk: { k: 'ACERO RECTO' }, ing: { stock: 'ACERO RECTO', rows: [], d: '1/2', l: '12', c: '', k: '', file: null, pedido: '', err: '', busy: false }
+      stk: { k: 'ACERO RECTO' }, ing: { modo: '', stock: 'ACERO RECTO', rows: [], d: '1/2', l: '12', c: '', k: '', file: null, pedido: '', err: '', busy: false }
     });
   }
   function esc(s) { return X.esc(s); }
@@ -106,10 +106,13 @@
 
   // ---------------------------------------------------------------- Llegó
   function vLlego() {
-    var r = R().ing, h = '';
-    h += X.esAdmin() ? X.vCargar() : '<div class="card"><h2>📥 Llegó acero con cartilla (DLI)</h2><p class="mut" style="margin:0">Esto lo carga el administrador. Si llegó acero para el stock, regístralo abajo.</p></div>';
-    h += '<div class="card"><h2>📦 Llegó acero directo al stock (sin archivo)</h2><div class="seg">' + STK.map(function (s) { return '<button type="button" class="' + (r.stock === s ? 'on' : '') + '" data-a="ingStock" data-v="' + s + '">' + NOM[s] + '</button>'; }).join('') + '</div>' +
-      '<div class="peq mut" style="margin-bottom:8px">' + (r.stock === 'ACERO RECTO' ? 'Estándar: solo barras rectas de 6 m o 12 m.' : 'Figurado: todo lo demás (estribos, ganchos, cortes, otros largos).') + '</div>';
+    var r = R().ing, h = '', m = r.modo || '';
+    h += '<div class="card"><h2>📥 ¿Para qué llegó el acero?</h2></div><div class="bgs">' + grande('llegoModo', 'est', '🏗️', 'Para una estructura', 'Con cartilla (DLI o PDF)', m === 'est' ? 'sel' : '') +
+      grande('llegoModo', 'rec', '📦', 'Stock estándar', 'Barras rectas de 6 y 12 m', m === 'rec' ? 'sel' : '') + grande('llegoModo', 'fig', '🧵', 'Stock figurado', 'Todo lo demás', m === 'fig' ? 'sel' : '') + '</div>';
+    if (!m) return h;
+    if (m === 'est') return h + (X.esAdmin() ? X.vCargar() : '<div class="card"><p class="mut" style="margin:0">La cartilla de una estructura la carga el administrador.</p></div>');
+    r.stock = m === 'rec' ? 'ACERO RECTO' : 'ACERO FIGURADO'; if (r.stock === 'ACERO RECTO' && r.l !== '6' && r.l !== '12') r.l = '12';
+    h += '<div class="card"><h2>' + (m === 'rec' ? '📦 Llegó al Stock estándar' : '🧵 Llegó al Stock figurado') + '</h2><div class="peq mut" style="margin-bottom:8px">' + (m === 'rec' ? 'Solo barras rectas de 6 m o 12 m.' : 'Estribos, ganchos, cortes y otros largos.') + ' Es obligatorio adjuntar la foto o el PDF de la remisión.</div>';
     var lista = Object.keys(X.C.PESOS).filter(function (k) { return k !== 'ALAMBRE'; }).sort(function (a, b) { return X.C.diamOrder(a) - X.C.diamOrder(b); });
     h += '<div class="fgrid"><div class="fld"><label>Varilla</label><select data-r="ing.d">' + lista.map(function (k) { return '<option value="' + esc(k) + '"' + (r.d === k ? ' selected' : '') + '>' + esc(X.C.diamLabel(k)) + '</option>'; }).join('') + '</select></div>' +
       '<div class="fld"><label>Largo (m)</label>' + (r.stock === 'ACERO RECTO' ? '<div class="seg" style="margin:0"><button type="button" class="' + (r.l === '6' ? 'on' : '') + '" data-a="ingL" data-v="6">6 m</button><button type="button" class="' + (r.l === '12' ? 'on' : '') + '" data-a="ingL" data-v="12">12 m</button></div>' : '<input type="text" inputmode="decimal" value="' + esc(r.l) + '" data-r="ing.l">') + '</div>' +
@@ -268,7 +271,7 @@
         o[key] = Math.max(0, Math.min(mx, (o[key] || 0) + d)); X.render(); return true;
       }
       // ---- Llegó / ingreso a stock
-      case 'ingStock': r.ing.stock = v; r.ing.l = v === 'ACERO RECTO' ? '12' : r.ing.l; r.ing.rows = []; r.ing.err = ''; X.render(); return true;
+      case 'llegoModo': r.ing.modo = v; r.ing.rows = []; r.ing.err = ''; X.render(); return true;
       case 'ingL': r.ing.l = v; X.render(); return true;
       case 'ingAdd': {
         var c = parseInt(String(r.ing.c).replace(/\D/g, ''), 10), l = parseFloat(String(r.ing.l).replace(',', '.'));
@@ -287,13 +290,13 @@
         r.ing.busy = true; r.ing.err = ''; X.render();
         X.Api.accion(S.ses, 'ingresoStock', { stock: r.ing.stock, items: items, pedido: r.ing.pedido, archivoB64: r.ing.file.b64, archivoNombre: r.ing.file.nombre, id: 'G' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }).then(function (res) {
           if (!res.ok) return fallo(r.ing, res.error);
-          var k = r.ing.stock; r.ing = { stock: k, rows: [], d: r.ing.d, l: r.ing.l, c: '', k: '', file: null, pedido: '', err: '', busy: false };
+          var k = r.ing.stock; r.ing = { modo: r.ing.modo, stock: k, rows: [], d: r.ing.d, l: r.ing.l, c: '', k: '', file: null, pedido: '', err: '', busy: false };
           X.toast('✅ Llegada guardada en ' + NOM[k]); r.stk.k = k; S.tab = 'stock'; recargar();
         });
         return true;
       }
       case 'stkVer': r.stk.k = v; X.render(); return true;
-      case 'stkLlego': r.ing.stock = v; r.ing.l = v === 'ACERO RECTO' ? '12' : r.ing.l; S.tab = 'llego'; X.render(); window.scrollTo(0, 0); return true;
+      case 'stkLlego': r.ing.modo = v === 'ACERO RECTO' ? 'rec' : 'fig'; r.ing.rows = []; S.tab = 'llego'; X.render(); window.scrollTo(0, 0); return true;
       case 'stkSalio': r.sal = { tipo: 'stk', elem: '', stock: v, vals: {}, dest: '', err: '', busy: false, ok: '' }; S.tab = 'salio'; X.render(); window.scrollTo(0, 0); return true;
       // ---- Armar
       case 'armIni': {
