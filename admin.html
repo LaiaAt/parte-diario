@@ -285,10 +285,25 @@ const bogota = () => new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10
 
 let LLAVE = '', D = null, tab = 'ACTIVIDAD';
 
+const ACC_ESC = { admin_tr_vol: 'Guardando volqueta', admin_tr_editar: 'Guardando cambios', admin_tr_anular: 'Guardando', admin_tr_foto_add: 'Subiendo foto', admin_tr_revisar: 'Guardando', admin_tr_dist: 'Guardando distancia', admin_tr_geo: 'Guardando', admin_tr_cierre: 'Guardando' };
+let AVN = null;
+function avance(txt) {
+  if (AVN) return AVN;
+  const bar = h('div', { style: 'height:100%;width:0%;background:#1b5e20;transition:width .4s' }), pc = h('b', { style: 'font-size:22px' }, '0%');
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px' },
+    h('div', { style: 'background:#fff;border-radius:12px;padding:18px 20px;width:100%;max-width:360px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.3)' },
+      h('div', { style: 'font-weight:700;margin-bottom:8px' }, txt + '… no cierres ni toques nada'), pc,
+      h('div', { style: 'height:12px;background:#e0e0e0;border-radius:8px;overflow:hidden;margin-top:8px' }, bar)));
+  document.body.appendChild(ov); let p = 0;
+  const iv = setInterval(() => { p += (92 - p) * 0.08; bar.style.width = p + '%'; pc.textContent = Math.round(p) + '%'; }, 300);
+  AVN = { fin: () => { clearInterval(iv); bar.style.width = '100%'; pc.textContent = '100%'; setTimeout(() => ov.remove(), 250); AVN = null; } };
+  return AVN;
+}
 async function api(d, ms) {
+  const esc = ACC_ESC[d && d.accion], av = esc && !AVN ? avance(esc) : null;
   const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms || 90000);
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
-  finally { clearTimeout(t); }
+  finally { clearTimeout(t); if (av) av.fin(); }
 }
 function salir() { TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
