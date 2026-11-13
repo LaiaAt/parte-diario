@@ -285,7 +285,7 @@ const bogota = () => new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10
 
 let LLAVE = '', D = null, tab = 'ACTIVIDAD';
 
-const ACC_ESC = { admin_tr_vol: 'Guardando volqueta', admin_tr_editar: 'Guardando cambios', admin_tr_anular: 'Guardando', admin_tr_foto_add: 'Subiendo foto', admin_tr_revisar: 'Guardando', admin_tr_dist: 'Guardando distancia', admin_tr_geo: 'Guardando', admin_tr_cierre: 'Guardando' };
+const ACC_ESC = { admin_tr_editar: 'Guardando cambios', admin_tr_anular: 'Guardando', admin_tr_foto_add: 'Subiendo foto', admin_tr_revisar: 'Guardando', admin_tr_dist: 'Guardando distancia', admin_tr_geo: 'Guardando', admin_tr_cierre: 'Guardando' };
 let AVN = null;
 function avance(txt) {
   if (AVN) return AVN;
@@ -750,10 +750,32 @@ function vistaMapa(c) {
 }
 
 /* ----- volquetas (crear, editar, activar / inactivar) ----- */
+let VQ = Promise.resolve(), VQN = 0;
+function pillGuardando() {
+  let p = $('pillG');
+  if (!p) { p = h('div', { id: 'pillG', style: 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:9998;background:#1b5e20;color:#fff;padding:8px 16px;border-radius:20px;font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.3);display:none' }); document.body.appendChild(p); }
+  p.style.display = VQN > 0 ? 'block' : 'none'; p.textContent = '💾 Guardando datos… no cierres la página' + (VQN > 1 ? ' (' + VQN + ')' : '');
+}
 async function cambioVol(d) {
-  const r = await api(Object.assign({ accion: 'admin_tr_vol', llave: LLAVE }, d));
-  if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return false; }
-  TR.volquetas = r.volquetas; pintarTr(); return true;
+  const L = TR.volquetas, pl = String(d.placa || '').toUpperCase().replace(/[^A-Z0-9]/g, ''), x = L.find(v => String(v.placa).toUpperCase().replace(/[^A-Z0-9]/g, '') === pl);
+  const num = v => { const n = Number(String(v).replace(',', '.')); return v === '' || isNaN(n) ? '' : n; };
+  if (d.cambio === 'crear') { if (x) { alert('Esa placa ya está en el listado'); return false; } L.push({ placa: pl, empresa: d.empresa || '', tipo: d.tipo || '', capacidad: num(d.capacidad), nominal: num(d.nominal), conductor: d.conductor || '', estado: 'ACTIVA', validada: 'SI' }); }
+  else if (x) {
+    if (d.cambio === 'validar') { if (d.capacidad !== '') x.capacidad = num(d.capacidad); if (d.nominal !== '') x.nominal = num(d.nominal); x.validada = 'SI'; }
+    else if (d.cambio === 'editar') { x.placa = String(d.placa_nueva || x.placa).toUpperCase(); x.empresa = d.empresa || ''; x.tipo = d.tipo || ''; x.capacidad = num(d.capacidad); x.nominal = num(d.nominal); x.conductor = d.conductor || ''; }
+    else if (d.cambio === 'estado') x.estado = d.estado;
+    else if (d.cambio === 'confirmar') x.validada = 'SI';
+  }
+  pintarTr(); VQN++; pillGuardando();
+  VQ = VQ.then(async () => {
+    try {
+      const r = await api(Object.assign({ accion: 'admin_tr_vol', llave: LLAVE }, d), 90000);
+      if (!r.ok) { alert((r.mensaje || 'No se pudo guardar') + '\nSe recarga la lista.'); VQN--; pillGuardando(); await recargaTr(); return; }
+      VQN--; pillGuardando();
+      if (VQN === 0) { TR.volquetas = r.volquetas; if (d.cambio === 'validar' || d.cambio === 'editar') await recargaTr(); else pintarTr(); }
+    } catch (e) { VQN--; pillGuardando(); alert('No se pudo guardar (sin conexión). Se recarga la lista.'); try { await recargaTr(); } catch (e2) {} }
+  });
+  return true;
 }
 const TV = [['SENCILLA', 7], ['DOBLETROQUE', 15], ['ARTICULADA', 24]];
 function formVol(x, msg) {
