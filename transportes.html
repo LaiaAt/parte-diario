@@ -326,7 +326,7 @@ function filaViaje(v, solo) {
   return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
     h('div', { class: 't' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;margin-right:6px' }, 'N° ' + consecDe(v)), v.placa, ' · ', v.material),
     v.n_valera ? h('div', { style: 'font-size:18px;font-weight:800;margin:2px 0' }, '🧾 Albarán N° ' + v.n_valera) : null,
-    h('div', { class: 's' }, r2(volV(v)) + ' m³ · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + (v.origen || '') + ' → ' + (v.destino || '') + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
+    h('div', { class: 's' }, r2(volV(v)) + ' m³ · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + oriV(v) + ' → ' + desV(v) + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
     h('div', { style: 'margin-bottom:8px' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null),
     bs, mas,
     alertasCampo(v.alertas) ? h('small', { style: 'color:#b36b00;display:block;margin-top:6px' }, '⚠ ' + alertasCampo(v.alertas)) : null,
@@ -566,6 +566,10 @@ function chipsPara(campo, id) {
   recientes(campo).forEach(t => box.appendChild(h('button', { type: 'button', class: 'chip', onclick: () => { $(id).value = t; } }, t)));
   return box;
 }
+/* Regla: la UF es el ORIGEN cuando se ENTREGA (sale de la obra) y el DESTINO cuando se RECIBE (llega a la obra). El texto guardado (abscisa/sitio) es solo detalle. */
+const lugarUF = (v, t) => { const base = v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : '', x = /^UF \d$/.test(String(t || '').trim()) ? '' : String(t || '').trim(); return base ? (x ? base + ' · ' + x : base) : (x || 'Sin UF'); };
+const oriV = v => v.mov === 'RECIBE' ? (v.origen || '—') : lugarUF(v, v.origen);
+const desV = v => v.mov === 'RECIBE' ? lugarUF(v, v.destino) : (v.destino || '—');
 const contra = v => (v && v.mov === 'RECIBE') ? (v.origen || '') : (v.destino || '');
 const nrm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
 const kTxt = n => 'K' + String(Math.floor(n / 1000)).padStart(2, '0') + '+' + String(n % 1000).padStart(3, '0');

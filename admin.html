@@ -396,9 +396,9 @@ function sospechosos() {
     if (/Material no corresponde|NO autorizado/.test(v.alertas)) add('Material / destino', v.alertas.split('; ').filter(a => /Material no corresponde|NO autorizado/.test(a)).join('; '), [v]);
     if (/Placa (nueva|parecida)/.test(v.alertas)) add('Placa dudosa', v.placa + ': ' + v.alertas.split('; ').filter(a => /Placa/.test(a)).join('; '), [v]);
     if (!v.tiene_carga) add('Sin foto de volqueta', v.placa + ' · ' + v.cod + ' (' + fmtF(v.fecha) + ')', [v]);
-    if (!v.tiene_recibo && v.estado !== 'ANULADO') add('Sin foto de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—') + ' · registró ' + (v.creado_por || v.usuario || '—'), [v]);
+    if (!v.tiene_recibo && v.estado !== 'ANULADO') add('Sin foto de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + oriV(v) + ' → ' + desV(v) + ' · registró ' + (v.creado_por || v.usuario || '—'), [v]);
   });
-  const pares = {}; V.forEach(v => { if (Number(v.km) > 0) { const k = (v.origen || '') + '→' + (v.destino || ''); (pares[k] = pares[k] || []).push(v); } });
+  const pares = {}; V.forEach(v => { if (Number(v.km) > 0) { const k = oriV(v) + '→' + desV(v); (pares[k] = pares[k] || []).push(v); } });
   Object.keys(pares).forEach(k => { const L = pares[k]; if (L.length < 3) return; const s = L.map(v => Number(v.km)).sort((a, b) => a - b), med = s[Math.floor(s.length / 2)]; L.forEach(v => { const x = Number(v.km); if (x > med * 2 || x < med * 0.5) add('Distancia atípica', v.placa + ': ' + nf1(x) + ' km en ' + k + ' (lo normal ≈ ' + nf1(med) + ' km)', [v]); }); });
   const ufs = TR.ufs || [], sit = TR.sitios || [];
   V.forEach(v => { const uf = ufs.find(u => String(u.uf) === String(v.uf)), si = sit.find(x => x.n.toUpperCase() === String(sitioDe(v)).toUpperCase()); if (uf && si && uf.lat !== '' && si.lat !== '' && si.lat !== undefined && Number(v.km) > 0) { const est = kmLinea(uf, si) * 1.3; if (Number(v.km) > est * 1.8 + 2 || Number(v.km) < est * 0.4 - 2) add('Distancia vs UF', v.placa + ': declaró ' + nf1(v.km) + ' km; UF ' + v.uf + ' → ' + v.destino + ' ≈ ' + nf1(est) + ' km', [v]); } });
@@ -495,7 +495,7 @@ function pintaAlb() {
     box.appendChild(h('div', { class: 'tcard' + (alV(v) ? ' warn' : '') },
       h('div', { class: 'big' }, 'Valera ' + (v.n_valera || '—'), h('span', { class: 'tag' }, v.valera_de || '—')),
       h('div', {}, v.placa + ' · ' + (v.conductor || '') + ' · ' + (v.empresa || '')),
-      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + (v.material || '—') + ' · ' + ufTxt(v) + ' · ' + (v.origen || '—') + ' → ' + (v.destino || '—')),
+      h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + (v.mov === 'RECIBE' ? '📥 RECIBE · ' : '') + (v.material || '—') + ' · ' + oriV(v) + ' → ' + desV(v)),
       h('div', { class: 'small' }, (Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) : '—') + ' m³ albarán · ' + nf(v.cant) + ' m³ confirmado' + (pctV(v) !== null ? ' (' + pctV(v) + ' % de la tolva)' : '') + ' · ' + v.cod + ' · ' + v.usuario),
       alV(v) ? h('div', { class: 'alt' }, '⚠️ ' + alV(v)) : null,
       v.estado === 'ANULADO' ? h('div', { class: 'alt', style: 'background:#b3261e;color:#fff' }, '🚫 VIAJE ANULADO' + (v.anulado && v.anulado.motivo ? ' · ' + (v.anulado.por || '') + ' · ' + v.anulado.motivo : '')) : null,
@@ -784,7 +784,7 @@ function cardViaje(v) {
       h('div', { style: 'font-size:22px;font-weight:800;letter-spacing:.5px' }, v.placa),
       h('div', { style: 'font-size:13px;font-weight:800;color:#fff;background:#0d3b66;border-radius:8px;padding:4px 10px' }, rn ? 'REPORTE ' + rn : 'REPORTE —')),
     h('div', { style: 'margin:6px 0 4px' }, chip(vol, 'background:#e3f2e5;color:#1b5e20'), p !== null ? chip(p + ' %', p < 70 ? 'background:#fde7b0;color:#6b4a00' : '') : null, chip(v.mov === 'RECIBE' ? '📥 Recibe' : '📤 Entrega'), chip(v.material || '—')),
-    h('div', { style: 'font-size:15px;margin:4px 0;line-height:1.5' }, h('div', {}, h('span', { style: 'color:#607d8b;font-weight:600' }, '📍 Origen: '), h('b', {}, v.origen || '—')), h('div', {}, h('span', { style: 'color:#607d8b;font-weight:600' }, '🏁 Destino: '), h('b', {}, v.destino || '—'))),
+    h('div', { style: 'font-size:15px;margin:4px 0;line-height:1.5' }, h('div', {}, h('span', { style: 'color:#607d8b;font-weight:600' }, '📍 Origen: '), h('b', {}, oriV(v))), h('div', {}, h('span', { style: 'color:#607d8b;font-weight:600' }, '🏁 Destino: '), h('b', {}, desV(v)))),
     h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + 'Albarán ' + (v.n_valera || '—')),
     al ? h('div', { class: 'alt', style: 'font-size:14px' }, '⚠️ ' + al) : null,
     h('div', { style: 'margin-top:8px' }, botonesFoto(v)),
@@ -808,7 +808,7 @@ function vistaViajes(c) {
   pintaLista();
 }
 const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
-const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), v.origen, v.destino, v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
+const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), oriV(v), desV(v), v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
 function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen']);
   const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => filaTr(v).concat([tieneGps(v) ? mapaUrl(v) : '']).map(csvCelda).join(';')));
@@ -864,7 +864,7 @@ async function xlsxTr() {
     const C = [
       ['Fecha', 11, 'f', v => v.fecha], ['Hora', 7, 't', v => v.hora_salida || ''], ['Vale', 17, 't', v => v.cod], ['Valera', 9, 't', v => v.n_valera || ''], ['Placa', 9, 't', v => v.placa],
       ['Empresa', 18, 't', v => v.empresa || ''], ['Conductor', 18, 't', v => v.conductor || ''], ['Material', 20, 't', v => v.material || ''], ['Máquina que cargó', 26, 't', v => v.maquina || ''],
-      ['Movimiento', 11, 't', v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['UF', 8, 't', v => ufTxt(v)], ['Origen', 22, 't', v => v.origen || ''], ['Destino', 22, 't', v => v.destino || ''], ['Km', 7, 'n', v => v.km === '' ? '' : Number(v.km)],
+      ['Movimiento', 11, 't', v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['UF', 8, 't', v => ufTxt(v)], ['Origen', 22, 't', v => oriV(v)], ['Destino', 22, 't', v => desV(v)], ['Km', 7, 'n', v => v.km === '' ? '' : Number(v.km)],
       ['m³ albarán', 11, 'n', v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, 'n', v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Diferencia m³', 11, 'n', v => Number(v.vol_albaran) > 0 && Number(v.cant) > 0 ? Math.round((Number(v.vol_albaran) - Number(v.cant)) * 100) / 100 : ''],
       ['% carga', 8, 'n0', v => pctV(v) === null ? '' : pctV(v)], ['Estado', 12, 't', v => v.estado || ''], ['Alertas', 32, 't', v => v.alertas || ''], ['Ubicación', 18, 'l', v => v], ['Foto volqueta', 24, 'img', null], ['Foto albarán', 24, 'img', null]];
     ws.columns = C.map(c => ({ width: c[1] }));
@@ -1015,6 +1015,10 @@ function vistaPlan(c) {
   c.appendChild(msg);
 }
 
+/* Regla: la UF es el ORIGEN cuando se ENTREGA (sale de la obra) y el DESTINO cuando se RECIBE (llega a la obra). El texto guardado (abscisa/sitio) es solo detalle. */
+const lugarUF = (v, t) => { const base = v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : '', x = /^UF \d$/.test(String(t || '').trim()) ? '' : String(t || '').trim(); return base ? (x ? base + ' · ' + x : base) : (x || 'Sin UF'); };
+const oriV = v => v.mov === 'RECIBE' ? (v.origen || '—') : lugarUF(v, v.origen);
+const desV = v => v.mov === 'RECIBE' ? lugarUF(v, v.destino) : (v.destino || '—');
 const sitioDe = v => v.mov === 'RECIBE' ? (v.origen || '') : (v.destino || '');
 async function validarDist(x) {
   const t = prompt('Distancia validada en km para ' + x.uf + ' → ' + x.d + ' (Google Maps, ruta más corta):', x.km);
