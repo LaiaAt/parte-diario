@@ -308,6 +308,7 @@ async function entrar() {
 }
 async function cargar(primera) {
   $('estado').textContent = 'Cargando…'; $('err').textContent = '';
+  if (primera && !TR) TRP = api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }).catch(() => null); // se pide a la vez para que Transportes abra ya cargado
   const r = await api({ accion: 'admin', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
   $('estado').textContent = '';
   if (!r.ok) { (primera ? $('loginmsg') : $('err')).textContent = r.mensaje || 'No se pudo cargar'; if (!primera && /administradores/.test(r.mensaje || '')) salir(); return false; }
@@ -338,11 +339,12 @@ function modulo(m) {
   if (m === 'transportes' && !TR) cargarTr();
   if (m === 'acero') abrirAcero();
 }
-let TRVM = 'conf', TR = null, TRTAB = selGet('tr', 'viajes', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
+let TRP = null, TRVM = 'conf', TR = null, TRTAB = selGet('tr', 'viajes', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
 async function cargarTr() {
   $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes.')));
   try {
-    const r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
+    let r = TRP ? await TRP : null; TRP = null;
+    if (!r || !r.ok) r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
     if (!r.ok) { $('trBody').textContent = r.mensaje || 'No se pudo cargar'; return; }
     TR = r; pintarTr();
   } catch (e) { $('trBody').textContent = 'No se pudo conectar.'; }
@@ -1727,7 +1729,7 @@ function conservar(fn) {
 pintar = conservar(pintar); pintarTr = conservar(pintarTr); navTr = conservar(navTr); navAc = conservar(navAc); modulo = conservar(modulo);
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script>if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (hab && !rec) { rec = true; location.reload(); } }); navigator.serviceWorker.register('sw.js').catch(() => {}); }
+<script>if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (hab && !rec) { rec = true; location.reload(); } }); navigator.serviceWorker.register('sw.js').then(reg => { const buscar = () => { try { reg.update(); } catch (e) {} }; setInterval(buscar, 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar(); }); window.addEventListener('focus', buscar); }).catch(() => {}); }
 </script>
 </body>
 </html>
