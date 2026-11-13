@@ -569,7 +569,7 @@ function chipsPara(campo, id) {
 const contra = v => (v && v.mov === 'RECIBE') ? (v.origen || '') : (v.destino || '');
 const nrm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
 const kTxt = n => 'K' + String(Math.floor(n / 1000)).padStart(2, '0') + '+' + String(n % 1000).padStart(3, '0');
-function partesOrigen(t) { const m = /^K(\d{2,3})\+(\d{3})\s*(?:·\s*(.*))?$/.exec(String(t || '').trim()); return m ? { abs: String(Number(m[1]) * 1000 + Number(m[2])), eje: m[3] || '' } : { abs: '', eje: String(t || '') }; }
+function partesOrigen(t) { if (/^UF \d$/.test(String(t || '').trim())) return { abs: '', eje: '' }; const m = /^K(\d{2,3})\+(\d{3})\s*(?:·\s*(.*))?$/.exec(String(t || '').trim()); return m ? { abs: String(Number(m[1]) * 1000 + Number(m[2])), eje: m[3] || '' } : { abs: '', eje: String(t || '') }; }
 function campoOrigen(valor) {
   const p = partesOrigen(valor);
   const abs = h('input', { id: 'abs', type: 'text', inputmode: 'numeric', maxlength: '6', autocomplete: 'off', placeholder: '0000', value: p.abs, style: 'font-size:24px;letter-spacing:2px' });
@@ -580,6 +580,7 @@ function campoOrigen(valor) {
   return h('div', { id: 'c_origen' }, h('label', { for: 'abs', id: 'lblAbs' }, 'Sale de: abscisa (solo números)'), abs, info,
     h('div', { style: 'height:8px' }), h('label', { for: 'eje', id: 'lblEje' }, 'Nombre del sitio (opcional)'), eje);
 }
+const origenFinal = () => origenTxt() || (($('uf') && /^[1-7]$/.test($('uf').value)) ? 'UF ' + $('uf').value : '');
 const origenTxt = () => { const a = $('abs').value.trim(), e = $('eje').value.trim(); return a ? kTxt(Number(a)) + (e ? ' · ' + e : '') : e; };
 function ajustarOrigen() {
   const otro = $('uf') && $('uf').value === 'OTRO', rec = $('mov') && $('mov').value === 'RECIBE';
@@ -771,7 +772,7 @@ async function guardarViaje() {
   if (g('km') && !(num(g('km')) >= 0)) M('km', 'la distancia en km');
   const rec0 = $('mov').value === 'RECIBE', uf0 = $('uf').value;
   if (uf0 === 'OTRO' && !g('eje')) M('eje', rec0 ? 'a dónde llega (escríbelo)' : 'de dónde sale (escríbelo)');
-  else if (!uf0 && !origenTxt()) M('abs', rec0 ? 'la UF o dónde llega' : 'la UF o de dónde sale');
+  if (!uf0) M('c_uf', rec0 ? 'la UF a la que llega' : 'la UF de la que sale');
   if (!g('destino')) M('destino', rec0 ? 'de dónde viene' : 'el destino');
   if (!g('n_valera')) M('n_valera', 'el número del albarán');
   if (!(num(g('vol_albaran')) > 0 && num(g('vol_albaran')) <= 60)) M('vol_albaran', 'el volumen que dice el albarán (m³)');
@@ -799,7 +800,7 @@ async function guardarViaje() {
   const cod = antes ? antes.cod : nuevoCod();
   const v = Object.assign({}, antes || {}, {
     cod: cod, consec: antes ? consecDe(antes) : siguienteConsec($('fecha_vale').value || hoy(), user.nombre), llave: user.llave, usuario: user.nombre, fecha: antes ? antes.fecha : ($('fecha_vale').value || hoy()), fecha_reporte: antes ? (antes.fecha_reporte || antes.fecha) : ($('fecha_vale').value || hoy()), registrado: antes ? (antes.registrado || antes.fecha) : hoy(), turno: $('turno').value, n_valera: g('n_valera'), valera_de: g('n_valera') ? $('valera_de').value : '',
-    placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), vol_albaran: g('vol_albaran'), conductor: g('conductor'), material: g('material'), centro: g('centro'), maquina: g('maquina'), origen: rec ? g('destino') : origenTxt(), destino: rec ? origenTxt() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
+    placa: placa, empresa: g('empresa'), tipo: g('tipo'), capacidad: g('capacidad'), vol_albaran: g('vol_albaran'), conductor: g('conductor'), material: g('material'), centro: g('centro'), maquina: g('maquina'), origen: rec ? g('destino') : origenFinal(), destino: rec ? origenFinal() : g('destino'), mov: rec ? 'RECIBE' : 'ENTREGA',
     lat: '', lon: '', prec: '',
     uf: $('uf').value, pct: pct > 0 ? pct : '', cant: cant > 0 ? cant : '', peso: g('peso'), km: g('km'), hora_salida: g('hora_salida'), hora_llegada: g('hora_llegada'), obs: g('obs'),
     tiene_carga: !!(antes && antes.tiene_carga) || fotoCargaNueva.length > 0, tiene_recibo: !!(antes && antes.tiene_recibo) || fotoReciboNueva.length > 0, estado: (fotoReciboNueva.length > 0) ? 'RECIBIDO' : (antes ? antes.estado : 'DESPACHADO'), nuevo: antes ? !!antes.nuevo : true, alertas: antes ? antes.alertas : ''
