@@ -7,7 +7,7 @@
     const uf = v.uf && v.uf !== 'OTRO' ? 'UF ' + v.uf : '', rec = v.mov === 'RECIBE';
     const t = lado === 'o' ? String(v.origen || '') : String(v.destino || '');
     const conUF = (lado === 'o') !== rec; // en ENTREGA la UF es el origen; en RECIBE es el destino
-    return conUF && uf ? (t ? uf + ' · ' + t : uf) : t;
+    return conUF && uf ? (!t ? uf : (t.toUpperCase().replace(/\s+/g, '').indexOf(uf.toUpperCase().replace(/\s+/g, '')) === 0 ? t : uf + ' · ' + t)) : t;
   }
   const volv = v => (num(v.vol_albaran) > 0 ? v.vol_albaran : v.cant); // en obra solo se muestra el volumen del albarán
   const f2 = v => { const x = num(v); return isNaN(x) ? '' : String(Math.round(x * 100) / 100); };
@@ -166,7 +166,7 @@
               else { doc.setFontSize(7.5); tx(r.cod, x + 1.5, y + 4.8, { maxWidth: c[1] - 3 }); }
             } else if (j === 6 && r) {
               doc.setFont('helvetica', 'normal'); doc.setFontSize(6.4);
-              tx('Alb. ' + f2(volv(r)), x + 1.2, y + 3, { maxWidth: c[1] - 2 }); tx('Conf. ' + f2(r.cant), x + 1.2, y + 6.1, { maxWidth: c[1] - 2 });
+              doc.setFontSize(8.5); tx(f2(volv(r)), x + 1.5, y + 4.8, { maxWidth: c[1] - 3 });
             } else {
               doc.setFont('helvetica', 'normal');
               if (j === 0) { doc.setFontSize(7); tx(celdas[j], x + c[1] / 2, y + 5, { align: 'center' }); }
