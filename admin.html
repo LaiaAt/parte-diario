@@ -247,7 +247,7 @@ header>span{gap:6px!important;min-width:0}
     <div style="margin-top:10px"><button class="sec" id="masFotos" hidden>Ver más</button></div>
   </div>
 
-  <div class="card" id="cCon" data-m="consolidados"><h2>📊 Consolidados <span id="nCon" class="small"></span></h2>
+  <div class="card" id="cCon" data-m="resumen"><h2>📊 Consolidados <span id="nCon" class="small"></span></h2>
     <div class="conAyuda">Toca una caja para ver esa información del parte diario.</div>
     <div class="conTiles" id="tabs"></div>
     <div class="conFiltros">
@@ -329,18 +329,19 @@ async function cargar(primera) {
   D = r; $('quien').textContent = r.nombre; pintar(); cargarFotos(); if ($('acFrame')) enviarAc(MOD === 'acero'); return true;
 }
 
-const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['consolidados', '📊 Consolidados'], ['transportes', '🚛 Transportes']];
+const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['transportes', '🚛 Transportes']];
 function selGet(k, def, ok) { try { const v = sessionStorage.getItem('adm_sel_' + k); return v && ok(v) ? v : def; } catch (e) { return def; } }
 function selSet(k, v) { try { sessionStorage.setItem('adm_sel_' + k, v); } catch (e) {} }
 let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] === v));
-const TR_TABS = [['viajes', '📋 Viajes'], ['albaran', '🔎 Búsquedas'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
+const TR_TABS = [['resumen', '📊 Resumen'], ['viajes', '📋 Viajes'], ['albaran', '🔎 Búsquedas'], ['sosp', '⚠️ Sospechosos'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
-  { const bq = TRTAB === 'albaran'; $('cPer').hidden = bq; $('trTop').hidden = bq; const t = document.querySelector('#cTr > h2'); if (t) t.hidden = bq; }
+  { const bq = TRTAB === 'albaran'; $('cPer').hidden = bq; $('trTop').hidden = TRTAB !== 'resumen'; const t = document.querySelector('#cTr > h2'); if (t) t.hidden = bq; }
   const nDup = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán' || x.tipo === 'Sin m³ de albarán') && !x.rev).length : 0;
-  TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; selSet('tr', k); if (k === 'albaran') { navTr(); const c = $('trBody'); c.textContent = ''; vistaAlb(c); } else if (TR) pintarTr(); else navTr(); } }, t, k === 'sosp' && nDup ? h('span', { class: 'tabBadge' }, '🚨 ' + nDup) : null)));
+  TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { if (k !== TRTAB && !puedeSalir()) return; TRTAB = k; selSet('tr', k); if (k === 'albaran') { navTr(); const c = $('trBody'); c.textContent = ''; vistaAlb(c); } else if (TR) pintarTr(); else navTr(); } }, t, k === 'sosp' && nDup ? h('span', { class: 'tabBadge' }, '🚨 ' + nDup) : null)));
 }
 function modulo(m) {
+  if (m !== MOD && !puedeSalir()) return;
   if (m === 'acero' && !(D && D.acero)) m = 'resumen';
   MOD = m; selSet('mod', m);
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
@@ -353,7 +354,7 @@ function modulo(m) {
   if (m === 'transportes' && !TR) cargarTr();
   if (m === 'acero') abrirAcero();
 }
-let TRP = null, TRVM = 'conf', TR = null, TRTAB = selGet('tr', 'viajes', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
+let TRP = null, TRVM = 'conf', TR = null, TRTAB = selGet('tr', 'resumen', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
 async function cargarTr() {
   $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes.')));
   try {
@@ -663,6 +664,7 @@ function tablaBarras(titulo, L, col, conPct, max) {
 }
 function vistaRes(c) {
   const V = TR.viajes; if (!V.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay viajes en estas fechas')); return; }
+  vistaMapa(c);
   const q = V.reduce((a, v) => a + (Number(v.cant) || 0), 0), qa = V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0), ps = V.map(pctV).filter(x => x !== null), ks = V.filter(v => Number(v.km) > 0);
   const qkm = ks.reduce((a, v) => a + (Number(v.cant) || 0) * Number(v.km), 0), qkma = ks.reduce((a, v) => a + (Number(v.vol_albaran) || 0) * Number(v.km), 0), baja = ps.filter(x => x < 70).length;
   const K = (t, v, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, h('b', {}, v), t);
@@ -828,6 +830,11 @@ function tipoAuto(prefijo) {
 }
 function vistaVol(c) {
   const V = TR.viajes;
+  const msg = h('div', { class: 'small' }), f = h('details', { class: 'tcard' }, h('summary', {}, '➕ Agregar volqueta'), formVol(null, msg));
+  c.appendChild(f);
+  const dl = (id, vals) => { const d = h('datalist', { id: id }); vals.forEach(v => d.appendChild(h('option', { value: v }))); c.appendChild(d); };
+  dl('dl-nvtipo', TV.map(x => x[0])); dl('dl-nvemp', uniq(TR.volquetas.map(x => x.empresa).filter(Boolean)).sort());
+  tipoAuto('nv');
   c.appendChild(chips([['pend', 'Por validar'], ['act', 'Activas'], ['inact', 'Inactivas'], ['todas', 'Todas']], TRVOL, k => { TRVOL = k; pintarTr(); }));
   const L = TR.volquetas.filter(x => TRVOL === 'pend' ? esPend(x) : TRVOL === 'act' ? !esIn(x) : TRVOL === 'inact' ? esIn(x) : true);
   c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Escribe la comprobación CCSN solo después de conciliar con el proveedor y adjunta la memoria de cálculo (📎, foto o escáner). Al guardar, se recalculan automáticamente todos los viajes de esa volqueta. Mientras esté vacía, el volumen confirmado queda vacío.'));
@@ -860,11 +867,6 @@ function vistaVol(c) {
   c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tb));
   L.forEach(x => tipoAuto('ev_' + x.placa + '_'));
   if (!L.length) c.appendChild(h('div', { class: 'trok' }, TRVOL === 'pend' ? '✅ No hay volquetas por validar' : 'No hay volquetas'));
-  const msg = h('div', { class: 'small' }), f = h('details', { class: 'tcard' }, h('summary', {}, '➕ Agregar volqueta'), formVol(null, msg));
-  c.appendChild(f);
-  const dl = (id, vals) => { const d = h('datalist', { id: id }); vals.forEach(v => d.appendChild(h('option', { value: v }))); c.appendChild(d); };
-  dl('dl-nvtipo', TV.map(x => x[0])); dl('dl-nvemp', uniq(TR.volquetas.map(x => x.empresa).filter(Boolean)).sort());
-  tipoAuto('nv');
 }
 
 /* ----- viajes (lista, fotos, CSV y Excel con fotos) ----- */
@@ -1158,12 +1160,44 @@ async function postGeo(d) {
   if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return null; }
   TR.geo = r.geo; TR.dist = r.dist; TR.sitios = r.sitios; TR.ufs = r.ufs; return r;
 }
-function vistaGeo(c) {
+let GP = {}, GEO_DOM = null;
+const nPend = () => Object.keys(GP).length + Object.keys(VDIRTY).length + Object.keys(VMEM).length;
+function descartarPend() { GP = {}; GEO_DOM = null; Object.keys(VDIRTY).forEach(k => delete VDIRTY[k]); Object.keys(VMEM).forEach(k => delete VMEM[k]); }
+/** Si hay cambios sin guardar, avisa que se perderán. Devuelve true si se puede continuar. */
+function puedeSalir() {
+  if (!nPend()) return true;
+  if (!confirm('Hay cambios SIN GUARDAR. Si cambias de vista se perderán.\n\n¿Salir de todos modos?')) return false;
+  descartarPend(); return true;
+}
+window.addEventListener('beforeunload', e => { if (nPend()) { e.preventDefault(); e.returnValue = ''; } });
+function vistaGeo(c0) {
+  if (GEO_DOM && Object.keys(GP).length) { c0.appendChild(GEO_DOM); return; }
+  const c = h('div'); GEO_DOM = c; c0.appendChild(c);
+  const barra = h('div', { style: 'position:sticky;top:0;z-index:6;background:#fff;border:2px solid #0d3b66;border-radius:10px;padding:8px;margin:6px 0' });
+  const pintaBarra = () => {
+    const ks = Object.keys(GP); barra.textContent = '';
+    if (!ks.length) { barra.style.display = 'none'; return; } barra.style.display = '';
+    const b = h('button', { style: 'width:100%;padding:12px;font-size:17px;font-weight:700', onclick: guardarGeo }, '💾 Guardar todos los cambios (' + ks.length + ')');
+    barra.appendChild(b);
+    barra.appendChild(h('details', { style: 'margin-top:6px' }, h('summary', { class: 'small' }, 'Ver qué se va a guardar'), ks.map(k => h('div', { class: 'small' }, '• ' + GP[k].desc))));
+    barra.appendChild(h('button', { class: 'sec sm', style: 'margin-top:6px', onclick: () => { if (confirm('¿Descartar todos los cambios sin guardar?')) { GP = {}; GEO_DOM = null; pintarTr(); } } }, 'Descartar cambios'));
+  };
+  const stage = (key, desc, fn, el, quita) => { if (quita) delete GP[key]; else GP[key] = { desc, fn }; if (el) el.style.background = quita ? '' : '#fff8e1'; pintaBarra(); };
+  async function guardarGeo() {
+    const ks = Object.keys(GP), b = barra.querySelector('button'); let ok = 0;
+    for (const k of ks) {
+      b.disabled = true; b.textContent = 'Guardando ' + (ok + 1) + ' de ' + ks.length + '…';
+      const r = await postGeo(GP[k].fn()); if (!r) { b.disabled = false; b.textContent = '💾 Reintentar los ' + (ks.length - ok) + ' pendientes'; return; }
+      delete GP[k]; ok++;
+    }
+    GEO_DOM = null; pintarTr();
+  }
+  c.appendChild(barra); pintaBarra();
   const G = TR.geo || { sitios: [], ufs: [], dist: [] };
   const inp = (v, w, extra) => h('input', Object.assign({ type: 'text', inputmode: 'decimal', value: v === undefined || v === null ? '' : v, style: 'width:' + (w || 84) + 'px;font-size:15px;padding:6px' }, extra || {}));
   const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
   const mapa = (la, lo) => (la !== '' && lo !== '' && la !== undefined) ? h('a', { href: 'https://www.google.com/maps/search/?api=1&query=' + la + ',' + lo, target: '_blank', rel: 'noopener', title: 'Ver en el mapa' }, '📍') : null;
-  c.appendChild(h('div', { class: 'small', style: 'margin:6px 0' }, 'Aquí creas y corriges los orígenes (UF) y destinos, sus coordenadas y las distancias en km. Los cambios se guardan al instante y los usan los transportistas desde su próximo viaje.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin:6px 0' }, 'Aquí creas y corriges los orígenes (UF) y destinos, sus coordenadas y las distancias en km. Haz todos los cambios que necesites y al final toca «Guardar todos los cambios». Cada cambio queda en el control de cambios. Los transportistas lo usan desde su próximo viaje.'));
   const bx = h('button', { class: 'sec sm', style: 'margin:0 0 8px' }, '⬇ Descargar Excel (sitios, UF y distancias)');
   bx.onclick = () => {
     if (!window.XLSX) { alert('No cargó el módulo de Excel. Revisa tu conexión e intenta de nuevo.'); return; }
@@ -1184,30 +1218,33 @@ function vistaGeo(c) {
     G.sitios.forEach(sx => {
       const k = 'UF' + String(u.uf).toUpperCase() + '|' + nrm(sx.n), e = D[k];
       const i = inp(e ? e.km : '', 62, { title: e ? (e.pv ? 'POR VALIDAR · ' : '') + e.fuente : 'Sin distancia', style: 'width:62px;font-size:15px;padding:6px;' + (e && e.pv ? 'background:#fff3cd' : '') });
-      i.addEventListener('change', async () => {
+      i.addEventListener('input', () => {
         const v = i.value.trim().replace(',', '.'), antes = D[k];
-        if (v === '') { if (!antes) return; if (!confirm('¿Borrar la distancia UF ' + u.uf + ' → ' + sx.n + '?')) { i.value = antes.km; return; } const q = await postGeo({ tabla: 'dist', uf: u.uf, destino: sx.n, op: 'eliminar' }); if (q) { delete D[k]; i.style.background = ''; } return; }
-        const q = await postGeo({ tabla: 'dist', uf: u.uf, destino: sx.n, km: v, op: 'guardar' });
-        if (q) { D[k] = q.dist.find(x => x.uf === 'UF' + String(u.uf).toUpperCase() && nrm(x.d) === nrm(sx.n)) || { km: v, fuente: '' }; i.style.background = '#d7f0dc'; i.title = D[k].fuente || ''; } else i.value = antes ? antes.km : '';
+        if ((antes && String(antes.km) === v) || (!antes && v === '')) { stage('d|' + k, '', null, i, true); return; }
+        stage('d|' + k, (v === '' ? 'Borrar distancia UF ' : 'Distancia UF ') + u.uf + ' → ' + sx.n + (v === '' ? '' : ': ' + v + ' km'), () => { const w = i.value.trim().replace(',', '.'); return { tabla: 'dist', uf: u.uf, destino: sx.n, km: w, op: w === '' ? 'eliminar' : 'guardar' }; }, i);
       });
       r.appendChild(td(i));
     });
     tm.appendChild(r);
   });
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📏 Distancias UF → destino (km)'), h('div', { class: 'small' }, 'Escribe el km y sal de la casilla. Vacía = se borra. Amarillo = ingresada por un usuario, falta validar (al editarla queda validada).'), h('div', { class: 'tw', style: 'max-height:none' }, tm)));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📏 Distancias UF → destino (km)'), h('div', { class: 'small' }, 'Escribe el km. Vacía = se borra al guardar. Amarillo = ingresada por un usuario, falta validar (al editarla queda validada).'), h('div', { class: 'tw', style: 'max-height:none' }, tm)));
   const otras = G.dist.filter(x => !G.ufs.some(u => 'UF' + String(u.uf).toUpperCase() === x.uf) || !G.sitios.some(s => nrm(s.n) === nrm(x.d)));
   if (otras.length) c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '⚠️ Distancias con UF o destino que no está en las listas'), h('div', { class: 'small' }, 'Créalos abajo (sitio o UF) para verlos en la tabla, o bórralos aquí.'),
-    otras.map(x => h('div', { style: 'margin:4px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, h('span', {}, x.uf + ' → ' + x.d + ': ' + x.km + ' km' + (x.pv ? ' (por validar)' : '')), h('button', { class: 'sec', onclick: async () => { if (!confirm('¿Borrar esta distancia?')) return; if (await postGeo({ tabla: 'dist', uf: x.uf.replace(/^UF/, ''), destino: x.d, op: 'eliminar' })) pintarTr(); } }, '🗑 Borrar')))));
+    otras.map(x => h('div', { style: 'margin:4px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, h('span', {}, x.uf + ' → ' + x.d + ': ' + x.km + ' km' + (x.pv ? ' (por validar)' : '')), h('button', { class: 'sec', onclick: ev => { stage('o|' + x.uf + '|' + x.d, 'Borrar distancia ' + x.uf + ' → ' + x.d, () => ({ tabla: 'dist', uf: x.uf.replace(/^UF/, ''), destino: x.d, op: 'eliminar' }), ev.target.parentNode); ev.target.disabled = true; } }, '🗑 Borrar al guardar')))));
   // 2) sitios
   const filaSitio = (x, nuevo) => {
     const n = nuevo ? h('input', { type: 'text', placeholder: 'Nombre del sitio', style: 'width:200px;font-size:15px;padding:6px' }) : h('b', {}, x.n);
     const la = inp(x.lat), lo = inp(x.lon), ra = inp(x.radio, 64), no = h('input', { type: 'text', value: x.notas || '', style: 'width:170px;font-size:15px;padding:6px' });
     const re = h('select', { style: 'font-size:15px;padding:6px' }, [['', '— no definido —'], ['EXC', 'Solo descapote (EXC)'], ['RCD', 'Todo menos descapote (RCD)'], ['RCD,EXC', 'Ambos']].map(o => h('option', { value: o[0] }, o[1])));
     re.value = (String(x.recibe || '').toUpperCase().split(/[,;\s]+/).filter(Boolean).sort().join(',') === 'EXC,RCD') ? 'RCD,EXC' : String(x.recibe || '').toUpperCase();
-    const gu = async () => { const nombre = nuevo ? n.value.trim() : x.n; if (!nombre) { n.focus(); return; } if (await postGeo({ tabla: 'sitio', nombre: nombre, lat: la.value.trim(), lon: lo.value.trim(), radio: ra.value.trim(), recibe: re.value, notas: no.value })) pintarTr(); };
-    return h('tr', { style: nuevo ? 'background:#f1f8f1' : '' }, td(n), td(la), td(lo), td(ra), td(re), td(no), td(mapa(x.lat, x.lon)),
-      td(h('div', { style: 'display:flex;gap:4px' }, h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, nuevo ? '➕ Crear' : '💾'),
-        nuevo ? null : h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Eliminar sitio', onclick: async () => { if (!confirm('¿Eliminar el sitio ' + x.n + '? Los viajes ya hechos no cambian; sus distancias quedan en la tabla.')) return; if (await postGeo({ tabla: 'sitio', nombre: x.n, op: 'eliminar' })) pintarTr(); } }, '🗑'))));
+    const req = () => ({ tabla: 'sitio', nombre: nuevo ? n.value.trim() : x.n, lat: la.value.trim(), lon: lo.value.trim(), radio: ra.value.trim(), recibe: re.value, notas: no.value });
+    const gu = () => { const nombre = nuevo ? n.value.trim() : x.n; if (!nombre) { n.focus(); return; } const r0 = req(); stage('sn|' + Date.now(), 'Crear sitio ' + nombre, () => r0); [n, la, lo, ra, no].forEach(i => { i.value = ''; }); re.value = ''; n.focus(); };
+    const marca = () => { if (!nuevo) stage('s|' + x.n, 'Sitio ' + x.n + ': cambios en coordenadas, radio o notas', req, tr0); };
+    let tr0 = null;
+    [la, lo, ra, no].forEach(i => i.addEventListener('input', marca)); re.addEventListener('change', marca);
+    return (tr0 = h('tr', { style: nuevo ? 'background:#f1f8f1' : '' }, td(n), td(la), td(lo), td(ra), td(re), td(no), td(mapa(x.lat, x.lon)),
+      td(h('div', { style: 'display:flex;gap:4px' }, nuevo ? h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, '➕ Agregar') : null,
+        nuevo ? null : h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Eliminar sitio al guardar', onclick: () => { stage('s|' + x.n, 'ELIMINAR sitio ' + x.n, () => ({ tabla: 'sitio', nombre: x.n, op: 'eliminar' }), tr0); tr0.style.opacity = '.45'; } }, '🗑')))));
   };
   const ts = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['Destino / origen externo', 'Latitud', 'Longitud', 'Radio (m)', 'Qué recibe', 'Notas', '', ''].map(th)));
   ts.appendChild(filaSitio({ n: '', lat: '', lon: '', radio: '', recibe: '', notas: '' }, true)); G.sitios.forEach(x => ts.appendChild(filaSitio(x, false)));
@@ -1216,8 +1253,11 @@ function vistaGeo(c) {
   const filaUF = (x, nuevo) => {
     const n = nuevo ? h('input', { type: 'text', placeholder: 'N° UF', style: 'width:70px;font-size:15px;padding:6px' }) : h('b', {}, 'UF ' + x.uf);
     const f = ['lat_ini', 'lon_ini', 'lat_fin', 'lon_fin', 'lat_cg', 'lon_cg'].map(k => inp(x[k], 78)), no = h('input', { type: 'text', value: x.notas || '', style: 'width:150px;font-size:15px;padding:6px' });
-    const gu = async () => { const uf = nuevo ? n.value.trim() : x.uf; if (!uf) { n.focus(); return; } const d = { tabla: 'uf', uf: uf, notas: no.value }; ['lat_ini', 'lon_ini', 'lat_fin', 'lon_fin', 'lat_cg', 'lon_cg'].forEach((k, i) => { d[k] = f[i].value.trim(); }); if (await postGeo(d)) pintarTr(); };
-    return h('tr', { style: nuevo ? 'background:#f1f8f1' : '' }, td(n), f.map(i => td(i)), td(no), td(h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, nuevo ? '➕ Crear' : '💾')));
+    const req = () => { const d = { tabla: 'uf', uf: nuevo ? n.value.trim() : x.uf, notas: no.value }; ['lat_ini', 'lon_ini', 'lat_fin', 'lon_fin', 'lat_cg', 'lon_cg'].forEach((k, i) => { d[k] = f[i].value.trim(); }); return d; };
+    let tr0 = null;
+    const gu = () => { const uf = n.value.trim(); if (!uf) { n.focus(); return; } const r0 = req(); stage('un|' + Date.now(), 'Crear UF ' + uf, () => r0); [n, no].concat(f).forEach(i => { i.value = ''; }); n.focus(); };
+    if (!nuevo) [no].concat(f).forEach(i => i.addEventListener('input', () => stage('u|' + x.uf, 'UF ' + x.uf + ': cambios en coordenadas o notas', req, tr0)));
+    return (tr0 = h('tr', { style: nuevo ? 'background:#f1f8f1' : '' }, td(n), f.map(i => td(i)), td(no), td(nuevo ? h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, '➕ Agregar') : null)));
   };
   const tu = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['UF', 'Lat inicio', 'Lon inicio', 'Lat fin', 'Lon fin', 'Lat centro', 'Lon centro', 'Notas', ''].map(th)));
   tu.appendChild(filaUF({}, true)); G.ufs.forEach(x => tu.appendChild(filaUF(x, false)));
@@ -1225,10 +1265,13 @@ function vistaGeo(c) {
   // 4) máquinas que cargan las volquetas
   const filaMaq = (x, nuevo) => {
     const mo = inp(x.movil, 70, { placeholder: x.pv ? 'Asigna móvil' : 'Móvil', inputmode: 'text' }), ti = h('input', { type: 'text', value: x.tipo || '', placeholder: 'Tipo de máquina (ej. EXCAVADORA 20 TN)', style: 'width:340px;max-width:100%;font-size:15px;padding:6px' });
-    const gu = async () => { const m = mo.value.trim(); if (!m && !x.pv) { mo.focus(); return; } if (!ti.value.trim()) { ti.focus(); return; } if (await postGeo({ tabla: 'maquina', op: 'guardar', movil: m, movil_orig: nuevo ? '' : x.movil, tipo_orig: nuevo ? '' : x.tipo, tipo: ti.value.trim() })) pintarTr(); };
-    return h('tr', { style: nuevo ? 'background:#f1f8f1' : (x.pv ? 'background:#fff3cd' : '') }, td(mo), td(ti), td(x.pv ? h('small', {}, '⚠ Nueva: ' + (x.por || '').replace(/^POR VALIDAR · /, '')) : ''),
-      td(h('div', { style: 'display:flex;gap:4px' }, h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, nuevo ? '➕ Agregar' : '💾'),
-        nuevo ? null : h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Retirar máquina', onclick: async () => { if (!confirm('¿Retirar la máquina ' + x.movil + ' · ' + x.tipo + '? Los viajes ya registrados no cambian.')) return; if (await postGeo({ tabla: 'maquina', op: 'eliminar', movil: x.movil, movil_orig: x.movil, tipo_orig: x.tipo })) pintarTr(); } }, '🗑'))));
+    const req = () => ({ tabla: 'maquina', op: 'guardar', movil: mo.value.trim(), movil_orig: nuevo ? '' : x.movil, tipo_orig: nuevo ? '' : x.tipo, tipo: ti.value.trim() });
+    let tr0 = null;
+    const gu = () => { if (!mo.value.trim()) { mo.focus(); return; } if (!ti.value.trim()) { ti.focus(); return; } const r0 = req(); stage('mn|' + Date.now(), 'Agregar máquina ' + r0.movil + ' · ' + r0.tipo, () => r0); mo.value = ''; ti.value = ''; mo.focus(); };
+    if (!nuevo) [mo, ti].forEach(i => i.addEventListener('input', () => stage('m|' + x.movil + '|' + x.tipo, 'Máquina ' + (x.movil || '(sin móvil)') + ' · ' + x.tipo + ': ' + (x.pv ? 'validar / corregir' : 'cambios'), req, tr0)));
+    return (tr0 = h('tr', { style: nuevo ? 'background:#f1f8f1' : (x.pv ? 'background:#fff3cd' : '') }, td(mo), td(ti), td(x.pv ? h('small', {}, '⚠ Nueva: ' + (x.por || '').replace(/^POR VALIDAR · /, '')) : ''),
+      td(h('div', { style: 'display:flex;gap:4px' }, nuevo ? h('button', { style: 'padding:8px 10px;font-size:14px', onclick: gu }, '➕ Agregar') : null,
+        nuevo ? null : h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Retirar máquina al guardar', onclick: () => { stage('m|' + x.movil + '|' + x.tipo, 'RETIRAR máquina ' + x.movil + ' · ' + x.tipo, () => ({ tabla: 'maquina', op: 'eliminar', movil: x.movil, movil_orig: x.movil, tipo_orig: x.tipo }), tr0); tr0.style.opacity = '.45'; } }, '🗑')))));
   };
   const tq = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['Móvil', 'Tipo de máquina', 'Estado', ''].map(th)));
   tq.appendChild(filaMaq({ movil: '', tipo: '' }, true)); (G.maquinas || []).forEach(x => tq.appendChild(filaMaq(x, false)));
@@ -1337,7 +1380,7 @@ function prep() {
 function coincide(r, q) { return $(q).value.toLowerCase().split(/\s+/).filter(Boolean).every(x => r._h.indexOf(x) >= 0); }
 function uniq(a) { return Array.from(new Set(a.filter(Boolean))).sort(); }
 function llenarOpts(id, todas, vals) { const s = $(id), v = s.value; s.textContent = ''; s.appendChild(h('option', { value: '' }, todas)); vals.forEach(x => s.appendChild(h('option', { value: x }, x))); s.value = vals.indexOf(v) >= 0 ? v : ''; }
-function ir(id) { modulo({ cPed: 'pedidos', cPar: 'partes', cFoto: 'fotos', cCon: 'consolidados' }[id] || 'resumen'); }
+function ir(id) { modulo({ cPed: 'pedidos', cPar: 'partes', cFoto: 'fotos' }[id] || 'resumen'); if (id === 'cCon') setTimeout(() => { const e = $('cCon'); if (e) e.scrollIntoView(); }, 30); }
 function rerender() { solicitudes(); partes(); fotos(true); consolidado(); }
 function pintar() {
   prep();
