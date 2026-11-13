@@ -24,7 +24,7 @@
   }
   // Un solo servidor para Parte diario, Transportes y Acero: la llave viaja en el cuerpo (nunca en la URL).
   function post(body) {
-    var b = Object.assign({}, body), llave = b.pin; delete b.pin; delete b.usuario;
+    var b = Object.assign({}, body), llave = b.pin; delete b.pin; delete b.usuario; if (window.ACEROS_EMBED) b.embed = true;
     return fetch(CFG.API_URL, { method: 'POST', body: JSON.stringify({ accion: 'acero', llave: llave, req: b }) }).then(function (r) { return r.json(); })
       .then(function (r) { if (r && r.ok === false && !r.error && r.mensaje) r.error = r.mensaje; return r; });
   }
