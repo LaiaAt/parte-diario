@@ -7,7 +7,7 @@
   var S = {
     cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [] }, calc: null, tab: MODO === 'salidas' ? 'salida' : 'panel', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
     ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false, si: false },
-    sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', tipo: '', fase: '', pct: '', balElem: '' }, okSal: null, edPed: {}, cargaRes: null,
+    sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', modoSel: '', eq: '', tipo: '', fase: '', pct: '', balElem: '' }, okSal: null, edPed: {}, cargaRes: null,
     inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, inf: { d: '' },
     cargas: [], loginErr: '', loginNom: ''
   };
@@ -447,7 +447,6 @@
   function ajustarSalida() {
     var s = S.sal, es = elemsDisp();
     if (todasElems().indexOf(s.elem) < 0) s.elem = '';
-    if (!s.elem && es.length === 1) { s.elem = es[0]; }
   }
   function cantEn(e, d, m) { return enCarrito(e, d, m); }
   function piezasSalida(e) {
@@ -494,30 +493,38 @@
     var s = S.sal, arm = esArm(), todas = todasElems(), conSaldo = elemsDisp();
     if (S.okSal) return '<div class="card okbig"><div class="ok-i">✅</div><b>¡Guardado!</b><p>' + esc(S.okSal.txt) + '</p>' + (S.okSal.pend ? '<p class="peq">Se envía al almacén apenas haya señal.</p>' : '') +
       '<button type="button" class="btn blk" data-a="otraVez">✍️ Registrar otra cosa</button><button type="button" class="btn blk sec" data-a="tab" data-v="' + (MODO === 'salidas' ? 'hoy' : 'mov') + '" style="margin-top:8px">🗓️ Ver lo registrado</button></div>';
-    if (!s.tipo && !s.balElem) return '<div class="card sal"><h2 class="preg">¿Qué va a registrar?</h2><div class="tipo">' +
+    if (s.balElem) return '<div class="card sal t-out">' + vBalance(s.balElem) + '</div>';
+    if (!s.tipo) return '<div class="card sal"><h2 class="preg">¿Qué va a registrar?</h2><div class="tipo">' +
       '<button type="button" class="tp arm" data-a="tipo" data-v="ARMADO"><span>🔧</span><b>Armé</b><small>Usé acero para armar. Sigue en la playa.</small></button>' +
       '<button type="button" class="tp out" data-a="tipo" data-v="SALIDA"><span>🚚</span><b>Saqué</b><small>El acero salió de la playa.</small></button></div></div>';
-    var h = '<div class="card sal ' + (arm ? 't-arm' : 't-out') + '"><div class="tipo"><button type="button" class="tp arm' + (arm ? ' on' : '') + '" data-a="tipo" data-v="ARMADO"><span>🔧</span><b>Armé</b><small>Sigue en la playa.</small></button>' +
-      '<button type="button" class="tp out' + (!arm ? ' on' : '') + '" data-a="tipo" data-v="SALIDA"><span>🚚</span><b>Saqué</b><small>Salió de la playa.</small></button></div>';
+    var stk0 = esStock(s.elem);
+    if (stk0 && s.modoSel !== 'pos') { s.modo = 'pos'; s.modoSel = 'pos'; s.items = []; s.pct = ''; }
+    var h = '<div class="card sal ' + (arm ? 't-arm' : 't-out') + '"><div class="trail"><button type="button" class="tc" data-a="irA" data-v="tipo">' + (arm ? '🔧 Armé' : '🚚 Saqué') + '<u>cambiar</u></button>' +
+      (s.elem ? '<em>›</em><button type="button" class="tc" data-a="irA" data-v="elem">' + esc(s.elem) + '<u>cambiar</u></button>' : '') +
+      '<button type="button" class="cancel" data-a="cancelar">✕ Cancelar</button></div>';
     if (s.msg) h += '<div class="okmsg">✓ ' + esc(s.msg) + '</div>';
-    if (s.balElem) return '<div class="card sal t-out">' + vBalance(s.balElem) + '</div>';
     if (!conSaldo.length && !s.items.length) return h + '<div class="vacio">' + (arm ? 'No queda acero libre para armar.' : 'No queda acero en la playa.') + '</div></div>';
-    if (esStock(s.elem) && s.modo !== 'pos') { s.modo = 'pos'; s.items = []; s.pct = ''; }
-    if (!esStock(s.elem)) h += '<div class="seg"><button type="button" class="' + (s.modo === 'pos' ? 'on' : '') + '" data-a="modo" data-v="pos">Pieza por pieza</button><button type="button" class="' + (s.modo === 'pct' ? 'on' : '') + '" data-a="modo" data-v="pct">Estructura completa</button></div>';
-    h += '<section class="paso"><div class="paso-h"><i>1</i><b>¿Cuándo y dónde?</b></div><div class="fgrid">' +
-      '<div class="fld"><label for="s-fecha">Fecha</label><input id="s-fecha" type="date" max="' + hoyISO() + '" value="' + esc(s.fecha || hoyISO()) + '" data-i="sal.fecha"></div>' +
-      '<div class="fld" style="grid-column: 1 / -1"><label for="s-elem">Estructura</label><select id="s-elem" data-f="sal.elem">' + (s.elem ? '' : '<option value="">Elija la estructura…</option>') +
-        todas.map(function (e) {
-          var pzs = dispDe(S.calc.porElem[e]), ped = {};
-          S.estado.pedidos.forEach(function (p) { if (p.estructura === e) ped[p.pedido] = 1; });
-          return '<option value="' + esc(e) + '"' + (e === s.elem ? ' selected' : '') + (pzs > 0 || e === s.elem ? '' : ' disabled') + '>' + esc(e) + ' · ' + (pzs > 0 ? n0(pzs) + (arm ? ' libres' : ' piezas') : 'sin acero') + '</option>'; }).join('') + '</select></div>' +
-      (esStock(s.elem) ? '<div class="fld" style="grid-column: 1 / -1"><label for="s-dest">¿En qué estructura se va a usar este acero?</label><input id="s-dest" type="text" list="dests" maxlength="80" autocomplete="off" placeholder="Escoja una o escriba una nueva" value="' + esc(s.destino) + '" data-i="sal.destino"><datalist id="dests">' + todasElems().filter(function (e) { return !esStock(e); }).map(function (e) { return '<option value="' + esc(e) + '">'; }).join('') + '</datalist></div>' : '') +
-      (s.modo === 'pos' && s.elem ? '<div class="fld" style="grid-column: 1 / -1"><label for="s-fase">Fase</label><input id="s-fase" type="text" list="fases" maxlength="60" autocomplete="off" placeholder="Toque una o escriba. Ej. Canasta" value="' + esc(s.fase) + '" data-i="sal.fase" id="s-fase"><datalist id="fases">' + fasesDe(s.elem).map(function (f) { return '<option value="' + esc(f) + '">'; }).join('') + '</datalist>' +
+    if (!s.elem) {
+      var eq = String(s.eq || '').trim().toLowerCase(), lE = todas.filter(function (e) { return !eq || e.toLowerCase().indexOf(eq) >= 0; });
+      h += '<section class="paso"><div class="paso-h"><i>1</i><b>¿De qué estructura?</b></div>' +
+        (todas.length > 8 ? '<div class="busq"><input id="s-eq" type="search" autocomplete="off" placeholder="Escriba para buscar la estructura" value="' + esc(s.eq) + '" data-i="sal.eq"></div>' : '') +
+        '<div class="elist">' + (lE.length ? lE.map(function (e) {
+          var pzs = dispDe(S.calc.porElem[e]);
+          return '<button type="button" class="eb' + (pzs > 0 ? '' : ' off') + '" data-a="pickElem" data-v="' + esc(e) + '"' + (pzs > 0 ? '' : ' disabled') + '><b>' + esc(e) + '</b><small>' + (pzs > 0 ? n0(pzs) + (arm ? ' libres' : ' piezas') : 'sin acero') + '</small></button>'; }).join('') : '<div class="vacio-s">No hay estructuras que coincidan.</div>') + '</div></section></div>';
+      return h;
+    }
+    h += '<section class="paso"><div class="paso-h"><i>2</i><b>¿Cómo lo va a registrar?</b></div><div class="modos">' +
+      '<button type="button" class="md' + (s.modoSel === 'pos' ? ' on' : '') + '" data-a="pickModo" data-v="pos"><span>🔩</span><b>Por posiciones</b><small>Elijo pieza por pieza</small></button>' +
+      '<button type="button" class="md' + (s.modoSel === 'pct' ? ' on' : '') + (stk0 ? ' off' : '') + '" data-a="pickModo" data-v="pct"' + (stk0 ? ' disabled' : '') + '><span>🏗️</span><b>Por estructura</b><small>' + (stk0 ? 'No aplica al acero stock' : 'Marco un % de avance') + '</small></button></div></section>';
+    if (!s.modoSel) return h + '</div>';
+    h += '<section class="paso"><div class="paso-h"><i>3</i><b>' + (stk0 ? '¿Dónde se va a usar?' : (s.modo === 'pct' ? 'Fecha' : 'Fase')) + '</b></div>' +
+      (stk0 ? '<div class="fld"><label for="s-dest">Estructura donde se usa este acero</label><input id="s-dest" type="text" list="dests" maxlength="80" autocomplete="off" placeholder="Escoja una o escriba una nueva" value="' + esc(s.destino) + '" data-i="sal.destino"><datalist id="dests">' + todasElems().filter(function (e) { return !esStock(e); }).map(function (e) { return '<option value="' + esc(e) + '">'; }).join('') + '</datalist></div>' : '') +
+      (s.modo === 'pos' ? '<div class="fld"><label for="s-fase">Fase de la obra</label><input id="s-fase" type="text" list="fases" maxlength="60" autocomplete="off" placeholder="Toque una o escriba. Ej. Canasta" value="' + esc(s.fase) + '" data-i="sal.fase"><datalist id="fases">' + fasesDe(s.elem).map(function (f) { return '<option value="' + esc(f) + '">'; }).join('') + '</datalist>' +
         '<div class="fch" style="margin-top:6px">' + fasesSug(s.elem).map(function (f) { return '<button type="button" class="fc' + (s.fase === f ? ' on' : '') + '" data-a="fase" data-v="' + esc(f) + '">' + esc(f) + '</button>'; }).join('') + '</div></div>' : '') +
-      '</div></section>';
+      '<div class="fld"><label for="s-fecha">Fecha</label><input id="s-fecha" type="date" max="' + hoyISO() + '" value="' + esc(s.fecha || hoyISO()) + '" data-i="sal.fecha"></div></section>';
     if (s.elem && s.modo === 'pct') {
       var ac = pctAcum(s.elem), rest = Math.max(0, 100 - ac);
-      h += '<section class="paso"><div class="paso-h"><i>2</i><b>¿Qué porcentaje?</b></div>' +
+      h += '<section class="paso"><div class="paso-h"><i>4</i><b>¿Qué porcentaje?</b></div>' +
         '<div class="avance"><div class="av-b"><i style="width:' + Math.min(100, ac) + '%"></i></div><span>Ya ' + (arm ? 'se armó ' : 'salió ') + '<b>' + fmtPct(ac) + ' %</b>' + (rest <= 0 ? ' · completa' : '') + '</span></div>';
       if (rest <= 0) h += '<div class="vacio-s">Esta estructura ya está al 100 %.</div>';
       else if (nEstDe(s.elem) > 1) {
@@ -540,7 +547,7 @@
         return posTxt(s.elem, p.marca).toLowerCase().indexOf(q) >= 0 || (p.largo && p.largo.toFixed(2).indexOf(q) === 0);
       });
       var verTodo = !!q || !!s.fdiam || lista.length <= 25, NEs = nEstDe(s.elem);
-      h += '<section class="paso"><div class="paso-h"><i>2</i><b>Busque la posición</b></div>' +
+      h += '<section class="paso"><div class="paso-h"><i>4</i><b>Busque la posición</b></div>' +
         '<div class="busq"><input id="s-q" type="search" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Escriba la posición. Ej. 4.06 o 2a" value="' + esc(s.q) + '" data-i="sal.q"></div>' + (diams.length > 1 ? '<div class="peq mut" style="margin:4px 0">O toque el tipo de varilla:</div>' : '');
       if (diams.length > 1) h += '<div class="fch">' + diams.map(function (d) { return '<button type="button" class="fc' + (s.fdiam === d ? ' on' : '') + '" data-a="fdiam" data-v="' + (s.fdiam === d ? '' : esc(d)) + '">' + esc(C.diamLabel(d)) + '</button>'; }).join('') + '</div>';
       if (!verTodo) h += '<div class="vacio-s">Toque un tipo de varilla o escriba la posición.</div>';
@@ -554,7 +561,7 @@
           (NEs > 1 && k1 > 1 ? '<button type="button" class="bt" data-a="una" data-n="' + k1 + '"' + a1 + '>1 estructura · ' + n0(k1) + '</button>' : p.disp > 1 ? '<button type="button" class="bt" data-a="todas"' + a1 + '>Todas · ' + n0(p.disp) + '</button>' : '') + '</div>'; }).join('') + '</div>';
       h += '</section>';
     }
-    h += '<section class="paso"><div class="paso-h"><i>3</i><b>' + (arm ? 'Lo que se arma' : 'Lo que sale') + '</b>' + (s.items.length ? '<button type="button" class="lnk" data-a="vaciar">Vaciar</button>' : '') + '</div>';
+    h += '<section class="paso"><div class="paso-h"><i>5</i><b>' + (arm ? 'Lo que se arma' : 'Lo que sale') + '</b>' + (s.items.length ? '<button type="button" class="lnk" data-a="vaciar">Vaciar</button>' : '') + '</div>';
     if (!s.items.length) h += '<div class="vacio-s">Todavía no ha agregado piezas.</div>';
     else h += '<div class="rlist">' + s.items.map(function (it, ix) {
       var v = S.calc.porMarca[it.elem + '|' + it.diam + '|' + it.marca], mx = v ? dispDe(v) : it.cant, a1 = ' data-v="' + esc(it.marca) + '" data-d="' + esc(it.diam) + '"';
@@ -567,7 +574,7 @@
     h += '<div class="sb-esp"></div><div class="sbar"><div class="sres">' + (s.items.length
       ? '<b>' + pz(tp2) + '</b><small>' + kg(tk) + ' kg</small>'
       : '<span class="mut">Aún no hay piezas</span>') + '</div>' +
-      '<button type="button" class="btn sacar2" data-a="registrarSalida"' + (s.items.length ? '' : ' disabled') + '>' + (arm ? '🔧 Guardar armado' : '🚚 Guardar salida') + '</button></div>';
+      '<button type="button" class="btn sec cnl" data-a="cancelar">Cancelar</button><button type="button" class="btn sacar2" data-a="registrarSalida"' + (s.items.length ? '' : ' disabled') + '>' + (arm ? '🔧 Guardar armado' : '🚚 Guardar salida') + '</button></div>';
     return h + '</div>';
   }
   function tablaInv(filas, cols) {
@@ -1148,6 +1155,21 @@
     });
   }
 
+  // Celdas dependientes: al cambiar una, se reinician las que dependen de ella (tipo > estructura > modo > lo demás)
+  function hayAvance() { var s = S.sal; return !!(s.items.length || s.fase || s.destino || s.pct || s.elem); }
+  function confSal(msg, siempre) {
+    var s = S.sal;
+    if (!(siempre ? hayAvance() : (s.items.length || s.fase || s.destino))) return true;
+    return confirm(msg || 'Si cambia esto se borra lo que ya escogió después. ¿Cambiar?');
+  }
+  function reinicioSal(desde) {
+    var s = S.sal;
+    s.items = []; s.pct = ''; s.err = ''; s.msg = ''; s.q = ''; s.fdiam = ''; s.fase = ''; s.destino = ''; s.balElem = ''; s.grupo = '';
+    if (desde === 'tipo' || desde === 'elem') { s.modoSel = ''; s.modo = 'pos'; s.eq = ''; }
+    if (desde === 'tipo') s.elem = '';
+    if (desde === 'elem') s.elem = '';
+    if (desde === 'modo') { s.fase = ''; }
+  }
   function registrarSalida() {
     if (S.guardando) return;
     var s = S.sal, lista = s.items.slice(), actual = null, tipoReg = s.tipo === 'ARMADO' ? 'ARMADO' : 'SALIDA';
@@ -1185,7 +1207,7 @@
     Api.salidaLote(S.ses, { grupo: s.grupo, items: lista.map(function (it) { return { diametro: it.diam, cantidad: it.cant, elemento: it.elem, marca: it.marca }; }), obs: obs, fecha: fch, hora: horaAhora(), fase: s.modo === 'pos' ? String(s.fase).trim() : '', modo: s.modo === 'pct' ? 'PCT' : 'POS', pct: pctV, tipo: tipoReg, destino: destinoSel }).then(function (r) {
       S.guardando = false;
       if (!r.ok) { s.err = r.error; render(); return; }
-      s.obs = ''; s.fecha = ''; s.hora = ''; s.err = ''; s.grupo = ''; s.n = 0; s.items = []; s.q = ''; s.pct = ''; s.elem = ''; s.diam = ''; s.marca = ''; s.pos = ''; s.cant = 1; s.fase = ''; s.fdiam = '';
+      s.obs = ''; s.fecha = ''; s.hora = ''; s.err = ''; s.grupo = ''; s.n = 0; s.items = []; s.q = ''; s.pct = ''; s.elem = ''; s.diam = ''; s.marca = ''; s.pos = ''; s.cant = 1; s.fase = ''; s.fdiam = ''; s.modoSel = ''; s.modo = 'pos'; s.eq = '';
       s.balElem = ''; s.destino = '';
       var cierre = tipoReg === 'SALIDA' && !esStock(elemSel) && (llegaA100 || restaAntes - totP <= 0);
       s.msg = (tipoReg === 'ARMADO' ? 'Armado guardado: ' : 'Salida guardada: ') + pz(totP) + ' (≈ ' + kg(totKg) + ' kg)' + (s.modo === 'pct' ? ' · ' + fmtPct(pctV) + ' % de avance' : '') + '.';
@@ -1311,8 +1333,11 @@
     var el = ev.target.closest('[data-a]'); if (!el) return;
     var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
     switch (a) {
-      case 'tipo': if (S.sal.tipo !== v && S.sal.items.length && !confirm('Se borra la lista de piezas que lleva. ¿Cambiar?')) break; if (S.sal.tipo !== v) { S.sal.tipo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; S.sal.q = ''; S.sal.fdiam = ''; } S.okSal = null; render(); break;
-      case 'modo': if (S.sal.modo !== v && S.sal.items.length && S.sal.modo === 'pos' && !confirm('Se borra la lista de piezas que lleva. ¿Cambiar?')) break; if (S.sal.modo !== v) { S.sal.modo = v; S.sal.items = []; S.sal.pct = ''; S.sal.err = ''; S.sal.msg = ''; S.sal.balElem = ''; predefinir1(); } render(); break;
+      case 'tipo': if (S.sal.tipo && S.sal.tipo !== v && !confSal()) break; if (S.sal.tipo !== v) { reinicioSal('tipo'); S.sal.tipo = v; } S.okSal = null; render(); window.scrollTo(0, 0); break;
+      case 'irA': if (!confSal()) break; reinicioSal(v === 'tipo' ? 'tipo' : 'elem'); if (v === 'tipo') S.sal.tipo = ''; render(); window.scrollTo(0, 0); break;
+      case 'pickElem': reinicioSal('elem'); S.sal.elem = v; if (esStock(v)) { S.sal.modo = 'pos'; S.sal.modoSel = 'pos'; } else predefinir1(); render(); window.scrollTo(0, 0); break;
+      case 'pickModo': if (S.sal.modoSel === v) break; if (!confSal()) break; reinicioSal('modo'); S.sal.modo = v; S.sal.modoSel = v; if (v === 'pct') predefinir1(); render(); break;
+      case 'cancelar': if (!confSal('Se pierde lo que va escogido. ¿Cancelar el registro?', true)) break; reinicioSal('tipo'); S.sal.tipo = ''; S.sal.fecha = ''; S.sal.obs = ''; render(); window.scrollTo(0, 0); break;
       case 'pctset': S.sal.pct = String(v); S.sal.msg = ''; aplicarPct(); render(); break;
       case 'cdest': { var pv = String(v).split(':'), cc = S.cargas[+pv[0]]; if (cc) { cc.dest = pv[1]; cc.err = ''; } render(); break; }
       case 'cierreOk': cierreOk(); break;
@@ -1411,6 +1436,7 @@
   document.addEventListener('input', function (ev) {
     var t = ev.target, i = t.getAttribute('data-i'); if (!i) return;
     if (i === 'sal.obs') S.sal.obs = t.value;
+    else if (i === 'sal.eq') { S.sal.eq = t.value; S.focus = 's-eq'; render(); var e5 = $('s-eq'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }
     else if (i === 'sal.q') { S.sal.q = t.value; S.focus = 's-q'; render(); var e3 = $('s-q'); if (e3) { try { e3.setSelectionRange(e3.value.length, e3.value.length); } catch (x) { } } }
     else if (i === 'ped.q') { S.ped.q = t.value; S.ped.pag = 0; S.focus = 'p-q'; render(); var e5 = $('p-q'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }
     else if (i === 'cie.q' || i === 'ver.q') { (i === 'cie.q' ? S.cie : S.ver).q = t.value; S.focus = i.slice(0, 3) + '-q'; render(); var e7 = $(i.slice(0, 3) + '-q'); if (e7) { try { e7.setSelectionRange(e7.value.length, e7.value.length); } catch (x) { } } }

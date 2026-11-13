@@ -515,3 +515,20 @@ body:not(.emb) .cab .tabs { position: static; }
 .cn .cn-q { width: 84px !important; flex: 0 0 84px; }
 .cn-i span { display: block; }
 .card .busq input { width: 100%; }
+/* Registrar paso a paso */
+.trail { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.trail em { color: #94a3b8; font-style: normal; font-size: 1.2rem; }
+.trail .tc { border: 2px solid #cbd5e1; background: #fff; border-radius: 999px; padding: 8px 12px; font-weight: 700; font-size: .95rem; cursor: pointer; display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+.trail .tc u { font-weight: 500; font-size: .7rem; color: #64748b; }
+.trail .cancel { margin-left: auto; border: 2px solid #fecaca; background: #fff5f5; color: #b91c1c; border-radius: 999px; padding: 10px 14px; font-weight: 700; cursor: pointer; font-size: .95rem; }
+.elist { display: grid; gap: 8px; }
+.eb { display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 2px solid #cbd5e1; background: #fff; border-radius: 14px; padding: 16px 14px; cursor: pointer; text-align: left; font-size: 1.05rem; color: var(--ink); min-height: 56px; }
+.eb b { font-size: 1.05rem; } .eb small { color: var(--mut); font-size: .85rem; white-space: nowrap; } .eb.off { opacity: .45; }
+.sal.t-arm .eb:active { border-color: #b45309; } .sal.t-out .eb:active { border-color: #1d4ed8; }
+.modos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.md { border: 3px solid #cbd5e1; background: #fff; border-radius: 16px; padding: 12px 8px; text-align: center; cursor: pointer; color: var(--ink); }
+.md span { display: block; font-size: 1.8rem; } .md b { display: block; font-size: 1.05rem; } .md small { display: block; font-size: .78rem; color: var(--mut); }
+.md.on { background: #eef6ff; border-color: #1d4ed8; box-shadow: 0 0 0 3px rgba(29,78,216,.2); } .sal.t-arm .md.on { background: var(--armbg); border-color: #b45309; box-shadow: 0 0 0 3px rgba(180,83,9,.25); }
+.md.off { opacity: .45; cursor: not-allowed; }
+.sbar .cnl { background: #fff; color: #b91c1c; border: 2px solid #fecaca; padding: 11px 14px; font-weight: 700; }
+@media (max-width: 400px) { .sbar .sres .mut { display: none; } .sbar .cnl { padding: 11px 12px; } .sbar .sacar2 { flex: 1; min-width: 0; } }
