@@ -333,7 +333,7 @@ const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes
 function selGet(k, def, ok) { try { const v = sessionStorage.getItem('adm_sel_' + k); return v && ok(v) ? v : def; } catch (e) { return def; } }
 function selSet(k, v) { try { sessionStorage.setItem('adm_sel_' + k, v); } catch (e) {} }
 let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] === v));
-const TR_TABS = [['resumen', '📊 Resumen'], ['viajes', '📋 Viajes'], ['albaran', '🔎 Búsquedas'], ['sosp', '⚠️ Sospechosos'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
+const TR_TABS = [['resumen', '📊 Resumen'], ['viajes', '📋 Viajes'], ['albaran', '🔎 Búsquedas'], ['sosp', '⚠️ Alertas'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
   { const bq = TRTAB === 'albaran'; $('cPer').hidden = bq; $('trTop').hidden = TRTAB !== 'resumen'; const t = document.querySelector('#cTr > h2'); if (t) t.hidden = bq; }
@@ -483,7 +483,7 @@ function vistaSosp(c) {
   if (TRSOSP === '__rev') {
     R.slice(0, 150).forEach(x => c.appendChild(h('div', { class: 'tcard', style: 'border-left:6px solid #2e7d32;background:#f3faf3' }, h('div', { class: 'big' }, '✔ ' + x.tipo), h('div', {}, x.msg),
       h('div', { class: 'small' }, 'Revisado por ' + x.rev.por + ' · ' + fmtTs(x.rev.ts) + (x.rev.nota ? ' · ' + x.rev.nota : '')),
-      h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: () => marcarRev(x, 'quitar') }, '↩ Volver a sospechoso')))));
+      h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: () => marcarRev(x, 'quitar') }, '↩ Volver a alertas')))));
     if (!R.length) c.appendChild(h('div', { class: 'small' }, 'Todavía no has marcado ninguno como revisado.'));
     return;
   }
@@ -499,10 +499,10 @@ function vistaSosp(c) {
     const cb = h('input', { type: 'checkbox', style: 'width:26px;height:26px;margin:0' });
     cb.onchange = () => { cb.disabled = true; marcarRev(x, 'revisar'); };
     c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '⚠️ ' + x.tipo), h('div', {}, x.msg),
-      h('label', { style: 'display:flex;gap:10px;align-items:center;margin:10px 0;font-weight:700;font-size:17px;cursor:pointer' }, cb, 'Ya lo revisé (quitar de sospechosos)'),
+      h('label', { style: 'display:flex;gap:10px;align-items:center;margin:10px 0;font-weight:700;font-size:17px;cursor:pointer' }, cb, 'Ya lo revisé (quitar de alertas)'),
       h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: () => { ALB.q = x.vs[0].n_valera || x.vs[0].cod; TRTAB = 'albaran'; pintarTr(); buscarAlb(); } }, '🔎 Ver albarán'))));
   });
-  if (!L.length) c.appendChild(h('div', { class: 'trok' }, '✅ Nada sospechoso en estas fechas'));
+  if (!L.length) c.appendChild(h('div', { class: 'trok' }, '✅ Sin alertas en estas fechas'));
   if (L.length > 120) c.appendChild(h('div', { class: 'small' }, 'Se muestran 120 de ' + L.length));
 }
 
