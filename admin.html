@@ -297,13 +297,11 @@ async function entrar() {
   $('loginmsg').textContent = 'Entrando…'; $('entrar').disabled = true;
   try {
     LLAVE = l;
-    const v = await api({ accion: 'validar', llave: l, app: 'admin' });
-    if (!v.ok) { $('loginmsg').textContent = v.mensaje || 'Llave no válida'; LLAVE = ''; try { localStorage.removeItem('adm'); } catch (e) {} $('entrar').disabled = false; return; }
     $('loginmsg').textContent = 'Cargando datos…';
-    const ok = await cargar(true);
+    const ok = await cargar(true); // el servidor valida la llave en esta misma llamada (una ida y vuelta menos)
     if (ok) { try { localStorage.setItem('adm', l); } catch (e) {} $('login').hidden = true; $('panel').hidden = false; $('salirTop').hidden = false; $('loginmsg').textContent = ''; }
-    else { LLAVE = ''; try { localStorage.removeItem('adm'); } catch (e) {} }
-  } catch (e) { $('loginmsg').textContent = 'No se pudo conectar.'; LLAVE = ''; }
+    else { LLAVE = ''; TRP = null; try { localStorage.removeItem('adm'); } catch (e) {} }
+  } catch (e) { $('loginmsg').textContent = 'No se pudo conectar.'; LLAVE = ''; TRP = null; }
   $('entrar').disabled = false;
 }
 async function cargar(primera) {
