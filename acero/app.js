@@ -95,9 +95,8 @@
   function gruposTabs() {
     var G = [];
     if (MODO !== 'salidas') G.push({ k: 'panel', ico: '📊', t: 'Panel', hojas: [['panel', 'Panel']] });
-    G.push({ k: 'alm', ico: '🏬', t: 'Almacén', hojas: [['reg', '🕒 Registro'], ['llego', '📥 Llegó'], ['armar', '🔧 Armar'], ['fin', '✅ Fin de armado'], ['salio', '🚚 Salió'], ['stock', '📦 Stock']] });
-    G.push({ k: 'regu', ico: '🧮', t: 'Regularización', hojas: [['ver', 'Regularización']] });
-    if (MODO !== 'salidas') G.push({ k: 'con', ico: '🗂️', t: 'Pedidos y movimientos', hojas: [['ped', '📋 Pedidos'], ['mov', '🧾 Movimientos']] });
+    G.push({ k: 'alm', ico: '🏬', t: 'Almacén', hojas: [['reg', '🕒 Registro'], ['llego', '📥 Llegó'], ['armar', '🔧 Armar'], ['fin', '✅ Fin de armado'], ['salio', '🚚 Salió'], ['stock', '📦 Stock'], ['ver', '🧮 Regularización']] });
+    if (MODO !== 'salidas') G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] });
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
     return G;
   }
@@ -984,6 +983,7 @@
 
   function vista() {
     if (!S.cargado) return vCargando();
+    if (S.tab === 'mov') S.tab = 'reg';
     var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return nv;
     switch (S.tab) {
       case 'salida': return vSalida();
@@ -1008,7 +1008,7 @@
     app.style.minHeight = h0 + 'px';
     Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { sx[e.className + i] = e.scrollLeft; });
     app.innerHTML = '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
-    Array.prototype.forEach.call(app.querySelectorAll('details'), function (d) { d.open = true; }); // nada contraído: todo visible
+    Array.prototype.forEach.call(app.querySelectorAll('details'), function (d) { if (!d.classList.contains('mv-d')) d.open = true; }); // nada contraído, salvo las posiciones del registro
     if (fo && $(fo)) { var el = $(fo); el.focus(); try { el.select(); } catch (e) { } }
     Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { if (sx[e.className + i] != null) e.scrollLeft = sx[e.className + i]; });
     var on = app.querySelector('.tabs .on'); if (on && on.parentNode.scrollWidth > on.parentNode.clientWidth) { var pr = on.parentNode, l = on.offsetLeft, r = l + on.offsetWidth; if (l < pr.scrollLeft || r > pr.scrollLeft + pr.clientWidth) pr.scrollLeft = l - 12; }
@@ -1361,7 +1361,7 @@
   }
 
 
-  if (window.AcReg) AcReg.init({ S: S, render: render, toast: toast, esc: esc, n0: n0, kg: kg, fecha: fecha, fechaDia: fechaDia, hoyISO: hoyISO, horaAhora: horaAhora, pz: pz, vMov: vMov, vCargar: vCargar, vFiltro: vFiltro, enPer: enPer, Api: Api, C: C, cargarEstado: cargarEstado, enviarCola: enviarCola, esAdmin: esAdmin, posTxt: posTxt });
+  if (window.AcReg) AcReg.init({ S: S, render: render, toast: toast, esc: esc, n0: n0, kg: kg, fecha: fecha, fechaDia: fechaDia, hoyISO: hoyISO, horaAhora: horaAhora, pz: pz, vMov: vMov, vCargar: vCargar, vFiltro: vFiltro, enPer: enPer, pedidosLista: pedidosLista, esc2: esc, Api: Api, C: C, cargarEstado: cargarEstado, enviarCola: enviarCola, esAdmin: esAdmin, posTxt: posTxt });
 
   // ---------- Eventos ----------
   document.addEventListener('click', function (ev) {

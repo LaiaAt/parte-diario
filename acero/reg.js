@@ -66,26 +66,32 @@
     var S = X.S, L = [], G = {}, orden = [];
     S.estado.pedidos.forEach(function (p) {
       if (/^(SOBRANTE|TRASLADO|AJUSTE|STOCK)$/.test(String(p.pedido))) return;
-      L.push({ f: p.fecha, h: X.vMov({ t: 'E', f: p.fecha, p: p }, true) });
+      L.push({ f: p.fecha, est: p.estructura, h: X.vMov({ t: 'E', f: p.fecha, p: p }, true) });
     });
     armados().forEach(function (a) {
       if (a.estado === 'ANULADO') return;
-      L.push({ f: a.inicio, h: cardArm(a, false) });
-      if (a.estado === 'TERMINADO') L.push({ f: a.fin, h: cardArm(a, true) });
+      L.push({ f: a.inicio, est: a.elemento, h: cardArm(a, false) });
+      if (a.estado === 'TERMINADO') L.push({ f: a.fin, est: a.elemento, h: cardArm(a, true) });
     });
     S.estado.salidas.forEach(function (s) { var k = String(s.id).replace(/-\d+$/, ''); if (!G[k]) { G[k] = []; orden.push(k); } G[k].push(s); });
     orden.forEach(function (k) {
       var g = G[k]; if (SISTEMA.test(String(g[0].obs || ''))) return;
-      L.push({ f: g[0].fecha, h: X.vMov({ t: 'S', f: g[0].fecha, s: g[0], g: g }, true) });
+      L.push({ f: g[0].fecha, est: g[0].elemento, h: X.vMov({ t: 'S', f: g[0].fecha, s: g[0], g: g }, true) });
     });
-    return L.filter(function (e) { return X.enPer(e.f); }).sort(function (a, b) { return a.f < b.f ? 1 : a.f > b.f ? -1 : 0; });
+    var q = String(S.mq || '').trim().toLowerCase();
+    if (q) {
+      var est = {}; S.estado.pedidos.forEach(function (p) { if (String(p.pedido).toLowerCase() === q) est[p.estructura] = 1; });
+      L = L.filter(function (e) { return e.est ? !!est[e.est] : false; });
+    }
+    return L.filter(function (e) { return q || X.enPer(e.f); }).sort(function (a, b) { return a.f < b.f ? 1 : a.f > b.f ? -1 : 0; });
   }
   function vRegistro() {
-    var h = '<div class="bgs">' + grande('tab', 'llego', '📥', 'Llegó acero', 'Para una estructura o para el stock') + grande('tab', 'armar', '🔧', 'Armar', 'Empezar una estructura') +
-      grande('tab', 'fin', '✅', 'Fin de armado', 'Terminar y contar lo que sobró') + grande('tab', 'salio', '🚚', 'Salió', 'Estructura armada o acero del stock') + '</div>';
+    var h = '';
     var cur = enCurso();
     if (cur.length) h += '<div class="card"><h2>🔧 Armando ahora</h2>' + cur.map(function (a) { return '<div class="fila"><div><b>' + esc(a.elemento) + '</b><div class="peq mut">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + '</div></div><button class="btn chico" data-a="finElegir" data-v="' + esc(a.id) + '">✅ Terminar</button></div>'; }).join('') + '</div>';
-    h += X.vFiltro() + '<h2 style="margin:14px 2px 8px">🕒 Registro</h2>';
+    h += X.vFiltro() + '<div class="card"><div class="row2" style="justify-content:space-between"><h2 style="margin:0">🕒 Registro</h2><button class="btn chico sec" data-a="csv">⬇ Descargar CSV</button></div>' +
+      '<div class="mfil"><label for="m-q">Filtrar por número de pedido</label><select id="m-q" data-f="mov.q"><option value="">Todos los pedidos</option>' + X.pedidosLista().map(function (n) { return '<option value="' + esc(n) + '"' + (String(X.S.mq || '') === String(n) ? ' selected' : '') + '>Pedido ' + esc(n) + '</option>'; }).join('') + '</select></div>' +
+      (X.S.mq ? '<p class="peq mut">Mostrando todo lo del pedido ' + esc(X.S.mq) + ' (sin límite de fechas).</p>' : '') + '</div>';
     var E = eventos();
     if (!E.length) return h + '<div class="card vacio">Todavía no hay movimientos en este periodo.</div>';
     var dia = '';

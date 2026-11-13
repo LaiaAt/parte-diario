@@ -572,3 +572,11 @@ body:not(.emb) .cab .tabs { position: static; }
 details > summary { pointer-events: none; list-style: none; cursor: default; font-weight: 700; }
 details > summary::-webkit-details-marker { display: none; }
 details > summary::marker { content: ''; }
+
+/* Posiciones del registro: plegables, con contraste al abrirse */
+details.mv-d > summary { pointer-events: auto; cursor: pointer; color: #0b5cad; font-weight: 700; padding: 6px 0; }
+details.mv-d > summary::before { content: '▸ '; } details.mv-d[open] > summary::before { content: '▾ '; }
+details.mv-d[open] { background: #0f172a; color: #fff; border-radius: 10px; padding: 8px 12px; margin-top: 6px; }
+details.mv-d[open] > summary { color: #fcd34d; }
+details.mv-d[open] table, details.mv-d[open] td, details.mv-d[open] th { color: #fff; border-color: rgba(255,255,255,.25); background: transparent; }
+details.mv-d[open] th { color: #cbd5e1; }
