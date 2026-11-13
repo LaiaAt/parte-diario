@@ -318,7 +318,7 @@ const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes
 function selGet(k, def, ok) { try { const v = sessionStorage.getItem('adm_sel_' + k); return v && ok(v) ? v : def; } catch (e) { return def; } }
 function selSet(k, v) { try { sessionStorage.setItem('adm_sel_' + k, v); } catch (e) {} }
 let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] === v));
-const TR_TABS = [['viajes', '📋 Viajes'], ['albaran', '🔎 Buscar albarán'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
+const TR_TABS = [['viajes', '📋 Viajes'], ['albaran', '🔎 Búsquedas'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
   const nDup = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán') && !x.rev).length : 0;
@@ -501,7 +501,7 @@ function pintaAlb() {
   const box = $('albRes'); if (!box || !ALB.r) return; box.textContent = '';
   const r = ALB.r;
   if (!r.viajes.length) { box.appendChild(h('div', { class: 'trok', style: 'color:var(--mut)' }, 'No hay ningún viaje con ese número')); return; }
-  box.appendChild(h('div', { class: 'small' }, r.total + (r.total === 1 ? ' resultado' : ' resultados')));
+  box.appendChild(h('div', { class: 'small', style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, r.total + (r.total === 1 ? ' resultado' : ' resultados'), h('button', { class: 'sec sm', onclick: xlsxBusqueda }, '⬇ Descargar Excel')));
   r.viajes.forEach((v, i) => {
     const fo = h('div', { class: 'fotosAlb' });
     box.appendChild(h('div', { class: 'tcard' + (alV(v) ? ' warn' : '') },
@@ -594,6 +594,21 @@ async function histAlb(v, pan) {
     caja.appendChild(h('div', { class: 'acc', style: 'margin-top:6px' }, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cerrar')));
     pan.appendChild(caja);
   } catch (e) { pan.textContent = 'No se pudo conectar.'; }
+}
+async function xlsxBusqueda() {
+  const r = ALB.r; if (!r || !r.viajes.length) return;
+  try {
+    await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
+    const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Búsqueda');
+    const C = [['Fecha', 11, v => v.fecha], ['Hora', 7, v => v.hora_salida || ''], ['Vale', 17, v => v.cod], ['N° albarán', 11, v => v.n_valera || ''], ['Placa', 9, v => v.placa], ['Empresa', 18, v => v.empresa || ''], ['Conductor', 18, v => v.conductor || ''], ['Material', 20, v => v.material || ''], ['Movimiento', 11, v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['Origen', 22, v => oriV(v)], ['Destino', 22, v => desV(v)], ['m³ albarán', 11, v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Estado', 12, v => v.estado || ''], ['Alertas', 32, v => alV(v) || '']];
+    ws.columns = C.map(c => ({ header: c[0], width: c[1] }));
+    r.viajes.forEach(v => ws.addRow(C.map(c => { try { return c[2](v); } catch (e) { return ''; } })));
+    const hr = ws.getRow(1); hr.font = { bold: true, color: { argb: 'FFFFFFFF' } }; hr.eachCell(ce => { ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B5E20' } }; });
+    ws.views = [{ state: 'frozen', ySplit: 1 }]; ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: C.length } };
+    const buf = await wb.xlsx.writeBuffer(), a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = 'Busqueda_' + (ALB.q || 'transportes').replace(/[^\w-]+/g, '_') + '.xlsx'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) { alert('No se pudo generar el Excel.'); }
 }
 function vistaAlb(c) {
   const inp = h('input', { type: 'search', placeholder: '🔎 N° de albarán / valera, vale o placa…', value: ALB.q, inputmode: 'search' });
