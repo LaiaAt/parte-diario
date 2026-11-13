@@ -188,7 +188,7 @@ header>span{gap:6px!important;min-width:0}
 </section>
 
 <section id="panel" hidden>
-  <div class="card">
+  <div class="card" id="cPer">
     <div class="small" style="margin-bottom:6px"><b>Periodo</b> (aplica a todos los módulos)</div>
     <div class="row">
       <div><label>Mes</label><select id="mes"></select></div>
@@ -321,8 +321,9 @@ let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] ===
 const TR_TABS = [['viajes', '📋 Viajes'], ['albaran', '🔎 Búsquedas'], ['sosp', '⚠️ Sospechosos'], ['resumen', '📊 Resumen'], ['mapa', '🔀 Flujo (de dónde a dónde)'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
+  { const bq = TRTAB === 'albaran'; $('cPer').hidden = bq; $('trTop').hidden = bq; const t = document.querySelector('#cTr > h2'); if (t) t.hidden = bq; }
   const nDup = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán' || x.tipo === 'Sin m³ de albarán') && !x.rev).length : 0;
-  TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; selSet('tr', k); if (TR) pintarTr(); else navTr(); } }, t, k === 'sosp' && nDup ? h('span', { class: 'tabBadge' }, '🚨 ' + nDup) : null)));
+  TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { TRTAB = k; selSet('tr', k); if (k === 'albaran') { navTr(); const c = $('trBody'); c.textContent = ''; vistaAlb(c); } else if (TR) pintarTr(); else navTr(); } }, t, k === 'sosp' && nDup ? h('span', { class: 'tabBadge' }, '🚨 ' + nDup) : null)));
 }
 function modulo(m) {
   if (m === 'acero' && !(D && D.acero)) m = 'resumen';
@@ -330,14 +331,14 @@ function modulo(m) {
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
   const gt = m === 'transportes', ga = m === 'acero', grp = gt ? 't' : ga ? 'a' : 'p';
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g === grp));
-  $('nav2').hidden = gt || ga; $('nav3').hidden = !gt; $('nav4').hidden = !ga; if (gt) navTr(); if (ga) navAc();
+  $('nav2').hidden = gt || ga; $('nav3').hidden = !gt; $('nav4').hidden = !ga; if (!gt) $('cPer').hidden = false; if (gt) navTr(); if (ga) navAc();
   { const t = $('nav').offsetHeight + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav4').style.top = t; $('nav4').style.marginTop = '0'; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
   window.scrollTo(0, 0);
   if (m === 'transportes' && !TR) cargarTr();
   if (m === 'acero') abrirAcero();
 }
-let TRP = null, TRVM = 'conf', TR = null, TRTAB = selGet('tr', 'viajes', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null };
+let TRP = null, TRVM = 'conf', TR = null, TRTAB = selGet('tr', 'viajes', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
 async function cargarTr() {
   $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes.')));
   try {
@@ -488,39 +489,34 @@ function vistaSosp(c) {
 }
 
 /* ----- buscador de albarán ----- */
+const ALB_F = [['material', 'Material'], ['mov', 'Movimiento'], ['estado', 'Foto de albarán'], ['empresa', 'Empresa'], ['origen', 'Origen'], ['destino', 'Destino'], ['uf', 'UF']];
 async function buscarAlb() {
   const q = (ALB.q || '').trim(), box = $('albRes'); if (!box) return;
-  if (!q) { ALB.r = null; pintaAlb(); return; }
-  if (q.length < 2) { box.textContent = 'Escribe al menos 2 caracteres.'; return; }
-  box.textContent = 'Buscando…';
+  if (q && q.length < 2) { box.textContent = 'Escribe al menos 2 caracteres.'; return; }
+  ALB.f = ALB.f || {}; const n = ++ALB.n; box.textContent = 'Buscando…';
   try {
-    const r = await api({ accion: 'admin_tr_buscar', llave: LLAVE, q: q });
+    const r = await api({ accion: 'admin_tr_buscar', llave: LLAVE, q: q, f: ALB.f }, 60000);
+    if (n !== ALB.n) return;
     if (!r.ok) { box.textContent = r.mensaje || 'No se pudo buscar'; return; }
-    ALB.r = r; pintaAlb();
-  } catch (e) { box.textContent = 'No se pudo conectar.'; }
+    ALB.r = r; if (!ALB.opc || !Object.keys(ALB.f).some(k => ALB.f[k]) && !q) ALB.opc = r.opc; ALB.opc = ALB.opc || r.opc; pintaAlb();
+  } catch (e) { if (n === ALB.n) box.textContent = 'No se pudo conectar.'; }
 }
-const ALB_F = [['material', 'Material', v => v.material || ''], ['mov', 'Movimiento', v => v.mov === 'RECIBE' ? 'Recibido' : 'Entregado'], ['estado', 'Foto de albarán', v => v.estado || ''], ['empresa', 'Empresa', v => v.empresa || ''], ['ori', 'Origen', v => oriV(v) || ''], ['des', 'Destino', v => desV(v) || ''], ['uf', 'UF', v => ufTxt(v) || '']];
-function pintaAlb(foco) {
+function pintaFiltrosAlb() {
+  const fil = $('albFil'); if (!fil) return; fil.textContent = ''; ALB.f = ALB.f || {};
+  ALB_F.forEach(([k, et]) => {
+    const sel = h('select', { style: 'width:100%' }, h('option', { value: '' }, et + ': todos'), ...(((ALB.opc || {})[k]) || []).map(x => h('option', { value: x }, x)));
+    sel.value = ALB.f[k] || ''; sel.onchange = () => { ALB.f[k] = sel.value; buscarAlb(); };
+    fil.appendChild(h('span', { style: 'flex:1 1 0;min-width:120px' }, sel));
+  });
+  fil.appendChild(h('button', { class: 'sec sm', style: 'flex:0 0 auto', onclick: () => { ALB.f = {}; ALB.q = ''; const i = $('albQ'); if (i) i.value = ''; buscarAlb(); } }, 'Limpiar'));
+}
+function pintaAlb() {
   const box = $('albRes'); if (!box) return; box.textContent = '';
-  const base = ALB.r ? ALB.r.viajes : viajesTr().slice().sort((a, b) => (b.fecha + (b.hora_salida || '')).localeCompare(a.fecha + (a.hora_salida || '')));
-  ALB.f = ALB.f || {};
-  const fil = $('albFil'); if (fil && !foco) {
-    fil.textContent = '';
-    const todos = (TR && TR.viajes && TR.viajes.length) ? TR.viajes : base;
-    ALB_F.forEach(([k, et, fn]) => {
-      const op = Array.from(new Set(todos.map(fn).filter(Boolean))).sort((x, y) => x.localeCompare(y, 'es'));
-      const dl = h('datalist', { id: 'dl_' + k }, ...op.map(x => h('option', { value: x })));
-      const inp = h('input', { type: 'search', list: 'dl_' + k, placeholder: et + ': todos (escribe o elige)', value: ALB.f[k] || '', style: 'width:100%' });
-      inp.oninput = () => { ALB.f[k] = inp.value; clearTimeout(ALB.t); ALB.t = setTimeout(() => pintaAlb(k), 250); };
-      fil.appendChild(h('span', { style: 'flex:1 1 170px;min-width:0' }, inp, dl));
-    });
-    fil.appendChild(h('button', { class: 'sec sm', onclick: () => { ALB.f = {}; pintaAlb(); } }, 'Quitar filtros'));
-  }
-  const vis = base.filter(v => ALB_F.every(([k, , fn]) => !ALB.f[k] || fn(v).toLowerCase().includes(String(ALB.f[k]).trim().toLowerCase())));
-  ALB.vis = vis;
-  const r = { viajes: vis.slice(0, 80), total: vis.length };
+  pintaFiltrosAlb();
+  if (!ALB.r) return;
+  const r = ALB.r, vis = r.viajes; ALB.vis = vis;
   if (!vis.length) { box.appendChild(h('div', { class: 'trok', style: 'color:var(--mut)' }, 'No hay viajes con esos datos')); return; }
-  box.appendChild(h('div', { class: 'small', style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, r.total + (r.total === 1 ? ' resultado' : ' resultados') + (ALB.r ? '' : ' del periodo cargado (o escribe arriba para buscar en todo)') + (vis.length > 80 ? ' · se muestran 80, el Excel trae todos' : ''), h('button', { class: 'sec sm', onclick: xlsxBusqueda }, '⬇ Descargar Excel')));
+  box.appendChild(h('div', { class: 'small', style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, r.total + (r.total === 1 ? ' resultado' : ' resultados') + (r.total > vis.length ? ' · se muestran los ' + vis.length + ' más recientes, el Excel trae todos' : ''), h('button', { class: 'sec sm', id: 'btnXB', onclick: xlsxBusqueda }, '⬇ Descargar Excel')));
   r.viajes.forEach((v, i) => {
     const fo = h('div', { class: 'fotosAlb' });
     box.appendChild(h('div', { class: 'tcard' + (alV(v) ? ' warn' : '') },
@@ -615,8 +611,10 @@ async function histAlb(v, pan) {
   } catch (e) { pan.textContent = 'No se pudo conectar.'; }
 }
 async function xlsxBusqueda() {
-  const r = { viajes: ALB.vis || [] }; if (!r.viajes.length) return;
+  const btn = $('btnXB'); if (btn) { btn.disabled = true; btn.textContent = 'Preparando…'; }
   try {
+    const rr = await api({ accion: 'admin_tr_buscar', llave: LLAVE, q: (ALB.q || '').trim(), f: ALB.f || {}, todo: true }, 90000);
+    if (!rr.ok) throw new Error('x'); const r = { viajes: rr.viajes }; if (!r.viajes.length) return;
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Búsqueda');
     const C = [['Fecha', 11, v => v.fecha], ['Hora', 7, v => v.hora_salida || ''], ['Vale', 17, v => v.cod], ['N° albarán', 11, v => v.n_valera || ''], ['Placa', 9, v => v.placa], ['Empresa', 18, v => v.empresa || ''], ['Conductor', 18, v => v.conductor || ''], ['Material', 20, v => v.material || ''], ['Movimiento', 11, v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['Origen', 22, v => oriV(v)], ['Destino', 22, v => desV(v)], ['m³ albarán', 11, v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Foto albarán', 12, v => v.estado || ''], ['Alertas', 32, v => alV(v) || '']];
@@ -628,13 +626,14 @@ async function xlsxBusqueda() {
     a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
     a.download = 'Busqueda_' + (ALB.q || 'transportes').replace(/[^\w-]+/g, '_') + '.xlsx'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   } catch (e) { alert('No se pudo generar el Excel.'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '⬇ Descargar Excel'; } }
 }
 function vistaAlb(c) {
-  const inp = h('input', { type: 'search', placeholder: '🔎 Búsqueda libre: N° de albarán, valera, vale o placa…', value: ALB.q, inputmode: 'search' });
+  const inp = h('input', { id: 'albQ', type: 'search', placeholder: '🔎 Búsqueda libre: N° de albarán, valera, vale o placa…', value: ALB.q, inputmode: 'search' });
   inp.oninput = () => { ALB.q = inp.value; };
   inp.onkeydown = e => { if (e.key === 'Enter') buscarAlb(); };
-  c.append(inp, h('button', { style: 'width:100%;padding:14px;font-size:18px', onclick: buscarAlb }, 'Buscar'), h('div', { id: 'albFil', style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center' }), h('div', { id: 'albRes', style: 'margin-top:10px' }));
-  pintaAlb();
+  c.append(inp, h('button', { style: 'width:100%;padding:14px;font-size:18px', onclick: buscarAlb }, 'Buscar'), h('div', { id: 'albFil', style: 'display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;margin-top:10px;align-items:center' }), h('div', { id: 'albRes', style: 'margin-top:10px' }));
+  buscarAlb();
 }
 
 /* ----- resumen gerencial ----- */
