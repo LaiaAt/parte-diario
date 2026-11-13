@@ -402,7 +402,9 @@ const botonesFoto = v => h('span', {},
 /* ----- sospechosos (sin GPS de volquetas: solo datos del formulario) ----- */
 const claveSosp = (tipo, vs) => tipo + '|' + vs.map(v => v.cod).sort().join(',');
 const revCods = () => { if (!TR._rs) { TR._rs = new Set(); (TR.revisados || []).forEach(r => r.cods.forEach(c => TR._rs.add(c))); } return TR._rs; };
-const alV = v => (v.alertas && !revCods().has(v.cod)) ? v.alertas : '';
+const EDRX = /^Corregido por el administrador/;
+function limpiaEd(v) { if (!v || !v.alertas) return v; const L = String(v.alertas).split('; '), e = L.find(a => EDRX.test(a)); if (e) { v.editado = e.replace('Corregido por el administrador', 'Editado por'); v.alertas = L.filter(a => !EDRX.test(a)).join('; '); } return v; }
+const alV = v => (limpiaEd(v), v.alertas && !revCods().has(v.cod)) ? v.alertas : '';
 async function marcarRev(x, estado) {
   try {
     const r = await api({ accion: 'admin_tr_revisar', llave: LLAVE, clave: x.clave, tipo: x.tipo, cods: x.vs.map(v => v.cod), estado });
@@ -529,7 +531,7 @@ function pintaAlb() {
   const box = $('albRes'); if (!box) return; box.textContent = '';
   pintaFiltrosAlb();
   if (!ALB.r) return;
-  const r = ALB.r, vis = r.viajes; ALB.vis = vis;
+  const r = ALB.r, vis = r.viajes.map(limpiaEd); ALB.vis = vis;
   if (!vis.length) { box.appendChild(h('div', { class: 'trok', style: 'color:var(--mut)' }, 'No hay viajes con esos datos')); return; }
   box.appendChild(h('div', { class: 'small', style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, r.total + (r.total === 1 ? ' resultado' : ' resultados') + (r.total > vis.length ? ' · se muestran los ' + vis.length + ' más recientes, el Excel trae todos' : ''), h('button', { class: 'sec sm', id: 'btnXB', onclick: xlsxBusqueda }, '⬇ Descargar Excel')));
   r.viajes.forEach((v, i) => {
@@ -880,7 +882,8 @@ function cabViaje(v) {
     h('div', { style: 'margin:4px 0 2px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap' }, h('span', { style: 'font-size:12px;font-weight:700;color:#607d8b;letter-spacing:.5px' }, 'ALBARÁN N°'), h('span', { style: 'font-size:26px;font-weight:800;color:#0d3b66;letter-spacing:.5px;line-height:1.1' }, v.n_valera || '—'), v.valera_de ? h('span', { class: 'small' }, v.valera_de) : null),
     h('div', { style: 'margin:6px 0 4px' }, chip(vol, 'background:#e3f2e5;color:#1b5e20'), p !== null ? chip(p + ' %', p < 70 ? 'background:#fde7b0;color:#6b4a00' : '') : null, chip(v.mov === 'RECIBE' ? '📥 Recibe' : '📤 Entrega'), chip(v.material || '—')),
     h('div', { style: 'font-size:15px;margin:4px 0;line-height:1.5' }, fila('📍 Origen: ', oriV(v)), fila('🏁 Destino: ', desV(v))),
-    h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '')));
+    h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '')),
+    (limpiaEd(v), v.editado) ? h('div', { class: 'small', style: 'color:#607d8b' }, '✏️ ' + v.editado) : null);
 }
 function cardViaje(v) {
   const p = pctV(v), vol = Number(v.vol_albaran) > 0 ? nf(v.vol_albaran) + ' m³' : '— m³', rn = repNum(v), al = alV(v);
@@ -1221,7 +1224,7 @@ function vistaGeo(c) {
 function sinAlertasVol() {
   if (TR._lim) return; TR._lim = 1;
   const esVol = a => /volumen de tolva|Capacidad distinta/i.test(a);
-  (TR.viajes || []).concat(TR.reportes_extra || []).forEach(v => { if (v.alertas) v.alertas = String(v.alertas).split('; ').filter(a => !esVol(a)).join('; '); });
+  (TR.viajes || []).concat(TR.reportes_extra || []).forEach(v => { limpiaEd(v); if (v.alertas) v.alertas = String(v.alertas).split('; ').filter(a => !esVol(a)).join('; '); });
 }
 function pintarTr() {
   sinAlertasVol();
