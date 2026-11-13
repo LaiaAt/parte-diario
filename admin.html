@@ -1822,7 +1822,7 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
     if (LLAVE) cargar(false);
   };
   s.value = '__hoy'; $('desde').value = hy; $('hasta').value = hy;
-  ['desde', 'hasta'].forEach(i => $(i).onchange = () => { s.value = ''; });
+  let tAuto; ['desde', 'hasta'].forEach(i => $(i).onchange = () => { s.value = ''; clearTimeout(tAuto); tAuto = setTimeout(() => { const d = $('desde').value, hh = $('hasta').value; if (LLAVE && d && hh && d <= hh) $('act').onclick(); }, 500); });
 })();
 (function () { let l = ''; try { l = localStorage.getItem('adm') || sessionStorage.getItem('adm') || ''; } catch (e) {} if (l) { $('llave').value = l; entrar(); } })();
 
