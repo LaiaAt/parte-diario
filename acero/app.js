@@ -95,7 +95,7 @@
   function gruposTabs() {
     var G = [];
     if (MODO !== 'salidas') G.push({ k: 'panel', ico: '📊', t: 'Panel', hojas: [['panel', 'Panel']] });
-    G.push({ k: 'alm', ico: '🏬', t: 'Almacén', hojas: [['reg', '🕒 Registro'], ['llego', '📥 Llegó'], ['armar', '🔧 Armar'], ['fin', '✅ Fin de armado'], ['salio', '🚚 Salió'], ['stock', '📦 Stock'], ['ver', '🧮 Regularización']] });
+    G.push({ k: 'alm', ico: '🏬', t: 'Almacén', hojas: [['reg', '🕒 Registro'], ['llego', '📥 Llegó'], ['armar', '🔧 Armado'], ['salio', '🚚 Salió'], ['stock', '📦 Stock'], ['ver', '🧮 Regularización']] });
     if (MODO !== 'salidas') G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] });
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
     return G;
@@ -253,28 +253,10 @@
     if (!S.estado.entradas.length) return sinInventario();
     var c = S.calc, t = c.tot, ag = aggPeriodo();
     var diams = Object.keys(c.porDiam).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); });
-    var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>' + (window.AcReg ? AcReg.kpis() : '') + vAvance();
+    var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>' + (window.AcReg ? AcReg.kpis() + AcReg.estructuras() : '');
     h += vFiltro();
     h += '<h2 class="sec-t">Movimiento del período <small>' + textoPeriodo() + '</small></h2><div class="kp3">' + kpiPer('Llegó', 'lib', ag.lle) + kpiPer('Armado', 'arm', ag.arm) + kpiPer('Salió', 'out', ag.out) + '</div>';
     h += graficoDias(ag);
-    // estado actual de la playa
-    h += '<div class="card gr"><h3>Estado actual del acero</h3><div class="dn-w">' + donut(t.lib_p, t.arm_p, t.out_p) +
-      '<div class="dn-l"><div><i class="lib"></i><b>' + n0(t.lib_p) + '</b> libres<small>' + kg(t.lib_kg) + ' kg</small></div><div><i class="arm"></i><b>' + n0(t.arm_p) + '</b> armadas<small>' + kg(t.arm_kg) + ' kg</small></div><div><i class="out"></i><b>' + n0(t.out_p) + '</b> salieron<small>' + kg(t.out_kg) + ' kg</small></div></div></div></div>';
-    // kilos por diámetro en el período
-    var dp = diams.filter(function (d) { var x = ag.diam[d]; return x && (x.lle || x.arm || x.out); });
-    var mxd = Math.max.apply(null, dp.map(function (d) { var x = ag.diam[d]; return Math.max(x.lle, x.arm, x.out); }).concat([1]));
-    h += '<div class="card gr"><h3>Kilos por tipo de varilla en el período</h3><div class="ley"><span><i class="lib"></i>Llegó</span><span><i class="arm"></i>Armado</span><span><i class="out"></i>Salió</span></div>' +
-      (dp.length ? dp.map(function (d) {
-        var x = ag.diam[d], w = function (n) { return Math.max(n > 0 ? 1.5 : 0, 100 * n / mxd).toFixed(1) + '%'; };
-        function fila(cl, k, q) { return '<div class="dm"><div class="dm-b"><i class="' + cl + '" style="width:' + w(k) + '"></i></div><span><b>' + kg(k) + '</b> kg · ' + n0(q) + ' pzs</span></div>'; }
-        return '<div class="bh-r"><div class="bh-t"><b>' + esc(C.diamLabel(d)) + '</b></div>' + fila('lib', x.lle, x.lle_p) + fila('arm', x.arm, x.arm_p) + fila('out', x.out, x.out_p) + '</div>';
-      }).join('') : '<div class="vacio">Sin movimiento en este período</div>') + '</div>';
-    // estructuras con más movimiento en el período (solo datos clave del período)
-    var te = {};
-    S.estado.salidas.forEach(function (x) { if (x.estado === 'ANULADA' || !enPer(String(x.fecha || '').slice(0, 10))) return; var k = x.elemento || '—', o = te[k] || (te[k] = { arm: 0, out: 0, p: 0 }); if (tp(x) === 'ARMADO') o.arm += +x.kg || 0; else o.out += +x.kg || 0; o.p += +x.cantidad || 0; });
-    var tl = Object.keys(te).map(function (k) { return { e: k, x: te[k], t: te[k].arm + te[k].out }; }).sort(function (a, b) { return b.t - a.t; }).slice(0, 6), mxe = Math.max.apply(null, tl.map(function (r) { return r.t; }).concat([1]));
-    h += '<div class="card gr"><h3>Estructuras con más movimiento</h3><p class="peq mut" style="margin:0 0 8px">Kilos armados y que salieron en el período</p>' +
-      (tl.length ? tl.map(function (r) { return '<div class="bh-r"><div class="bh-t"><b>' + esc(r.e) + '</b><span>' + kg(r.t) + ' kg</span></div><div class="bh"><i class="arm" style="width:' + (100 * r.x.arm / mxe).toFixed(1) + '%"></i><i class="out" style="width:' + (100 * r.x.out / mxe).toFixed(1) + '%"></i></div><small>Armado <b>' + kg(r.x.arm) + '</b> kg · Salió <b>' + kg(r.x.out) + '</b> kg</small></div>'; }).join('') : '<div class="vacio">Sin movimiento en este período</div>') + '</div>';
     return h;
   }
   function diamsDisponibles() {
@@ -983,7 +965,7 @@
 
   function vista() {
     if (!S.cargado) return vCargando();
-    if (S.tab === 'mov') S.tab = 'reg';
+    if (S.tab === 'mov') S.tab = 'reg'; if (S.tab === 'fin') S.tab = 'armar';
     var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return nv;
     switch (S.tab) {
       case 'salida': return vSalida();

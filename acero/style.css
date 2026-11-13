@@ -591,3 +591,6 @@ details.mv-d[open] th { color: #cbd5e1; }
 @media (max-width: 520px) { .bg { min-height: 100px; padding: 10px 6px; } .bg b { font-size: 1rem; } .bg-i { font-size: 1.7rem; } }
 .tabs { flex-wrap: nowrap !important; } .tabs button { flex: 1 1 0 !important; min-width: 0; padding: 9px 4px !important; font-size: .82rem !important; justify-content: center; }
 @media (max-width: 520px) { .tabs button { font-size: .74rem !important; padding: 8px 2px !important; gap: 3px; } }
+
+.pila { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #e2e8f0; margin: 4px 0; }
+.pila i { display: block; height: 100%; } .pila i.lib { background: var(--ok); } .pila i.arm { background: #94a3b8; } .pila i.out { background: #1e4f8a; }

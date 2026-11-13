@@ -131,33 +131,38 @@
   function vArmar() {
     var q = String(R().arm.q || '').trim().toLowerCase(), cur = {}, h = '';
     enCurso().forEach(function (a) { cur[a.elemento] = a; });
-    h += '<div class="card"><h2>🔧 ¿Qué estructura vas a armar?</h2><input type="search" class="busca" placeholder="Buscar estructura o pedido…" value="' + esc(R().arm.q) + '" data-r="arm.q"></div>';
     var L = estructuras().filter(function (e) { return (e.lib > 0 || cur[e.n]) && (!q || e.n.toLowerCase().indexOf(q) >= 0 || String(e.ped).toLowerCase().indexOf(q) >= 0); });
-    L.sort(function (a, b) { return (cur[b.n] ? 1 : 0) - (cur[a.n] ? 1 : 0) || (a.n < b.n ? -1 : 1); });
-    if (!L.length) return h + '<div class="card vacio">No hay estructuras con acero sin armar' + (q ? ' que coincidan con la búsqueda' : '') + '.</div>';
-    L.slice(0, 60).forEach(function (e) {
-      var a = cur[e.n];
-      h += '<div class="card est' + (a ? ' en' : '') + '"><div class="est-t"><b>' + esc(e.n) + '</b><span class="peq mut">Pedido ' + esc(e.ped) + '</span></div><div class="est-n"><span>✅ Libre ' + X.n0(e.lib) + '</span><span>🔧 Armado ' + X.n0(e.arm) + '</span></div>' +
-        (a ? '<div class="peq mut" style="margin:6px 0">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + '</div><div class="row2"><button class="btn ok" data-a="finElegir" data-v="' + esc(a.id) + '">✅ Terminar armado</button><button class="btn sec" data-a="armCancel" data-v="' + esc(a.id) + '">Cancelar</button></div>'
-          : '<button class="btn blk" data-a="armIni" data-v="' + esc(e.n) + '">🔧 Empezar a armar</button>') + '</div>';
+    var en = L.filter(function (e) { return cur[e.n]; }), por = L.filter(function (e) { return !cur[e.n]; });
+    h += '<div class="card"><h2>🔧 Armado de estructuras</h2><div class="peq mut">Toca <b>Empezar</b> cuando comiences una estructura y <b>Terminar</b> cuando acabes. Puedes tener varias a la vez.</div>' +
+      '<input type="search" id="r-arm" class="busca" placeholder="🔍 Buscar estructura o pedido…" value="' + esc(R().arm.q) + '" data-r="arm.q"></div>';
+    if (en.length) {
+      h += '<div class="dia">🔧 En curso (' + en.length + ')</div>';
+      en.forEach(function (e) {
+        var a = cur[e.n];
+        h += '<div class="card est en"><div class="est-t"><b>' + esc(e.n) + '</b><span class="peq mut">Pedido ' + esc(e.ped) + '</span></div><div class="peq mut">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + ' · ' + esc(a.usuarioIni) + '</div>' +
+          '<div class="row2" style="margin-top:8px"><button class="btn ok" data-a="finElegir" data-v="' + esc(a.id) + '">✅ Terminar armado</button><button class="btn sec" data-a="armCancel" data-v="' + esc(a.id) + '">Cancelar</button></div></div>';
+      });
+    }
+    h += '<div class="dia">⏳ Por armar (' + por.length + ')</div>';
+    if (!por.length) h += '<div class="card vacio">' + (q ? 'No hay estructuras que coincidan.' : 'No hay estructuras con acero sin armar.') + '</div>';
+    por.slice(0, 60).forEach(function (e) {
+      h += '<div class="card est"><div class="est-t"><b>' + esc(e.n) + '</b><span class="peq mut">Pedido ' + esc(e.ped) + '</span></div><div class="est-n"><span>✅ Libre ' + X.n0(e.lib) + '</span><span>🔧 Armado ' + X.n0(e.arm) + '</span></div><button class="btn blk" data-a="armIni" data-v="' + esc(e.n) + '">🔧 Empezar a armar</button></div>';
     });
-    if (L.length > 60) h += '<div class="peq mut cen">Hay más estructuras: escribe en el buscador.</div>';
     return h;
   }
 
   // ---------------------------------------------------------------- Fin de armado
   function vFin() {
     var f = R().fin, cur = enCurso(), h = '';
-    if (f.ok) return '<div class="card okmsg2"><b>' + esc(f.ok) + '</b></div><div class="bgs">' + grande('tab', 'reg', '🏠', 'Ver el registro') + grande('tab', 'armar', '🔧', 'Armar otra estructura') + '</div>';
-    if (cur.length === 1 && !f.id && !f.libre) f.id = cur[0].id;
+    if (f.ok) return '<div class="card okmsg2"><b>' + esc(f.ok) + '</b></div><div class="bgs">' + grande('tab', 'reg', '🕒', 'Ver el registro') + grande('finVolver', null, '🔧', 'Seguir armando') + '</div>';
     var a = cur.filter(function (x) { return x.id === f.id; })[0];
-    if (!cur.length) return '<div class="card vacio">No hay ningún armado en curso.<div style="margin-top:10px"><button class="btn" data-a="tab" data-v="armar">🔧 Ir a Armar</button></div></div>';
-    if (!a) {
+    if (!a) return vArmar();
+    if (false) {
       h = '<div class="card"><h2>✅ ¿Cuál armado terminó?</h2><p class="mut" style="margin:0">Toca la estructura.</p></div>';
       return h + cur.map(function (x) { return '<div class="card est"><div class="est-t"><b>' + esc(x.elemento) + '</b></div><div class="peq mut">Empezó ' + X.fecha(x.inicio) + ' · lleva ' + dur(x.inicio) + '</div><button class="btn blk" style="margin-top:8px" data-a="finElegir" data-v="' + esc(x.id) + '">✅ Terminó este armado</button></div>'; }).join('');
     }
     var pos = posiciones(a.elemento).filter(function (p) { return p.lib > 0; });
-    h += '<div class="card"><div class="est-t"><b>' + esc(a.elemento) + '</b></div><div class="peq mut">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + '</div>' + (cur.length > 1 ? '<div style="margin-top:8px"><button class="btn chico sec" data-a="finOtro">Cambiar de estructura</button></div>' : '') + '</div>';
+    h += '<div class="card"><div class="est-t"><b>' + esc(a.elemento) + '</b></div><div class="peq mut">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + '</div>' + '<div style="margin-top:8px"><button class="btn chico sec" data-a="finOtro">← Volver a la lista</button></div>' + '</div>';
     // Paso 1: acero del stock (opcional)
     var sp = posiciones(f.stk).filter(function (p) { return p.sal > 0; });
     h += '<div class="card"><h2>1️⃣ ¿Usaste acero del stock en esta estructura? <span class="tag">opcional</span></h2><div class="seg">' + STK.map(function (s) { return '<button type="button" class="' + (f.stk === s ? 'on' : '') + '" data-a="finStk" data-v="' + s + '">' + NOM[s] + '</button>'; }).join('') + '</div>';
@@ -247,8 +252,7 @@
     switch (tab) {
       case 'reg': return vRegistro();
       case 'llego': return vLlego();
-      case 'armar': return vArmar();
-      case 'fin': return vFin();
+      case 'armar': case 'fin': return (R().fin.id || R().fin.ok) ? vFin() : vArmar();
       case 'salio': return vSalio();
       case 'stock': return vStock();
     }
@@ -303,7 +307,7 @@
         var ini = X.hoyISO() + 'T' + z(now.getHours()) + ':' + z(now.getMinutes()) + ':' + z(now.getSeconds());
         if (enCurso().some(function (q) { return q.elemento === v; })) { X.toast('Ya se está armando'); return true; }
         var fila = { id: id, elemento: v, inicio: ini, fin: '', usuarioIni: S.ses.nombre, usuarioFin: '', estado: 'EN CURSO', sobrante: '', obs: '', pendiente: true };
-        S.estado.armados = (S.estado.armados || []).concat([fila]); S.tab = 'reg'; X.render(); window.scrollTo(0, 0); X.toast('🔧 Armado empezado: ' + v);
+        S.estado.armados = (S.estado.armados || []).concat([fila]); X.render(); X.toast('🔧 Armado empezado: ' + v + ' · ya puedes seguir con otra');
         X.Api.accion(S.ses, 'armadoIniciar', { id: id, elemento: v, fecha: ini }).then(function (res) {
           if (!res.ok) { S.estado.armados = S.estado.armados.filter(function (q) { return q.id !== id; }); X.toast(res.error || 'No se pudo guardar'); X.render(); return; }
           recargar();
@@ -316,8 +320,9 @@
         X.Api.accion(S.ses, 'armadoAnular', { id: v }).then(function (res) { if (!res.ok) X.toast(res.error || 'No se pudo cancelar'); recargar(); });
         return true;
       // ---- Fin de armado
-      case 'finElegir': r.fin = { libre: false, id: v, modo: '', vals: {}, stk: 'ACERO RECTO', sv: {}, err: '', busy: false, ok: '' }; S.tab = 'fin'; X.render(); window.scrollTo(0, 0); return true;
-      case 'finOtro': r.fin.id = ''; r.fin.libre = true; X.render(); return true;
+      case 'finElegir': r.fin = { libre: false, id: v, modo: '', vals: {}, stk: 'ACERO RECTO', sv: {}, err: '', busy: false, ok: '' }; S.tab = 'armar'; X.render(); window.scrollTo(0, 0); return true;
+      case 'finOtro': r.fin.id = ''; r.fin.ok = ''; X.render(); window.scrollTo(0, 0); return true;
+      case 'finVolver': r.fin.ok = ''; r.fin.id = ''; S.tab = 'armar'; X.render(); window.scrollTo(0, 0); return true;
       case 'finStk': r.fin.stk = v; r.fin.sv = {}; X.render(); return true;
       case 'finModo': r.fin.modo = v; r.fin.err = ''; if (v === 'no') r.fin.vals = {}; X.render(); return true;
       case 'finUsarStock': {
@@ -409,8 +414,20 @@
     var r = calc.porElem['ACERO RECTO'] || {}, f = calc.porElem['ACERO FIGURADO'] || {};
     function k(ico, t, v, sub, tab) { return '<button type="button" class="kg" data-a="tab" data-v="' + tab + '"><span>' + ico + ' ' + t + '</span><b>' + v + '</b><small>' + sub + '</small></button>'; }
     return '<div class="kgs">' + k('📦', 'Stock estándar', X.n0(r.sal_p || 0), X.kg(r.sal_kg || 0) + ' kg', 'stock') + k('🧵', 'Stock figurado', X.n0(f.sal_p || 0), X.kg(f.sal_kg || 0) + ' kg', 'stock') +
-      k('🔧', 'Armando ahora', enCurso().length, enCurso().length === 1 ? 'estructura' : 'estructuras', 'fin') + k('🚚', 'Armado listo para salir', X.n0(arm), X.kg(armKg) + ' kg', 'salio') + '</div>';
+      k('🔧', 'Armando ahora', enCurso().length, enCurso().length === 1 ? 'estructura' : 'estructuras', 'armar') + k('🚚', 'Armado listo para salir', X.n0(arm), X.kg(armKg) + ' kg', 'salio') + '</div>';
   }
-  function reset(tab) { var r = R(); if (tab !== 'fin') { r.fin.ok = ''; } if (tab !== 'salio' && r.sal.ok) { r.sal = { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' }; } }
-  window.AcReg = { kpis: kpis, reset: reset, init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, enCurso: enCurso };
+  /** Estructuras: una barra por estructura (salió | armado | libre) — se ve de un vistazo en qué va cada una. */
+  function panelEstructuras() {
+    var calc = X.S.calc || X.C.calcular(X.S.estado), E = estructuras();
+    if (!E.length) return '';
+    var h = '<div class="card gr"><h3>Estructuras</h3><div class="ley"><span><i class="out"></i>Salió</span><span><i class="arm"></i>Armado</span><span><i class="lib"></i>Libre</span></div>';
+    E.forEach(function (e) {
+      var x = calc.porElem[e.n] || {}, t = x.in_p || 1, o = x.out_p || 0, a = e.arm, l = e.lib, en = enCurso().some(function (q) { return q.elemento === e.n; });
+      h += '<div class="bh-r"><div class="bh-t"><b>' + esc(e.n) + '</b><span>' + (en ? '🔧 armando · ' : '') + Math.round(100 * o / t) + ' % salió</span></div><div class="pila"><i class="out" style="width:' + (100 * o / t).toFixed(1) + '%"></i><i class="arm" style="width:' + (100 * a / t).toFixed(1) + '%"></i><i class="lib" style="width:' + (100 * l / t).toFixed(1) + '%"></i></div>' +
+        '<div class="peq mut">Libre ' + X.n0(l) + ' · Armado ' + X.n0(a) + ' · Salió ' + X.n0(o) + ' pzs</div></div>';
+    });
+    return h + '</div>';
+  }
+  function reset(tab) { var r = R(); if (tab === 'armar') { r.fin.id = ''; r.fin.ok = ''; } else r.fin.ok = ''; if (tab !== 'salio' && r.sal.ok) { r.sal = { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' }; } }
+  window.AcReg = { kpis: kpis, estructuras: panelEstructuras, reset: reset, init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, enCurso: enCurso };
 })();
