@@ -1111,7 +1111,14 @@ function vistaGeo(c) {
   tq.appendChild(filaMaq({ movil: '', tipo: '' }, true)); (G.maquinas || []).forEach(x => tq.appendChild(filaMaq(x, false)));
   c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🏗️ Máquinas que cargan las volquetas'), h('div', { class: 'small' }, 'Es la lista desplegable «Máquina que cargó» del formulario de viajes. Agrega, corrige o retira; los transportistas la ven desde su próxima carga de la app. Los viajes ya registrados conservan el nombre con que se guardaron.'), h('div', { class: 'tw', style: 'max-height:none' }, tq)));
 }
+// El volumen aún no está confirmado: no se muestran alertas de volumen (albarán vs tolva ni capacidad distinta)
+function sinAlertasVol() {
+  if (TR._lim) return; TR._lim = 1;
+  const esVol = a => /volumen de tolva|Capacidad distinta/i.test(a);
+  (TR.viajes || []).concat(TR.reportes_extra || []).forEach(v => { if (v.alertas) v.alertas = String(v.alertas).split('; ').filter(a => !esVol(a)).join('; '); });
+}
 function pintarTr() {
+  sinAlertasVol();
   const V = TR.viajes, hoy = TR.hoy;
   const conAl = V.filter(v => alV(v)), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend);
   const top = $('trTop'); top.textContent = '';
