@@ -662,7 +662,7 @@ function abrirForm(v, base) {
   const res = h('div', { id: 'resVol', class: 'resumen', hidden: true, style: 'display:none' });
   const dat = h('div', { id: 'datosVol', hidden: true, style: 'display:none' },
     h('div', { class: 'row' }, campo('empresa', 'Empresa', val('empresa')), campo('tipo', 'Tipo de volqueta', val('tipo'))),
-    h('div', { class: 'row' }, campo('capacidad', 'Capacidad (m³)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor', val('conductor'))));
+    h('div', { class: 'row' }, campo('capacidad', 'Comprobación CCSN en tolva (m³)', val('capacidad'), { inputmode: 'decimal' }), campo('conductor', 'Conductor', val('conductor'))));
   const c1 = h('div', { class: 'card paso' }, h('h3', {}, '2️⃣ 🚛 ¿Cuál volqueta es?'),
     campo('placa', 'Placa', val('placa'), { cap: 'characters', cls: 'placa', ph: 'Elegir…' }), res, dat);
   // paso 2
