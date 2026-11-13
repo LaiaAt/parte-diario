@@ -798,12 +798,11 @@ function formVol(x, msg) {
   const id = p => (x ? 'ev_' + x.placa + '_' : 'nv') + p;
   const inp = (k, lab, extra) => h('div', {}, h('label', {}, lab), h('input', Object.assign({ id: id(k) }, extra || {})));
   const f = [inp('Placa', 'Placa *', { maxlength: 7, autocapitalize: 'characters', value: x ? x.placa : '' }), inp('Emp', 'Empresa', { list: 'dl-nvemp', value: x ? x.empresa : '' }), inp('Tipo', 'Tipo (elige o escribe)', { list: 'dl-nvtipo', value: x ? x.tipo : '' }),
-    inp('Cap', 'Comprobación CCSN en tolva (m³)', { inputmode: 'decimal', value: x ? x.capacidad : '' }), inp('Nom', 'Volumen del albarán (m³) — si no lo sabes, se llena solo con el primer viaje', { inputmode: 'decimal', value: x && x.nominal !== undefined ? x.nominal : '' }), inp('Cond', 'Conductor', { value: x ? x.conductor : '' })];
+    inp('Cap', 'Comprobación CCSN en tolva (m³)', { inputmode: 'decimal', value: x ? x.capacidad : '' }), inp('Cond', 'Conductor', { value: x ? x.conductor : '' })];
   const g = k => $(id(k)).value;
   f.push(h('div', { class: 'acc' }, h('button', { onclick: async () => {
     msg.textContent = ''; const p = g('Placa').trim(); if (!p) { msg.textContent = 'Escribe la placa.'; return; }
-    { const nv = Number(String(g('Nom')).replace(',', '.')); if (String(g('Nom')).trim() && !(nv > 0 && nv <= 60)) { msg.textContent = 'El volumen del albarán no es válido.'; $(id('Nom')).focus(); return; } }
-    const d = { placa: x ? x.placa : p, empresa: g('Emp'), tipo: g('Tipo'), capacidad: g('Cap'), nominal: g('Nom'), conductor: g('Cond') };
+    const d = { placa: x ? x.placa : p, empresa: g('Emp'), tipo: g('Tipo'), capacidad: g('Cap'), conductor: g('Cond') };
     if (x) { d.cambio = 'editar'; d.placa_nueva = p; } else d.cambio = 'crear';
     if (!await cambioVol(d)) msg.textContent = 'No se guardó.';
   } }, x ? '💾 Guardar cambios' : 'Guardar')), msg);
@@ -825,19 +824,19 @@ function vistaVol(c) {
   c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Edita los volúmenes de las volquetas que necesites (las filas cambiadas se resaltan) y pulsa «Guardar todos los cambios». La comprobación CCSN solo se escribe después de conciliar con el proveedor; si la dejas vacía, el confirmado es igual al del albarán.'));
   const gb = h('button', { id: 'btnVolTodos', style: 'width:100%;padding:12px;font-size:17px;margin:6px 0', onclick: guardarVolTodos }, '💾 Guardar todos los cambios'); c.appendChild(gb); setTimeout(contarVol, 0);
   const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;position:sticky;top:0;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
-  const tb = h('table', { style: 'width:100%;border-collapse:collapse;font-size:15px' }, h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Conductor', 'Volumen albarán (m³)', 'Comprobación CCSN (m³)', 'Viajes', 'Estado', ''].map(th)));
+  const tb = h('table', { style: 'width:100%;border-collapse:collapse;font-size:15px' }, h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Conductor', 'Comprobación CCSN (m³)', 'Viajes', 'Estado', ''].map(th)));
   L.forEach(x => {
     const n = V.filter(v => v.placa === x.placa).length, msg = h('div', { class: 'small' });
     const dv = VDIRTY[x.placa] || {};
     const iN = h('input', { type: 'text', inputmode: 'decimal', value: dv.nominal !== undefined ? dv.nominal : (x.nominal === undefined || x.nominal === '' ? '' : x.nominal), style: 'width:72px;font-size:15px;padding:6px' });
     const iV = h('input', { type: 'text', inputmode: 'decimal', value: dv.capacidad !== undefined ? dv.capacidad : (x.capacidad === undefined || x.capacidad === '' ? '' : x.capacidad), style: 'width:72px;font-size:15px;padding:6px;font-weight:700' });
-    const marca = () => { VDIRTY[x.placa] = { nominal: iN.value, capacidad: iV.value }; fila.style.background = '#fff8e1'; contarVol(); };
-    [iN, iV].forEach(i => i.addEventListener('input', marca));
+    const marca = () => { VDIRTY[x.placa] = { nominal: '', capacidad: iV.value }; fila.style.background = '#fff8e1'; contarVol(); };
+    iV.addEventListener('input', marca);
     if (VDIRTY[x.placa]) setTimeout(() => { fila.style.background = '#fff8e1'; }, 0);
-    const ed = h('tr', { hidden: true }, h('td', { colspan: 9, style: 'padding:6px 10px;background:#fafafa' }, formVol(x, msg)));
+    const ed = h('tr', { hidden: true }, h('td', { colspan: 8, style: 'padding:6px 10px;background:#fafafa' }, formVol(x, msg)));
     const fila = h('tr', { style: esPend(x) ? 'background:#fffaf0' : '' },
       td(h('b', {}, x.placa), esPend(x) ? h('span', { class: 'tag w', style: 'margin-left:6px' }, 'Nueva') : null),
-      td(x.empresa || '—'), td(x.tipo || '—'), td(h('span', { style: 'display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: x.conductor || '' }, x.conductor || '—')), td(iN), td(iV), td(String(n)),
+      td(x.empresa || '—'), td(x.tipo || '—'), td(h('span', { style: 'display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', title: x.conductor || '' }, x.conductor || '—')), td(iV), td(String(n)),
       td(esIn(x) ? 'Inactiva' : (esPend(x) ? 'Por validar' : '✔ Validada')),
       td(h('div', { style: 'display:flex;gap:4px;white-space:nowrap' }, h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: 'Editar datos', onclick: () => { ed.hidden = !ed.hidden; } }, '✏️'),
         h('button', { class: 'sec', style: 'padding:8px 10px;font-size:14px', title: esIn(x) ? 'Activar' : 'Desactivar', onclick: () => cambioVol({ cambio: 'estado', placa: x.placa, estado: esIn(x) ? 'ACTIVA' : 'INACTIVA' }) }, esIn(x) ? '▶' : '⏸'))));
