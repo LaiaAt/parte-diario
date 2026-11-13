@@ -386,11 +386,6 @@ function sospechosos() {
   Object.keys(pd).forEach(k => {
     const L = pd[k], cond = new Set(L.map(v => String(v.conductor).toUpperCase().replace(/\s+/g, ' ').trim()).filter(Boolean));
     if (cond.size > 1) add('Volqueta con dos conductores', L[0].placa + ' el ' + fmtF(L[0].fecha) + ' con: ' + Array.from(cond).join(' / '), L);
-    const o = L.filter(v => v.hora_salida).sort((a, b) => a.hora_salida.localeCompare(b.hora_salida));
-    for (let i = 1; i < o.length; i++) {
-      const m = x => Number(x.hora_salida.slice(0, 2)) * 60 + Number(x.hora_salida.slice(3, 5));
-      if (m(o[i]) - m(o[i - 1]) < 15) { add('Viajes muy seguidos', o[i].placa + ': dos salidas con menos de 15 min (' + o[i - 1].hora_salida + ' y ' + o[i].hora_salida + ') el ' + fmtF(o[i].fecha), [o[i - 1], o[i]]); }
-    }
   });
   V.forEach(v => {
     if (/Material no corresponde|NO autorizado/.test(v.alertas)) add('Material / destino', v.alertas.split('; ').filter(a => /Material no corresponde|NO autorizado/.test(a)).join('; '), [v]);
