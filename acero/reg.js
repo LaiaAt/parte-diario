@@ -378,6 +378,15 @@
     var p = k.split('.'); R()[p[0]][p[1]] = t.value; if (k === 'ing.d') X.render(); return true;
   }
 
+  /** Cuatro cifras gerenciales, sencillas. */
+  function kpis() {
+    var calc = X.S.calc || X.C.calcular(X.S.estado), E = estructuras(), arm = 0, armKg = 0, lib = 0, libKg = 0;
+    E.forEach(function (e) { arm += e.arm; armKg += e.armKg; lib += e.lib; libKg += e.libKg; });
+    var r = calc.porElem['ACERO RECTO'] || {}, f = calc.porElem['ACERO FIGURADO'] || {};
+    function k(ico, t, v, sub, tab) { return '<button type="button" class="kg" data-a="tab" data-v="' + tab + '"><span>' + ico + ' ' + t + '</span><b>' + v + '</b><small>' + sub + '</small></button>'; }
+    return '<div class="kgs">' + k('📦', 'Stock estándar', X.n0(r.sal_p || 0), X.kg(r.sal_kg || 0) + ' kg', 'stock') + k('🧵', 'Stock figurado', X.n0(f.sal_p || 0), X.kg(f.sal_kg || 0) + ' kg', 'stock') +
+      k('🔧', 'Armando ahora', enCurso().length, enCurso().length === 1 ? 'estructura' : 'estructuras', 'fin') + k('🚚', 'Armado listo para salir', X.n0(arm), X.kg(armKg) + ' kg', 'salio') + '</div>';
+  }
   function reset(tab) { var r = R(); if (tab !== 'fin') { r.fin.ok = ''; } if (tab !== 'salio' && r.sal.ok) { r.sal = { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' }; } }
-  window.AcReg = { reset: reset, init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, enCurso: enCurso };
+  window.AcReg = { kpis: kpis, reset: reset, init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, enCurso: enCurso };
 })();

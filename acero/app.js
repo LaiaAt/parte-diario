@@ -5,7 +5,7 @@
   var MODO = window.ACEROS_MODO === 'salidas' ? 'salidas' : 'dashboard', BASE = window.ACEROS_BASE || '', EMB = !!window.ACEROS_EMBED;
 
   var S = {
-    cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [], armados: [] }, calc: null, tab: 'reg', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
+    cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [], armados: [] }, calc: null, tab: MODO === 'salidas' ? 'reg' : 'panel', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
     ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false, si: false },
     sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', modoSel: '', eq: '', tipo: '', fase: '', pct: '', balElem: '' }, okSal: null, edPed: {}, cargaRes: null,
     inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, inf: { d: '' },
@@ -91,14 +91,24 @@
     return h;
   }
 
+  /** Menú en dos niveles: arriba los grupos, abajo (si el grupo tiene varias pantallas) sus opciones. */
+  function gruposTabs() {
+    var G = [];
+    if (MODO !== 'salidas') G.push({ k: 'panel', ico: '📊', t: 'Panel', hojas: [['panel', 'Panel']] });
+    G.push({ k: 'alm', ico: '🏬', t: 'Almacén', hojas: [['reg', '🕒 Registro'], ['llego', '📥 Llegó'], ['armar', '🔧 Armar'], ['fin', '✅ Fin de armado'], ['salio', '🚚 Salió'], ['stock', '📦 Stock']] });
+    G.push({ k: 'regu', ico: '🧮', t: 'Regularización', hojas: [['ver', 'Regularización']] });
+    if (MODO !== 'salidas') G.push({ k: 'con', ico: '🗂️', t: 'Pedidos y movimientos', hojas: [['ped', '📋 Pedidos'], ['mov', '🧾 Movimientos']] });
+    G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
+    return G;
+  }
+  function grupoDe(tab) { var G = gruposTabs(); for (var i = 0; i < G.length; i++) if (G[i].hojas.some(function (h) { return h[0] === tab; })) return G[i]; return G[0]; }
   function vTabs() {
-    var base = [['reg', '🏠', 'Registro'], ['llego', '📥', 'Llegó'], ['armar', '🔧', 'Armar'], ['fin', '✅', 'Fin de armado'], ['salio', '🚚', 'Salió'], ['stock', '📦', 'Stock']];
-    var T = EMB ? [['panel', '', 'Panel'], ['inv', '', 'Inventario'], ['mov', '', 'Movimientos'], ['ped', '', 'Pedidos'], ['inf', '', 'Informe']] : MODO === 'salidas'
-      ? base.concat([['ver', '🧮', 'Contar'], ['inf', '📄', 'Informe']])
-      : base.concat([['ver', '🧮', 'Contar'], ['inf', '📄', 'Informe'], ['panel', '📊', 'Panel'], ['ped', '📋', 'Pedidos'], ['mov', '🧾', 'Movimientos']]);
-    return '<nav class="tabs">' + T.map(function (t) {
-      return '<button class="' + (S.tab === t[0] ? 'on' : '') + '" data-a="tab" data-v="' + t[0] + '"><span>' + t[1] + '</span><em>' + t[2] + '</em></button>';
+    var G = gruposTabs(), g = grupoDe(S.tab), h = '';
+    if (!EMB) h += '<nav class="tabs">' + G.map(function (x) {
+      return '<button class="' + (x === g ? 'on' : '') + '" data-a="tab" data-v="' + (x === g ? S.tab : (S.ult && S.ult[x.k]) || x.hojas[0][0]) + '"><span>' + x.ico + '</span><em>' + x.t + '</em></button>';
     }).join('') + '</nav>';
+    if (g.hojas.length > 1) h += '<nav class="subtabs">' + g.hojas.map(function (t) { return '<button class="' + (S.tab === t[0] ? 'on' : '') + '" data-a="tab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</nav>';
+    return h;
   }
   function pz(n) { return n0(n) + (n === 1 ? ' pieza' : ' piezas'); }
   /** Tres cajas grandes: Libre / Armado / Salió. */
@@ -244,7 +254,7 @@
     if (!S.estado.entradas.length) return sinInventario();
     var c = S.calc, t = c.tot, ag = aggPeriodo();
     var diams = Object.keys(c.porDiam).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); });
-    var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>' + vAvance();
+    var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>' + (window.AcReg ? AcReg.kpis() : '') + vAvance();
     h += vFiltro();
     h += '<h2 class="sec-t">Movimiento del período <small>' + textoPeriodo() + '</small></h2><div class="kp3">' + kpiPer('Llegó', 'lib', ag.lle) + kpiPer('Armado', 'arm', ag.arm) + kpiPer('Salió', 'out', ag.out) + '</div>';
     h += graficoDias(ag);
@@ -1363,7 +1373,7 @@
       case 'cerrarBal': if (confirm('Si sale ahora, lo que quedó sin usar no se registra. ¿Salir de todos modos?')) { S.sal.balElem = ''; S.sal.tipo = ''; render(); } break;
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'per': S.per.k = v; render(); break;
-      case 'tab': if (window.AcReg) AcReg.reset(v); S.tab = v; S.okSal = null; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
+      case 'tab': if (window.AcReg) AcReg.reset(v); S.tab = v; (S.ult = S.ult || {})[grupoDe(v).k] = v; S.okSal = null; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
       case 'refrescar': cargarEstado().then(function () { toast('Actualizado'); }); break;
       case 'salir': Api.salir(); S.ses = null; S.loginErr = ''; render(); break;
       case 'todas': setCant(S.sal.elem, el.getAttribute('data-d'), v, 99999); render(); break;
@@ -1475,7 +1485,7 @@
     Api.login(pin).then(function (r) {
       if (!r.ok) { S.loginErr = r.error; render(); return; }
       if (MODO === 'dashboard' && r.ses.rol !== 'admin') { Api.salir(); S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; render(); return; }
-      S.ses = r.ses; S.loginErr = ''; S.tab = 'reg';
+      S.ses = r.ses; S.loginErr = ''; S.tab = MODO === 'salidas' ? 'reg' : 'panel';
       render(); enviarCola().then(cargarEstado);
     });
   });
@@ -1493,7 +1503,7 @@
     window.addEventListener('message', function (ev) {
       if (ev.origin !== location.origin || !ev.data || ev.data.t !== 'per') return;
       S.per = { k: 'rango', d: ev.data.d || '', h: ev.data.h || '' };
-      if (/^(reg|llego|armar|fin|salio|stock|ver|panel|inv|mov|ped|inf)$/.test(ev.data.tab || '')) S.tab = ev.data.tab;
+      if (/^(reg|llego|armar|fin|salio|stock|ver|panel|inv|mov|ped|inf)$/.test(ev.data.tab || '') && grupoDe(S.tab) !== grupoDe(ev.data.tab)) S.tab = ev.data.tab;
       if (ev.data.r && S.ses) cargarEstado(); else render();
     });
     try { parent.postMessage({ t: 'acero-listo' }, location.origin); } catch (e) { }

@@ -558,3 +558,12 @@ body:not(.emb) .cab .tabs { position: static; }
 .btn.blk { width: 100%; }
 .lst { margin: 8px 0; }
 .seg button small { font-weight: 600; opacity: .75; }
+
+.subtabs { display: flex; gap: 6px; padding: 8px 10px; background: #f1f5f9; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.subtabs button { flex: none; border: 2px solid #cbd5e1; background: #fff; color: #334155; padding: 9px 14px; border-radius: 999px; font-weight: 700; font-size: .9rem; cursor: pointer; white-space: nowrap; }
+.subtabs button.on { background: var(--navy, #0f172a); border-color: var(--navy, #0f172a); color: #fff; }
+.kgs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 12px 0; }
+@media (min-width: 700px) { .kgs { grid-template-columns: repeat(4, 1fr); } }
+.kg { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 12px; background: #fff; border: 0; border-left: 5px solid var(--acc); border-radius: 14px; box-shadow: var(--sombra); cursor: pointer; }
+.kg span { font-size: .8rem; font-weight: 700; color: #475569; } .kg b { font-size: 1.7rem; color: #0f172a; } .kg small { color: var(--mut); }
+@media print { .subtabs { display: none !important; } }
