@@ -539,12 +539,6 @@ function pintaAlb() {
       alV(v) ? h('div', { class: 'alt' }, '⚠️ ' + alV(v)) : null,
       v.estado === 'ANULADO' ? h('div', { class: 'alt', style: 'background:#b3261e;color:#fff' }, '🚫 VIAJE ANULADO' + (v.anulado && v.anulado.motivo ? ' · ' + (v.anulado.por || '') + ' · ' + v.anulado.motivo : '')) : null,
       fo));
-    // las fotos del albarán se muestran de una vez (primeros 3 resultados)
-    if (v.nr && i < 3) {
-      const im = h('img', { alt: 'Albarán', style: 'width:100%;max-width:520px;border-radius:8px;margin-top:8px;cursor:zoom-in;background:#eee;min-height:80px' });
-      fo.appendChild(im); im.onclick = () => verFotoTr(v.cod, 'recibo', v.nr);
-      api({ accion: 'admin_tr_foto', llave: LLAVE, cod: v.cod, cual: 'recibo', i: 0 }).then(x => { if (x.ok) im.src = x.data; else im.replaceWith(h('div', { class: 'small' }, x.mensaje || 'No se pudo abrir la foto')); }).catch(() => {});
-    }
     fo.appendChild(h('div', { style: 'margin-top:6px' }, botonesFoto(v)));
     const pan = h('div', { class: 'edAlb', style: 'margin-top:8px' });
     fo.appendChild(h('div', { class: 'acc', style: 'margin-top:8px' },
