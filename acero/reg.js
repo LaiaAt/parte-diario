@@ -1,528 +1,466 @@
-/* Acero — pantallas nuevas: Registro (línea de tiempo), Llegó, Armar, Fin de armado, Salió y Stock.
- * Todo con botones grandes y en el orden del proceso. Guarda al instante y envía al servidor en segundo plano. */
+/* Acero — pantallas de obra (rediseño): INICIO con tres botones y rutas guiadas, una pregunta por pantalla.
+ *   📥 LLEGÓ  → ¿para qué? (estructura / stock) → ¿cuál? → ¿todo o una parte? → ¿cuándo? → listo
+ *   🔧 ARMAR  → ¿qué estructura? → avance (unidades · completo / % / posiciones) · usar stock · cerrar y contar sobrante
+ *   🚚 SALIÓ  → ¿qué sale? (estructura armada / stock) → ¿todo o una parte? → ¿para dónde? → listo
+ * Autor: Carlos Eduardo Bermúdez Castro */
 (function () {
   'use strict';
   var X = null;
   var STK = ['ACERO RECTO', 'ACERO FIGURADO'], NOM = { 'ACERO RECTO': 'Stock estándar', 'ACERO FIGURADO': 'Stock figurado' };
-  var SISTEMA = /^(Sobrante del armado|Pas[oó] a |Cierre al 100|Ajuste de conteo|Armado de |Armado con acero)/;
+  var SIS = /^(SOBRANTE|TRASLADO|AJUSTE|STOCK)$/, OBS_SIS = /^(Sobrante del armado|Pas[oó] a |Cierre al 100|Ajuste de conteo|Armado con acero)/, OBS_SOB = /^(Sobrante del armado|Cierre al 100)/;
 
-  function nuevoRec() { return { load: '', fecha: '', hora: '', vals: {}, kgs: {}, file: null, id: '', err: '', busy: false, ok: '' }; }
-  function R() {
-    var S = X.S;
-    return S.reg || (S.reg = {
-      arm: { q: '' }, fin: { id: '', modo: '', vals: {}, stk: 'ACERO RECTO', sv: {}, err: '', busy: false, ok: '' },
-      sal: { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' },
-      stk: { k: 'ACERO RECTO' }, rec: nuevoRec(), ing: { modo: '', stock: 'ACERO RECTO', rows: [], d: '1/2', l: '12', c: '', k: '', file: null, pedido: '', err: '', busy: false }
-    });
-  }
+  // ------------------------------------------------------------------ utilidades
   function esc(s) { return X.esc(s); }
   function enc(s) { return encodeURIComponent(s); }
-  function esStk(e) { return STK.indexOf(e) >= 0; }
-  function armados() { return X.S.estado.armados || []; }
-  function enCurso() { return armados().filter(function (a) { return a.estado === 'EN CURSO'; }); }
-
-  /** Estructuras (no stock) con sus cantidades: libres, armadas y total. */
-  function estructuras() {
-    var S = X.S, calc = S.calc || X.C.calcular(S.estado), seen = {}, L = [];
-    S.estado.pedidos.forEach(function (p) {
-      if (esStk(p.estructura) || seen[p.estructura]) return; seen[p.estructura] = 1;
-      var x = calc.porElem[p.estructura] || {};
-      L.push({ n: p.estructura, ped: p.pedido, lib: x.lib_p || 0, libKg: x.lib_kg || 0, arm: x.arm_p || 0, armKg: x.arm_kg || 0, sal: x.sal_p || 0 });
-    });
-    return L.sort(function (a, b) { return a.n < b.n ? -1 : 1; });
-  }
-  /** Posiciones de una estructura o stock, con lo que hay libre (o en stock) y lo armado. */
-  function posiciones(elem) {
-    var S = X.S, calc = S.calc || X.C.calcular(S.estado), seen = {}, L = [];
-    S.estado.entradas.forEach(function (e) {
-      if (e.estructura !== elem) return;
-      var k = e.diametro + '|' + e.marca; if (seen[k]) return; seen[k] = 1;
-      var m = calc.porMarca[elem + '|' + e.diametro + '|' + e.marca] || {};
-      L.push({ k: k, d: e.diametro, m: e.marca, largo: e.largo, lib: m.lib_p || 0, arm: m.arm_p || 0, sal: m.sal_p || 0, kgU: e.kgUnit });
-    });
-    return L.sort(function (a, b) { return X.C.diamOrder(a.d) - X.C.diamOrder(b.d) || (a.largo - b.largo) || (a.m < b.m ? -1 : 1); });
-  }
   function pz(n) { return X.pz(n); }
-  function dur(a, b) {
-    var ms = new Date(b || Date.now()) - new Date(a); if (!(ms >= 0)) return '';
-    var mn = Math.round(ms / 60000); if (mn < 1) return 'menos de 1 min';
-    if (mn < 60) return mn + ' min';
-    var h = Math.floor(mn / 60); if (h < 48) return h + ' h ' + (mn % 60 ? (mn % 60) + ' min' : '');
-    return Math.round(h / 24) + ' días';
-  }
-  function stp(scope, key, val, max) {
-    return '<span class="stp"><button type="button" data-a="rs" data-v="' + scope + '|' + enc(key) + '|-1|' + max + '">−</button><b>' + val + '</b><button type="button" data-a="rs" data-v="' + scope + '|' + enc(key) + '|1|' + max + '">+</button></span>';
-  }
+  function K(n) { return X.kg(n) + ' kg'; }
+  function esStk(e) { return STK.indexOf(e) >= 0; }
+  function calc() { return X.S.calc || X.C.calcular(X.S.estado); }
+  function nuevoId(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function W() { return X.S.w || (X.S.w = { r: '', p: '', hist: [] }); }
+  function ruta(r, p) { X.S.w = { r: r, p: p, hist: [], vals: {}, kgs: {}, err: '', busy: false }; X.S.tab = 'ini'; X.render(); window.scrollTo(0, 0); }
+  function ir(p) { var w = W(); w.hist.push(w.p); w.p = p; w.err = ''; X.render(); window.scrollTo(0, 0); }
+  function inicio() { X.S.w = { r: '', p: '', hist: [] }; X.render(); window.scrollTo(0, 0); }
+  function fallo(msg) { var w = W(); w.busy = false; w.err = msg || 'No se pudo guardar. Intenta de nuevo.'; X.render(); }
+  function listo(msg, sub, extra) { var w = W(), r = w.r, e = w.elem; X.S.w = { r: r, p: 'ok', hist: [], okMsg: msg, okSub: sub || '', elem: e, extra: extra || '' }; X.render(); window.scrollTo(0, 0); return X.cargarEstado(); }
   function grande(a, v, ico, tit, sub, cls) {
     return '<button type="button" class="bg ' + (cls || '') + '" data-a="' + a + '"' + (v != null ? ' data-v="' + esc(v) + '"' : '') + '><span class="bg-i">' + ico + '</span><b>' + tit + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</button>';
   }
-  function atras(tab, txt) { return '<button type="button" class="btn sec chico" data-a="rAtras" data-v="' + tab + '">← ' + (txt || 'Volver') + '</button>'; }
+  function opcion(a, v, ico, tit, sub) { // fila grande para escoger de una lista
+    return '<button type="button" class="op" data-a="' + a + '" data-v="' + esc(v) + '"><span class="op-i">' + ico + '</span><span class="op-t"><b>' + tit + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="op-f">›</span></button>';
+  }
+  function stp(key, val, max) {
+    return '<span class="stp"><button type="button" data-a="ws" data-v="' + enc(key) + '|-1|' + max + '">−</button><b>' + val + '</b><button type="button" data-a="ws" data-v="' + enc(key) + '|1|' + max + '">+</button></span>';
+  }
+  function cab(tit, sub) {
+    var w = W(), RT = { llego: '📥 Llegó acero', armar: '🔧 Armar', salio: '🚚 Salió acero' };
+    return '<div class="wz-h"><button type="button" class="btn sec" data-a="wBack">← Atrás</button><b>' + RT[w.r] + '</b><button type="button" class="btn sec chico" data-a="wHome">🏠</button></div>' +
+      '<div class="card wz"><h2>' + tit + '</h2>' + (sub ? '<div class="peq mut" style="margin-bottom:8px">' + sub + '</div>' : '');
+  }
+  function pie() { var w = W(); return (w.err ? '<div class="error">' + esc(w.err) + '</div>' : '') + '</div>'; }
+  function guardarBtn(a, txt) { var w = W(); return '<button type="button" class="btn blk ok gr" data-a="' + a + '"' + (w.busy ? ' disabled' : '') + '>' + (w.busy ? 'Guardando…' : txt) + '</button>'; }
 
-  // ---------------------------------------------------------------- Registro (línea de tiempo)
-  function cardArm(a, fin) {
-    if (!fin) return '<div class="mv arm"><div class="mv-i">🔧</div><div class="mv-c"><div class="mv-t">Empezó el armado' + (a.estado === 'EN CURSO' ? '<span class="chp pen">En curso</span>' : '') + '</div><div class="mv-s">' + esc(a.elemento) + '</div><div class="mv-m"><span>' + esc(a.usuarioIni) + ' · ' + X.fecha(a.inicio) + '</span>' + (a.estado === 'EN CURSO' ? '<span>lleva ' + dur(a.inicio) + '</span>' : '') + '</div></div>' + (a.estado === 'EN CURSO' ? '<button class="btn chico ok" data-a="finElegir" data-v="' + esc(a.id) + '">✅ Terminar</button>' : '') + '</div>';
-    return '<div class="mv fin"><div class="mv-i">✅</div><div class="mv-c"><div class="mv-t">Terminó el armado</div><div class="mv-s">' + esc(a.elemento) + '</div><div class="mv-m"><span>Duró ' + dur(a.inicio, a.fin) + '</span><span>' + esc(a.sobrante || '') + '</span><span>' + esc(a.usuarioFin) + ' · ' + X.fecha(a.fin) + '</span></div></div></div>';
+  // ------------------------------------------------------------------ datos
+  /** Unidades (cuántas estructuras iguales trae la cartilla). */
+  function unidades(est) { var n = 0; X.S.estado.pedidos.forEach(function (p) { if (p.estructura === est && !SIS.test(String(p.pedido))) n += Math.max(1, +p.nEstructuras || 1); }); return n || 1; }
+  /** Posiciones de una estructura o stock, con lo que hay libre, armado y el total de la cartilla. */
+  function posiciones(elem) {
+    var S = X.S, c = calc(), seen = {}, L = [], tot = {};
+    (S.estado.cartilla || []).forEach(function (e) { if (e.estructura === elem) tot[e.diametro + '|' + e.marca] = (tot[e.diametro + '|' + e.marca] || 0) + e.cantidad; });
+    S.estado.entradas.forEach(function (e) {
+      if (e.estructura !== elem) return;
+      var k = e.diametro + '|' + e.marca; if (seen[k]) return; seen[k] = 1;
+      var m = c.porMarca[elem + '|' + e.diametro + '|' + e.marca] || {};
+      L.push({ k: k, d: e.diametro, m: e.marca, largo: e.largo, lib: m.lib_p || 0, arm: m.arm_p || 0, sal: m.sal_p || 0, kgU: e.kgUnit, tot: tot[k] || m.in_p || 0, stock: /^S-/.test(e.marca) && e.pedido === 'STOCK' });
+    });
+    return L.sort(function (a, b) { return X.C.diamOrder(a.d) - X.C.diamOrder(b.d) || (a.largo - b.largo) || (a.m < b.m ? -1 : 1); });
+  }
+  function posTxt(p) { return '<b>' + esc(p.m) + '</b> · ' + esc(X.C.diamLabel(p.d)) + ' · ' + p.largo + ' m'; }
+  /** Resumen de cada estructura: pedido, llegó, libre, armado, salió, sobrante y kilos tomados del stock. */
+  function estructuras() {
+    var S = X.S, c = calc(), seen = {}, L = [];
+    S.estado.pedidos.forEach(function (p) {
+      if (esStk(p.estructura) || seen[p.estructura]) return; seen[p.estructura] = 1;
+      var n = p.estructura, x = c.porElem[n] || {}, cartKg = 0, recKg = 0, stockKg = 0, sobKg = 0, esCart = false;
+      (S.estado.cartilla || []).forEach(function (e) { if (e.estructura === n) { esCart = true; cartKg += e.kg; recKg += e.recibida * e.kgUnit; } });
+      S.estado.entradas.forEach(function (e) { if (e.estructura === n && e.pedido === 'STOCK') stockKg += e.kg; });
+      S.estado.salidas.forEach(function (s) { if (s.elemento === n && s.estado !== 'ANULADA' && s.tipo !== 'ARMADO' && OBS_SOB.test(String(s.obs || ''))) sobKg += +s.kg || 0; });
+      var inKg = x.in_kg || 0, pedKg = esCart ? cartKg : inKg - stockKg, salioKg = Math.max(0, (x.out_kg || 0) - sobKg), armKg = x.arm_kg || 0, usado = armKg + salioKg, un = unidades(n);
+      var cerr = (S.estado.armados || []).some(function (a) { return a.elemento === n && a.estado === 'TERMINADO'; }) && !(x.lib_p > 0);
+      L.push({ n: n, ped: p.pedido, un: un, pedKg: pedKg, porLlegar: esCart ? Math.max(0, cartKg - recKg) : 0, libKg: x.lib_kg || 0, lib: x.lib_p || 0, armKg: armKg, arm: x.arm_p || 0, salioKg: salioKg, sobKg: sobKg, stockKg: stockKg,
+        usado: usado, usadoPed: Math.max(0, usado - stockKg), eq: pedKg > 0 ? Math.min(un, Math.round(10 * un * usado / pedKg) / 10) : 0, eqArm: pedKg > 0 ? un * armKg / pedKg : 0, cerrada: cerr, inP: x.in_p || 0 });
+    });
+    return L;
+  }
+  function est1(n) { return estructuras().filter(function (e) { return e.n === n; })[0] || { n: n, un: 1 }; }
+  /** Pedidos con algo por llegar. */
+  function porRecibir() {
+    var seen = {}, L = [];
+    (X.S.estado.cartilla || []).forEach(function (e) { if (seen[e.loadId]) return; seen[e.loadId] = 1; var rc = X.recibo(e.loadId); if (rc && rc.est !== 'COMPLETO') L.push({ id: e.loadId, pedido: e.pedido, est: e.estructura, rc: rc, falta: rc.tk - rc.rk }); });
+    return L;
+  }
+  function pend(loadId) {
+    var rc = X.recibo(loadId); if (!rc) return [];
+    return rc.rows.filter(function (e) { return e.cantidad - e.recibida > 0; }).sort(function (a, b) { return (X.C.diamOrder(a.diametro) - X.C.diamOrder(b.diametro)) || (a.marca < b.marca ? -1 : a.marca > b.marca ? 1 : 0); });
+  }
+  function totVals(P, kgU) { var w = W(), p = 0, k = 0; P.forEach(function (e) { var q = w.vals[e.k] || 0; p += q; k += q * (kgU ? kgU(e) : e.kgU); }); return { p: p, kg: k }; }
+
+  // ================================================================== INICIO
+  function tile(ico, t, v, sub) { return '<div class="kg"><span>' + ico + ' ' + t + '</span><b>' + v + '</b><small>' + sub + '</small></div>'; }
+  function almacen() {
+    var c = calc(), E = estructuras(), pl = porRecibir(), pk = 0, lib = 0, arm = 0;
+    pl.forEach(function (q) { pk += q.falta; }); E.forEach(function (e) { lib += e.libKg; arm += e.armKg; });
+    var r = c.porElem['ACERO RECTO'] || {}, f = c.porElem['ACERO FIGURADO'] || {};
+    return '<div class="kgs k3">' + tile('⏳', 'Por llegar', K(pk), pl.length + (pl.length === 1 ? ' pedido' : ' pedidos')) + tile('🟢', 'Para armar', K(lib), 'acero de estructuras') + tile('🔧', 'Armado', K(arm), 'listo para salir') +
+      tile('🧱', 'Stock estándar', K(r.sal_kg || 0), 'barras 6 y 12 m') + tile('🧵', 'Stock figurado', K(f.sal_kg || 0), 'cortes y figuras') + '</div>';
+  }
+  function tarjetasEstructuras() {
+    var E = estructuras(); if (!E.length) return '';
+    var h = '<div class="card gr"><h3>🏗️ Estructuras</h3><div class="ley"><span><i class="pen"></i>Por llegar</span><span><i class="lib"></i>Para armar</span><span><i class="arm"></i>Armado</span><span><i class="out"></i>Salió</span></div>';
+    E.forEach(function (e) {
+      var t = Math.max(1, e.porLlegar + e.libKg + e.armKg + e.salioKg), w = function (v) { return (100 * v / t).toFixed(1) + '%'; };
+      var estado = e.cerrada ? (e.armKg > 0 ? '🏁 Armada · lista para salir' : '🏁 Terminada') : e.inP <= 0 ? '⏳ Esperando el acero' : e.usado > 0 ? '🔧 Armando' : '🟢 Lista para armar';
+      h += '<div class="bh-r"><div class="bh-t"><b>' + esc(e.n) + (e.un > 1 ? ' <small>× ' + e.un + '</small>' : '') + '</b><span>' + estado + '</span></div>' +
+        '<div class="pila"><i class="out" style="width:' + w(e.salioKg) + '"></i><i class="arm" style="width:' + w(e.armKg) + '"></i><i class="lib" style="width:' + w(e.libKg) + '"></i><i class="pen" style="width:' + w(e.porLlegar) + '"></i></div>' +
+        '<div class="peq mut">Pedido ' + esc(e.ped) + ': ' + K(e.pedKg) + (e.porLlegar > 0 ? ' · faltan por llegar ' + K(e.porLlegar) : '') + ' · para armar ' + K(e.libKg) + ' · armado ' + K(e.armKg) + ' · salió ' + K(e.salioKg) + (e.un > 1 ? ' · ≈ ' + String(e.eq).replace('.', ',') + ' de ' + e.un + ' armadas' : '') + '</div>' +
+        (e.usado > 0 ? '<div class="peq"><b>Acero usado: ' + K(e.usado) + '</b> = ' + K(e.usadoPed) + ' del pedido' + (e.stockKg > 0 ? ' + ' + K(e.stockKg) + ' del stock' : '') + (e.sobKg > 0 ? ' · sobró ' + K(e.sobKg) + ' (pasó a stock)' : '') + '</div>' : '') + '</div>';
+    });
+    return h + '</div>';
+  }
+  function vStockListas() {
+    var h = '';
+    STK.forEach(function (s) {
+      var P = posiciones(s).filter(function (p) { return p.lib > 0; }); if (!P.length) return;
+      h += '<div class="card"><h3>' + (s === 'ACERO RECTO' ? '🧱 ' : '🧵 ') + NOM[s] + '</h3>' + P.map(function (p) { return '<div class="fila"><div>' + posTxt(p) + '</div><div><b>' + pz(p.lib) + '</b> · ' + K(p.lib * p.kgU) + '</div></div>'; }).join('') + '</div>';
+    });
+    return h;
   }
   function eventos() {
     var S = X.S, L = [], G = {}, orden = [];
     S.estado.pedidos.forEach(function (p) {
-      if (/^(SOBRANTE|TRASLADO|AJUSTE|STOCK)$/.test(String(p.pedido))) return;
-      if (X.recibo(p.loadId)) { // pedido nuevo: montado en oficina, por recibir
-        L.push({ f: p.fecha, est: p.estructura, h: '<div class="mv"><div class="mv-i">📄</div><div class="mv-c"><div class="mv-t">Pedido montado<span class="chp pen">por recibir</span></div><div class="mv-s">' + esc(p.estructura) + '</div><div class="mv-m"><span>Pedido ' + esc(p.pedido) + '</span><span>' + X.pz(p.piezas) + ' · ' + X.kg(p.kg) + ' kg</span><span>' + esc(p.usuario || '') + ' · ' + X.fecha(p.fecha) + '</span></div></div></div>' });
-        return;
-      }
-      L.push({ f: p.fecha, est: p.estructura, h: X.vMov({ t: 'E', f: p.fecha, p: p }, true) });
+      if (SIS.test(String(p.pedido))) return;
+      if (X.recibo(p.loadId)) { L.push({ f: p.fecha, h: mv('', '📄', 'Pedido montado en oficina', p.estructura, ['Pedido ' + esc(p.pedido), pz(p.piezas) + ' · ' + K(p.kg), esc(p.usuario || '') + ' · ' + X.fecha(p.fecha)]) }); return; }
+      L.push({ f: p.fecha, h: X.vMov({ t: 'E', f: p.fecha, p: p }, true) });
     });
     var RG = {}, ro = [];
     (S.estado.recepciones || []).forEach(function (e) { var k = String(e.id).replace(/-\d+$/, ''); if (!RG[k]) { RG[k] = []; ro.push(k); } RG[k].push(e); });
-    ro.forEach(function (k) {
-      var g = RG[k], tp = 0, tk = 0, est = {}; g.forEach(function (e) { tp += e.cantidad; tk += e.kg; est[e.estructura] = 1; });
-      var ns = Object.keys(est);
-      L.push({ f: g[0].fecha, est: ns[0], ests: est, h: '<div class="mv ent"><div class="mv-i">📥</div><div class="mv-c"><div class="mv-t">Llegó acero a la obra</div><div class="mv-s">' + esc(ns.slice(0, 4).join(', ')) + (ns.length > 4 ? ' +' + (ns.length - 4) : '') + '</div><div class="mv-m"><span>Pedido ' + esc(g[0].pedido) + '</span><span>' + X.pz(tp) + ' · ' + X.kg(tk) + ' kg</span><span>' + esc(g[0].usuario || '') + ' · ' + X.fecha(g[0].fecha) + '</span></div></div></div>' });
-    });
-    armados().forEach(function (a) {
-      if (a.estado === 'ANULADO') return;
-      L.push({ f: a.inicio, est: a.elemento, h: cardArm(a, false) });
-      if (a.estado === 'TERMINADO') L.push({ f: a.fin, est: a.elemento, h: cardArm(a, true) });
-    });
-    S.estado.salidas.forEach(function (s) { var k = String(s.id).replace(/-\d+$/, ''); if (!G[k]) { G[k] = []; orden.push(k); } G[k].push(s); });
-    orden.forEach(function (k) {
-      var g = G[k]; if (SISTEMA.test(String(g[0].obs || ''))) return;
-      L.push({ f: g[0].fecha, est: g[0].elemento, h: X.vMov({ t: 'S', f: g[0].fecha, s: g[0], g: g }, true) });
-    });
-    var q = String(S.mq || '').trim().toLowerCase();
-    if (q) {
-      var est = {}; S.estado.pedidos.forEach(function (p) { if (String(p.pedido).toLowerCase() === q) est[p.estructura] = 1; });
-      L = L.filter(function (e) { return e.ests ? Object.keys(e.ests).some(function (n) { return est[n]; }) : (e.est ? !!est[e.est] : false); });
-    }
-    return L.filter(function (e) { return q || X.enPer(e.f); }).sort(function (a, b) { return a.f < b.f ? 1 : a.f > b.f ? -1 : 0; });
+    ro.forEach(function (k) { var g = RG[k], tp = 0, tk = 0; g.forEach(function (e) { tp += e.cantidad; tk += e.kg; }); L.push({ f: g[0].fecha, h: mv('ent', '📥', 'Llegó acero a la obra', g[0].estructura, ['Pedido ' + esc(g[0].pedido), pz(tp) + ' · ' + K(tk), esc(g[0].usuario || '') + ' · ' + X.fecha(g[0].fecha)]) }); });
+    (S.estado.armados || []).forEach(function (a) { if (a.estado === 'TERMINADO') L.push({ f: a.fin, h: mv('fin', '🏁', 'Se cerró el armado', a.elemento, [esc(a.sobrante || 'Sin sobrante'), esc(a.usuarioFin || '') + ' · ' + X.fecha(a.fin)]) }); });
+    S.estado.salidas.forEach(function (s) { var k = String(s.id).replace(/-\d+$/, '').replace(/-[SA]$/, ''); if (!G[k]) { G[k] = []; orden.push(k); } G[k].push(s); });
+    orden.forEach(function (k) { var g = G[k]; if (OBS_SIS.test(String(g[0].obs || '')) || /^Armado de /.test(String(g[0].obs || ''))) return; L.push({ f: g[0].fecha, h: X.vMov({ t: 'S', f: g[0].fecha, s: g[0], g: g }, true) }); });
+    return L.sort(function (a, b) { return a.f < b.f ? 1 : a.f > b.f ? -1 : 0; });
   }
-  function vRegistro() {
-    var h = '';
-    h += X.vFiltro() + '<div class="card"><div class="row2" style="justify-content:space-between"><h2 style="margin:0">🕒 Registro</h2><button class="btn chico sec" data-a="csv">⬇ Descargar CSV</button></div>' +
-      '<div class="mfil"><label for="m-q">Filtrar por número de pedido</label><select id="m-q" data-f="mov.q"><option value="">Todos los pedidos</option>' + X.pedidosLista().map(function (n) { return '<option value="' + esc(n) + '"' + (String(X.S.mq || '') === String(n) ? ' selected' : '') + '>Pedido ' + esc(n) + '</option>'; }).join('') + '</select></div>' +
-      (X.S.mq ? '<p class="peq mut">Mostrando todo lo del pedido ' + esc(X.S.mq) + ' (sin límite de fechas).</p>' : '') + '</div>';
-    var E = eventos();
-    if (!E.length) return h + '<div class="card vacio">Todavía no hay movimientos en este periodo.</div>';
-    var dia = '';
-    E.slice(0, 200).forEach(function (e) {
-      var d = String(e.f).slice(0, 10);
-      if (d !== dia) { dia = d; h += '<div class="dia">' + (d === X.hoyISO() ? 'Hoy · ' : '') + X.fechaDia(d) + '</div>'; }
-      h += e.h;
-    });
-    if (E.length > 200) h += '<div class="peq mut cen">Se muestran los 200 más recientes. Cambie el periodo para ver otros.</div>';
+  function mv(cls, ico, tit, sub, meta) { return '<div class="mv ' + cls + '"><div class="mv-i">' + ico + '</div><div class="mv-c"><div class="mv-t">' + tit + '</div><div class="mv-s">' + esc(sub) + '</div><div class="mv-m">' + meta.map(function (m) { return '<span>' + m + '</span>'; }).join('') + '</div></div></div>'; }
+  function vInicio() {
+    var E = estructuras(), pl = porRecibir(), c = calc();
+    var nArm = E.filter(function (e) { return e.lib > 0; }).length, nSal = E.filter(function (e) { return e.arm > 0; }).length, stk = ((c.porElem['ACERO RECTO'] || {}).sal_p || 0) + ((c.porElem['ACERO FIGURADO'] || {}).sal_p || 0);
+    var h = '<div class="card"><h2 style="margin:0">¿Qué vas a registrar?</h2></div><div class="tres">' +
+      grande('wRuta', 'llego', '📥', 'LLEGÓ ACERO', pl.length ? pl.length + (pl.length === 1 ? ' pedido por llegar' : ' pedidos por llegar') : 'Recibir acero en la obra', 'b1') +
+      grande('wRuta', 'armar', '🔧', 'ARMAR', nArm ? nArm + (nArm === 1 ? ' estructura con acero' : ' estructuras con acero') : 'Dar avance de armado', 'b2') +
+      grande('wRuta', 'salio', '🚚', 'SALIÓ ACERO', nSal ? nSal + (nSal === 1 ? ' estructura armada' : ' estructuras armadas') : (stk ? 'Sacar acero del stock' : 'Dar salida del almacén'), 'b3') + '</div>';
+    h += '<div class="card"><h3 style="margin:0">🏬 El almacén ahora</h3></div>' + almacen() + tarjetasEstructuras() + vStockListas();
+    var Ev = eventos();
+    h += '<div class="card"><div class="row2" style="justify-content:space-between"><h3 style="margin:0">🕒 Lo último que pasó</h3>' + (X.esAdmin() ? '<button class="btn chico sec" data-a="csv">⬇ CSV</button>' : '') + '</div></div>';
+    if (!Ev.length) h += '<div class="card vacio">Todavía no hay movimientos.</div>';
+    var dia = ''; Ev.slice(0, 40).forEach(function (e) { var d = String(e.f).slice(0, 10); if (d !== dia) { dia = d; h += '<div class="dia">' + (d === X.hoyISO() ? 'Hoy · ' : '') + X.fechaDia(d) + '</div>'; } h += e.h; });
     return h;
   }
+  function vOk() {
+    var w = W(), otra = { llego: 'Registrar otra llegada', armar: 'Registrar otro armado', salio: 'Registrar otra salida' }[w.r];
+    return '<div class="card wz cen"><div style="font-size:3.4rem;line-height:1">✅</div><h2>' + esc(w.okMsg) + '</h2>' + (w.okSub ? '<p>' + esc(w.okSub) + '</p>' : '') + (w.extra || '') +
+      '<button type="button" class="btn blk gr" data-a="wHome">🏠 Volver al inicio</button><button type="button" class="btn blk sec" style="margin-top:8px" data-a="wRuta" data-v="' + w.r + '">' + otra + '</button></div>';
+  }
 
-  // ---------------------------------------------------------------- Llegó
-  /** Posiciones de un pedido que aún faltan por llegar, siempre en el mismo orden. */
-  function pend(loadId) {
-    var rc = X.recibo(loadId); if (!rc) return [];
-    return rc.rows.filter(function (e) { return e.cantidad - e.recibida > 0; }).sort(function (a, b) {
-      return a.estructura < b.estructura ? -1 : a.estructura > b.estructura ? 1 : (X.C.diamOrder(a.diametro) - X.C.diamOrder(b.diametro)) || (a.marca < b.marca ? -1 : a.marca > b.marca ? 1 : 0);
-    });
-  }
-  function porRecibir() { // pedidos con algo pendiente
-    var seen = {}, L = [];
-    (X.S.estado.cartilla || []).forEach(function (e) { if (seen[e.loadId]) return; seen[e.loadId] = 1; var rc = X.recibo(e.loadId); if (rc && rc.est !== 'COMPLETO') L.push({ id: e.loadId, pedido: e.pedido, rc: rc, fecha: e.fecha }); });
-    return L.sort(function (a, b) { return a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0; });
-  }
-  function totRec(rc) { var t = 0, p = 0; pend(rc).forEach(function (e) { var q = R().rec.vals[e.diametro + '|' + e.marca] || 0; p += q; t += q * e.kgUnit; }); return { p: p, kg: t }; }
+  // ================================================================== LLEGÓ
   function vLlego() {
-    var r = R().ing, h = '', m = r.modo || 'ped', pl = porRecibir();
-    h += '<div class="card"><h2>📥 ¿Qué llegó a la obra?</h2></div><div class="bgs">' + grande('llegoModo', 'ped', '📦', 'Un pedido', pl.length ? pl.length + ' por recibir' : 'Con cartilla (DLI o PDF)', m === 'ped' ? 'sel' : '') +
-      grande('llegoModo', 'rec', '🧱', 'Stock estándar', 'Sin pedido · barras 6 y 12 m', m === 'rec' ? 'sel' : '') + grande('llegoModo', 'fig', '🧵', 'Stock figurado', 'Sin pedido · todo lo demás', m === 'fig' ? 'sel' : '') + '</div>';
-    if (m === 'ped') return h + vLlegoPedido(pl);
-    r.stock = m === 'rec' ? 'ACERO RECTO' : 'ACERO FIGURADO'; if (r.stock === 'ACERO RECTO' && r.l !== '6' && r.l !== '12') r.l = '12';
-    h += '<div class="card"><h2>' + (m === 'rec' ? '🧱 Llegó al Stock estándar' : '🧵 Llegó al Stock figurado') + '</h2><div class="peq mut" style="margin-bottom:8px">' + (m === 'rec' ? 'Solo barras rectas de 6 m o 12 m.' : 'Estribos, ganchos, cortes y otros largos.') + ' Es obligatorio adjuntar la foto o el PDF de la remisión.</div>';
-    var lista = Object.keys(X.C.PESOS).filter(function (k) { return k !== 'ALAMBRE'; }).sort(function (a, b) { return X.C.diamOrder(a) - X.C.diamOrder(b); });
-    h += '<div class="fgrid"><div class="fld"><label>Varilla</label><select data-r="ing.d">' + lista.map(function (k) { return '<option value="' + esc(k) + '"' + (r.d === k ? ' selected' : '') + '>' + esc(X.C.diamLabel(k)) + '</option>'; }).join('') + '</select></div>' +
-      '<div class="fld"><label>Largo (m)</label>' + (r.stock === 'ACERO RECTO' ? '<div class="seg" style="margin:0"><button type="button" class="' + (r.l === '6' ? 'on' : '') + '" data-a="ingL" data-v="6">6 m</button><button type="button" class="' + (r.l === '12' ? 'on' : '') + '" data-a="ingL" data-v="12">12 m</button></div>' : '<input type="text" inputmode="decimal" value="' + esc(r.l) + '" data-r="ing.l">') + '</div>' +
-      '<div class="fld"><label>Cantidad (piezas)</label><input type="text" inputmode="numeric" placeholder="Ej. 50" value="' + esc(r.c) + '" data-r="ing.c"></div>' +
-      '<div class="fld"><label>Kilos que llegaron</label><input type="text" inputmode="decimal" placeholder="' + (r.c ? 'Aprox. ' + X.kg((X.C.PESOS[r.d] || 0) * (parseFloat(String(r.l).replace(',', '.')) || 0) * (parseInt(r.c, 10) || 0)) : 'Según la remisión') + '" value="' + esc(r.k) + '" data-r="ing.k"></div></div>' +
-      '<button class="btn blk" data-a="ingAdd" style="margin-top:8px">➕ Agregar a la lista</button>';
-    if (r.rows.length) {
-      h += '<div class="lst">' + r.rows.map(function (x, i) { return '<div class="fila"><div><b>' + pz(x.c) + '</b> · ' + esc(X.C.diamLabel(x.d)) + ' · ' + x.l + ' m · ' + X.kg(x.k) + ' kg</div><button class="btn chico sec" data-a="ingDel" data-v="' + i + '">Quitar</button></div>'; }).join('') + '</div>' +
-        '<div class="fld" style="margin-top:8px"><label>📎 Foto o PDF de la remisión (obligatorio)</label><input id="ing-file" type="file" accept="image/*,application/pdf" data-r="ing.file">' + (r.file ? '<div class="peq" style="margin-top:4px">✅ ' + esc(r.file.nombre) + '</div>' : '<div class="peq mut" style="margin-top:4px">No puede llegar acero sin soporte.</div>') + '</div>' +
-        '<div class="fld" style="margin-top:8px"><label>Número de pedido o remisión (opcional)</label><input type="text" value="' + esc(r.pedido) + '" data-r="ing.pedido"></div>' +
-        '<button class="btn blk ok" data-a="ingOk"' + (r.busy ? ' disabled' : '') + '>' + (r.busy ? 'Guardando…' : '✅ Guardar la llegada') + '</button>';
+    var w = W(), h = '', pl = porRecibir();
+    if (w.p === 'l1') return cab('¿Para qué llegó el acero?') + '<div class="bgs dos">' + grande('wL1', 'est', '🏗️', 'Para una estructura', 'Viene con su pedido') + grande('wL1', 'stk', '📦', 'Para el stock', 'Barras o figurado sin estructura') + '</div>' + pie();
+    if (w.p === 'l2e') {
+      var Le = pl.filter(function (q) { return !esStk(q.est); });
+      h = cab('¿De cuál estructura llegó?', 'Toca la estructura. Solo aparecen los pedidos que montó la oficina.');
+      if (!Le.length) h += '<div class="vacio">No hay pedidos de estructuras por llegar.<br>Pide a la oficina que monte el pedido.</div>';
+      return h + Le.map(function (q) { return opcion('wLoad', q.id, '🏗️', esc(q.est), 'Pedido ' + esc(q.pedido) + ' · ' + (q.rc.est === 'PARCIAL' ? 'ya llegó una parte · ' : '') + 'faltan ' + K(q.falta)); }).join('') + pie();
     }
-    if (r.err) h += '<div class="error">' + esc(r.err) + '</div>';
-    return h + '</div>';
-  }
-  /** Confirmar llegada de un pedido: elegir pedido → día y hora → «llegó todo» o lista por posición (✓ o kilos). */
-  function vLlegoPedido(pl) {
-    var rc = R().rec, h = '';
-    if (rc.ok) h += '<div class="card"><div class="rec ok">' + esc(rc.ok) + '</div></div>';
-    if (!pl.length) return h + '<div class="card vacio">No hay pedidos por recibir.' + (X.esAdmin() ? ' Móntalos en la pestaña «Pedidos».' : ' El administrador los monta desde la oficina.') + '</div>';
-    if (!rc.load || !pl.some(function (q) { return q.id === rc.load; })) {
-      h += '<div class="card"><h2>Pedidos por recibir</h2><div class="peq mut" style="margin-bottom:6px">Toca el pedido que llegó.</div>' + pl.map(function (q) {
-        var t = q.rc, est = {}; t.rows.forEach(function (e) { est[e.estructura] = 1; }); var ns = Object.keys(est);
-        return '<button type="button" class="fila btn sec blk" style="text-align:left;margin-bottom:6px" data-a="recSel" data-v="' + esc(q.id) + '"><div><b>Pedido ' + esc(q.pedido) + '</b> · ' + esc(ns.slice(0, 3).join(', ')) + (ns.length > 3 ? ' +' + (ns.length - 3) : '') + '<div class="peq mut">' + (t.est === 'PARCIAL' ? '🟡 Parcial · llegó ' + X.kg(t.rk) + ' de ' + X.kg(t.tk) + ' kg' : '⏳ ' + X.kg(t.tk) + ' kg por recibir') + '</div></div><span>›</span></button>';
-      }).join('') + '</div>';
-      return h;
+    if (w.p === 'l2s') return cab('¿A cuál stock llegó?') + '<div class="bgs dos">' + grande('wLs', 'ACERO RECTO', '🧱', 'Stock estándar', 'Barras rectas de 6 m y 12 m') + grande('wLs', 'ACERO FIGURADO', '🧵', 'Stock figurado', 'Estribos, ganchos, cortes') + '</div>' + pie();
+    if (w.p === 'l2p') { // stock con pedidos montados
+      var Ls = pl.filter(function (q) { return q.est === w.stock; });
+      return cab('¿Llegó con un pedido?', NOM[w.stock]) + Ls.map(function (q) { return opcion('wLoad', q.id, '📄', 'Pedido ' + esc(q.pedido), 'faltan ' + K(q.falta)); }).join('') + opcion('wLform', '', '📸', 'Llegó sin pedido', 'Se registra con la foto de la remisión') + pie();
     }
-    var q = pl.filter(function (z) { return z.id === rc.load; })[0], P = pend(rc.load), t = q.rc, falta = t.tk - t.rk;
-    if (!rc.fecha) { rc.fecha = X.hoyISO(); rc.hora = X.horaAhora(); }
-    h += '<div class="card"><div class="row2" style="justify-content:space-between"><h2 style="margin:0">Pedido ' + esc(q.pedido) + '</h2><button class="btn chico sec" data-a="recAtras">‹ Otros pedidos</button></div>' +
-      '<div class="peq mut" style="margin:4px 0 8px">Faltan por llegar <b>' + X.kg(falta) + ' kg</b>' + (t.rk > 0 ? ' (ya llegó ' + X.kg(t.rk) + ' de ' + X.kg(t.tk) + ' kg)' : '') + '</div>' +
-      '<div class="fgrid"><div class="fld"><label>📅 Día en que llegó</label><input type="date" max="' + X.hoyISO() + '" value="' + esc(rc.fecha) + '" data-r="rec.fecha"></div><div class="fld"><label>🕒 Hora</label><input type="time" value="' + esc(rc.hora) + '" data-r="rec.hora"></div></div>' +
-      '<button class="btn blk ok" style="margin-top:10px" data-a="recTodo"' + (rc.busy ? ' disabled' : '') + '>' + (rc.busy ? 'Guardando…' : '✅ Llegó TODO lo que falta (' + X.kg(falta) + ' kg)') + '</button></div>';
-    h += '<div class="card"><h2>¿Llegó solo una parte?</h2><div class="peq mut" style="margin-bottom:6px">Marca ✓ si llegó toda la posición, o escribe los kilos que llegaron.</div>';
-    var est = '';
-    P.forEach(function (e, i) {
-      var key = e.diametro + '|' + e.marca, pe = e.cantidad - e.recibida, v = rc.vals[key] || 0, kgx = rc.kgs[key] === undefined ? '' : rc.kgs[key];
-      if (e.estructura !== est) { est = e.estructura; h += '<div class="peq" style="margin:8px 0 2px"><b>' + esc(est) + '</b></div>'; }
-      h += '<div class="fila" style="gap:8px"><label style="display:flex;align-items:center;gap:8px;flex:1"><input type="checkbox" data-rc="' + i + '"' + (v >= pe ? ' checked' : '') + ' style="width:22px;height:22px"><span><b>' + esc(e.marca) + '</b> · ' + esc(X.C.diamLabel(e.diametro)) + ' · ' + e.largo + ' m<div class="peq mut">Faltan ' + pz(pe) + ' · ' + X.kg(pe * e.kgUnit) + ' kg</div></span></label>' +
-        '<div style="width:96px"><input type="text" inputmode="decimal" placeholder="kg" value="' + esc(kgx) + '" data-rk="' + i + '" id="rk' + i + '" aria-label="Kilos recibidos de ' + esc(e.marca) + '"><div class="peq mut" id="rp' + i + '">' + (v > 0 ? pz(v) + ' · ' + X.kg(v * e.kgUnit) + ' kg' : '') + '</div></div></div>';
-    });
-    var tt = totRec(rc.load);
-    h += '<div class="fld" style="margin-top:10px"><label>📎 Foto o PDF de la remisión (opcional)</label><input type="file" accept="image/*,application/pdf" data-r="rec.file">' + (rc.file ? '<div class="peq" style="margin-top:4px">✅ ' + esc(rc.file.nombre) + '</div>' : '') + '</div>' +
-      '<button class="btn blk ok" style="margin-top:10px" data-a="recOk" id="rec-ok"' + (rc.busy || tt.p <= 0 ? ' disabled' : '') + '>' + (rc.busy ? 'Guardando…' : '✅ Confirmar llegada · <span id="rec-tot">' + X.kg(tt.kg) + '</span> kg') + '</button>';
-    if (rc.err) h += '<div class="error">' + esc(rc.err) + '</div>';
-    return h + '</div>';
-  }
-
-  // ---------------------------------------------------------------- Armar
-  function vArmar() {
-    var q = String(R().arm.q || '').trim().toLowerCase(), cur = {}, h = '';
-    enCurso().forEach(function (a) { cur[a.elemento] = a; });
-    var L = estructuras().filter(function (e) { return (e.lib > 0 || cur[e.n]) && (!q || e.n.toLowerCase().indexOf(q) >= 0 || String(e.ped).toLowerCase().indexOf(q) >= 0); });
-    var en = L.filter(function (e) { return cur[e.n]; }), por = L.filter(function (e) { return !cur[e.n]; });
-    h += '<div class="card"><h2>🔧 Armado de estructuras</h2><div class="peq mut">Toca <b>Empezar</b> cuando comiences una estructura y <b>Terminar</b> cuando acabes. Puedes tener varias a la vez.</div>' +
-      '<input type="search" id="r-arm" class="busca" placeholder="🔍 Buscar estructura o pedido…" value="' + esc(R().arm.q) + '" data-r="arm.q"></div>';
-    if (en.length) {
-      h += '<div class="dia">🔧 En curso (' + en.length + ')</div>';
-      en.forEach(function (e) {
-        var a = cur[e.n];
-        h += '<div class="card est en"><div class="est-t"><b>' + esc(e.n) + '</b><span class="peq mut">Pedido ' + esc(e.ped) + '</span></div><div class="peq mut">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + ' · ' + esc(a.usuarioIni) + '</div>' +
-          '<div class="row2" style="margin-top:8px"><button class="btn ok" data-a="finElegir" data-v="' + esc(a.id) + '">✅ Terminar armado</button><button class="btn sec" data-a="armCancel" data-v="' + esc(a.id) + '">Cancelar</button></div></div>';
+    var q0 = pl.filter(function (q) { return q.id === w.load; })[0];
+    if (w.p === 'l3') {
+      if (!q0) return cab('Este pedido ya se recibió completo') + pie();
+      return cab('¿Llegó todo lo que faltaba?', esc(q0.est) + ' · Pedido ' + esc(q0.pedido) + ' · faltan ' + K(q0.falta)) + '<div class="bgs dos">' + grande('wTodo', '1', '✅', 'Sí, llegó todo', K(q0.falta)) + grande('wTodo', '0', '🟡', 'Solo una parte', 'Marco lo que llegó') + '</div>' + pie();
+    }
+    if (w.p === 'l3p') {
+      var P = pend(w.load);
+      h = cab('¿Qué llegó?', 'Marca ✓ si llegó toda la posición, o escribe los kilos que llegaron.');
+      P.forEach(function (e, i) {
+        var key = e.diametro + '|' + e.marca, pe = e.cantidad - e.recibida, v = w.vals[key] || 0, kgx = w.kgs[key] === undefined ? '' : w.kgs[key];
+        h += '<div class="fila" style="gap:8px"><label style="display:flex;align-items:center;gap:10px;flex:1"><input type="checkbox" data-rc="' + i + '"' + (v >= pe ? ' checked' : '') + ' class="chk"><span><b>' + esc(e.marca) + '</b> · ' + esc(X.C.diamLabel(e.diametro)) + ' · ' + e.largo + ' m<div class="peq mut">Faltan ' + pz(pe) + ' · ' + K(pe * e.kgUnit) + '</div></span></label>' +
+          '<div style="width:96px"><input type="text" inputmode="decimal" placeholder="kg" value="' + esc(kgx) + '" data-rk="' + i + '" aria-label="Kilos recibidos de ' + esc(e.marca) + '"><div class="peq mut" id="rp' + i + '">' + (v > 0 ? pz(v) : '') + '</div></div></div>';
       });
+      var tt = totLleg();
+      return h + '<button type="button" class="btn blk gr" id="rec-ok" data-a="wLsig"' + (tt.p > 0 ? '' : ' disabled') + '>Siguiente → (<span id="rec-tot">' + X.kg(tt.kg) + '</span> kg)</button>' + pie();
     }
-    h += '<div class="dia">⏳ Por armar (' + por.length + ')</div>';
-    if (!por.length) h += '<div class="card vacio">' + (q ? 'No hay estructuras que coincidan.' : 'No hay estructuras con acero sin armar.') + '</div>';
-    por.slice(0, 60).forEach(function (e) {
-      h += '<div class="card est"><div class="est-t"><b>' + esc(e.n) + '</b><span class="peq mut">Pedido ' + esc(e.ped) + '</span></div><div class="est-n"><span>✅ Libre ' + X.n0(e.lib) + '</span><span>🔧 Armado ' + X.n0(e.arm) + '</span></div><button class="btn blk" data-a="armIni" data-v="' + esc(e.n) + '">🔧 Empezar a armar</button></div>';
+    if (w.p === 'l4') {
+      var kgT = w.todo ? (q0 ? q0.falta : 0) : totLleg().kg;
+      if (!w.fecha) { w.fecha = X.hoyISO(); w.hora = X.horaAhora(); }
+      return cab('¿Cuándo llegó?', 'Ya viene con el día y la hora de ahora. Cámbialos solo si llegó antes.') +
+        '<div class="fgrid"><div class="fld"><label>📅 Día</label><input type="date" max="' + X.hoyISO() + '" value="' + esc(w.fecha) + '" data-r="fecha"></div><div class="fld"><label>🕒 Hora</label><input type="time" value="' + esc(w.hora) + '" data-r="hora"></div></div>' +
+        '<div class="fld" style="margin-top:10px"><label>📎 Foto o PDF de la remisión (opcional)</label><input type="file" accept="image/*,application/pdf" data-r="file">' + (w.file ? '<div class="peq" style="margin-top:4px">✅ ' + esc(w.file.nombre) + '</div>' : '') + '</div>' +
+        '<div class="resu">Llegan <b>' + K(kgT) + '</b> de <b>' + esc(q0 ? q0.est : '') + '</b>' + (w.todo ? ' (todo lo que faltaba)' : ' (una parte)') + '</div>' + guardarBtn('wLok', '✅ Confirmar que llegó') + pie();
+    }
+    if (w.p === 'lsf') return vLlegoStock();
+    return '';
+  }
+  function totLleg() { var w = W(), p = 0, k = 0; pend(w.load).forEach(function (e) { var q = w.vals[e.diametro + '|' + e.marca] || 0; p += q; k += q * e.kgUnit; }); return { p: p, kg: k }; }
+  function vLlegoStock() {
+    var w = W(), rec = w.stock === 'ACERO RECTO';
+    if (!w.rows) { w.rows = []; w.d = '1/2'; w.l = rec ? '12' : ''; w.c = ''; w.k = ''; w.pedido = ''; }
+    var lista = Object.keys(X.C.PESOS).filter(function (k) { return k !== 'ALAMBRE'; }).sort(function (a, b) { return X.C.diamOrder(a) - X.C.diamOrder(b); });
+    var h = cab('¿Qué llegó al ' + NOM[w.stock].toLowerCase() + '?', (rec ? 'Solo barras rectas de 6 m o 12 m. ' : '') + 'Llena una varilla y toca «Agregar». Repite por cada varilla de la remisión.') +
+      '<div class="fgrid"><div class="fld"><label>Varilla</label><select data-r="d">' + lista.map(function (k) { return '<option value="' + esc(k) + '"' + (w.d === k ? ' selected' : '') + '>' + esc(X.C.diamLabel(k)) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="fld"><label>Largo (m)</label>' + (rec ? '<div class="seg" style="margin:0"><button type="button" class="' + (w.l === '6' ? 'on' : '') + '" data-a="wLl" data-v="6">6 m</button><button type="button" class="' + (w.l === '12' ? 'on' : '') + '" data-a="wLl" data-v="12">12 m</button></div>' : '<input type="text" inputmode="decimal" placeholder="Ej. 3,5" value="' + esc(w.l) + '" data-r="l">') + '</div>' +
+      '<div class="fld"><label>Cantidad (piezas)</label><input type="text" inputmode="numeric" placeholder="Ej. 50" value="' + esc(w.c) + '" data-r="c"></div>' +
+      '<div class="fld"><label>Kilos (según remisión)</label><input type="text" inputmode="decimal" placeholder="kg" value="' + esc(w.k) + '" data-r="k"></div></div>' +
+      '<button type="button" class="btn blk" data-a="wLadd" style="margin-top:8px">➕ Agregar</button>';
+    if (w.rows.length) {
+      var tk = 0; w.rows.forEach(function (x) { tk += x.k; });
+      h += '<div class="lst">' + w.rows.map(function (x, i) { return '<div class="fila"><div><b>' + pz(x.c) + '</b> · ' + esc(X.C.diamLabel(x.d)) + ' · ' + x.l + ' m · ' + K(x.k) + '</div><button type="button" class="btn chico sec" data-a="wLdel" data-v="' + i + '">Quitar</button></div>'; }).join('') + '</div>' +
+        '<div class="fld" style="margin-top:8px"><label>📎 Foto o PDF de la remisión (obligatorio)</label><input type="file" accept="image/*,application/pdf" data-r="file">' + (w.file ? '<div class="peq" style="margin-top:4px">✅ ' + esc(w.file.nombre) + '</div>' : '<div class="peq mut" style="margin-top:4px">No puede llegar acero sin soporte.</div>') + '</div>' +
+        '<div class="fld" style="margin-top:8px"><label>Número de remisión o pedido (opcional)</label><input type="text" value="' + esc(w.pedido) + '" data-r="pedido"></div>' +
+        '<div class="resu">Llegan <b>' + K(tk) + '</b> al <b>' + NOM[w.stock] + '</b></div>' + guardarBtn('wLsok', '✅ Confirmar que llegó');
+    }
+    return h + pie();
+  }
+
+  // ================================================================== ARMAR
+  function itemsAvance() { // lo que se va a marcar como armado según unidades y modo
+    var w = W(), e = est1(w.elem), P = posiciones(w.elem), L = [], falta = [];
+    P.forEach(function (p) {
+      var q, nec;
+      if (w.modo === 'pos') { q = Math.min(p.lib, w.vals[p.k] || 0); nec = q; }
+      else { nec = Math.round((p.tot / e.un) * (w.u || 1) * (w.modo === 'pct' ? (w.pct || 0) / 100 : 1)); q = Math.min(p.lib, nec); }
+      if (q > 0) L.push({ p: p, q: q });
+      if (nec > q) falta.push({ p: p, n: nec - q });
     });
-    return h;
+    return { L: L, falta: falta };
+  }
+  function vArmar() {
+    var w = W(), h = '', E = estructuras();
+    if (w.p === 'a1') {
+      var La = E.filter(function (e) { return e.inP > 0 && (e.lib > 0 || !e.cerrada); });
+      h = cab('¿Qué estructura estás armando?', 'Solo aparecen las que ya tienen acero en el almacén.');
+      if (!La.length) h += '<div class="vacio">Todavía no hay acero para armar.<br>Primero registra que <b>llegó</b> el acero.</div>';
+      return h + La.map(function (e) { return opcion('wElem', e.n, '🏗️', esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Para armar ' + K(e.libKg) + ' · armado ' + K(e.armKg) + (e.un > 1 ? ' (≈ ' + String(e.eq).replace('.', ',') + ' de ' + e.un + ')' : '')); }).join('') + pie();
+    }
+    var e = est1(w.elem), P = posiciones(w.elem);
+    if (w.p === 'a2') {
+      return cab(esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Para armar ' + K(e.libKg) + ' · armado ' + K(e.armKg) + (e.porLlegar > 0 ? ' · faltan por llegar ' + K(e.porLlegar) : '')) + '<h3 style="margin:6px 0">¿Qué pasó?</h3>' +
+        opcion('wAv', '', '🔧', 'Armé una parte', 'Registrar el avance de hoy') + opcion('wAst', '', '🧱', 'Me faltó acero', 'Usar acero del stock para esta estructura') + opcion('wAc', '', '🏁', 'Terminé de armar todo', 'Cerrar y contar el acero que sobró') + pie();
+    }
+    if (w.p === 'a3u') {
+      var u = w.u || 1;
+      return cab('¿Cuántas ' + esc(e.n) + ' estás armando?', 'La cartilla trae ' + e.un + '. Van armadas ≈ ' + String(e.eq).replace('.', ',') + '.') +
+        '<div class="cen" style="margin:14px 0"><span class="stp gr"><button type="button" data-a="wU" data-v="-1">−</button><b>' + u + '</b><button type="button" data-a="wU" data-v="1">+</button></span><div class="peq mut" style="margin-top:6px">' + (u === 1 ? 'una sola' : u + ' al mismo tiempo') + '</div></div>' +
+        '<div class="chips cen2"><button type="button" class="btn sec" data-a="wUset" data-v="1">Solo 1</button><button type="button" class="btn sec" data-a="wUset" data-v="' + e.un + '">Las ' + e.un + '</button></div>' +
+        '<button type="button" class="btn blk gr" data-a="wIr" data-v="a3m">Siguiente →</button>' + pie();
+    }
+    if (w.p === 'a3m') {
+      var que = e.un > 1 ? ((w.u || 1) === 1 ? '1 unidad' : (w.u) + ' unidades') : 'la estructura';
+      return cab('¿Cuánto armaste?', esc(e.n) + ' · ' + que) + opcion('wModo', 'todo', '💯', 'Completa', 'Se armó todo (100 %)') + opcion('wModo', 'pct', '📊', 'Un porcentaje', 'Por ejemplo la mitad (50 %)') + opcion('wModo', 'pos', '📋', 'Por posiciones', 'Marco cuántas piezas de cada posición') + pie();
+    }
+    if (w.p === 'a3pct') {
+      var pc = w.pct || 50;
+      return cab('¿Qué porcentaje armaste?', esc(e.n) + (e.un > 1 ? ' · ' + (w.u || 1) + (w.u > 1 ? ' unidades' : ' unidad') : '')) +
+        '<div class="chips cen2">' + [25, 50, 75, 100].map(function (v) { return '<button type="button" class="btn ' + (pc === v ? '' : 'sec') + '" data-a="wPct" data-v="' + v + '">' + v + ' %</button>'; }).join('') + '</div>' +
+        '<div class="cen" style="margin:12px 0"><span class="stp gr"><button type="button" data-a="wPctD" data-v="-5">−</button><b>' + pc + ' %</b><button type="button" data-a="wPctD" data-v="5">+</button></span></div>' +
+        '<button type="button" class="btn blk gr" data-a="wIr" data-v="a4">Siguiente →</button>' + pie();
+    }
+    if (w.p === 'a3pos') {
+      var Pl = P.filter(function (p) { return p.lib > 0; });
+      h = cab('¿Cuántas piezas armaste?', 'Usa + y − en cada posición.');
+      if (!Pl.length) h += '<div class="vacio">No hay acero libre de esta estructura.</div>';
+      Pl.forEach(function (p) { h += '<div class="fila"><div>' + posTxt(p) + '<div class="peq mut">Hay ' + pz(p.lib) + ' sin armar</div></div>' + stp(p.k, Math.min(p.lib, w.vals[p.k] || 0), p.lib) + '</div>'; });
+      var t = totVals(Pl);
+      return h + '<button type="button" class="btn blk gr" data-a="wIr" data-v="a4"' + (t.p > 0 ? '' : ' disabled') + '>Siguiente → (' + K(t.kg) + ')</button>' + pie();
+    }
+    if (w.p === 'a4') {
+      var it = itemsAvance(), tk = 0; it.L.forEach(function (x) { tk += x.q * x.p.kgU; });
+      var desc = w.modo === 'pos' ? 'por posiciones' : (e.un > 1 ? (w.u || 1) + ' de ' + e.un + ' · ' : '') + (w.modo === 'pct' ? w.pct + ' %' : 'completa');
+      h = cab('Revisa y guarda', 'Armado de ' + esc(e.n) + ' · ' + desc);
+      if (!it.L.length) h += '<div class="rec bad">No hay acero libre para este avance.</div>';
+      h += it.L.map(function (x) { return '<div class="fila"><div>' + posTxt(x.p) + '</div><div><b>' + pz(x.q) + '</b> · ' + K(x.q * x.p.kgU) + '</div></div>'; }).join('');
+      if (it.falta.length) h += '<div class="rec warn">⚠️ Falta acero para completar: ' + it.falta.map(function (f) { return esc(f.p.m) + ' (' + f.n + ')'; }).join(', ') + '. Se guarda lo que hay. Si lo completaste con acero del stock, regístralo después en «Me faltó acero».</div>';
+      return h + '<div class="resu">Quedan armados <b>' + K(tk) + '</b></div>' + (it.L.length ? guardarBtn('wAok', '✅ Guardar el armado') : '') + pie();
+    }
+    if (w.p === 'ast') {
+      h = cab('¿Qué acero del stock usaste?', 'Sale del stock y queda armado en ' + esc(e.n) + '.'); var hay = false, tk2 = 0, tp2 = 0;
+      STK.forEach(function (s) {
+        var Ps = posiciones(s).filter(function (p) { return p.lib > 0; }); if (!Ps.length) return; hay = true;
+        h += '<h3 style="margin:10px 0 2px">' + (s === 'ACERO RECTO' ? '🧱 ' : '🧵 ') + NOM[s] + '</h3>';
+        Ps.forEach(function (p) { var key = s + '~' + p.k, v = Math.min(p.lib, w.vals[key] || 0); tp2 += v; tk2 += v * p.kgU; h += '<div class="fila"><div>' + posTxt(p) + '<div class="peq mut">Hay ' + pz(p.lib) + '</div></div>' + stp(key, v, p.lib) + '</div>'; });
+      });
+      if (!hay) return h + '<div class="vacio">No hay acero en el stock.</div>' + pie();
+      return h + '<div class="resu">Pasan <b>' + K(tk2) + '</b> del stock a <b>' + esc(e.n) + '</b></div>' + (tp2 > 0 ? guardarBtn('wAstOk', '✅ Guardar') : '') + pie();
+    }
+    if (w.p === 'ac') {
+      var Pc = P.filter(function (p) { return p.lib > 0; }), sk = 0, ak = 0;
+      h = cab('¿Cuánto acero sobró?', 'Cuenta lo que quedó sin usar de ' + esc(e.n) + '. Lo que sobre pasa al stock; lo demás queda como armado.');
+      if (e.porLlegar > 0) h += '<div class="rec warn">⚠️ Todavía faltan por llegar ' + K(e.porLlegar) + ' de este pedido.</div>';
+      if (!Pc.length) h += '<div class="rec ok">No quedó acero suelto: no sobró nada.</div>';
+      Pc.forEach(function (p) { var v = Math.min(p.lib, w.vals[p.k] || 0); sk += v * p.kgU; ak += (p.lib - v) * p.kgU; h += '<div class="fila"><div>' + posTxt(p) + '<div class="peq mut">Sin armar: ' + pz(p.lib) + ' · si sobra va a ' + (p.largo === 6 || p.largo === 12 ? 'stock estándar' : 'stock figurado') + '</div></div>' + stp(p.k, v, p.lib) + '</div>'; });
+      return h + '<div class="resu">Sobran <b>' + K(sk) + '</b> → al stock' + (ak > 0 ? '<br>Quedan armados <b>' + K(ak) + '</b> más' : '') + '</div>' + guardarBtn('wAcOk', '🏁 Cerrar la estructura') + pie();
+    }
+    return '';
   }
 
-  // ---------------------------------------------------------------- Fin de armado
-  function vFin() {
-    var f = R().fin, cur = enCurso(), h = '';
-    if (f.ok) return '<div class="card okmsg2"><b>' + esc(f.ok) + '</b></div><div class="bgs">' + grande('tab', 'reg', '🕒', 'Ver el registro') + grande('finVolver', null, '🔧', 'Seguir armando') + '</div>';
-    var a = cur.filter(function (x) { return x.id === f.id; })[0];
-    if (!a) return vArmar();
-    if (false) {
-      h = '<div class="card"><h2>✅ ¿Cuál armado terminó?</h2><p class="mut" style="margin:0">Toca la estructura.</p></div>';
-      return h + cur.map(function (x) { return '<div class="card est"><div class="est-t"><b>' + esc(x.elemento) + '</b></div><div class="peq mut">Empezó ' + X.fecha(x.inicio) + ' · lleva ' + dur(x.inicio) + '</div><button class="btn blk" style="margin-top:8px" data-a="finElegir" data-v="' + esc(x.id) + '">✅ Terminó este armado</button></div>'; }).join('');
-    }
-    var pos = posiciones(a.elemento).filter(function (p) { return p.lib > 0; });
-    h += '<div class="card"><div class="est-t"><b>' + esc(a.elemento) + '</b></div><div class="peq mut">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + '</div>' + '<div style="margin-top:8px"><button class="btn chico sec" data-a="finOtro">← Volver a la lista</button></div>' + '</div>';
-    // Paso 1: acero del stock (opcional)
-    var sp = posiciones(f.stk).filter(function (p) { return p.sal > 0; });
-    h += '<div class="card"><h2>1️⃣ ¿Usaste acero del stock en esta estructura? <span class="tag">opcional</span></h2><div class="seg">' + STK.map(function (s) { return '<button type="button" class="' + (f.stk === s ? 'on' : '') + '" data-a="finStk" data-v="' + s + '">' + NOM[s] + '</button>'; }).join('') + '</div>';
-    if (!sp.length) h += '<div class="peq mut">No hay acero en este stock.</div>';
-    else {
-      h += sp.map(function (p) { var v = f.sv[p.k + '|' + p.m] || 0; return '<div class="fila"><div><b>' + esc(X.C.diamLabel(p.d)) + '</b> · ' + p.largo + ' m<div class="peq mut">Hay ' + X.n0(p.sal) + '</div></div>' + stp('sv', p.k + '|' + p.m, v, p.sal) + '</div>'; }).join('');
-      var tot = 0; Object.keys(f.sv).forEach(function (k) { tot += f.sv[k] || 0; });
-      if (tot > 0) h += '<button class="btn blk" style="margin-top:8px" data-a="finUsarStock"' + (f.busy ? ' disabled' : '') + '>' + (f.busy ? 'Guardando…' : '⬇️ Pasar ' + pz(tot) + ' a esta estructura') + '</button>';
-    }
-    h += '</div>';
-    // Paso 2: sobrante
-    h += '<div class="card"><h2>2️⃣ ¿Quedó acero sin usar?</h2><div class="row2">' + '<button class="btn ' + (f.modo === 'no' ? 'ok' : 'sec') + '" data-a="finModo" data-v="no">No, usé todo</button><button class="btn ' + (f.modo === 'si' ? 'ok' : 'sec') + '" data-a="finModo" data-v="si">Sí, quedó algo</button></div>';
-    var sob = { r: 0, f: 0 };
-    if (f.modo === 'si') {
-      h += '<div class="peq mut" style="margin:10px 0 4px">Escribe cuántas piezas <b>sobraron</b> de cada posición (déjalas en 0 si se usaron todas).</div>' +
-        (pos.length ? pos.map(function (p) { var v = f.vals[p.k + '|' + p.m] || 0; return '<div class="fila"><div><b>' + esc(X.posTxt(a.elemento, p.m)) + '</b> · ' + esc(X.C.diamLabel(p.d)) + ' · ' + p.largo + ' m<div class="peq mut">Sin armar: ' + X.n0(p.lib) + '</div></div>' + stp('fin', p.k + '|' + p.m, v, p.lib) + '</div>'; }).join('') : '<div class="peq mut">No hay piezas sin armar.</div>');
-    }
-    pos.forEach(function (p) { var q = f.modo === 'si' ? (f.vals[p.k + '|' + p.m] || 0) : 0; if (Math.round(p.largo * 100) / 100 === 6 || Math.round(p.largo * 100) / 100 === 12) sob.r += q; else sob.f += q; });
-    if (f.modo) {
-      var usan = 0; pos.forEach(function (p) { usan += p.lib - (f.modo === 'si' ? (f.vals[p.k + '|' + p.m] || 0) : 0); });
-      h += '<div class="resu">Se arman <b>' + X.n0(usan) + '</b> piezas' + (sob.r || sob.f ? ' · sobran: <b>' + X.n0(sob.r) + '</b> → Stock estándar, <b>' + X.n0(sob.f) + '</b> → Stock figurado' : ' · no sobra nada') + '.</div>' +
-        '<button class="btn blk ok" data-a="finOk"' + (f.busy ? ' disabled' : '') + '>' + (f.busy ? 'Guardando…' : '✅ Terminar armado') + '</button>';
-    }
-    if (f.err) h += '<div class="error">' + esc(f.err) + '</div>';
-    return h + '</div>';
-  }
-
-  // ---------------------------------------------------------------- Salió
-  function destinos() {
-    var S = X.S, seen = {}, L = [];
-    estructuras().forEach(function (e) { if (!seen[e.n]) { seen[e.n] = 1; L.push(e.n); } });
-    var rec = [];
-    S.estado.salidas.slice().reverse().forEach(function (s) { var d = String(s.destino || '').trim(); if (d && !seen[d]) { seen[d] = 1; rec.push(d); } });
-    return { todos: L.concat(rec), rec: rec.slice(0, 6) };
-  }
+  // ================================================================== SALIÓ
   function vSalio() {
-    var s = R().sal, h = '';
-    if (s.ok) return '<div class="card okmsg2"><b>' + esc(s.ok) + '</b></div><div class="bgs">' + grande('tab', 'reg', '🏠', 'Ver el registro') + grande('rSalNueva', null, '🚚', 'Otra salida') + '</div>';
-    if (!s.tipo) return '<div class="card"><h2>🚚 ¿Qué sale?</h2></div><div class="bgs">' + grande('salTipo', 'est', '🏗️', 'Estructura armada', 'Sale todo lo que se armó') + grande('salTipo', 'stk', '📦', 'Acero del stock', 'Estándar o figurado') + '</div>' +
-      '<div class="peq mut cen">El acero de una estructura sin armar no puede salir.</div>';
-    h += '<div style="margin-bottom:10px">' + atras('salio', 'Cambiar') + '</div>';
-    if (s.tipo === 'est') {
-      if (!s.elem) {
-        var L = estructuras().filter(function (e) { return e.arm > 0; });
-        h += '<div class="card"><h2>🏗️ ¿Qué estructura sale?</h2></div>';
-        if (!L.length) return h + '<div class="card vacio">No hay estructuras armadas esperando salir.</div>';
-        return h + L.map(function (e) { return '<div class="card est"><div class="est-t"><b>' + esc(e.n) + '</b></div><div class="est-n"><span>🔧 Armado ' + X.n0(e.arm) + ' piezas</span><span>' + X.n0(Math.round(e.armKg)) + ' kg</span></div><button class="btn blk" data-a="salElem" data-v="' + esc(e.n) + '">🚚 Sacar esta estructura</button></div>'; }).join('');
-      }
-      var e0 = estructuras().filter(function (e) { return e.n === s.elem; })[0] || { arm: 0, armKg: 0 };
-      h += '<div class="card"><div class="est-t"><b>' + esc(s.elem) + '</b></div><p style="margin:8px 0">Sale todo lo armado: <b>' + X.n0(e0.arm) + '</b> piezas · <b>' + X.n0(Math.round(e0.armKg)) + '</b> kg.</p>' +
-        '<button class="btn blk ok" data-a="salOk"' + (s.busy ? ' disabled' : '') + '>' + (s.busy ? 'Guardando…' : '✅ Confirmar salida') + '</button>' + (s.err ? '<div class="error">' + esc(s.err) + '</div>' : '') + '</div>';
-      return h;
+    var w = W(), h = '', E = estructuras();
+    if (w.p === 's1') return cab('¿Qué sale del almacén?') + '<div class="bgs dos">' + grande('wS1', 'est', '🏗️', 'Una estructura armada', 'Va para la obra') + grande('wS1', 'stk', '📦', 'Acero del stock', 'Barras o figurado suelto') + '</div>' + pie();
+    if (w.p === 's2e') {
+      var Ls = E.filter(function (e) { return e.arm > 0; });
+      h = cab('¿Cuál estructura sale?', 'Solo aparecen las que tienen acero armado.');
+      if (!Ls.length) h += '<div class="vacio">No hay estructuras armadas.<br>Primero registra el <b>armado</b>.</div>';
+      return h + Ls.map(function (e) { return opcion('wSelem', e.n, '🏗️', esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Armado ' + K(e.armKg) + (e.un > 1 ? ' (≈ ' + String(Math.round(e.eqArm * 10) / 10).replace('.', ',') + ' unidades)' : '')); }).join('') + pie();
     }
-    // Del stock
-    h += '<div class="card"><h2>📦 ¿De qué stock sale?</h2><div class="seg">' + STK.map(function (k) { return '<button type="button" class="' + (s.stock === k ? 'on' : '') + '" data-a="salStk" data-v="' + k + '">' + NOM[k] + '</button>'; }).join('') + '</div>';
-    if (!s.stock) return h + '</div>';
-    var P = posiciones(s.stock).filter(function (p) { return p.sal > 0; });
-    if (!P.length) return h + '<div class="peq mut">No hay acero en este stock.</div></div>';
-    h += P.map(function (p) { var v = s.vals[p.k + '|' + p.m] || 0; return '<div class="fila"><div><b>' + esc(X.C.diamLabel(p.d)) + '</b> · ' + p.largo + ' m<div class="peq mut">Hay ' + X.n0(p.sal) + '</div></div>' + stp('sal', p.k + '|' + p.m, v, p.sal) + '</div>'; }).join('') + '</div>';
-    var D = destinos();
-    h += '<div class="card"><h2>🏗️ ¿Para qué estructura?</h2>' + (D.rec.length ? '<div class="chips">' + D.rec.map(function (d) { return '<button type="button" class="chip' + (s.dest === d ? ' on' : '') + '" data-a="salDest" data-v="' + esc(d) + '">' + esc(d) + '</button>'; }).join('') + '</div>' : '') +
-      '<input type="text" class="busca" list="dl-dest" placeholder="Escribe o escoge la estructura…" value="' + esc(s.dest) + '" data-r="sal.dest"><datalist id="dl-dest">' + D.todos.map(function (d) { return '<option value="' + esc(d) + '">'; }).join('') + '</datalist>' +
-      '<div class="chips" style="margin-top:8px"><button type="button" class="chip' + (s.dest === 'SIN ESTRUCTURA' ? ' on' : '') + '" data-a="salDest" data-v="SIN ESTRUCTURA">Sin estructura</button></div>';
-    var tot = 0; Object.keys(s.vals).forEach(function (k) { tot += s.vals[k] || 0; });
-    h += '<button class="btn blk ok" style="margin-top:10px" data-a="salOk"' + (s.busy || !tot ? ' disabled' : '') + '>' + (s.busy ? 'Guardando…' : tot ? '✅ Sacar ' + pz(tot) : 'Escoge cuántas piezas') + '</button>' + (s.err ? '<div class="error">' + esc(s.err) + '</div>' : '') + '</div>';
-    return h;
+    if (w.p === 's2s') return cab('¿De cuál stock sale?') + '<div class="bgs dos">' + grande('wSs', 'ACERO RECTO', '🧱', 'Stock estándar', K((calc().porElem['ACERO RECTO'] || {}).sal_kg || 0)) + grande('wSs', 'ACERO FIGURADO', '🧵', 'Stock figurado', K((calc().porElem['ACERO FIGURADO'] || {}).sal_kg || 0)) + '</div>' + pie();
+    var e = est1(w.elem), stock = esStk(w.elem), P = posiciones(w.elem).filter(function (p) { return (stock ? p.lib : p.arm) > 0; }), mx = function (p) { return stock ? p.lib : p.arm; };
+    if (w.p === 's3') return cab('¿Sale todo lo armado?', esc(e.n) + ' · armado ' + K(e.armKg)) + '<div class="bgs dos">' + grande('wStodo', '1', '✅', 'Sí, sale todo', K(e.armKg)) + grande('wStodo', '0', '🟡', 'Solo una parte', 'Marco lo que sale') + '</div>' + pie();
+    if (w.p === 's3p') {
+      h = cab('¿Qué sale?', (stock ? NOM[w.elem] : esc(e.n)) + ' · usa + y − en cada ' + (stock ? 'varilla' : 'posición') + '.');
+      if (!stock && e.un > 1 && e.eqArm >= 1) { h += '<div class="chips">'; for (var i = 1; i <= Math.min(6, Math.floor(e.eqArm + 0.05)); i++) h += '<button type="button" class="btn sec" data-a="wSun" data-v="' + i + '">' + i + (i === 1 ? ' unidad' : ' unidades') + '</button>'; h += '</div>'; }
+      if (!P.length) h += '<div class="vacio">No hay acero para sacar.</div>';
+      P.forEach(function (p) { h += '<div class="fila"><div>' + posTxt(p) + '<div class="peq mut">Hay ' + pz(mx(p)) + (stock ? '' : ' armadas') + '</div></div>' + stp(p.k, Math.min(mx(p), w.vals[p.k] || 0), mx(p)) + '</div>'; });
+      var t = totVals(P);
+      return h + '<button type="button" class="btn blk gr" data-a="wIr" data-v="s4"' + (t.p > 0 ? '' : ' disabled') + '>Siguiente → (' + K(t.kg) + ')</button>' + pie();
+    }
+    if (w.p === 's4') {
+      var tk = 0; P.forEach(function (p) { tk += (w.todo ? mx(p) : Math.min(mx(p), w.vals[p.k] || 0)) * p.kgU; });
+      var frentes = E.map(function (x) { return x.n; });
+      return cab('¿Para dónde va?', stock ? 'Escribe o escoge para qué estructura o frente sale este acero.' : 'Escribe el frente o sitio de la obra (opcional).') +
+        '<div class="fld"><input type="text" placeholder="' + (stock ? 'Ej. BOX 1, cerramiento…' : 'Ej. K5+300, eje 3…') + '" value="' + esc(w.dest || '') + '" data-r="dest" list="w-fr"><datalist id="w-fr">' + (stock ? frentes.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') : '') + '</datalist></div>' +
+        '<div class="resu">Salen <b>' + K(tk) + '</b> de <b>' + (stock ? NOM[w.elem] : esc(e.n)) + '</b></div>' + guardarBtn('wSok', '✅ Confirmar la salida') + pie();
+    }
+    return '';
   }
 
-  // ---------------------------------------------------------------- Stock
-  function vStock() {
-    var k = R().stk.k, P = posiciones(k).filter(function (p) { return p.sal > 0; }), h = '', S = X.S, calc = S.calc || X.C.calcular(S.estado);
-    h += '<div class="seg">' + STK.map(function (s) { var x = calc.porElem[s] || {}; return '<button type="button" class="' + (k === s ? 'on' : '') + '" data-a="stkVer" data-v="' + s + '">' + NOM[s] + '<br><small>' + X.n0(x.sal_p || 0) + ' piezas</small></button>'; }).join('') + '</div>';
-    h += '<div class="peq mut" style="margin-bottom:8px">' + (k === 'ACERO RECTO' ? 'Solo barras rectas de 6 m y 12 m.' : 'Todo lo demás: figurado, cortes y otros largos.') + '</div>';
-    if (!P.length) h += '<div class="card vacio">No hay acero en este stock.</div>';
-    else {
-      var kgT = 0, pT = 0;
-      h += '<div class="card"><div class="tw"><table><thead><tr><th>Varilla</th><th class="n">Largo</th><th class="n">Piezas</th><th class="n">Kg</th></tr></thead><tbody>' + P.map(function (p) {
-        var m = calc.porMarca[k + '|' + p.d + '|' + p.m] || {}; kgT += m.sal_kg || 0; pT += p.sal;
-        return '<tr><td>' + esc(X.C.diamLabel(p.d)) + '</td><td class="n">' + p.largo + ' m</td><td class="n"><b>' + X.n0(p.sal) + '</b></td><td class="n">' + X.kg(m.sal_kg || 0) + '</td></tr>';
-      }).join('') + '</tbody><tfoot><tr><td colspan="2"><b>Total</b></td><td class="n"><b>' + X.n0(pT) + '</b></td><td class="n"><b>' + X.kg(kgT) + '</b></td></tr></tfoot></table></div></div>';
-    }
-    return h + '<div class="bgs">' + grande('stkLlego', k, '📥', 'Llegó acero a este stock') + grande('stkSalio', k, '🚚', 'Sacar acero de este stock') + '</div>';
-  }
-
-  // ---------------------------------------------------------------- Vista principal
+  // ================================================================== enrutador y acciones
   function vista(tab) {
-    switch (tab) {
-      case 'reg': return vRegistro();
-      case 'llego': return vLlego();
-      case 'armar': case 'fin': return (R().fin.id || R().fin.ok) ? vFin() : vArmar();
-      case 'salio': return vSalio();
-      case 'stock': return vStock();
-    }
-    return null;
+    if (['ini', 'reg', 'llego', 'armar', 'salio', 'stock', 'mov', 'fin'].indexOf(tab) < 0) return null;
+    var w = W();
+    if (!w.r) return vInicio();
+    if (w.p === 'ok') return vOk();
+    return w.r === 'llego' ? vLlego() : w.r === 'armar' ? vArmar() : vSalio();
   }
-
-  // ---------------------------------------------------------------- Acciones
-  function fallo(o, msg) { o.busy = false; o.err = msg || 'No se pudo guardar'; X.render(); }
-  function recargar() { return X.cargarEstado(); }
-  function recConfirmar(todo) {
-    var S = X.S, rc = R().rec; if (rc.busy || !rc.load) return;
-    if (!rc.fecha || !rc.hora) { rc.err = 'Indica el día y la hora en que llegó.'; X.render(); return; }
-    var data = { loadId: rc.load, fecha: rc.fecha + 'T' + rc.hora, id: rc.id || ('R' + Date.now().toString(36)) };
-    if (todo) data.todo = true; else {
-      data.items = []; pend(rc.load).forEach(function (e) { var q = rc.vals[e.diametro + '|' + e.marca] || 0; if (q > 0) data.items.push({ diametro: e.diametro, marca: e.marca, cantidad: q }); });
-      if (!data.items.length) { rc.err = 'Marca al menos una posición.'; X.render(); return; }
-    }
-    if (rc.file) { data.archivoB64 = rc.file.b64; data.archivoNombre = rc.file.nombre; }
-    rc.busy = true; rc.err = ''; X.render();
-    X.Api.accion(S.ses, 'recibirPedido', data).then(function (res) {
-      if (!res.ok) return fallo(rc, res.error);
-      var kgOk = res.kg !== undefined ? X.kg(res.kg) + ' kg' : '';
-      var n = nuevoRec(); n.ok = '✅ Llegada confirmada' + (kgOk ? ': ' + kgOk : '') + ' · ya está en el almacén'; R().rec = n; X.toast('✅ Llegada confirmada'); recargar();
-    });
+  function ahoraISO() { var d = new Date(), z = function (n) { return String(n).padStart(2, '0'); }; return X.hoyISO() + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()) + ':' + z(d.getSeconds()); }
+  function enviar(action, data, okMsg, okSub, extra) {
+    var w = W(); if (w.busy) return; w.busy = true; w.err = ''; X.render();
+    X.Api.accion(X.S.ses, action, data).then(function (res) { if (!res.ok) return fallo(res.error); listo(typeof okMsg === 'function' ? okMsg(res) : okMsg, okSub, extra); });
   }
-
-  function listaItems(P, vals) { var L = []; P.forEach(function (p) { var q = vals[p.k + '|' + p.m] || 0; if (q > 0) L.push({ p: p, q: q }); }); return L; }
-
-  function click(a, v, el) {
-    var S = X.S, r = R(), x;
+  function click(a, v) {
+    var w = W(), P, items, e;
     switch (a) {
-      case 'rAtras': if (v === 'salio') { r.sal = { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' }; } S.tab = v; X.render(); window.scrollTo(0, 0); return true;
-      case 'rSalNueva': r.sal = { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' }; X.render(); return true;
-      case 'rs': { // paso + / −
-        x = String(v).split('|'); var sc = x[0], key = decodeURIComponent(x[1]), d = +x[2], mx = +x[3], o = sc === 'fin' ? r.fin.vals : sc === 'sv' ? r.fin.sv : r.sal.vals;
-        o[key] = Math.max(0, Math.min(mx, (o[key] || 0) + d)); X.render(); return true;
-      }
-      // ---- Llegó / ingreso a stock
-      case 'llegoModo': r.ing.modo = v; r.ing.rows = []; r.ing.err = ''; S.tab = 'llego'; X.render(); window.scrollTo(0, 0); return true;
-      case 'recSel': r.rec = nuevoRec(); r.rec.load = v; r.rec.id = 'R' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); X.render(); window.scrollTo(0, 0); return true;
-      case 'recAtras': r.rec = nuevoRec(); X.render(); return true;
-      case 'recTodo': recConfirmar(true); return true;
-      case 'recOk': recConfirmar(false); return true;
-      case 'ingL': r.ing.l = v; X.render(); return true;
-      case 'ingAdd': {
-        var c = parseInt(String(r.ing.c).replace(/\D/g, ''), 10), l = parseFloat(String(r.ing.l).replace(',', '.'));
-        if (!(c > 0)) { r.ing.err = 'Escribe cuántas piezas llegaron.'; X.render(); return true; }
-        if (!(l > 0) || l > 30) { r.ing.err = 'Escribe el largo en metros.'; X.render(); return true; }
-        if (r.ing.stock === 'ACERO RECTO' && l !== 6 && l !== 12) { r.ing.err = 'En el stock estándar solo entran barras de 6 m o 12 m.'; X.render(); return true; }
-        var kl = parseFloat(String(r.ing.k).replace(',', '.'));
-        if (!(kl > 0)) { r.ing.err = 'Escribe los kilos que llegaron de esta varilla (según la remisión).'; X.render(); return true; }
-        r.ing.rows.push({ d: r.ing.d, l: l, c: c, k: kl }); r.ing.k = ''; r.ing.c = ''; r.ing.err = ''; X.render(); return true;
-      }
-      case 'ingDel': r.ing.rows.splice(+v, 1); X.render(); return true;
-      case 'ingOk': {
-        if (r.ing.busy || !r.ing.rows.length) return true;
-        var items = r.ing.rows.map(function (w) { return { diametro: w.d, largo: w.l, cantidad: w.c, kg: w.k }; });
-        if (!r.ing.file) { r.ing.err = 'Falta la foto o el PDF de la remisión: no puede llegar acero sin soporte.'; X.render(); return true; }
-        r.ing.busy = true; r.ing.err = ''; X.render();
-        X.Api.accion(S.ses, 'ingresoStock', { stock: r.ing.stock, items: items, pedido: r.ing.pedido, archivoB64: r.ing.file.b64, archivoNombre: r.ing.file.nombre, id: 'G' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }).then(function (res) {
-          if (!res.ok) return fallo(r.ing, res.error);
-          var k = r.ing.stock; r.ing = { modo: r.ing.modo, stock: k, rows: [], d: r.ing.d, l: r.ing.l, c: '', k: '', file: null, pedido: '', err: '', busy: false };
-          X.toast('✅ Llegada guardada en ' + NOM[k]); r.stk.k = k; S.tab = 'stock'; recargar();
-        });
+      case 'wRuta': ruta(v, v === 'llego' ? 'l1' : v === 'armar' ? 'a1' : 's1'); return true;
+      case 'wHome': inicio(); return true;
+      case 'wBack': if (w.hist && w.hist.length) { w.p = w.hist.pop(); w.err = ''; X.render(); window.scrollTo(0, 0); } else inicio(); return true;
+      case 'wIr': ir(v); return true;
+      case 'ws': { var x = String(v).split('|'), key = decodeURIComponent(x[0]); w.vals[key] = Math.max(0, Math.min(+x[2], (w.vals[key] || 0) + (+x[1]))); X.render(); return true; }
+      // ---- Llegó
+      case 'wL1': ir(v === 'est' ? 'l2e' : 'l2s'); return true;
+      case 'wLs': w.stock = v; w.rows = null; w.file = null; ir(porRecibir().some(function (q) { return q.est === v; }) ? 'l2p' : 'lsf'); return true;
+      case 'wLform': ir('lsf'); return true;
+      case 'wLoad': w.load = v; w.vals = {}; w.kgs = {}; w.id = nuevoId('R'); ir('l3'); return true;
+      case 'wTodo': w.todo = v === '1'; ir(w.todo ? 'l4' : 'l3p'); return true;
+      case 'wLsig': if (totLleg().p > 0) ir('l4'); return true;
+      case 'wLok': {
+        if (!w.fecha || !w.hora) { fallo('Indica el día y la hora en que llegó.'); return true; }
+        var d = { loadId: w.load, fecha: w.fecha + 'T' + w.hora, id: w.id };
+        if (w.todo) d.todo = true; else { d.items = []; pend(w.load).forEach(function (r) { var q = w.vals[r.diametro + '|' + r.marca] || 0; if (q > 0) d.items.push({ diametro: r.diametro, marca: r.marca, cantidad: q }); }); }
+        if (w.file) { d.archivoB64 = w.file.b64; d.archivoNombre = w.file.nombre; }
+        enviar('recibirPedido', d, function (res) { return 'Llegaron ' + K(res.kg || 0); }, 'Ya están en el almacén, listos para armar.');
         return true;
       }
-      case 'stkVer': r.stk.k = v; X.render(); return true;
-      case 'stkLlego': r.ing.modo = v === 'ACERO RECTO' ? 'rec' : 'fig'; r.ing.rows = []; S.tab = 'llego'; X.render(); window.scrollTo(0, 0); return true;
-      case 'stkSalio': r.sal = { tipo: 'stk', elem: '', stock: v, vals: {}, dest: '', err: '', busy: false, ok: '' }; S.tab = 'salio'; X.render(); window.scrollTo(0, 0); return true;
+      case 'wLl': w.l = v; X.render(); return true;
+      case 'wLadd': {
+        var c = parseInt(String(w.c).replace(/\D/g, ''), 10), l = parseFloat(String(w.l).replace(',', '.')), kl = parseFloat(String(w.k).replace(',', '.'));
+        if (!(c > 0)) { fallo('Escribe cuántas piezas llegaron.'); return true; }
+        if (!(l > 0) || l > 30) { fallo('Escribe el largo en metros.'); return true; }
+        if (w.stock === 'ACERO RECTO' && l !== 6 && l !== 12) { fallo('En el stock estándar solo entran barras de 6 m o 12 m.'); return true; }
+        if (w.stock === 'ACERO FIGURADO' && (l === 6 || l === 12)) { fallo('Las barras de 6 m y 12 m van al stock estándar.'); return true; }
+        if (!(kl > 0)) { fallo('Escribe los kilos de esta varilla (según la remisión).'); return true; }
+        w.rows.push({ d: w.d, l: l, c: c, k: kl }); w.c = ''; w.k = ''; w.err = ''; X.render(); return true;
+      }
+      case 'wLdel': w.rows.splice(+v, 1); X.render(); return true;
+      case 'wLsok': {
+        if (!w.rows.length) return true;
+        if (!w.file) { fallo('Falta la foto o el PDF de la remisión: no puede llegar acero sin soporte.'); return true; }
+        var tk = 0; w.rows.forEach(function (r) { tk += r.k; });
+        enviar('ingresoStock', { stock: w.stock, items: w.rows.map(function (r) { return { diametro: r.d, largo: r.l, cantidad: r.c, kg: r.k }; }), pedido: w.pedido, archivoB64: w.file.b64, archivoNombre: w.file.nombre, id: w.id || (w.id = nuevoId('G')) }, 'Llegaron ' + K(tk), 'Ya están en el ' + NOM[w.stock].toLowerCase() + '.');
+        return true;
+      }
       // ---- Armar
-      case 'armIni': {
-        var id = 'A' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), now = new Date(), z = function (n) { return String(n).padStart(2, '0'); };
-        var ini = X.hoyISO() + 'T' + z(now.getHours()) + ':' + z(now.getMinutes()) + ':' + z(now.getSeconds());
-        if (enCurso().some(function (q) { return q.elemento === v; })) { X.toast('Ya se está armando'); return true; }
-        var fila = { id: id, elemento: v, inicio: ini, fin: '', usuarioIni: S.ses.nombre, usuarioFin: '', estado: 'EN CURSO', sobrante: '', obs: '', pendiente: true };
-        S.estado.armados = (S.estado.armados || []).concat([fila]); X.render(); X.toast('🔧 Armado empezado: ' + v + ' · ya puedes seguir con otra');
-        X.Api.accion(S.ses, 'armadoIniciar', { id: id, elemento: v, fecha: ini }).then(function (res) {
-          if (!res.ok) { S.estado.armados = S.estado.armados.filter(function (q) { return q.id !== id; }); X.toast(res.error || 'No se pudo guardar'); X.render(); return; }
-          recargar();
-        });
+      case 'wElem': w.elem = v; ir('a2'); return true;
+      case 'wAv': w.vals = {}; w.u = 1; w.modo = ''; w.id = nuevoId('S'); ir(est1(w.elem).un > 1 ? 'a3u' : 'a3m'); return true;
+      case 'wU': w.u = Math.max(1, Math.min(est1(w.elem).un, (w.u || 1) + (+v))); X.render(); return true;
+      case 'wUset': w.u = +v; X.render(); return true;
+      case 'wModo': w.modo = v; if (v === 'pct') w.pct = w.pct || 50; ir(v === 'todo' ? 'a4' : v === 'pct' ? 'a3pct' : 'a3pos'); return true;
+      case 'wPct': w.pct = +v; X.render(); return true;
+      case 'wPctD': w.pct = Math.max(5, Math.min(100, (w.pct || 50) + (+v))); X.render(); return true;
+      case 'wAok': {
+        var it = itemsAvance(); if (!it.L.length) return true; e = est1(w.elem); var tk3 = 0; it.L.forEach(function (q) { tk3 += q.q * q.p.kgU; });
+        var cerrar = '<button type="button" class="btn blk" style="margin-bottom:8px" data-a="wCerrarDe" data-v="' + esc(w.elem) + '">🏁 Ya terminé toda la estructura: contar sobrante</button>';
+        enviar('salidaLote', { grupo: w.id, tipo: 'ARMADO', modo: w.modo === 'pct' ? 'PCT' : 'POS', pct: w.modo === 'pct' ? w.pct : 0, fase: e.un > 1 && w.modo !== 'pos' ? (w.u || 1) + ' de ' + e.un + ' unidades' : '', fecha: ahoraISO(),
+          items: it.L.map(function (q) { return { elemento: w.elem, diametro: q.p.d, marca: q.p.m, cantidad: q.q }; }) }, 'Armado guardado: ' + K(tk3), w.elem, cerrar);
         return true;
       }
-      case 'armCancel':
-        if (!confirm('¿Cancelar este armado? (No se pierde acero.)')) return true;
-        S.estado.armados.forEach(function (q) { if (q.id === v) q.estado = 'ANULADO'; }); X.render();
-        X.Api.accion(S.ses, 'armadoAnular', { id: v }).then(function (res) { if (!res.ok) X.toast(res.error || 'No se pudo cancelar'); recargar(); });
-        return true;
-      // ---- Fin de armado
-      case 'finElegir': r.fin = { libre: false, id: v, modo: '', vals: {}, stk: 'ACERO RECTO', sv: {}, err: '', busy: false, ok: '' }; S.tab = 'armar'; X.render(); window.scrollTo(0, 0); return true;
-      case 'finOtro': r.fin.id = ''; r.fin.ok = ''; X.render(); window.scrollTo(0, 0); return true;
-      case 'finVolver': r.fin.ok = ''; r.fin.id = ''; S.tab = 'armar'; X.render(); window.scrollTo(0, 0); return true;
-      case 'finStk': r.fin.stk = v; r.fin.sv = {}; X.render(); return true;
-      case 'finModo': r.fin.modo = v; r.fin.err = ''; if (v === 'no') r.fin.vals = {}; X.render(); return true;
-      case 'finUsarStock': {
-        var f = r.fin, ar = enCurso().filter(function (q) { return q.id === f.id; })[0]; if (!ar || f.busy) return true;
-        var it = listaItems(posiciones(f.stk), f.sv).map(function (w) { return { stock: f.stk, diametro: w.p.d, marca: w.p.m, cantidad: w.q }; });
-        if (!it.length) return true;
-        f.busy = true; f.err = ''; X.render();
-        X.Api.accion(S.ses, 'usarStock', { elemento: ar.elemento, items: it }).then(function (res) {
-          if (!res.ok) return fallo(f, res.error);
-          f.busy = false; f.sv = {}; X.toast('⬇️ Acero del stock pasó a ' + ar.elemento); recargar();
-        });
+      case 'wCerrarDe': X.S.w = { r: 'armar', p: 'ac', hist: ['a2'], vals: {}, kgs: {}, elem: v, id: nuevoId('A'), err: '', busy: false }; X.render(); window.scrollTo(0, 0); return true;
+      case 'wAst': w.vals = {}; ir('ast'); return true;
+      case 'wAstOk': {
+        items = []; var tk4 = 0;
+        STK.forEach(function (s) { posiciones(s).forEach(function (p) { var q = Math.min(p.lib, w.vals[s + '~' + p.k] || 0); if (q > 0) { items.push({ stock: s, diametro: p.d, marca: p.m, cantidad: q }); tk4 += q * p.kgU; } }); });
+        if (!items.length) return true;
+        enviar('usarStock', { elemento: w.elem, items: items }, 'Pasaron ' + K(tk4) + ' del stock', 'Quedaron armados en ' + w.elem + '.');
         return true;
       }
-      case 'finOk': {
-        var g = r.fin, ar2 = enCurso().filter(function (q) { return q.id === g.id; })[0]; if (!ar2 || g.busy || !g.modo) return true;
-        var pos = posiciones(ar2.elemento).filter(function (p) { return p.lib > 0; });
-        var its = pos.map(function (p) { return { diametro: p.d, marca: p.m, queda: g.modo === 'si' ? (g.vals[p.k + '|' + p.m] || 0) : 0 }; });
-        var nombre = ar2.elemento, tiempo = dur(ar2.inicio);
-        g.busy = true; g.err = ''; X.render();
-        X.Api.accion(S.ses, 'armadoFin', { id: ar2.id, items: its }).then(function (res) {
-          if (!res.ok) return fallo(g, res.error);
-          g.busy = false; g.ok = '✅ Armado terminado: ' + nombre + ' · duró ' + tiempo + (res.estandar || res.figurado ? ' · sobrante: ' + (res.estandar ? res.estandar + ' a Stock estándar' : '') + (res.estandar && res.figurado ? ', ' : '') + (res.figurado ? res.figurado + ' a Stock figurado' : '') : '');
-          X.toast('✅ Armado terminado'); recargar();
-        });
+      case 'wAc': w.vals = {}; w.id = nuevoId('A'); ir('ac'); return true;
+      case 'wAcOk': {
+        P = posiciones(w.elem).filter(function (p) { return p.lib > 0; }); var sk = 0;
+        items = P.map(function (p) { var q = Math.min(p.lib, w.vals[p.k] || 0); sk += q * p.kgU; return { diametro: p.d, marca: p.m, queda: q }; });
+        enviar('cerrarArmado', { elemento: w.elem, id: w.id, items: items, fecha: ahoraISO() }, 'Estructura cerrada', w.elem + (sk > 0 ? ' · sobraron ' + K(sk) + ' que pasaron al stock.' : ' · no sobró acero.'));
         return true;
       }
       // ---- Salió
-      case 'salTipo': r.sal.tipo = v; r.sal.err = ''; X.render(); return true;
-      case 'salElem': r.sal.elem = v; r.sal.err = ''; X.render(); return true;
-      case 'salStk': r.sal.stock = v; r.sal.vals = {}; X.render(); return true;
-      case 'salDest': r.sal.dest = v; X.render(); return true;
-      case 'salOk': {
-        var s = r.sal; if (s.busy) return true;
-        var calc = S.calc || X.C.calcular(S.estado), items = [], fase = '', destino = '';
-        if (s.tipo === 'est') {
-          posiciones(s.elem).forEach(function (p) { if (p.arm > 0) items.push({ elemento: s.elem, diametro: p.d, marca: p.m, cantidad: p.arm }); });
-          fase = 'ARMADO COMPLETO';
-        } else {
-          destino = String(s.dest || '').trim();
-          if (!destino) { s.err = 'Escribe o escoge la estructura para la que sale este acero (o toca «Sin estructura»).'; X.render(); return true; }
-          listaItems(posiciones(s.stock), s.vals).forEach(function (w) { items.push({ elemento: s.stock, diametro: w.p.d, marca: w.p.m, cantidad: w.q }); });
-          fase = 'STOCK';
-        }
-        if (!items.length) { s.err = 'No hay piezas para sacar.'; X.render(); return true; }
-        for (var i = 0; i < items.length; i++) { var er = X.C.validarSalida(calc, items[i].elemento, items[i].diametro, items[i].cantidad, items[i].marca); if (er) { s.err = er; X.render(); return true; } }
-        var tp = 0; items.forEach(function (w) { tp += w.cantidad; });
-        var txt = '🚚 Salida guardada: ' + pz(tp) + ' · ' + (s.tipo === 'est' ? s.elem : NOM[s.stock] + ' → ' + destino);
-        s.busy = true; s.err = ''; X.render();
-        X.Api.salidaLote(S.ses, { grupo: 'S' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), items: items, obs: '', fecha: X.hoyISO(), hora: X.horaAhora(), fase: fase, modo: 'POS', pct: 0, tipo: 'SALIDA', destino: destino }).then(function (res) {
-          s.busy = false; if (!res.ok) { s.err = res.error; X.render(); return; }
-          s.ok = txt; window.scrollTo(0, 0); X.toast(txt);
-          if (X.Api.remoto) { S.estado = X.Api.conCola(S.estado); X.render(); X.enviarCola(); } else recargar();
-        });
+      case 'wS1': ir(v === 'est' ? 's2e' : 's2s'); return true;
+      case 'wSelem': w.elem = v; w.vals = {}; w.id = nuevoId('S'); ir('s3'); return true;
+      case 'wSs': w.elem = v; w.vals = {}; w.todo = false; w.id = nuevoId('S'); ir('s3p'); return true;
+      case 'wStodo': w.todo = v === '1'; ir(w.todo ? 's4' : 's3p'); return true;
+      case 'wSun': { e = est1(w.elem); posiciones(w.elem).forEach(function (p) { if (p.arm > 0) w.vals[p.k] = Math.min(p.arm, Math.round((p.tot / e.un) * (+v))); }); X.render(); return true; }
+      case 'wSok': {
+        var stock = esStk(w.elem), dest = String(w.dest || '').trim(); if (stock && !dest) { fallo('Escribe para dónde va el acero.'); return true; }
+        items = []; var tk5 = 0;
+        posiciones(w.elem).forEach(function (p) { var m = stock ? p.lib : p.arm, q = w.todo ? m : Math.min(m, w.vals[p.k] || 0); if (q > 0) { items.push({ elemento: w.elem, diametro: p.d, marca: p.m, cantidad: q }); tk5 += q * p.kgU; } });
+        if (!items.length) { fallo('No hay nada marcado para salir.'); return true; }
+        enviar('salidaLote', { grupo: w.id, tipo: 'SALIDA', modo: 'POS', pct: 0, fase: '', fecha: ahoraISO(), items: items, destino: stock ? dest : '', obs: stock ? '' : dest }, 'Salieron ' + K(tk5), (stock ? NOM[w.elem] : w.elem) + (dest ? ' → ' + dest : ''));
         return true;
       }
     }
     return false;
   }
-
-  /** Campos de texto: se guardan al escribir, sin redibujar (no se pierde el cursor). */
   function input(t) {
-    var rk = t.getAttribute('data-rk');
+    var w = W(), rk = t.getAttribute('data-rk');
     if (rk !== null) { // kilos recibidos de una posición
-      var rc = R().rec, e = pend(rc.load)[+rk]; if (!e) return true;
-      var txt = t.value.replace(/[^\d.,]/g, ''), kgv = parseFloat(txt.replace(',', '.')), pe = e.cantidad - e.recibida, q = kgv > 0 ? Math.min(pe, Math.max(1, Math.round(kgv / e.kgUnit))) : 0;
-      rc.kgs[e.diametro + '|' + e.marca] = txt; rc.vals[e.diametro + '|' + e.marca] = q; rc.err = '';
-      var sp = document.getElementById('rp' + rk); if (sp) sp.textContent = q > 0 ? pz(q) + ' · ' + X.kg(q * e.kgUnit) + ' kg' : '';
+      var e = pend(w.load)[+rk]; if (!e) return true;
+      var txt = t.value.replace(/[^\d.,]/g, ''), kgv = parseFloat(txt.replace(',', '.')), pe = e.cantidad - e.recibida, q = kgv > 0 ? Math.min(pe, Math.max(1, Math.round(kgv / e.kgUnit))) : 0, key = e.diametro + '|' + e.marca;
+      w.kgs[key] = txt; w.vals[key] = q;
+      var sp = document.getElementById('rp' + rk); if (sp) sp.textContent = q > 0 ? pz(q) : '';
       var cb = document.querySelector('input[data-rc="' + rk + '"]'); if (cb) cb.checked = q >= pe;
-      var tt = totRec(rc.load), tg = document.getElementById('rec-tot'), bt = document.getElementById('rec-ok'); if (tg) tg.textContent = X.kg(tt.kg); if (bt) bt.disabled = tt.p <= 0 || rc.busy;
+      var tt = totLleg(), tg = document.getElementById('rec-tot'), bt = document.getElementById('rec-ok'); if (tg) tg.textContent = X.kg(tt.kg); if (bt) bt.disabled = tt.p <= 0;
       return true;
     }
-    var k = t.getAttribute('data-r'); if (!k) return false;
-    var r = R(), p = k.split('.'), val = t.value;
-    if (k === 'ing.c') val = val.replace(/[^\d]/g, '');
-    if (k === 'ing.k') val = val.replace(/[^\d.,]/g, '');
-    r[p[0]][p[1]] = val;
-    if (k === 'arm.q') { X.S.focus = 'r-arm'; X.render(); var e = document.getElementById('r-arm'); if (e) { try { e.setSelectionRange(e.value.length, e.value.length); } catch (x) { } } }
-    return true;
+    var k = t.getAttribute('data-r'); if (!k || k === 'file') return !!k;
+    var val = t.value; if (k === 'c') val = val.replace(/[^\d]/g, ''); if (k === 'k' || k === 'l') val = val.replace(/[^\d.,]/g, '');
+    w[k] = val; return true;
   }
-  /** Foto o PDF: se reduce la foto para que suba rápido. */
-  function leerSoporte(f, tgt) {
-    var r = tgt || R().ing; if (!f) return;
-    var fin = function (b64, nombre) { r.file = { nombre: nombre, b64: b64 }; r.err = ''; X.render(); };
+  function leerSoporte(f) {
+    var w = W(); if (!f) return;
+    var fin = function (b64, nombre) { w.file = { nombre: nombre, b64: b64 }; w.err = ''; X.render(); };
     if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) { var fr = new FileReader(); fr.onload = function () { fin(String(fr.result).split(',')[1], f.name); }; fr.readAsDataURL(f); return; }
     var img = new Image(), u = URL.createObjectURL(f);
-    img.onload = function () { var m = 1600, k = Math.min(1, m / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(u); fin(cv.toDataURL('image/jpeg', 0.8).split(',')[1], f.name.replace(/\.[^.]+$/, '') + '.jpg'); };
-    img.onerror = function () { r.err = 'No se pudo leer la foto.'; X.render(); }; img.src = u;
+    img.onload = function () { var m = 1600, k = Math.min(1, m / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(u); fin(cv.toDataURL('image/jpeg', 0.8).split(',')[1], String(f.name || 'remision').replace(/\.\w+$/, '') + '.jpg'); };
+    img.onerror = function () { fallo('No se pudo leer la foto.'); }; img.src = u;
   }
-  function cambio(t) { // listas desplegables
-    var rcx = t.getAttribute('data-rc');
-    if (rcx !== null) { // ✓ llegó toda la posición
-      var rc0 = R().rec, e0 = pend(rc0.load)[+rcx]; if (!e0) return true; var ky = e0.diametro + '|' + e0.marca;
-      rc0.vals[ky] = t.checked ? e0.cantidad - e0.recibida : 0; if (t.checked) rc0.kgs[ky] = String(Math.round((e0.cantidad - e0.recibida) * e0.kgUnit * 100) / 100); else delete rc0.kgs[ky]; rc0.err = ''; X.render(); return true;
+  function cambio(t) {
+    var w = W(), rc = t.getAttribute('data-rc');
+    if (rc !== null) { // ✓ llegó toda la posición
+      var e = pend(w.load)[+rc]; if (!e) return true; var key = e.diametro + '|' + e.marca, pe = e.cantidad - e.recibida;
+      w.vals[key] = t.checked ? pe : 0; if (t.checked) w.kgs[key] = String(Math.round(pe * e.kgUnit * 100) / 100); else delete w.kgs[key]; X.render(); return true;
     }
     var k = t.getAttribute('data-r'); if (!k) return false;
-    if (k === 'rec.file') { leerSoporte(t.files && t.files[0], R().rec); return true; }
-    if (k === 'ing.file') { leerSoporte(t.files && t.files[0]); return true; }
-    var p = k.split('.'); R()[p[0]][p[1]] = t.value; if (k === 'ing.d') X.render(); return true;
+    if (k === 'file') { leerSoporte(t.files && t.files[0]); return true; }
+    w[k] = t.value; if (k === 'd') X.render(); return true;
   }
-
-  /** Cuatro cifras gerenciales, sencillas. */
-  function kpis() {
-    var calc = X.S.calc || X.C.calcular(X.S.estado), E = estructuras(), arm = 0, armKg = 0, lib = 0, libKg = 0;
-    E.forEach(function (e) { arm += e.arm; armKg += e.armKg; lib += e.lib; libKg += e.libKg; });
-    var r = calc.porElem['ACERO RECTO'] || {}, f = calc.porElem['ACERO FIGURADO'] || {};
-    function k(ico, t, v, sub, tab) { return '<button type="button" class="kg" data-a="tab" data-v="' + tab + '"><span>' + ico + ' ' + t + '</span><b>' + v + '</b><small>' + sub + '</small></button>'; }
-    var pl = porRecibir(), pk = 0; pl.forEach(function (q) { pk += q.rc.tk - q.rc.rk; });
-    var ban = pl.length ? '<button type="button" class="kg" style="width:100%;margin-bottom:8px;text-align:left" data-a="llegoModo" data-v="ped"><span>⏳ Por llegar a la obra</span><b>' + X.kg(pk) + ' kg</b><small>' + pl.length + (pl.length === 1 ? ' pedido' : ' pedidos') + ' esperando confirmación · toca para confirmar la llegada</small></button>' : '';
-    return ban + '<div class="kgs">' + k('📦', 'Stock estándar', X.n0(r.sal_p || 0), X.kg(r.sal_kg || 0) + ' kg', 'stock') + k('🧵', 'Stock figurado', X.n0(f.sal_p || 0), X.kg(f.sal_kg || 0) + ' kg', 'stock') +
-      k('🔧', 'Armando ahora', enCurso().length, enCurso().length === 1 ? 'estructura' : 'estructuras', 'armar') + k('🚚', 'Armado listo para salir', X.n0(arm), X.kg(armKg) + ' kg', 'salio') + '</div>';
-  }
-  /** Estructuras: una barra por estructura (salió | armado | libre) — se ve de un vistazo en qué va cada una. */
-  function panelEstructuras() {
-    var calc = X.S.calc || X.C.calcular(X.S.estado), E = estructuras();
-    if (!E.length) return '';
-    var h = '<div class="card gr"><h3>Estructuras</h3><div class="ley"><span><i class="out"></i>Salió</span><span><i class="arm"></i>Armado</span><span><i class="lib"></i>Libre</span></div>';
-    E.forEach(function (e) {
-      var x = calc.porElem[e.n] || {}, t = x.in_p || 1, o = x.out_p || 0, a = e.arm, l = e.lib, en = enCurso().some(function (q) { return q.elemento === e.n; });
-      h += '<div class="bh-r"><div class="bh-t"><b>' + esc(e.n) + '</b><span>' + (en ? '🔧 armando · ' : '') + (x.in_p ? Math.round(100 * o / t) + ' % salió' : '⏳ por recibir') + '</span></div><div class="pila"><i class="out" style="width:' + (100 * o / t).toFixed(1) + '%"></i><i class="arm" style="width:' + (100 * a / t).toFixed(1) + '%"></i><i class="lib" style="width:' + (100 * l / t).toFixed(1) + '%"></i></div>' +
-        '<div class="peq mut">Libre ' + X.n0(l) + ' · Armado ' + X.n0(a) + ' · Salió ' + X.n0(o) + ' pzs</div></div>';
-    });
-    return h + '</div>';
-  }
-  function reset(tab) { var r = R(); if (tab === 'armar') { r.fin.id = ''; r.fin.ok = ''; } else r.fin.ok = ''; if (tab !== 'salio' && r.sal.ok) { r.sal = { tipo: '', elem: '', stock: '', vals: {}, dest: '', err: '', busy: false, ok: '' }; } }
-  window.AcReg = { kpis: kpis, estructuras: panelEstructuras, reset: reset, init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, enCurso: enCurso };
+  function reset() { /* las rutas se conservan al cambiar de pestaña */ }
+  window.AcReg = { init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, kpis: almacen, estructuras: tarjetasEstructuras, reset: reset, enCurso: function () { return []; } };
 })();

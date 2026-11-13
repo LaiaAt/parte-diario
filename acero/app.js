@@ -5,7 +5,7 @@
   var MODO = window.ACEROS_MODO === 'salidas' ? 'salidas' : 'dashboard', BASE = window.ACEROS_BASE || '', EMB = !!window.ACEROS_EMBED;
 
   var S = {
-    cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [], armados: [] }, calc: null, tab: MODO === 'salidas' ? 'reg' : 'panel', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
+    cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [], armados: [] }, calc: null, tab: 'ini', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
     ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false, si: false },
     sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', modoSel: '', eq: '', tipo: '', fase: '', pct: '', balElem: '' }, okSal: null, edPed: {}, cargaRes: null,
     inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, inf: { d: '' },
@@ -92,11 +92,9 @@
   }
 
   /** Menú en dos niveles: arriba los grupos, abajo (si el grupo tiene varias pantallas) sus opciones. */
-  function gruposTabs() {
-    var G = [];
-    if (MODO !== 'salidas') G.push({ k: 'panel', ico: '📊', t: 'Panel', hojas: [['panel', 'Panel']] });
-    G.push({ k: 'alm', ico: '🏬', t: 'Almacén', hojas: [['reg', '🕒 Registro'], ['llego', '📥 Llegó'], ['armar', '🔧 Armado'], ['salio', '🚚 Salió'], ['stock', '📦 Stock'], ['ver', '🧮 Regularización']] });
-    if (MODO !== 'salidas') G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] });
+  function gruposTabs() { // menú plano: el supervisor solo ve Inicio e Informe; el administrador, además, Pedidos, Panel y Regularización
+    var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: [['ini', 'Inicio']] }];
+    if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] }); G.push({ k: 'panel', ico: '📊', t: 'Panel', hojas: [['panel', 'Panel']] }); G.push({ k: 'ver', ico: '🧮', t: 'Regularización', hojas: [['ver', 'Regularización']] }); }
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
     return G;
   }
@@ -253,7 +251,7 @@
     if (!S.estado.entradas.length && !(S.estado.cartilla || []).length) return sinInventario();
     var c = S.calc, t = c.tot, ag = aggPeriodo();
     var diams = Object.keys(c.porDiam).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); });
-    var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>' + (window.AcReg ? AcReg.kpis() + AcReg.estructuras() : '');
+    var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>';
     h += vFiltro();
     h += '<h2 class="sec-t">Movimiento del período <small>' + textoPeriodo() + '</small></h2><div class="kp3">' + kpiPer('Llegó', 'lib', ag.lle) + kpiPer('Armado', 'arm', ag.arm) + kpiPer('Salió', 'out', ag.out) + '</div>';
     h += graficoDias(ag);
@@ -981,7 +979,8 @@
 
   function vista() {
     if (!S.cargado) return vCargando();
-    if (S.tab === 'mov') S.tab = 'reg'; if (S.tab === 'fin') S.tab = 'armar';
+    if (/^(reg|llego|armar|fin|salio|stock|mov|salida|hoy|inv|cargar)$/.test(S.tab)) S.tab = 'ini';
+    if (!esAdmin() && /^(ped|panel|ver)$/.test(S.tab)) S.tab = 'ini';
     var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return nv;
     switch (S.tab) {
       case 'salida': return vSalida();
@@ -1158,7 +1157,7 @@
       S.cargas.splice(S.cargas.indexOf(c), 1);
       if (lote) return p.nombre;
       S.cargaRes = { ok: [p.nombre], mal: 0 };
-      if (!S.cargas.length) { S.cargaRes = null; toast('Cargado: pedido ' + String(c.pedido).trim() + ' · ' + p.nombre); S.tab = 'reg'; }
+      if (!S.cargas.length) { S.cargaRes = null; toast('Pedido montado: ' + String(c.pedido).trim() + ' · ' + p.nombre + ' · queda por recibir'); S.tab = 'ped'; }
       else toast('Cargado ' + p.nombre + '. Faltan ' + S.cargas.length + ' por guardar.');
       return cargarEstado().then(function () { return p.nombre; });
     });
@@ -1168,7 +1167,7 @@
     toast('Guardando…');
     return lista.reduce(function (pr, c) { return pr.then(function () { var i = S.cargas.indexOf(c); return i < 0 ? null : registrarCarga(i, true).then(function (n) { if (n) ok.push(n); }); }); }, Promise.resolve()).then(function () {
       S.cargaRes = { ok: ok, mal: S.cargas.length };
-      if (!S.cargas.length) { S.cargaRes = null; toast('✅ Se cargaron los ' + ok.length + ' archivos'); S.tab = 'reg'; }
+      if (!S.cargas.length) { S.cargaRes = null; toast('✅ Se montaron los ' + ok.length + ' pedidos · quedan por recibir'); S.tab = 'ped'; }
       return cargarEstado();
     });
   }
@@ -1416,7 +1415,7 @@
           toast('Anulando…');
           Api.anularSalida(S.ses, String(v).split(',')).then(function (r) {
             toast(r.ok ? 'Anulado' : r.error);
-            if (r.ok && MODO !== 'salidas') { S.tab = 'panel'; window.scrollTo(0, 0); }
+            if (r.ok && MODO !== 'salidas') { S.tab = 'ini'; window.scrollTo(0, 0); }
             return cargarEstado();
           });
         }
@@ -1504,7 +1503,7 @@
     Api.login(pin).then(function (r) {
       if (!r.ok) { S.loginErr = r.error; render(); return; }
       if (MODO === 'dashboard' && r.ses.rol !== 'admin') { Api.salir(); S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; render(); return; }
-      S.ses = r.ses; S.loginErr = ''; S.tab = MODO === 'salidas' ? 'reg' : 'panel';
+      S.ses = r.ses; S.loginErr = ''; S.tab = 'ini';
       render(); enviarCola().then(cargarEstado);
     });
   });
@@ -1522,15 +1521,15 @@
     window.addEventListener('message', function (ev) {
       if (ev.origin !== location.origin || !ev.data || ev.data.t !== 'per') return;
       S.per = { k: 'rango', d: ev.data.d || '', h: ev.data.h || '' };
-      if (/^(reg|llego|armar|fin|salio|stock|ver|panel|inv|mov|ped|inf)$/.test(ev.data.tab || '') && grupoDe(S.tab) !== grupoDe(ev.data.tab)) S.tab = ev.data.tab;
+      if (/^(ini|reg|llego|armar|fin|salio|stock|ver|panel|inv|mov|ped|inf)$/.test(ev.data.tab || '')) { var nt = /^(ver|panel|ped|inf)$/.test(ev.data.tab) ? ev.data.tab : 'ini'; if (grupoDe(S.tab) !== grupoDe(nt)) S.tab = nt; }
       if (ev.data.r && S.ses) cargarEstado(); else render();
     });
     try { parent.postMessage({ t: 'acero-listo' }, location.origin); } catch (e) { }
   }
 
   // ---------- Inicio ----------
-  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(reg|llego|armar|fin|salio|stock|panel|inv|mov|ped|inf|salida|cargar|ver|hoy)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
-  if (MODO === 'salidas' && !/^(reg|llego|armar|fin|salio|stock|ver|inf)$/.test(S.tab)) S.tab = 'reg';
+  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(ini|panel|ped|inf|ver)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
+  if (!/^(ini|panel|ped|inf|ver)$/.test(S.tab)) S.tab = 'ini';
   S.ses = Api.sesion();
   if (S.ses && MODO === 'dashboard' && S.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; }
   if (S.ses) { render(); enviarCola().then(cargarEstado); }

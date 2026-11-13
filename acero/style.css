@@ -597,3 +597,26 @@ details.mv-d[open] th { color: #cbd5e1; }
 
 .rec { margin: 6px 0; padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: .86rem; }
 .rec.ok { background: #e6f6ee; color: #14633a; } .rec.warn { background: #fff4dc; color: #7a5200; } .rec.bad { background: #fde8e8; color: #8a2323; }
+
+/* ===== Rediseño de obra: inicio con tres botones y rutas guiadas (una pregunta por pantalla) ===== */
+.tres { display: grid; gap: 12px; margin: 0 0 16px; }
+.tres .bg { flex-direction: row; justify-content: flex-start; text-align: left; gap: 16px; min-height: 96px; padding: 16px 18px; border-left: 10px solid var(--acc); border-radius: 20px; }
+.tres .bg .bg-i { font-size: 2.8rem; } .tres .bg b { font-size: 1.45rem; letter-spacing: .01em; display: block; } .tres .bg small { font-size: .92rem; display: block; margin-top: 2px; }
+.tres .bg { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-items: center; column-gap: 16px; row-gap: 0; }
+.tres .bg .bg-i { grid-row: 1 / 3; }
+.tres .bg.b1 { border-left-color: #15803d; } .tres .bg.b2 { border-left-color: #b45309; } .tres .bg.b3 { border-left-color: #1e4f8a; }
+.bgs.dos { grid-template-columns: 1fr 1fr; } .bgs.dos .bg { min-height: 150px; border: 2px solid #cbd5e1; } .bgs.dos .bg .bg-i { font-size: 2.6rem; }
+.wz-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px; } .wz-h b { font-size: 1.05rem; color: #0f172a; } .wz-h .btn { min-height: 48px; font-size: 1rem; }
+.card.wz h2 { font-size: 1.4rem; line-height: 1.2; margin: 0 0 8px; } .card.wz.cen { text-align: center; } .card.wz.cen p { color: #334155; font-size: 1.05rem; }
+.op { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 12px; margin: 0 0 8px; background: #f8fafc; border: 2px solid #cbd5e1; border-radius: 16px; cursor: pointer; color: #0f172a; font: inherit; min-height: 68px; }
+.op:active { background: #fff4ea; border-color: var(--acc); }
+.op-i { font-size: 1.9rem; flex: none; } .op-t { flex: 1; min-width: 0; } .op-t b { display: block; font-size: 1.12rem; } .op-t small { display: block; color: #475569; font-size: .86rem; margin-top: 2px; } .op-f { font-size: 1.6rem; color: #64748b; flex: none; }
+.btn.gr { min-height: 60px; font-size: 1.15rem; margin-top: 12px; }
+.resu { margin: 12px 0 0; padding: 12px; border-radius: 12px; background: #eef6ff; color: #0f2f57; font-size: 1.05rem; text-align: center; }
+.chk { width: 30px; height: 30px; flex: none; accent-color: #15803d; }
+.stp.gr button { width: 68px; height: 68px; font-size: 2rem; } .stp.gr b { min-width: 96px; font-size: 2.2rem; }
+.cen2 { justify-content: center; } .cen { text-align: center; }
+.kgs.k3 { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } .kgs.k3 .kg { cursor: default; } .kgs.k3 .kg b { font-size: 1.25rem; }
+.pila i.pen { background: repeating-linear-gradient(45deg, #fcd34d, #fcd34d 5px, #fde68a 5px, #fde68a 10px); }
+.ley i.pen { background: #fcd34d; }
+.bh-t small { color: #475569; font-weight: 700; }
