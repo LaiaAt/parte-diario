@@ -582,3 +582,12 @@ details.mv-d[open] table, details.mv-d[open] td, details.mv-d[open] th { color: 
 details.mv-d[open] th { color: #cbd5e1; }
 
 .bg.sel { border-bottom-color: #0f172a; background: #fff7ed; box-shadow: 0 0 0 3px var(--acc); }
+
+/* Menús sin desplazamiento lateral: todo a la vista */
+.tabs, .subtabs { flex-wrap: wrap; overflow: visible; }
+.tabs button { flex: 1 1 auto; }
+.subtabs button { flex: 1 1 auto; }
+.bgs { grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); }
+@media (max-width: 520px) { .bg { min-height: 100px; padding: 10px 6px; } .bg b { font-size: 1rem; } .bg-i { font-size: 1.7rem; } }
+.tabs { flex-wrap: nowrap !important; } .tabs button { flex: 1 1 0 !important; min-width: 0; padding: 9px 4px !important; font-size: .82rem !important; justify-content: center; }
+@media (max-width: 520px) { .tabs button { font-size: .74rem !important; padding: 8px 2px !important; gap: 3px; } }

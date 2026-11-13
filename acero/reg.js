@@ -59,7 +59,7 @@
 
   // ---------------------------------------------------------------- Registro (línea de tiempo)
   function cardArm(a, fin) {
-    if (!fin) return '<div class="mv arm"><div class="mv-i">🔧</div><div class="mv-c"><div class="mv-t">Empezó el armado' + (a.estado === 'EN CURSO' ? '<span class="chp pen">En curso</span>' : '') + '</div><div class="mv-s">' + esc(a.elemento) + '</div><div class="mv-m"><span>' + esc(a.usuarioIni) + ' · ' + X.fecha(a.inicio) + '</span>' + (a.estado === 'EN CURSO' ? '<span>lleva ' + dur(a.inicio) + '</span>' : '') + '</div></div></div>';
+    if (!fin) return '<div class="mv arm"><div class="mv-i">🔧</div><div class="mv-c"><div class="mv-t">Empezó el armado' + (a.estado === 'EN CURSO' ? '<span class="chp pen">En curso</span>' : '') + '</div><div class="mv-s">' + esc(a.elemento) + '</div><div class="mv-m"><span>' + esc(a.usuarioIni) + ' · ' + X.fecha(a.inicio) + '</span>' + (a.estado === 'EN CURSO' ? '<span>lleva ' + dur(a.inicio) + '</span>' : '') + '</div></div>' + (a.estado === 'EN CURSO' ? '<button class="btn chico ok" data-a="finElegir" data-v="' + esc(a.id) + '">✅ Terminar</button>' : '') + '</div>';
     return '<div class="mv fin"><div class="mv-i">✅</div><div class="mv-c"><div class="mv-t">Terminó el armado</div><div class="mv-s">' + esc(a.elemento) + '</div><div class="mv-m"><span>Duró ' + dur(a.inicio, a.fin) + '</span><span>' + esc(a.sobrante || '') + '</span><span>' + esc(a.usuarioFin) + ' · ' + X.fecha(a.fin) + '</span></div></div></div>';
   }
   function eventos() {
@@ -87,8 +87,6 @@
   }
   function vRegistro() {
     var h = '';
-    var cur = enCurso();
-    if (cur.length) h += '<div class="card"><h2>🔧 Armando ahora</h2>' + cur.map(function (a) { return '<div class="fila"><div><b>' + esc(a.elemento) + '</b><div class="peq mut">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + '</div></div><button class="btn chico" data-a="finElegir" data-v="' + esc(a.id) + '">✅ Terminar</button></div>'; }).join('') + '</div>';
     h += X.vFiltro() + '<div class="card"><div class="row2" style="justify-content:space-between"><h2 style="margin:0">🕒 Registro</h2><button class="btn chico sec" data-a="csv">⬇ Descargar CSV</button></div>' +
       '<div class="mfil"><label for="m-q">Filtrar por número de pedido</label><select id="m-q" data-f="mov.q"><option value="">Todos los pedidos</option>' + X.pedidosLista().map(function (n) { return '<option value="' + esc(n) + '"' + (String(X.S.mq || '') === String(n) ? ' selected' : '') + '>Pedido ' + esc(n) + '</option>'; }).join('') + '</select></div>' +
       (X.S.mq ? '<p class="peq mut">Mostrando todo lo del pedido ' + esc(X.S.mq) + ' (sin límite de fechas).</p>' : '') + '</div>';
@@ -151,6 +149,7 @@
   function vFin() {
     var f = R().fin, cur = enCurso(), h = '';
     if (f.ok) return '<div class="card okmsg2"><b>' + esc(f.ok) + '</b></div><div class="bgs">' + grande('tab', 'reg', '🏠', 'Ver el registro') + grande('tab', 'armar', '🔧', 'Armar otra estructura') + '</div>';
+    if (cur.length === 1 && !f.id && !f.libre) f.id = cur[0].id;
     var a = cur.filter(function (x) { return x.id === f.id; })[0];
     if (!cur.length) return '<div class="card vacio">No hay ningún armado en curso.<div style="margin-top:10px"><button class="btn" data-a="tab" data-v="armar">🔧 Ir a Armar</button></div></div>';
     if (!a) {
@@ -158,7 +157,7 @@
       return h + cur.map(function (x) { return '<div class="card est"><div class="est-t"><b>' + esc(x.elemento) + '</b></div><div class="peq mut">Empezó ' + X.fecha(x.inicio) + ' · lleva ' + dur(x.inicio) + '</div><button class="btn blk" style="margin-top:8px" data-a="finElegir" data-v="' + esc(x.id) + '">✅ Terminó este armado</button></div>'; }).join('');
     }
     var pos = posiciones(a.elemento).filter(function (p) { return p.lib > 0; });
-    h += '<div class="card"><div class="est-t"><b>' + esc(a.elemento) + '</b></div><div class="peq mut">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + '</div>' + (cur.length > 1 ? '<div style="margin-top:8px"><button class="btn chico sec" data-a="finElegir" data-v="">Cambiar de estructura</button></div>' : '') + '</div>';
+    h += '<div class="card"><div class="est-t"><b>' + esc(a.elemento) + '</b></div><div class="peq mut">Empezó ' + X.fecha(a.inicio) + ' · lleva ' + dur(a.inicio) + '</div>' + (cur.length > 1 ? '<div style="margin-top:8px"><button class="btn chico sec" data-a="finOtro">Cambiar de estructura</button></div>' : '') + '</div>';
     // Paso 1: acero del stock (opcional)
     var sp = posiciones(f.stk).filter(function (p) { return p.sal > 0; });
     h += '<div class="card"><h2>1️⃣ ¿Usaste acero del stock en esta estructura? <span class="tag">opcional</span></h2><div class="seg">' + STK.map(function (s) { return '<button type="button" class="' + (f.stk === s ? 'on' : '') + '" data-a="finStk" data-v="' + s + '">' + NOM[s] + '</button>'; }).join('') + '</div>';
@@ -317,7 +316,8 @@
         X.Api.accion(S.ses, 'armadoAnular', { id: v }).then(function (res) { if (!res.ok) X.toast(res.error || 'No se pudo cancelar'); recargar(); });
         return true;
       // ---- Fin de armado
-      case 'finElegir': r.fin = { id: v, modo: '', vals: {}, stk: 'ACERO RECTO', sv: {}, err: '', busy: false, ok: '' }; S.tab = 'fin'; X.render(); window.scrollTo(0, 0); return true;
+      case 'finElegir': r.fin = { libre: false, id: v, modo: '', vals: {}, stk: 'ACERO RECTO', sv: {}, err: '', busy: false, ok: '' }; S.tab = 'fin'; X.render(); window.scrollTo(0, 0); return true;
+      case 'finOtro': r.fin.id = ''; r.fin.libre = true; X.render(); return true;
       case 'finStk': r.fin.stk = v; r.fin.sv = {}; X.render(); return true;
       case 'finModo': r.fin.modo = v; r.fin.err = ''; if (v === 'no') r.fin.vals = {}; X.render(); return true;
       case 'finUsarStock': {
