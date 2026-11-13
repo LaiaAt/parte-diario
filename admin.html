@@ -533,7 +533,7 @@ function cierraTr(cod, nuevo) {
 // Validación de fotos del albarán y de la volqueta, con opción de agregar la que falte
 function fotosEdit(v, pan) {
   const msg = h('div', { class: 'small' }), caja = h('div', { style: 'margin-top:8px;padding:8px;border:1px dashed #999;border-radius:8px;background:#fff' }, h('b', { class: 'small' }, '📷 Fotos del viaje'));
-  const reducir = f => new Promise((ok, no) => { const r = new FileReader(); r.onerror = no; r.onload = () => { const im = new Image(); im.onerror = no; im.onload = () => { const k = Math.min(1, 1800 / Math.max(im.naturalWidth, im.naturalHeight)), cv = document.createElement('canvas'); cv.width = Math.round(im.naturalWidth * k); cv.height = Math.round(im.naturalHeight * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); ok(cv.toDataURL('image/jpeg', 0.85)); }; im.src = r.result; }; r.readAsDataURL(f); });
+  const reducir = f => new Promise((ok, no) => { const r = new FileReader(); r.onerror = no; r.onload = () => { const im = new Image(); im.onerror = no; im.onload = () => { const k = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight)), cv = document.createElement('canvas'); cv.width = Math.round(im.naturalWidth * k); cv.height = Math.round(im.naturalHeight * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); ok(cv.toDataURL('image/jpeg', 0.78)); }; im.src = r.result; }; r.readAsDataURL(f); });
   const fila = (cual, lab) => {
     const n = cual === 'recibo' ? (v.nr !== undefined ? v.nr : (v.tiene_recibo ? 1 : 0)) : (v.nc !== undefined ? v.nc : (v.tiene_carga ? 1 : 0));
     const inp = h('input', { type: 'file', accept: 'image/*', hidden: true });
