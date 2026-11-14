@@ -55,7 +55,8 @@
     });
     return L.sort(function (a, b) { return X.C.diamOrder(a.d) - X.C.diamOrder(b.d) || (a.largo - b.largo) || (a.m < b.m ? -1 : 1); });
   }
-  function posTxt(p) { return '<b>' + esc(p.m) + '</b> · ' + esc(X.C.diamLabel(p.d)) + ' · ' + p.largo + ' m'; }
+  function posTxt(p) { return '<span class="pos"><b>' + esc(p.m) + '</b><small>' + esc(X.C.diamLabel(p.d)) + ' · ' + String(p.largo).replace('.', ',') + ' m</small></span>'; }
+  function uds(n) { var r = Math.round(n * 10) / 10; return String(r).replace('.', ',') + (r === 1 ? ' unidad' : ' unidades'); }
   /** Resumen de cada estructura: pedido, llegó, libre, armado, salió, sobrante y kilos tomados del stock. */
   function estructuras() {
     var S = X.S, c = calc(), seen = {}, L = [];
@@ -102,7 +103,7 @@
       var estado = e.cerrada ? (e.armKg > 0 ? '🏁 Armada · lista para salir' : '🏁 Terminada') : e.inP <= 0 ? '⏳ Esperando el acero' : e.usado > 0 ? '🔧 Armando' : '🟢 Lista para armar';
       h += '<div class="bh-r"><div class="bh-t"><b>' + esc(e.n) + (e.un > 1 ? ' <small>× ' + e.un + '</small>' : '') + '</b><span>' + estado + '</span></div>' +
         '<div class="pila"><i class="out" style="width:' + w(e.salioKg) + '"></i><i class="arm" style="width:' + w(e.armKg) + '"></i><i class="lib" style="width:' + w(e.libKg) + '"></i><i class="pen" style="width:' + w(e.porLlegar) + '"></i></div>' +
-        '<div class="peq mut">Pedido ' + esc(e.ped) + ': ' + K(e.pedKg) + (e.porLlegar > 0 ? ' · faltan por llegar ' + K(e.porLlegar) : '') + ' · para armar ' + K(e.libKg) + ' · armado ' + K(e.armKg) + ' · salió ' + K(e.salioKg) + (e.un > 1 ? ' · ≈ ' + String(e.eq).replace('.', ',') + ' de ' + e.un + ' armadas' : '') + '</div>' +
+        '<div class="peq mut">Pedido ' + esc(e.ped) + ': ' + K(e.pedKg) + (e.porLlegar > 0 ? ' · faltan por llegar ' + K(e.porLlegar) : '') + ' · para armar ' + K(e.libKg) + ' · armado ' + K(e.armKg) + ' · salió ' + K(e.salioKg) + (e.un > 1 ? ' · van ' + uds(e.eq) + ' de ' + e.un : '') + '</div>' +
         (e.usado > 0 ? '<div class="peq"><b>Acero usado: ' + K(e.usado) + '</b> = ' + K(e.usadoPed) + ' del pedido' + (e.stockKg > 0 ? ' + ' + K(e.stockKg) + ' del stock' : '') + (e.sobKg > 0 ? ' · sobró ' + K(e.sobKg) + ' (pasó a stock)' : '') + '</div>' : '') + '</div>';
     });
     return h + '</div>';
@@ -147,7 +148,7 @@
   }
   function vOk() {
     var w = W(), otra = { llego: 'Registrar otra llegada', armar: 'Registrar otro armado', salio: 'Registrar otra salida' }[w.r];
-    return '<div class="card wz cen"><div style="font-size:3.4rem;line-height:1">✅</div><h2>' + esc(w.okMsg) + '</h2>' + (w.okSub ? '<p>' + esc(w.okSub) + '</p>' : '') + (w.extra || '') +
+    return '<div class="card wz cen"><div class="okico">✅</div><h2>' + esc(w.okMsg) + '</h2>' + (w.okSub ? '<p>' + esc(w.okSub) + '</p>' : '') + (w.extra || '') +
       '<button type="button" class="btn blk gr" data-a="wHome">🏠 Volver al inicio</button><button type="button" class="btn blk sec" style="margin-top:8px" data-a="wRuta" data-v="' + w.r + '">' + otra + '</button></div>';
   }
 
@@ -248,7 +249,7 @@
       var La = E.filter(function (e) { return e.inP > 0 && (e.lib > 0 || !e.cerrada); });
       h = cab('¿Qué estructura estás armando?', 'Solo aparecen las que ya tienen acero en el almacén.');
       if (!La.length) h += '<div class="vacio">Todavía no hay acero para armar.<br>Primero registra que <b>llegó</b> el acero.</div>';
-      return h + La.map(function (e) { return opcion('wElem', e.n, '🏗️', esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Para armar ' + K(e.libKg) + ' · armado ' + K(e.armKg) + (e.un > 1 ? ' (≈ ' + String(e.eq).replace('.', ',') + ' de ' + e.un + ')' : '')); }).join('') + pie();
+      return h + La.map(function (e) { return opcion('wElem', e.n, '🏗️', esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Para armar: ' + K(e.libKg) + (e.un > 1 ? ' · van ' + uds(e.eq) + ' de ' + e.un : (e.armKg > 0 ? ' · armado: ' + K(e.armKg) : ''))); }).join('') + pie();
     }
     var e = est1(w.elem), P = posiciones(w.elem);
     if (w.p === 'a2') {
@@ -257,7 +258,7 @@
     }
     if (w.p === 'a3u') {
       var u = w.u || 1;
-      return cab('¿Cuántas ' + esc(e.n) + ' estás armando?', 'La cartilla trae ' + e.un + '. Van armadas ≈ ' + String(e.eq).replace('.', ',') + '.') +
+      return cab('¿Cuántas ' + esc(e.n) + ' estás armando?', 'El pedido trae ' + e.un + '. Van armadas ' + uds(e.eq).replace(/ unidad(es)?/, '') + '.') +
         '<div class="cen" style="margin:14px 0"><span class="stp gr"><button type="button" data-a="wU" data-v="-1">−</button><b>' + u + '</b><button type="button" data-a="wU" data-v="1">+</button></span><div class="peq mut" style="margin-top:6px">' + (u === 1 ? 'una sola' : u + ' al mismo tiempo') + '</div></div>' +
         '<div class="chips cen2"><button type="button" class="btn sec" data-a="wUset" data-v="1">Solo 1</button><button type="button" class="btn sec" data-a="wUset" data-v="' + e.un + '">Las ' + e.un + '</button></div>' +
         '<button type="button" class="btn blk gr" data-a="wIr" data-v="a3m">Siguiente →</button>' + pie();
@@ -319,7 +320,7 @@
       var Ls = E.filter(function (e) { return e.arm > 0; });
       h = cab('¿Cuál estructura sale?', 'Solo aparecen las que tienen acero armado.');
       if (!Ls.length) h += '<div class="vacio">No hay estructuras armadas.<br>Primero registra el <b>armado</b>.</div>';
-      return h + Ls.map(function (e) { return opcion('wSelem', e.n, '🏗️', esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Armado ' + K(e.armKg) + (e.un > 1 ? ' (≈ ' + String(Math.round(e.eqArm * 10) / 10).replace('.', ',') + ' unidades)' : '')); }).join('') + pie();
+      return h + Ls.map(function (e) { return opcion('wSelem', e.n, '🏗️', esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Armado: ' + K(e.armKg) + (e.un > 1 && e.eqArm >= 0.95 ? ' · ' + uds(e.eqArm) : '')); }).join('') + pie();
     }
     if (w.p === 's2s') return cab('¿De cuál stock sale?') + '<div class="bgs dos">' + grande('wSs', 'ACERO RECTO', '🧱', 'Stock estándar', K((calc().porElem['ACERO RECTO'] || {}).sal_kg || 0)) + grande('wSs', 'ACERO FIGURADO', '🧵', 'Stock figurado', K((calc().porElem['ACERO FIGURADO'] || {}).sal_kg || 0)) + '</div>' + pie();
     var e = est1(w.elem), stock = esStk(w.elem), P = posiciones(w.elem).filter(function (p) { return (stock ? p.lib : p.arm) > 0; }), mx = function (p) { return stock ? p.lib : p.arm; };

@@ -85,7 +85,7 @@
     if (!Api.remoto) h += '<div class="banda info">Modo local de prueba: los datos solo existen en este navegador.</div>';
     if (S.offline) h += '<div class="banda warn">Sin conexión: se muestran los últimos datos guardados en este celular.</div>';
     if (pend && S.enviando) h += '<div class="banda info env"><span>Enviando los registros guardados…</span><i class="prog"><b></b></i></div>';
-    else if (pend) h += '<div class="banda warn"><div>⚠️ <b>' + pend + (pend === 1 ? ' registro guardado' : ' registros guardados') + ' en este celular, sin enviar por falta de señal.</b><br>No se han perdido: se envían solos cuando vuelva la señal. No cierres la sesión ni borres los datos del navegador hasta que desaparezca este aviso.</div><button class="btn chico" data-a="enviarCola">Enviar ahora</button></div>';
+    else if (pend) h += '<div class="banda warn"><div>📴 <b>' + pend + (pend === 1 ? ' registro guardado' : ' registros guardados') + ' en este celular.</b><br>Se envían solos cuando vuelva la señal. No cierres la sesión hasta que desaparezca este aviso.</div><button class="btn chico" data-a="enviarCola">Enviar ahora</button></div>';
     if (S.avisoBaja) h += '<div class="banda bad"><div>' + esc(S.avisoBaja) + '</div><button class="btn chico sec" data-a="cerrarAviso">Entendido</button></div>';
     if (errs.length) h += '<div class="banda bad"><div>' + errs.map(function (e) { var NA = { recibirPedido: 'la llegada del pedido', ingresoStock: 'la llegada al stock', usarStock: 'el uso de acero del stock', cerrarArmado: 'el cierre de la estructura' }[e.body.action]; if (NA) return 'No se pudo registrar ' + NA + ': ' + esc(e.error); return e.body.items ? 'No se pudo registrar la salida (' + e.body.items.length + ' posiciones): ' + esc(e.error) : 'No se pudo registrar ' + esc(e.body.cantidad) + ' × ' + esc(e.body.diametro) + '" en ' + esc(e.body.elemento) + ': ' + esc(e.error); }).join('<br>') + '</div><button class="btn chico sec" data-a="limpiarErrores">Entendido</button></div>';
     return h;
@@ -906,25 +906,26 @@
     var montar = vCargar();
     var q = String(S.ped.q || '').trim().toLowerCase();
     var L = S.estado.pedidos.filter(function (p) {
+      if (/^(STOCK|AJUSTE|TRASLADO|SOBRANTE)$/.test(String(p.pedido))) return false; // movimientos internos: no son pedidos
       return !q || (String(p.pedido) + ' ' + p.estructura + ' ' + (p.archivo || '') + ' ' + (p.usuario || '')).toLowerCase().indexOf(q) >= 0;
     }).sort(function (a, b) { return a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0; });
     var tp2 = 0, tk = 0; L.forEach(function (p) { tp2 += p.piezas; tk += p.kg; });
     var pags = Math.max(1, Math.ceil(L.length / PAG)); if (S.ped.pag >= pags) S.ped.pag = pags - 1; if (S.ped.pag < 0) S.ped.pag = 0;
     var vis = L.slice(S.ped.pag * PAG, S.ped.pag * PAG + PAG);
-    var h = '<div class="hero"><small>Pedidos' + (q ? ' que coinciden' : ' cargados') + '</small><b>' + n0(L.length) + (L.length === 1 ? ' pedido' : ' pedidos') + '</b><span>' + pz(tp2) + ' · ' + kg(tk) + ' kg</span></div>' +
-      '<div class="card"><input id="p-q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Buscar por pedido, estructura o archivo" value="' + esc(S.ped.q) + '" data-i="ped.q"></div>';
+    var h = '<div class="hero"><small>Pedidos' + (q ? ' que coinciden' : ' montados') + '</small><b>' + n0(L.length) + (L.length === 1 ? ' pedido' : ' pedidos') + '</b><span>' + pz(tp2) + ' · ' + kg(tk) + ' kg</span></div>' +
+      '<div class="card busca"><input id="p-q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Buscar por pedido, estructura o archivo" value="' + esc(S.ped.q) + '" data-i="ped.q"></div>';
     h = montar + h;
     if (!vis.length) return h + '<div class="card vacio">' + (S.estado.pedidos.length ? 'Ningún pedido coincide con “' + esc(S.ped.q) + '”.' : 'Aún no hay pedidos cargados.') + '</div>';
     h += vis.map(function (p) {
       var x = S.calc.porElem[p.estructura] || { lib_p: 0, arm_p: 0, out_p: 0 };
       return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>' + fechaDia(p.fecha) + '</span></div><div class="pd-e">' + esc(p.estructura) + (p.descripcion && String(p.descripcion).trim().toLowerCase() !== String(p.estructura).trim().toLowerCase() ? '<em>' + esc(p.descripcion) + '</em>' : '') + '</div>' +
         '<div class="pd-m"><span><b>' + n0(p.piezas) + '</b> piezas</span><span><b>' + kg(p.kg) + '</b> kg</span><span>' + esc(p.usuario) + '</span></div>' +
-        '<div class="acc"><button class="btn chico sec" data-a="edPed" data-v="' + esc(p.loadId) + '" style="margin-top:8px">✏️ Corregir</button> <button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar DLI</button> <button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '" style="margin-top:8px">🗑 Dar de baja</button></div>' +
+        '<div class="acc tres3"><button class="btn chico sec" data-a="edPed" data-v="' + esc(p.loadId) + '" style="margin-top:8px">✏️ Corregir</button> <button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ DLI</button> <button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '" style="margin-top:8px">🗑 Borrar</button></div>' +
         (S.edPed[p.loadId] ? (function (e) { return '<div class="edp"><div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" value="' + esc(e.pedido) + '" data-i="edp.' + esc(p.loadId) + '.pedido"></div>' + (recibo(p.loadId) ? '' : '<div class="fld"><label>Fecha en que llegó</label><input type="date" max="' + hoyISO() + '" value="' + esc(e.f) + '" data-i="edp.' + esc(p.loadId) + '.f"></div>') + '</div>' +
           (STOCKS.indexOf(p.estructura) < 0 ? '<div class="fld"><label>¿Para cuántas estructuras es la cartilla?</label><input type="text" inputmode="numeric" value="' + esc(e.n) + '" data-i="edp.' + esc(p.loadId) + '.n"></div>' : '') +
           (e.err ? '<div class="error">' + esc(e.err) + '</div>' : '') + '<div class="row2"><button class="btn" data-a="edPedOk" data-v="' + esc(p.loadId) + '">Guardar corrección</button><button class="btn sec" data-a="edPed" data-v="' + esc(p.loadId) + '">Cancelar</button></div></div>'; })(S.edPed[p.loadId]) : '') +
         recepTxt(p.loadId) +
-        '<div class="pd-s"><span class="lib">✅ ' + n0(x.lib_p) + ' libres</span><span class="arm">🔧 ' + n0(x.arm_p) + ' armadas</span><span class="out">🚚 ' + n0(x.out_p) + ' salieron</span></div></div>';
+        '<div class="pd-s"><span class="lib">✅ ' + n0(x.lib_p) + ' para armar</span><span class="arm">🔧 ' + n0(x.arm_p) + ' armadas</span><span class="out">🚚 ' + n0(x.out_p) + ' salieron</span></div></div>';
     }).join('');
     if (pags > 1) h += '<div class="pag"><button class="btn sec" data-a="pagPed" data-v="-1"' + (S.ped.pag <= 0 ? ' disabled' : '') + '>← Anterior</button><span>Página ' + (S.ped.pag + 1) + ' de ' + pags + '</span><button class="btn sec" data-a="pagPed" data-v="1"' + (S.ped.pag >= pags - 1 ? ' disabled' : '') + '>Siguiente →</button></div>';
     return h;
