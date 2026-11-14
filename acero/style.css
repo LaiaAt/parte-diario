@@ -620,3 +620,4 @@ details.mv-d[open] th { color: #cbd5e1; }
 .pila i.pen { background: repeating-linear-gradient(45deg, #fcd34d, #fcd34d 5px, #fde68a 5px, #fde68a 10px); }
 .ley i.pen { background: #fcd34d; }
 .bh-t small { color: #475569; font-weight: 700; }
+@media (max-width: 520px) { body:not(.emb) .tabs button { flex-direction: column !important; gap: 1px !important; padding: 6px 2px !important; } body:not(.emb) .tabs button em { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; } }

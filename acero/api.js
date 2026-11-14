@@ -25,7 +25,8 @@
   // Un solo servidor para Parte diario, Transportes y Acero: la llave viaja en el cuerpo (nunca en la URL).
   function post(body) {
     var b = Object.assign({}, body), llave = b.pin; delete b.pin; delete b.usuario; if (window.ACEROS_EMBED) b.embed = true;
-    return fetch(CFG.API_URL, { method: 'POST', body: JSON.stringify({ accion: 'acero', llave: llave, req: b }) }).then(function (r) { return r.json(); })
+    var ctl = window.AbortController ? new AbortController() : null, tm = ctl ? setTimeout(function () { ctl.abort(); }, 45000) : 0; // con mala señal no se queda esperando para siempre
+    return fetch(CFG.API_URL, { method: 'POST', body: JSON.stringify({ accion: 'acero', llave: llave, req: b }), signal: ctl ? ctl.signal : undefined }).then(function (r) { clearTimeout(tm); return r.json(); }, function (e) { clearTimeout(tm); throw e; })
       .then(function (r) { if (r && r.ok === false && !r.error && r.mensaje) r.error = r.mensaje; return r; });
   }
 
@@ -33,7 +34,7 @@
   function conCola(estado) {
     var q = leer(K.cola, []);
     if (!q.length) return estado;
-    var e = { pedidos: estado.pedidos, entradas: estado.entradas, salidas: estado.salidas.slice() };
+    var e = Object.assign({}, estado, { salidas: estado.salidas.slice() });
     q.forEach(function (b) {
       var partes = b.items ? b.items.map(function (it, k) { return Object.assign({}, it, { id: b.grupo + '-' + (k + 1), fecha: b.fecha, usuario: b.usuario, obs: b.obs, fase: b.fase, modo: b.modo, pct: b.pct, tipo: b.tipo, destino: b.destino }); }) : [b];
       partes.forEach(function (b) {
@@ -48,6 +49,8 @@
 
   window.Api = {
     remoto: remoto,
+    /** Últimos datos guardados en este celular (para abrir al instante). */
+    guardado: function () { var c = remoto ? leer(K.cache, null) : null; try { return c && c.pedidos && c.entradas && c.salidas ? conCola(c) : null; } catch (e) { return null; } },
     conCola: conCola,
     sesion: function () { return leer(K.ses, null); },
     salir: function () { localStorage.removeItem(K.ses); },

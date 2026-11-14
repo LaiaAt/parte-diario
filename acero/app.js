@@ -81,7 +81,7 @@
 
   function vBandas() {
     var h = '', pend = Api.pendientes(), errs = Api.erroresCola();
-    if (!S.cargado && S.estado.entradas.length) h += '<div class="banda bad"><i class="spin"></i> Cargando datos…</div>';
+    if (S.refresca) h += '<div class="banda info"><i class="spin"></i> Actualizando datos…</div>';
     if (!Api.remoto) h += '<div class="banda info">Modo local de prueba: los datos solo existen en este navegador.</div>';
     if (S.offline) h += '<div class="banda warn">Sin conexión: se muestran los últimos datos guardados en este celular.</div>';
     if (pend && S.enviando) h += '<div class="banda info env"><span>Enviando la salida al almacén…</span><i class="prog"><b></b></i></div>';
@@ -94,7 +94,7 @@
   /** Menú en dos niveles: arriba los grupos, abajo (si el grupo tiene varias pantallas) sus opciones. */
   function gruposTabs() { // menú plano: el supervisor solo ve Inicio e Informe; el administrador, además, Pedidos, Panel y Regularización
     var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: [['ini', 'Inicio']] }];
-    if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] }); G.push({ k: 'panel', ico: '📊', t: 'Panel', hojas: [['panel', 'Panel']] }); G.push({ k: 'ver', ico: '🧮', t: 'Regularización', hojas: [['ver', 'Regularización']] }); }
+    if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] }); G.push({ k: 'panel', ico: '📊', t: 'Panel', hojas: [['panel', 'Panel']] }); G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] }); }
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
     return G;
   }
@@ -996,6 +996,11 @@
   }
 
   function render() {
+    try { render0(); } catch (e) {
+      try { console.error(e); $('app').innerHTML = '<main><div class="card"><h2>⚠️ Algo falló al mostrar la pantalla</h2><p>Toca el botón para volver a cargar. Si sigue igual, envía una foto de esta pantalla al administrador.</p><p class="peq mut">' + esc(String(e && e.message || e)) + ' · ' + esc(String(e && e.stack || '').split('\n')[1] || '') + '</p><button class="btn blk" onclick="location.reload()">⟳ Volver a cargar</button></div></main>'; } catch (e2) { }
+    }
+  }
+  function render0() {
     var app = $('app');
     if (!S.ses) { app.innerHTML = S.auto ? '<main>' + vCargando() + '</main>' : vLogin(); return; }
     S.calc = C.calcular(S.estado);
@@ -1014,8 +1019,12 @@
   }
 
   // ---------- Acciones ----------
+  function abrirGuardado() { // abre al instante con lo último guardado; el servidor actualiza después
+    var c = Api.guardado && Api.guardado(); if (c && !S.cargado) { S.estado = c; S.cargado = true; S.refresca = true; }
+  }
   function cargarEstado() {
-    return Api.estado(S.ses).then(function (r) {
+    return Api.estado(S.ses).catch(function () { return { ok: false, error: 'No se pudo conectar. Toca ⟳ para intentar de nuevo.' }; }).then(function (r) {
+      S.refresca = false;
       if (!r.ok) {
         if (r.error === 'Llave no válida') { Api.salir(); S.ses = null; S.loginErr = 'La llave ya no es válida. Ingresa de nuevo.'; }
         else toast(r.error);
@@ -1504,7 +1513,7 @@
       if (!r.ok) { S.loginErr = r.error; render(); return; }
       if (MODO === 'dashboard' && r.ses.rol !== 'admin') { Api.salir(); S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; render(); return; }
       S.ses = r.ses; S.loginErr = ''; S.tab = 'ini';
-      render(); enviarCola().then(cargarEstado);
+      render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado);
     });
   });
 
@@ -1532,7 +1541,7 @@
   if (!/^(ini|panel|ped|inf|ver)$/.test(S.tab)) S.tab = 'ini';
   S.ses = Api.sesion();
   if (S.ses && MODO === 'dashboard' && S.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; }
-  if (S.ses) { render(); enviarCola().then(cargarEstado); }
+  if (S.ses) { abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado); }
   else {
     render();
     // el panel entra solo con la llave de administrador del Dashboard (misma sesión)
@@ -1540,7 +1549,7 @@
     if (l0) { S.auto = true; render(); }
     if (l0) Api.login(l0).then(function (r) {
       if (!r.ok || r.ses.rol !== 'admin') { Api.salir(); S.auto = false; render(); return; }
-      S.ses = r.ses; S.loginErr = ''; render(); enviarCola().then(cargarEstado);
+      S.ses = r.ses; S.loginErr = ''; abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado);
     }).catch(function () { S.auto = false; S.loginErr = 'No se pudo conectar.'; render(); });
   }
 })();
