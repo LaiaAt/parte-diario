@@ -654,3 +654,8 @@ details.mv-d[open] th { color: #cbd5e1; }
 .acc.tres3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; } .acc.tres3 .btn { width: 100%; padding-left: 4px; padding-right: 4px; }
 .seg.big button.on.no { background: #b45309; box-shadow: 0 2px 8px rgba(180,83,9,.35); }
 .seg.big button.on.no { background: #b45309; box-shadow: 0 2px 8px rgba(180,83,9,.35); }
+
+.stp button.x10 { width: 46px; font-size: 1rem; background: #cbd5e1; }
+.stp.gr button.x10 { width: 58px; height: 68px; font-size: 1.1rem; }
+.stp.gr { gap: 6px; flex-wrap: nowrap; } .stp.gr b { min-width: 72px; }
+@media (max-width: 400px) { .stp button { width: 44px; height: 48px; } .stp button.x10 { width: 42px; } .stp b { min-width: 34px; } }

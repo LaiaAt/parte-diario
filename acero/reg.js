@@ -30,7 +30,8 @@
     return '<button type="button" class="op" data-a="' + a + '" data-v="' + esc(v) + '"><span class="op-i">' + ico + '</span><span class="op-t"><b>' + tit + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="op-f">›</span></button>';
   }
   function stp(key, val, max) {
-    return '<span class="stp"><button type="button" data-a="ws" data-v="' + enc(key) + '|-1|' + max + '">−</button><b>' + val + '</b><button type="button" data-a="ws" data-v="' + enc(key) + '|1|' + max + '">+</button></span>';
+    var k = enc(key), b = function (d, t, c) { return '<button type="button"' + (c ? ' class="' + c + '"' : '') + ' data-a="ws" data-v="' + k + '|' + d + '|' + max + '">' + t + '</button>'; };
+    return '<span class="stp">' + b(-10, '−10', 'x10') + b(-1, '−') + '<b>' + val + '</b>' + b(1, '+') + b(10, '+10', 'x10') + '</span>';
   }
   function cab(tit, sub) {
     var w = W(), RT = { llego: '📥 Llegó acero', armar: '🔧 Armar', salio: '🚚 Salió acero' };
@@ -261,7 +262,7 @@
     if (w.p === 'a3u') {
       var u = w.u || 1;
       return cab('¿Cuántas ' + esc(e.n) + ' estás armando?', 'El pedido trae ' + e.un + '. Van armadas ' + uds(e.eq).replace(/ unidad(es)?/, '') + '.') +
-        '<div class="cen" style="margin:14px 0"><span class="stp gr"><button type="button" data-a="wU" data-v="-1">−</button><b>' + u + '</b><button type="button" data-a="wU" data-v="1">+</button></span><div class="peq mut" style="margin-top:6px">' + (u === 1 ? 'una sola' : u + ' al mismo tiempo') + '</div></div>' +
+        '<div class="cen" style="margin:14px 0"><span class="stp gr"><button type="button" class="x10" data-a="wU" data-v="-10">−10</button><button type="button" data-a="wU" data-v="-1">−</button><b>' + u + '</b><button type="button" data-a="wU" data-v="1">+</button><button type="button" class="x10" data-a="wU" data-v="10">+10</button></span><div class="peq mut" style="margin-top:6px">' + (u === 1 ? 'una sola' : u + ' al mismo tiempo') + '</div></div>' +
         '<div class="chips cen2"><button type="button" class="btn sec" data-a="wUset" data-v="1">Solo 1</button><button type="button" class="btn sec" data-a="wUset" data-v="' + e.un + '">Las ' + e.un + '</button></div>' +
         '<button type="button" class="btn blk gr" data-a="wIr" data-v="a3m">Siguiente →</button>' + pie();
     }
@@ -273,7 +274,7 @@
       var pc = w.pct || 50;
       return cab('¿Qué porcentaje armaste?', esc(e.n) + (e.un > 1 ? ' · ' + (w.u || 1) + (w.u > 1 ? ' unidades' : ' unidad') : '')) +
         '<div class="chips cen2">' + [25, 50, 75, 100].map(function (v) { return '<button type="button" class="btn ' + (pc === v ? '' : 'sec') + '" data-a="wPct" data-v="' + v + '">' + v + ' %</button>'; }).join('') + '</div>' +
-        '<div class="cen" style="margin:12px 0"><span class="stp gr"><button type="button" data-a="wPctD" data-v="-5">−</button><b>' + pc + ' %</b><button type="button" data-a="wPctD" data-v="5">+</button></span></div>' +
+        '<div class="cen" style="margin:12px 0"><span class="stp gr"><button type="button" class="x10" data-a="wPctD" data-v="-10">−10</button><button type="button" data-a="wPctD" data-v="-5">−5</button><b>' + pc + ' %</b><button type="button" data-a="wPctD" data-v="5">+5</button><button type="button" class="x10" data-a="wPctD" data-v="10">+10</button></span></div>' +
         '<button type="button" class="btn blk gr" data-a="wIr" data-v="a4">Siguiente →</button>' + pie();
     }
     if (w.p === 'a3pos') {
