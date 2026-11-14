@@ -219,11 +219,13 @@
       (lista.some(function (k) { return /^D/.test(k); }) ? '<div class="fld" style="margin-top:8px"><select data-r="d" aria-label="Otra varilla"><option value="">Otra varilla (grafil)…</option>' + lista.filter(function (k) { return /^D/.test(k); }).map(function (k) { return '<option value="' + esc(k) + '"' + (w.d === k ? ' selected' : '') + '>' + esc(X.C.diamLabel(k)) + '</option>'; }).join('') + '</select></div>' : '') +
       '<div class="paso"><i>2</i> ¿De qué largo?</div>' + (rec ? '<div class="seg big"><button type="button" class="' + (w.l === '6' ? 'on' : '') + '" data-a="wLl" data-v="6">6 m</button><button type="button" class="' + (w.l === '12' ? 'on' : '') + '" data-a="wLl" data-v="12">12 m</button></div>' : '<div class="uni"><input type="text" inputmode="decimal" placeholder="Ej. 3,5" value="' + esc(w.l) + '" data-r="l"><span>metros</span></div>') +
       '<div class="paso"><i>3</i> ¿Cuántas piezas?</div><div class="cant"><button type="button" data-a="wLc" data-v="-10">−10</button><button type="button" data-a="wLc" data-v="-1">−</button><input type="text" inputmode="numeric" placeholder="0" value="' + esc(w.c) + '" data-r="c" aria-label="Cantidad de piezas"><button type="button" data-a="wLc" data-v="1">+</button><button type="button" data-a="wLc" data-v="10">+10</button></div>' +
-      '<div class="kgauto"><span>⚖️ Pesan</span><b id="kg-auto">' + X.kg(ka) + ' kg</b><small>Se calcula solo</small></div>' +
+      '<div class="kgauto"><span>⚖️ Pesan</span><b id="kg-auto">' + X.kg(ka) + ' kg</b><small>Se calcula solo con la varilla, el largo y la cantidad</small></div>' +
+      '<div class="paso"><i>4</i> ¿La remisión dice esos mismos kilos?</div><div class="seg big"><button type="button" class="' + (w.kok !== '0' ? 'on' : '') + '" data-a="wLk" data-v="1">✅ Sí</button><button type="button" class="' + (w.kok === '0' ? 'on no' : '') + '" data-a="wLk" data-v="0">✏️ No</button></div>' +
+      (w.kok === '0' ? '<div class="uni" style="margin-top:8px"><input type="text" inputmode="decimal" placeholder="Kilos de la remisión" value="' + esc(w.k || '') + '" data-r="k" aria-label="Kilos según la remisión"><span>kg</span></div><div class="peq mut" style="margin-top:4px">Escribe los kilos tal como aparecen en la remisión. La foto de la remisión es obligatoria.</div>' : '') +
       '<button type="button" class="btn blk gr" data-a="wLadd">➕ Agregar a la lista</button>';
     if (w.rows.length) {
       var tk = 0, tp = 0; w.rows.forEach(function (x) { tk += x.k; tp += x.c; });
-      h += '</div><div class="card wz"><h3 style="margin:0 0 6px">🧾 Lo que llegó</h3>' + w.rows.map(function (x, i) { return '<div class="fila"><div><b>' + pz(x.c) + '</b> de ' + esc(X.C.diamLabel(x.d)) + ' · ' + String(x.l).replace('.', ',') + ' m<div class="peq mut">' + K(x.k) + '</div></div><button type="button" class="btn chico sec" data-a="wLdel" data-v="' + i + '">✕ Quitar</button></div>'; }).join('') +
+      h += '</div><div class="card wz"><h3 style="margin:0 0 6px">🧾 Lo que llegó</h3>' + w.rows.map(function (x, i) { return '<div class="fila"><div><b>' + pz(x.c) + '</b> de ' + esc(X.C.diamLabel(x.d)) + ' · ' + String(x.l).replace('.', ',') + ' m<div class="peq mut">' + K(x.k) + (x.man ? ' según remisión (calculado: ' + K(x.calc) + ')' : '') + '</div></div><button type="button" class="btn chico sec" data-a="wLdel" data-v="' + i + '">✕ Quitar</button></div>'; }).join('') +
         '<div class="resu">Total: <b>' + pz(tp) + '</b> · <b>' + K(tk) + '</b> al <b>' + NOM[w.stock] + '</b></div>' + foto(true) +
         '<div class="fld" style="margin-top:10px"><label>Número de la remisión (opcional)</label><input type="text" inputmode="numeric" placeholder="Ej. 45210" value="' + esc(w.pedido) + '" data-r="pedido"></div>' +
         guardarBtn('wLsok', '✅ Confirmar que llegó');
@@ -387,6 +389,7 @@
         return true;
       }
       case 'wLl': w.l = v; X.render(); return true;
+      case 'wLk': w.kok = v; w.err = ''; X.render(); return true;
       case 'wLd': w.d = v; w.err = ''; X.render(); return true;
       case 'wLc': w.c = String(Math.max(0, (parseInt(w.c, 10) || 0) + (+v)) || ''); w.err = ''; X.render(); return true;
       case 'wLadd': {
@@ -395,14 +398,16 @@
         if (w.stock === 'ACERO RECTO' && l !== 6 && l !== 12) { fallo('En el stock estándar solo entran barras de 6 m o 12 m.'); return true; }
         if (w.stock === 'ACERO FIGURADO' && (l === 6 || l === 12)) { fallo('Las barras de 6 m y 12 m van al stock estándar.'); return true; }
         if (!(c > 0)) { fallo('Escribe cuántas piezas llegaron.'); return true; }
-        w.rows.push({ d: w.d, l: l, c: c, k: Math.round(kgAuto() * 100) / 100 }); w.c = ''; w.err = ''; X.render(); return true;
+        var kg1 = Math.round(kgAuto() * 100) / 100, man = w.kok === '0';
+        if (man) { kg1 = parseFloat(String(w.k || '').replace(',', '.')); if (!(kg1 > 0)) { fallo('Escribe los kilos que dice la remisión.'); return true; } }
+        w.rows.push({ d: w.d, l: l, c: c, k: kg1, man: man, calc: Math.round(kgAuto() * 100) / 100 }); w.c = ''; w.k = ''; w.kok = '1'; w.err = ''; X.render(); return true;
       }
       case 'wLdel': w.rows.splice(+v, 1); X.render(); return true;
       case 'wLsok': {
         if (!w.rows.length) return true;
         if (!w.file) { fallo('Falta la foto o el PDF de la remisión: no puede llegar acero sin soporte.'); return true; }
         var tk = 0; w.rows.forEach(function (r) { tk += r.k; });
-        enviar('ingresoStock', { stock: w.stock, items: w.rows.map(function (r) { return { diametro: r.d, largo: r.l, cantidad: r.c, kg: r.k }; }), pedido: w.pedido, archivoB64: w.file.b64, archivoNombre: w.file.nombre, id: w.id || (w.id = nuevoId('G')) }, 'Llegaron ' + K(tk), 'Ya están en el ' + NOM[w.stock].toLowerCase() + '.');
+        enviar('ingresoStock', { stock: w.stock, obs: w.rows.some(function (r) { return r.man; }) ? 'Kilos según remisión (difieren del cálculo)' : '', items: w.rows.map(function (r) { return { diametro: r.d, largo: r.l, cantidad: r.c, kg: r.k }; }), pedido: w.pedido, archivoB64: w.file.b64, archivoNombre: w.file.nombre, id: w.id || (w.id = nuevoId('G')) }, 'Llegaron ' + K(tk), 'Ya están en el ' + NOM[w.stock].toLowerCase() + '.');
         return true;
       }
       // ---- Armar

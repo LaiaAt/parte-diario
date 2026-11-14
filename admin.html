@@ -305,28 +305,64 @@ async function api(d, ms) {
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); if (av) av.fin(); }
 }
-function salir() { TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
+function salir() { CDB.del('admin'); CDB.del('admin_tr'); TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
+// ---- Copia local de los datos (IndexedDB): el Dashboard abre al instante y funciona sin señal (solo lectura)
+const CDB = (() => {
+  let dbp = null;
+  const db = () => dbp || (dbp = new Promise((ok, no) => { try { const q = indexedDB.open('adm_cache', 1); q.onupgradeneeded = () => q.result.createObjectStore('kv'); q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error); } catch (e) { no(e); } }));
+  return {
+    get: k => db().then(d => new Promise(ok => { const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); })).catch(() => null),
+    set: (k, v) => db().then(d => new Promise(ok => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => ok(true); t.onerror = () => ok(false); })).catch(() => false),
+    del: k => db().then(d => { d.transaction('kv', 'readwrite').objectStore('kv').delete(k); }).catch(() => {})
+  };
+})();
+const horaTxt = t => { const d = new Date(t), z = n => String(n).padStart(2, '0'); return z(d.getDate()) + '/' + z(d.getMonth() + 1) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); };
+function avisoDatos(txt) { const e = $('estado'); if (e) e.textContent = txt || ''; }
 async function entrar() {
   const l = $('llave').value.trim(); if (!l) return;
   $('loginmsg').textContent = 'Entrando…'; $('entrar').disabled = true;
   try {
     LLAVE = l;
     $('loginmsg').textContent = 'Cargando datos…';
+    const c0 = await CDB.get('admin'); // datos guardados de la última vez: se muestran ya y se actualizan por detrás
+    if (c0 && c0.llave === l && c0.r && c0.r.ok) {
+      D = c0.r; DT = c0.t; $('quien').textContent = D.nombre; $('login').hidden = true; $('panel').hidden = false; $('salirTop').hidden = false; $('loginmsg').textContent = ''; $('entrar').disabled = false;
+      try { pintar(); if ($('acFrame')) enviarAc(MOD === 'acero'); } catch (e) {}
+      avisoDatos('Actualizando… (datos de ' + horaTxt(c0.t) + ')');
+      cargar(true).then(ok => { if (!ok && !D) salir(); }).catch(() => {});
+      return;
+    }
     const ok = await cargar(true); // el servidor valida la llave en esta misma llamada (una ida y vuelta menos)
     if (ok) { try { localStorage.setItem('adm', l); } catch (e) {} $('login').hidden = true; $('panel').hidden = false; $('salirTop').hidden = false; $('loginmsg').textContent = ''; }
     else { LLAVE = ''; TRP = null; try { localStorage.removeItem('adm'); } catch (e) {} }
   } catch (e) { $('loginmsg').textContent = 'No se pudo conectar.'; LLAVE = ''; TRP = null; }
   $('entrar').disabled = false;
 }
+let DT = 0, CARGANDO = false;
 async function cargar(primera) {
-  $('estado').textContent = 'Cargando…'; $('err').textContent = '';
-  if (primera && !TR) TRP = api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }).catch(() => null); // se pide a la vez para que Transportes abra ya cargado
-  const r = await api({ accion: 'admin', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
-  $('estado').textContent = '';
-  if (!r.ok) { (primera ? $('loginmsg') : $('err')).textContent = r.mensaje || 'No se pudo cargar'; if (!primera && /administradores/.test(r.mensaje || '')) salir(); return false; }
-  { const c = {}; (r.ACTIVIDAD || []).forEach(x => { c[x.id] = (c[x.id] || 0) + 1; if (!x.an) x.an = c[x.id]; }); } // numero real de la actividad (1..N en orden); el servidor nuevo ya lo manda
-  D = r; $('quien').textContent = r.nombre; pintar(); cargarFotos(); if ($('acFrame')) enviarAc(MOD === 'acero'); return true;
+  if (CARGANDO) return !!D; CARGANDO = true;
+  try {
+    if (!D) $('estado').textContent = 'Cargando…'; $('err').textContent = '';
+    if (primera && !TR) TRP = api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }).then(x => { if (x && x.ok) CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: x }); return x; }).catch(() => null); // se pide a la vez para que Transportes abra ya cargado
+    let r;
+    try { r = await api({ accion: 'admin', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); }
+    catch (e) { // sin señal: se queda con lo guardado
+      if (D) { avisoDatos('📴 Sin señal · datos guardados del ' + horaTxt(DT || Date.now())); return true; }
+      throw e;
+    }
+    if (!r.ok) {
+      if (/administradores|llave/i.test(r.mensaje || '')) { CDB.del('admin'); CDB.del('admin_tr'); if (D) { salir(); $('loginmsg').textContent = r.mensaje || ''; return false; } }
+      if (D) { avisoDatos(''); $('err').textContent = r.mensaje || 'No se pudo actualizar'; return true; }
+      (primera ? $('loginmsg') : $('err')).textContent = r.mensaje || 'No se pudo cargar'; return false;
+    }
+    avisoDatos('');
+    { const c = {}; (r.ACTIVIDAD || []).forEach(x => { c[x.id] = (c[x.id] || 0) + 1; if (!x.an) x.an = c[x.id]; }); } // numero real de la actividad (1..N en orden); el servidor nuevo ya lo manda
+    const tenia = !!D; D = r; DT = Date.now(); CDB.set('admin', { llave: LLAVE, t: DT, r: r });
+    $('quien').textContent = r.nombre;
+    const y = window.scrollY; pintar(); if (tenia) window.scrollTo(0, y); // al actualizar no se mueve la pantalla
+    cargarFotos(); if ($('acFrame')) enviarAc(MOD === 'acero'); return true;
+  } finally { CARGANDO = false; }
 }
 
 const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['transportes', '🚛 Transportes']];
@@ -356,13 +392,17 @@ function modulo(m) {
 }
 let TRP = null, TRVM = 'conf', TR = null, TRTAB = selGet('tr', 'resumen', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
 async function cargarTr() {
-  $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes.')));
+  let desdeCopia = false;
+  if (!TR) { const c = await CDB.get('admin_tr'); if (c && c.llave === LLAVE && c.r && c.r.ok) { TR = c.r; desdeCopia = true; pintarTr(); avisoDatos('Actualizando viajes… (datos de ' + horaTxt(c.t) + ')'); } }
+  if (!desdeCopia) { $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes.'))); }
   try {
     let r = TRP ? await TRP : null; TRP = null;
     if (!r || !r.ok) r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
-    if (!r.ok) { $('trBody').textContent = r.mensaje || 'No se pudo cargar'; return; }
-    TR = r; pintarTr();
-  } catch (e) { $('trBody').textContent = 'No se pudo conectar.'; }
+    if (!r.ok) { if (!desdeCopia) $('trBody').textContent = r.mensaje || 'No se pudo cargar'; return; }
+    CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: r });
+    if (desdeCopia && typeof nPend === 'function' && nPend() > 0) return; // hay cambios sin guardar en pantalla: no se repinta
+    const y = window.scrollY; TR = r; pintarTr(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); }
+  } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · viajes guardados'); else $('trBody').textContent = 'No se pudo conectar.'; }
 }
 const nf = x => (Math.round((Number(x) || 0) * 100) / 100).toLocaleString('es-CO');
 const nf1 = x => (Math.round((Number(x) || 0) * 10) / 10).toLocaleString('es-CO');
@@ -1882,7 +1922,7 @@ function conservar(fn) {
 pintar = conservar(pintar); pintarTr = conservar(pintarTr); navTr = conservar(navTr); navAc = conservar(navAc); modulo = conservar(modulo);
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script>if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (hab && !rec) { rec = true; location.reload(); } }); navigator.serviceWorker.register('sw.js').then(reg => { const buscar = () => { try { reg.update(); } catch (e) {} }; setInterval(buscar, 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar(); }); window.addEventListener('focus', buscar); }).catch(() => {}); }
+<script>if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hab || rec) return; rec = true; /* versión nueva: nunca se recarga mientras se está usando; se aplica sola cuando la pestaña queda en segundo plano o al volver a abrir */ if (document.hidden) location.reload(); else document.addEventListener('visibilitychange', () => { if (document.hidden) location.reload(); }); }); navigator.serviceWorker.register('sw.js').then(reg => { const buscar = () => { try { reg.update(); } catch (e) {} }; setInterval(buscar, 1800000); document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar(); }); window.addEventListener('focus', buscar); }).catch(() => {}); }
 </script>
 </body>
 </html>

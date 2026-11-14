@@ -1,4 +1,4 @@
-const CACHE = 'pd-v217';
+const CACHE = 'pd-v219';
 const ARCHIVOS = ['./', 'index.html', 'transportes.html', 'admin.html', 'manifest-transportes.json', 'manifest-admin.json', 'acero.html', 'acero-panel.html', 'acero-embed.html', 'acero/modo-embed.js', 'manifest-acero.json', 'manifest-acero-panel.json', 'acero/core.js', 'acero/pdf.js', 'acero/xlsx.js', 'acero/config.js', 'acero/api.js', 'acero/app.js', 'acero/reg.js', 'acero/style.css', 'acero/modo-usuario.js', 'acero/modo-panel.js', 'acero/sw-registro.js', 'acero/icons/icon-192.png', 'acero/icons/icon-512.png', 'comun.js', 'pdf.js', 'pdfgen.html', 'pdf_tr.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'marca.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js'];
 
@@ -18,14 +18,13 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
-  // red primero (siempre versiones consistentes); sin senal usa la copia guardada
+  // Copia guardada primero (abre al instante y funciona sin señal); por detrás se trae la versión nueva para la próxima vez.
   e.respondWith(
-    fetch(e.request, { cache: 'no-cache' })
-      .then(r => {
-        if (r.ok) { const copia = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copia)); }
-        return r;
-      })
-      .catch(() => caches.match(e.request).then(hit => hit || caches.match('index.html')))
+    caches.open(CACHE).then(c => c.match(e.request, { ignoreSearch: e.request.mode === 'navigate' }).then(hit => {
+      const red = fetch(e.request, { cache: 'no-cache' }).then(r => { if (r.ok) c.put(e.request, r.clone()); return r; });
+      if (hit) { e.waitUntil(red.catch(() => {})); return hit; }
+      return red.catch(() => caches.match('index.html'));
+    }))
   );
 });
 
