@@ -621,3 +621,28 @@ details.mv-d[open] th { color: #cbd5e1; }
 .ley i.pen { background: #fcd34d; }
 .bh-t small { color: #475569; font-weight: 700; }
 @media (max-width: 520px) { body:not(.emb) .tabs button { flex-direction: column !important; gap: 1px !important; padding: 6px 2px !important; } body:not(.emb) .tabs button em { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; } }
+
+/* ===== Pulido de las rutas guiadas: pasos numerados, varillas con botones, kilos automáticos, remisión con foto ===== */
+.paso { display: flex; align-items: center; gap: 8px; margin: 16px 0 8px; font-size: 1.08rem; font-weight: 800; color: #0f172a; }
+.paso i { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #0a7f2e; color: #fff; font-style: normal; font-size: .95rem; flex: none; }
+.dch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.dch button { min-height: 56px; border: 2px solid #cbd5e1; border-radius: 14px; background: #f8fafc; color: #0f172a; font: inherit; font-size: 1.1rem; font-weight: 800; cursor: pointer; }
+.dch button.on { background: #0a7f2e; border-color: #0a7f2e; color: #fff; box-shadow: 0 2px 8px rgba(10,127,46,.35); }
+.seg.big { margin: 0; padding: 5px; background: #e2e8f0; border-radius: 16px; } .seg.big button { min-height: 60px; font-size: 1.25rem; font-weight: 800; color: #334155; border-radius: 12px; }
+.seg.big button.on { background: #0a7f2e; color: #fff; box-shadow: 0 2px 8px rgba(10,127,46,.35); }
+.uni { display: flex; align-items: center; gap: 10px; } .uni input { flex: 1; min-height: 60px; font-size: 1.4rem; font-weight: 800; text-align: center; border: 2px solid #94a3b8; border-radius: 14px; } .uni span { font-weight: 700; color: #475569; }
+.cant { display: grid; grid-template-columns: 1fr 1fr 1.6fr 1fr 1fr; gap: 6px; align-items: stretch; }
+.cant button { min-height: 60px; border: 0; border-radius: 14px; background: #e2e8f0; color: #0f172a; font: inherit; font-size: 1.15rem; font-weight: 800; cursor: pointer; } .cant button:active { background: var(--acc); color: #fff; }
+.cant input { min-height: 60px; width: 100%; box-sizing: border-box; text-align: center; font-size: 1.7rem; font-weight: 800; border: 2px solid #94a3b8; border-radius: 14px; color: #0f172a; background: #fff; }
+.kgauto { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 12px; margin: 14px 0 0; padding: 12px 16px; border-radius: 16px; background: #ecfdf3; border: 2px solid #86efac; }
+.kgauto span { font-weight: 700; color: #14532d; } .kgauto b { font-size: 1.7rem; color: #14532d; text-align: right; font-variant-numeric: tabular-nums; } .kgauto small { grid-column: 1 / 3; color: #166534; font-size: .78rem; }
+.foto { margin: 14px 0 0; padding: 12px; border: 2px dashed #94a3b8; border-radius: 16px; background: #f8fafc; }
+.foto-h { font-weight: 800; color: #0f172a; margin-bottom: 8px; } .foto-h em { font-style: normal; font-size: .76rem; background: #fde8e8; color: #8a2323; padding: 2px 8px; border-radius: 999px; margin-left: 6px; } .foto-h span { font-weight: 500; color: #64748b; }
+.foto-b { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .foto > small { display: block; margin-top: 8px; color: #8a2323; font-weight: 600; }
+.fbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 96px; padding: 10px; border-radius: 14px; background: #fff; border: 2px solid #cbd5e1; box-shadow: var(--sombra); cursor: pointer; text-align: center; }
+.fbtn span { font-size: 2.1rem; line-height: 1; } .fbtn b { font-size: .98rem; color: #0f172a; } .fbtn:active { background: #fff4ea; border-color: var(--acc); }
+.foto.ok { display: flex; align-items: center; gap: 12px; border-style: solid; border-color: #86efac; background: #ecfdf3; }
+.foto-p { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; flex: none; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; border: 1px solid #bbf7d0; }
+.foto-t { flex: 1; min-width: 0; } .foto-t b { display: block; color: #14532d; } .foto-t small { display: block; color: #166534; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card.wz .fld input[type=date], .card.wz .fld input[type=time] { min-height: 56px; font-size: 1.15rem; font-weight: 700; }
+.card.wz .fila { padding: 12px 0; } .card.wz .vacio { padding: 18px 8px; font-size: 1.02rem; }

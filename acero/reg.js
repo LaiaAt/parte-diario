@@ -187,29 +187,45 @@
       if (!w.fecha) { w.fecha = X.hoyISO(); w.hora = X.horaAhora(); }
       return cab('¿Cuándo llegó?', 'Ya viene con el día y la hora de ahora. Cámbialos solo si llegó antes.') +
         '<div class="fgrid"><div class="fld"><label>📅 Día</label><input type="date" max="' + X.hoyISO() + '" value="' + esc(w.fecha) + '" data-r="fecha"></div><div class="fld"><label>🕒 Hora</label><input type="time" value="' + esc(w.hora) + '" data-r="hora"></div></div>' +
-        '<div class="fld" style="margin-top:10px"><label>📎 Foto o PDF de la remisión (opcional)</label><input type="file" accept="image/*,application/pdf" data-r="file">' + (w.file ? '<div class="peq" style="margin-top:4px">✅ ' + esc(w.file.nombre) + '</div>' : '') + '</div>' +
+        foto(false) +
         '<div class="resu">Llegan <b>' + K(kgT) + '</b> de <b>' + esc(q0 ? q0.est : '') + '</b>' + (w.todo ? ' (todo lo que faltaba)' : ' (una parte)') + '</div>' + guardarBtn('wLok', '✅ Confirmar que llegó') + pie();
     }
     if (w.p === 'lsf') return vLlegoStock();
     return '';
   }
   function totLleg() { var w = W(), p = 0, k = 0; pend(w.load).forEach(function (e) { var q = w.vals[e.diametro + '|' + e.marca] || 0; p += q; k += q * e.kgUnit; }); return { p: p, kg: k }; }
+  /** Selector de foto/PDF con botones grandes y vista previa. */
+  function foto(oblig) {
+    var w = W(), f = w.file;
+    if (f) {
+      var pdf = /\.pdf$/i.test(f.nombre);
+      return '<div class="foto ok">' + (pdf ? '<div class="foto-p">📄</div>' : '<img class="foto-p" alt="Remisión" src="data:image/jpeg;base64,' + f.b64 + '">') +
+        '<div class="foto-t"><b>✅ Remisión lista</b><small>' + esc(f.nombre) + '</small></div><label class="btn chico sec">Cambiar<input type="file" accept="image/*,application/pdf" data-r="file" hidden></label></div>';
+    }
+    return '<div class="foto"><div class="foto-h">📎 Remisión ' + (oblig ? '<em>obligatoria</em>' : '<span>(opcional)</span>') + '</div><div class="foto-b">' +
+      '<label class="fbtn"><span>📸</span><b>Tomar foto</b><input type="file" accept="image/*" capture="environment" data-r="file" hidden></label>' +
+      '<label class="fbtn"><span>🖼️</span><b>Elegir foto o PDF</b><input type="file" accept="image/*,application/pdf" data-r="file" hidden></label></div>' +
+      (oblig ? '<small>No puede llegar acero sin la remisión.</small>' : '') + '</div>';
+  }
+  function kgAuto() { var w = W(), c = parseInt(w.c, 10) || 0, l = parseFloat(String(w.l).replace(',', '.')) || 0; return (X.C.PESOS[w.d] || 0) * l * c; }
   function vLlegoStock() {
     var w = W(), rec = w.stock === 'ACERO RECTO';
-    if (!w.rows) { w.rows = []; w.d = '1/2'; w.l = rec ? '12' : ''; w.c = ''; w.k = ''; w.pedido = ''; }
+    if (!w.rows) { w.rows = []; w.d = '1/2'; w.l = rec ? '12' : ''; w.c = ''; w.pedido = ''; }
     var lista = Object.keys(X.C.PESOS).filter(function (k) { return k !== 'ALAMBRE'; }).sort(function (a, b) { return X.C.diamOrder(a) - X.C.diamOrder(b); });
-    var h = cab('¿Qué llegó al ' + NOM[w.stock].toLowerCase() + '?', (rec ? 'Solo barras rectas de 6 m o 12 m. ' : '') + 'Llena una varilla y toca «Agregar». Repite por cada varilla de la remisión.') +
-      '<div class="fgrid"><div class="fld"><label>Varilla</label><select data-r="d">' + lista.map(function (k) { return '<option value="' + esc(k) + '"' + (w.d === k ? ' selected' : '') + '>' + esc(X.C.diamLabel(k)) + '</option>'; }).join('') + '</select></div>' +
-      '<div class="fld"><label>Largo (m)</label>' + (rec ? '<div class="seg" style="margin:0"><button type="button" class="' + (w.l === '6' ? 'on' : '') + '" data-a="wLl" data-v="6">6 m</button><button type="button" class="' + (w.l === '12' ? 'on' : '') + '" data-a="wLl" data-v="12">12 m</button></div>' : '<input type="text" inputmode="decimal" placeholder="Ej. 3,5" value="' + esc(w.l) + '" data-r="l">') + '</div>' +
-      '<div class="fld"><label>Cantidad (piezas)</label><input type="text" inputmode="numeric" placeholder="Ej. 50" value="' + esc(w.c) + '" data-r="c"></div>' +
-      '<div class="fld"><label>Kilos (según remisión)</label><input type="text" inputmode="decimal" placeholder="kg" value="' + esc(w.k) + '" data-r="k"></div></div>' +
-      '<button type="button" class="btn blk" data-a="wLadd" style="margin-top:8px">➕ Agregar</button>';
+    var ka = kgAuto();
+    var h = cab('¿Qué llegó al ' + NOM[w.stock].toLowerCase() + '?', rec ? 'Barras rectas de 6 m o 12 m.' : 'Estribos, ganchos, cortes y otros largos.') +
+      '<div class="paso"><i>1</i> ¿Qué varilla?</div><div class="dch">' + lista.filter(function (k) { return !/^D/.test(k); }).map(function (k) { return '<button type="button" class="' + (w.d === k ? 'on' : '') + '" data-a="wLd" data-v="' + esc(k) + '">' + esc(k) + '"</button>'; }).join('') + '</div>' +
+      (lista.some(function (k) { return /^D/.test(k); }) ? '<div class="fld" style="margin-top:8px"><select data-r="d" aria-label="Otra varilla"><option value="">Otra varilla (grafil)…</option>' + lista.filter(function (k) { return /^D/.test(k); }).map(function (k) { return '<option value="' + esc(k) + '"' + (w.d === k ? ' selected' : '') + '>' + esc(X.C.diamLabel(k)) + '</option>'; }).join('') + '</select></div>' : '') +
+      '<div class="paso"><i>2</i> ¿De qué largo?</div>' + (rec ? '<div class="seg big"><button type="button" class="' + (w.l === '6' ? 'on' : '') + '" data-a="wLl" data-v="6">6 m</button><button type="button" class="' + (w.l === '12' ? 'on' : '') + '" data-a="wLl" data-v="12">12 m</button></div>' : '<div class="uni"><input type="text" inputmode="decimal" placeholder="Ej. 3,5" value="' + esc(w.l) + '" data-r="l"><span>metros</span></div>') +
+      '<div class="paso"><i>3</i> ¿Cuántas piezas?</div><div class="cant"><button type="button" data-a="wLc" data-v="-10">−10</button><button type="button" data-a="wLc" data-v="-1">−</button><input type="text" inputmode="numeric" placeholder="0" value="' + esc(w.c) + '" data-r="c" aria-label="Cantidad de piezas"><button type="button" data-a="wLc" data-v="1">+</button><button type="button" data-a="wLc" data-v="10">+10</button></div>' +
+      '<div class="kgauto"><span>⚖️ Pesan</span><b id="kg-auto">' + X.kg(ka) + ' kg</b><small>Se calcula solo</small></div>' +
+      '<button type="button" class="btn blk gr" data-a="wLadd">➕ Agregar a la lista</button>';
     if (w.rows.length) {
-      var tk = 0; w.rows.forEach(function (x) { tk += x.k; });
-      h += '<div class="lst">' + w.rows.map(function (x, i) { return '<div class="fila"><div><b>' + pz(x.c) + '</b> · ' + esc(X.C.diamLabel(x.d)) + ' · ' + x.l + ' m · ' + K(x.k) + '</div><button type="button" class="btn chico sec" data-a="wLdel" data-v="' + i + '">Quitar</button></div>'; }).join('') + '</div>' +
-        '<div class="fld" style="margin-top:8px"><label>📎 Foto o PDF de la remisión (obligatorio)</label><input type="file" accept="image/*,application/pdf" data-r="file">' + (w.file ? '<div class="peq" style="margin-top:4px">✅ ' + esc(w.file.nombre) + '</div>' : '<div class="peq mut" style="margin-top:4px">No puede llegar acero sin soporte.</div>') + '</div>' +
-        '<div class="fld" style="margin-top:8px"><label>Número de remisión o pedido (opcional)</label><input type="text" value="' + esc(w.pedido) + '" data-r="pedido"></div>' +
-        '<div class="resu">Llegan <b>' + K(tk) + '</b> al <b>' + NOM[w.stock] + '</b></div>' + guardarBtn('wLsok', '✅ Confirmar que llegó');
+      var tk = 0, tp = 0; w.rows.forEach(function (x) { tk += x.k; tp += x.c; });
+      h += '</div><div class="card wz"><h3 style="margin:0 0 6px">🧾 Lo que llegó</h3>' + w.rows.map(function (x, i) { return '<div class="fila"><div><b>' + pz(x.c) + '</b> de ' + esc(X.C.diamLabel(x.d)) + ' · ' + String(x.l).replace('.', ',') + ' m<div class="peq mut">' + K(x.k) + '</div></div><button type="button" class="btn chico sec" data-a="wLdel" data-v="' + i + '">✕ Quitar</button></div>'; }).join('') +
+        '<div class="resu">Total: <b>' + pz(tp) + '</b> · <b>' + K(tk) + '</b> al <b>' + NOM[w.stock] + '</b></div>' + foto(true) +
+        '<div class="fld" style="margin-top:10px"><label>Número de la remisión (opcional)</label><input type="text" inputmode="numeric" placeholder="Ej. 45210" value="' + esc(w.pedido) + '" data-r="pedido"></div>' +
+        guardarBtn('wLsok', '✅ Confirmar que llegó');
     }
     return h + pie();
   }
@@ -271,7 +287,7 @@
       h = cab('Revisa y guarda', 'Armado de ' + esc(e.n) + ' · ' + desc);
       if (!it.L.length) h += '<div class="rec bad">No hay acero libre para este avance.</div>';
       h += it.L.map(function (x) { return '<div class="fila"><div>' + posTxt(x.p) + '</div><div><b>' + pz(x.q) + '</b> · ' + K(x.q * x.p.kgU) + '</div></div>'; }).join('');
-      if (it.falta.length) h += '<div class="rec warn">⚠️ Falta acero para completar: ' + it.falta.map(function (f) { return esc(f.p.m) + ' (' + f.n + ')'; }).join(', ') + '. Se guarda lo que hay. Si lo completaste con acero del stock, regístralo después en «Me faltó acero».</div>';
+      if (it.falta.length) h += '<div class="rec warn">⚠️ No hay acero suficiente para todo. Se guarda solo lo que hay en el almacén.</div>';
       return h + '<div class="resu">Quedan armados <b>' + K(tk) + '</b></div>' + (it.L.length ? guardarBtn('wAok', '✅ Guardar el armado') : '') + pie();
     }
     if (w.p === 'ast') {
@@ -335,9 +351,16 @@
     return w.r === 'llego' ? vLlego() : w.r === 'armar' ? vArmar() : vSalio();
   }
   function ahoraISO() { var d = new Date(), z = function (n) { return String(n).padStart(2, '0'); }; return X.hoyISO() + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()) + ':' + z(d.getSeconds()); }
+  /** Guarda primero en el celular (funciona sin señal) y luego sincroniza solo. */
   function enviar(action, data, okMsg, okSub, extra) {
-    var w = W(); if (w.busy) return; w.busy = true; w.err = ''; X.render();
-    X.Api.accion(X.S.ses, action, data).then(function (res) { if (!res.ok) return fallo(res.error); listo(typeof okMsg === 'function' ? okMsg(res) : okMsg, okSub, extra); });
+    var w = W(); if (w.busy) return;
+    var r = X.Api.encolar(X.S.ses, action, data); if (!r.ok) return fallo(r.error);
+    try { X.S.estado = X.Api.conCola(X.S.estado); } catch (e) { }
+    var sin = navigator.onLine === false;
+    var rr = w.r, el = w.elem;
+    X.S.w = { r: rr, p: 'ok', hist: [], okMsg: okMsg, okSub: okSub || '', elem: el, extra: (sin ? '<div class="rec warn">📴 Sin señal: quedó guardado en este celular y se enviará solo cuando vuelva la señal.</div>' : '') + (extra || '') };
+    X.render(); window.scrollTo(0, 0);
+    X.enviarCola();
   }
   function click(a, v) {
     var w = W(), P, items, e;
@@ -359,18 +382,19 @@
         var d = { loadId: w.load, fecha: w.fecha + 'T' + w.hora, id: w.id };
         if (w.todo) d.todo = true; else { d.items = []; pend(w.load).forEach(function (r) { var q = w.vals[r.diametro + '|' + r.marca] || 0; if (q > 0) d.items.push({ diametro: r.diametro, marca: r.marca, cantidad: q }); }); }
         if (w.file) { d.archivoB64 = w.file.b64; d.archivoNombre = w.file.nombre; }
-        enviar('recibirPedido', d, function (res) { return 'Llegaron ' + K(res.kg || 0); }, 'Ya están en el almacén, listos para armar.');
+        var q1 = porRecibir().filter(function (q) { return q.id === w.load; })[0]; enviar('recibirPedido', d, 'Llegaron ' + K(w.todo ? (q1 ? q1.falta : 0) : totLleg().kg), 'Ya están en el almacén, listos para armar.');
         return true;
       }
       case 'wLl': w.l = v; X.render(); return true;
+      case 'wLd': w.d = v; w.err = ''; X.render(); return true;
+      case 'wLc': w.c = String(Math.max(0, (parseInt(w.c, 10) || 0) + (+v)) || ''); w.err = ''; X.render(); return true;
       case 'wLadd': {
-        var c = parseInt(String(w.c).replace(/\D/g, ''), 10), l = parseFloat(String(w.l).replace(',', '.')), kl = parseFloat(String(w.k).replace(',', '.'));
-        if (!(c > 0)) { fallo('Escribe cuántas piezas llegaron.'); return true; }
+        var c = parseInt(String(w.c).replace(/\D/g, ''), 10), l = parseFloat(String(w.l).replace(',', '.'));
         if (!(l > 0) || l > 30) { fallo('Escribe el largo en metros.'); return true; }
         if (w.stock === 'ACERO RECTO' && l !== 6 && l !== 12) { fallo('En el stock estándar solo entran barras de 6 m o 12 m.'); return true; }
         if (w.stock === 'ACERO FIGURADO' && (l === 6 || l === 12)) { fallo('Las barras de 6 m y 12 m van al stock estándar.'); return true; }
-        if (!(kl > 0)) { fallo('Escribe los kilos de esta varilla (según la remisión).'); return true; }
-        w.rows.push({ d: w.d, l: l, c: c, k: kl }); w.c = ''; w.k = ''; w.err = ''; X.render(); return true;
+        if (!(c > 0)) { fallo('Escribe cuántas piezas llegaron.'); return true; }
+        w.rows.push({ d: w.d, l: l, c: c, k: Math.round(kgAuto() * 100) / 100 }); w.c = ''; w.err = ''; X.render(); return true;
       }
       case 'wLdel': w.rows.splice(+v, 1); X.render(); return true;
       case 'wLsok': {
@@ -396,12 +420,12 @@
         return true;
       }
       case 'wCerrarDe': X.S.w = { r: 'armar', p: 'ac', hist: ['a2'], vals: {}, kgs: {}, elem: v, id: nuevoId('A'), err: '', busy: false }; X.render(); window.scrollTo(0, 0); return true;
-      case 'wAst': w.vals = {}; ir('ast'); return true;
+      case 'wAst': w.vals = {}; w.id = nuevoId('K'); ir('ast'); return true;
       case 'wAstOk': {
         items = []; var tk4 = 0;
         STK.forEach(function (s) { posiciones(s).forEach(function (p) { var q = Math.min(p.lib, w.vals[s + '~' + p.k] || 0); if (q > 0) { items.push({ stock: s, diametro: p.d, marca: p.m, cantidad: q }); tk4 += q * p.kgU; } }); });
         if (!items.length) return true;
-        enviar('usarStock', { elemento: w.elem, items: items }, 'Pasaron ' + K(tk4) + ' del stock', 'Quedaron armados en ' + w.elem + '.');
+        enviar('usarStock', { elemento: w.elem, items: items, id: w.id || (w.id = nuevoId('K')) }, 'Pasaron ' + K(tk4) + ' del stock', 'Quedaron armados en ' + w.elem + '.');
         return true;
       }
       case 'wAc': w.vals = {}; w.id = nuevoId('A'); ir('ac'); return true;
@@ -441,15 +465,18 @@
     }
     var k = t.getAttribute('data-r'); if (!k || k === 'file') return !!k;
     var val = t.value; if (k === 'c') val = val.replace(/[^\d]/g, ''); if (k === 'k' || k === 'l') val = val.replace(/[^\d.,]/g, '');
-    w[k] = val; return true;
+    w[k] = val;
+    if (k === 'c' || k === 'l') { var ka = document.getElementById('kg-auto'); if (ka) ka.textContent = X.kg(kgAuto()) + ' kg'; }
+    return true;
   }
   function leerSoporte(f) {
     var w = W(); if (!f) return;
     var fin = function (b64, nombre) { w.file = { nombre: nombre, b64: b64 }; w.err = ''; X.render(); };
     if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) { var fr = new FileReader(); fr.onload = function () { fin(String(fr.result).split(',')[1], f.name); }; fr.readAsDataURL(f); return; }
-    var img = new Image(), u = URL.createObjectURL(f);
-    img.onload = function () { var m = 1600, k = Math.min(1, m / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(u); fin(cv.toDataURL('image/jpeg', 0.8).split(',')[1], String(f.name || 'remision').replace(/\.\w+$/, '') + '.jpg'); };
-    img.onerror = function () { fallo('No se pudo leer la foto.'); }; img.src = u;
+    var img = new Image(), fr2 = new FileReader(); // se lee como data: (la política de seguridad de la página no permite blob:)
+    img.onload = function () { var m = 1280, k = Math.min(1, m / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); fin(cv.toDataURL('image/jpeg', 0.7).split(',')[1], String(f.name || 'remision').replace(/\.\w+$/, '') + '.jpg'); };
+    img.onerror = function () { fallo('No se pudo leer la foto. Intenta con otra.'); };
+    fr2.onload = function () { img.src = String(fr2.result); }; fr2.onerror = function () { fallo('No se pudo leer la foto. Intenta con otra.'); }; fr2.readAsDataURL(f);
   }
   function cambio(t) {
     var w = W(), rc = t.getAttribute('data-rc');
@@ -459,6 +486,7 @@
     }
     var k = t.getAttribute('data-r'); if (!k) return false;
     if (k === 'file') { leerSoporte(t.files && t.files[0]); return true; }
+    if (k === 'd' && !t.value) return true;
     w[k] = t.value; if (k === 'd') X.render(); return true;
   }
   function reset() { /* las rutas se conservan al cambiar de pestaña */ }

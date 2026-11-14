@@ -36,6 +36,20 @@
     if (!q.length) return estado;
     var e = Object.assign({}, estado, { salidas: estado.salidas.slice() });
     q.forEach(function (b) {
+      if (b.action === 'recibirPedido') { // llegada guardada sin señal: se refleja en el almacén de este celular
+        var rid = String(b.id || '');
+        if ((e.recepciones || []).some(function (x) { return String(x.id).indexOf(rid + '-') === 0; })) return;
+        e.cartilla = (e.cartilla || []).map(function (c) { return Object.assign({}, c); }); e.recepciones = (e.recepciones || []).slice(); e.entradas = e.entradas.slice();
+        e.cartilla.forEach(function (c, k) {
+          if (c.loadId !== b.loadId) return;
+          var it = (b.items || []).filter(function (i) { return i.diametro === c.diametro && i.marca === c.marca; })[0], n = Math.min(c.cantidad - c.recibida, b.todo ? c.cantidad - c.recibida : (it ? it.cantidad : 0));
+          if (!(n > 0)) return; c.recibida += n;
+          var r = { id: rid + '-' + (k + 1), loadId: c.loadId, pedido: c.pedido, estructura: c.estructura, marca: c.marca, diametro: c.diametro, cantidad: n, largo: c.largo, kgUnit: c.kgUnit, kg: n * c.kgUnit, fecha: String(b.fecha || '') + ':00', usuario: b.usuario, pendiente: true };
+          e.recepciones.push(r); e.entradas.push(Object.assign({}, r));
+        });
+        return;
+      }
+      if (b.action && !/^salida/.test(b.action)) return; // otras acciones en cola: se ven al sincronizar
       var partes = b.items ? b.items.map(function (it, k) { return Object.assign({}, it, { id: b.grupo + '-' + (k + 1), fecha: b.fecha, usuario: b.usuario, obs: b.obs, fase: b.fase, modo: b.modo, pct: b.pct, tipo: b.tipo, destino: b.destino }); }) : [b];
       partes.forEach(function (b) {
         if (e.salidas.some(function (s) { return s.id === b.id; })) return;
@@ -200,6 +214,14 @@
     },
 
     // Cola de salidas hechas sin señal
+    /** Guarda cualquier registro en el celular (con o sin señal); se envía solo al sincronizar. */
+    encolar: function (ses, action, d) {
+      if (!remoto) return { ok: false, error: 'Esta función necesita el servidor' };
+      var q = leer(K.cola, []), b = Object.assign({ action: action, usuario: ses.nombre }, d || {}), key = b.grupo || b.id;
+      if (!q.some(function (x) { return (x.grupo || x.id) === key; })) q.push(b);
+      if (!guardar(K.cola, q)) return { ok: false, error: 'No hay espacio en este celular para guardar. Conéctate a internet y vuelve a intentar: NO se guardó.' };
+      return { ok: true };
+    },
     pendientes: function () { return leer(K.cola, []).length; },
     erroresCola: function () { return leer(K.err, []); },
     limpiarErroresCola: function () { guardar(K.err, []); },

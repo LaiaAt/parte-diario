@@ -84,10 +84,10 @@
     if (S.refresca) h += '<div class="banda info"><i class="spin"></i> Actualizando datos…</div>';
     if (!Api.remoto) h += '<div class="banda info">Modo local de prueba: los datos solo existen en este navegador.</div>';
     if (S.offline) h += '<div class="banda warn">Sin conexión: se muestran los últimos datos guardados en este celular.</div>';
-    if (pend && S.enviando) h += '<div class="banda info env"><span>Enviando la salida al almacén…</span><i class="prog"><b></b></i></div>';
+    if (pend && S.enviando) h += '<div class="banda info env"><span>Enviando los registros guardados…</span><i class="prog"><b></b></i></div>';
     else if (pend) h += '<div class="banda warn"><div>⚠️ <b>' + pend + (pend === 1 ? ' registro guardado' : ' registros guardados') + ' en este celular, sin enviar por falta de señal.</b><br>No se han perdido: se envían solos cuando vuelva la señal. No cierres la sesión ni borres los datos del navegador hasta que desaparezca este aviso.</div><button class="btn chico" data-a="enviarCola">Enviar ahora</button></div>';
     if (S.avisoBaja) h += '<div class="banda bad"><div>' + esc(S.avisoBaja) + '</div><button class="btn chico sec" data-a="cerrarAviso">Entendido</button></div>';
-    if (errs.length) h += '<div class="banda bad"><div>' + errs.map(function (e) { return e.body.items ? 'No se pudo registrar la salida (' + e.body.items.length + ' posiciones): ' + esc(e.error) : 'No se pudo registrar ' + esc(e.body.cantidad) + ' × ' + esc(e.body.diametro) + '" en ' + esc(e.body.elemento) + ': ' + esc(e.error); }).join('<br>') + '</div><button class="btn chico sec" data-a="limpiarErrores">Entendido</button></div>';
+    if (errs.length) h += '<div class="banda bad"><div>' + errs.map(function (e) { var NA = { recibirPedido: 'la llegada del pedido', ingresoStock: 'la llegada al stock', usarStock: 'el uso de acero del stock', cerrarArmado: 'el cierre de la estructura' }[e.body.action]; if (NA) return 'No se pudo registrar ' + NA + ': ' + esc(e.error); return e.body.items ? 'No se pudo registrar la salida (' + e.body.items.length + ' posiciones): ' + esc(e.error) : 'No se pudo registrar ' + esc(e.body.cantidad) + ' × ' + esc(e.body.diametro) + '" en ' + esc(e.body.elemento) + ': ' + esc(e.error); }).join('<br>') + '</div><button class="btn chico sec" data-a="limpiarErrores">Entendido</button></div>';
     return h;
   }
 
@@ -1038,7 +1038,7 @@
     S.enviando = true; render();
     return Api.flush(S.ses).then(function (r) {
       S.enviando = false;
-      if (r.enviadas) { toast(r.enviadas + ' salida(s) enviadas'); return cargarEstado(); }
+      if (r.enviadas) { toast('✅ ' + r.enviadas + (r.enviadas === 1 ? ' registro enviado' : ' registros enviados')); return cargarEstado(); }
       render();
     }).catch(function () { S.enviando = false; });
   }
@@ -1367,7 +1367,7 @@
   }
 
 
-  if (window.AcReg) AcReg.init({ S: S, render: render, toast: toast, esc: esc, n0: n0, kg: kg, fecha: fecha, fechaDia: fechaDia, hoyISO: hoyISO, horaAhora: horaAhora, pz: pz, vMov: vMov, vCargar: vCargar, vFiltro: vFiltro, enPer: enPer, pedidosLista: pedidosLista, recibo: recibo, esc2: esc, Api: Api, C: C, cargarEstado: cargarEstado, enviarCola: enviarCola, esAdmin: esAdmin, posTxt: posTxt });
+  if (window.AcReg) AcReg.init({ enviarCola: enviarCola, S: S, render: render, toast: toast, esc: esc, n0: n0, kg: kg, fecha: fecha, fechaDia: fechaDia, hoyISO: hoyISO, horaAhora: horaAhora, pz: pz, vMov: vMov, vCargar: vCargar, vFiltro: vFiltro, enPer: enPer, pedidosLista: pedidosLista, recibo: recibo, esc2: esc, Api: Api, C: C, cargarEstado: cargarEstado, enviarCola: enviarCola, esAdmin: esAdmin, posTxt: posTxt });
 
   // ---------- Eventos ----------
   document.addEventListener('click', function (ev) {
