@@ -147,6 +147,15 @@
     var dia = ''; Ev.slice(0, 40).forEach(function (e) { var d = String(e.f).slice(0, 10); if (d !== dia) { dia = d; h += '<div class="dia">' + (d === X.hoyISO() ? 'Hoy · ' : '') + X.fechaDia(d) + '</div>'; } h += e.h; });
     return h;
   }
+  /** Resumen para el Dashboard: solo se ve, no se registra. */
+  function resumen() {
+    var h = '<div class="card"><h3 style="margin:0">🏬 El almacén ahora</h3></div>' + almacen() + tarjetasEstructuras() + vStockListas();
+    var Ev = eventos();
+    h += '<div class="card"><div class="row2" style="justify-content:space-between"><h3 style="margin:0">🕒 Lo último que pasó</h3></div></div>';
+    if (!Ev.length) h += '<div class="card vacio">Todavía no hay movimientos.</div>';
+    var dia = ''; Ev.slice(0, 40).forEach(function (e) { var d = String(e.f).slice(0, 10); if (d !== dia) { dia = d; h += '<div class="dia">' + (d === X.hoyISO() ? 'Hoy · ' : '') + X.fechaDia(d) + '</div>'; } h += e.h; });
+    return h;
+  }
   function vOk() {
     var w = W(), otra = { llego: 'Registrar otra llegada', armar: 'Registrar otro armado', salio: 'Registrar otra salida' }[w.r];
     return '<div class="card wz cen"><div class="okico">✅</div><h2>' + esc(w.okMsg) + '</h2>' + (w.okSub ? '<p>' + esc(w.okSub) + '</p>' : '') + (w.extra || '') +
@@ -497,5 +506,5 @@
     w[k] = t.value; if (k === 'd') X.render(); return true;
   }
   function reset() { /* las rutas se conservan al cambiar de pestaña */ }
-  window.AcReg = { init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, kpis: almacen, estructuras: tarjetasEstructuras, reset: reset, enCurso: function () { return []; } };
+  window.AcReg = { init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, kpis: almacen, resumen: resumen, estructuras: tarjetasEstructuras, reset: reset, enCurso: function () { return []; } };
 })();
