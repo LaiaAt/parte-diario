@@ -101,7 +101,7 @@
     var h = '<div class="card gr"><h3>🏗️ Estructuras</h3><div class="ley"><span><i class="pen"></i>Por llegar</span><span><i class="lib"></i>Para armar</span><span><i class="arm"></i>Armado</span><span><i class="out"></i>Salió</span></div>';
     E.forEach(function (e) {
       var t = Math.max(1, e.porLlegar + e.libKg + e.armKg + e.salioKg), w = function (v) { return (100 * v / t).toFixed(1) + '%'; };
-      var estado = e.cerrada ? (e.armKg > 0 ? '🏁 Armada · lista para salir' : '🏁 Terminada') : e.inP <= 0 ? '⏳ Esperando el acero' : e.usado > 0 ? '🔧 Armando' : '🟢 Lista para armar';
+      var estado = e.cerrada ? (e.armKg > 0 ? '🏁 Armada · lista para salir' : '🏁 Terminada') : e.inP <= 0 ? '⏳ Esperando el acero' : e.usado > 0 && e.libKg < 0.5 && e.armKg < 0.5 && e.porLlegar < 0.5 ? '✅ Todo el acero salió' : e.usado > 0 ? '🔧 Armando' : '🟢 Lista para armar';
       h += '<div class="bh-r"><div class="bh-t"><b>' + esc(e.n) + (e.un > 1 ? ' <small>× ' + e.un + '</small>' : '') + '</b><span>' + estado + '</span></div>' +
         '<div class="pila"><i class="out" style="width:' + w(e.salioKg) + '"></i><i class="arm" style="width:' + w(e.armKg) + '"></i><i class="lib" style="width:' + w(e.libKg) + '"></i><i class="pen" style="width:' + w(e.porLlegar) + '"></i></div>' +
         '<div class="peq mut">Pedido ' + esc(e.ped) + ': ' + K(e.pedKg) + (e.porLlegar > 0 ? ' · faltan por llegar ' + K(e.porLlegar) : '') + ' · para armar ' + K(e.libKg) + ' · armado ' + K(e.armKg) + ' · salió ' + K(e.salioKg) + (e.un > 1 ? ' · van ' + uds(e.eq) + ' de ' + e.un : '') + '</div>' +
