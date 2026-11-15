@@ -454,7 +454,7 @@ async function marcarRev(x, estado) {
   } catch (e) { alert('No se pudo conectar. Intenta de nuevo.'); }
 }
 function sospechosos() {
-  const V = TR.viajes, S = [], hoy = TR.hoy;
+  const V = TR.todos || TR.viajes, S = [], hoy = TR.hoy; // alertas sobre el 100 % de los registros, no solo el periodo
   const add = (tipo, msg, vs) => { const clave = claveSosp(tipo, vs), r = (TR.revisados || []).find(x => x.clave === clave); S.push({ tipo, msg, vs, clave, rev: r || null }); };
   (TR.repetidos || []).forEach(g => add('Albarán repetido', 'El albarán N° ' + g.n_valera + ' (' + (g.valera_de || '—') + ') está en ' + g.viajes.length + ' viajes', g.viajes));
   const pd = {}; V.forEach(v => { const k = v.placa + '|' + v.fecha; (pd[k] = pd[k] || []).push(v); });
@@ -466,7 +466,6 @@ function sospechosos() {
     if (/Material no corresponde|NO autorizado/.test(v.alertas)) add('Material / destino', v.alertas.split('; ').filter(a => /Material no corresponde|NO autorizado/.test(a)).join('; '), [v]);
     if (/Placa (nueva|parecida)/.test(v.alertas)) add('Placa dudosa', v.placa + ': ' + v.alertas.split('; ').filter(a => /Placa/.test(a)).join('; '), [v]);
     if (!String(v.material || '').trim() && v.estado !== 'ANULADO') add('Sin material', v.placa + ' · ' + v.cod + ' (' + fmtF(v.fecha) + ') · no se colocó el material transportado · registró ' + (v.creado_por || v.usuario || '—'), [v]);
-    if (!v.tiene_carga) add('Sin foto de volqueta', v.placa + ' · ' + v.cod + ' (' + fmtF(v.fecha) + ')', [v]);
     if (!TR.sin_albaran && !v.tiene_recibo && v.estado !== 'ANULADO') add('Sin foto de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + oriV(v) + ' → ' + desV(v) + ' · registró ' + (v.creado_por || v.usuario || '—'), [v]);
   });
   (TR.sin_vol || []).forEach(v => add('Sin m³ de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' · ' + oriV(v) + ' → ' + desV(v) + ' · falta el volumen del albarán', [v]));
@@ -1356,7 +1355,7 @@ function sinAlertasVol() {
 function pintarTr() {
   sinAlertasVol();
   const V = TR.viajes, hoy = TR.hoy;
-  const conAl = V.filter(v => alV(v)), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend), sinMat = V.filter(v => !String(v.material || '').trim() && v.estado !== 'ANULADO');
+  const conAl = V.filter(v => alV(v)), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend), sinMat = (TR.todos || V).filter(v => !String(v.material || '').trim() && v.estado !== 'ANULADO');
   const top = $('trTop'); top.textContent = '';
   const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
   top.appendChild(h('div', { class: 'kpis' }, K('Viajes', V.length), K('📥 Llegaron', V.filter(v => v.mov === 'RECIBE').length), K('📤 Salieron', V.filter(v => v.mov !== 'RECIBE').length), K('m³ albarán', nf(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0))), K('m³ confirmado', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas', new Set(V.map(v => v.placa)).size)));
