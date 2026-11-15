@@ -778,6 +778,7 @@ async function guardarViaje() {
   if (uf0 === 'OTRO' && !g('eje')) M('eje', rec0 ? 'a dónde llega (escríbelo)' : 'de dónde sale (escríbelo)');
   if (!uf0) M('c_uf', rec0 ? 'la UF a la que llega' : 'la UF de la que sale');
   if (!g('destino')) M('destino', rec0 ? 'de dónde viene' : 'el destino');
+  if (!g('material')) M($('materialSel') && $('materialSel').value === '__otro' ? 'material' : 'materialSel', 'el material transportado (elígelo o escríbelo en «Otro»)');
   if (!g('n_valera')) M('n_valera', 'el número del albarán');
   if (!(num(g('vol_albaran')) > 0 && num(g('vol_albaran')) <= 60)) M('vol_albaran', 'el volumen que dice el albarán (m³)');
   { const ya = editandoCod ? VIAJES.find(x => x.cod === editandoCod) : null;
