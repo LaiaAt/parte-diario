@@ -94,7 +94,7 @@
     pl.forEach(function (q) { pk += q.falta; }); E.forEach(function (e) { lib += e.libKg; arm += e.armKg; });
     var r = c.porElem['ACERO RECTO'] || {}, f = c.porElem['ACERO FIGURADO'] || {};
     return '<div class="kgs k3">' + tile('⏳', 'Por llegar', K(pk), pl.length + (pl.length === 1 ? ' pedido' : ' pedidos')) + tile('🟢', 'Para armar', K(lib), 'acero de estructuras') + tile('🔧', 'Armado', K(arm), 'listo para salir') +
-      tile('🧱', 'Stock estándar', K(r.sal_kg || 0), 'barras 6 y 12 m') + tile('🧵', 'Stock figurado', K(f.sal_kg || 0), 'cortes y figuras') + '</div>';
+      tile('📏', 'Stock estándar', K(r.sal_kg || 0), 'barras 6 y 12 m') + tile('➰', 'Stock figurado', K(f.sal_kg || 0), 'cortes y figuras') + '</div>';
   }
   function tarjetasEstructuras() {
     var E = estructuras(); if (!E.length) return '';
@@ -113,7 +113,7 @@
     var h = '';
     STK.forEach(function (s) {
       var P = posiciones(s).filter(function (p) { return p.lib > 0; }); if (!P.length) return;
-      h += '<div class="card"><h3>' + (s === 'ACERO RECTO' ? '🧱 ' : '🧵 ') + NOM[s] + '</h3>' + P.map(function (p) { return '<div class="fila"><div>' + posTxt(p) + '</div><div><b>' + pz(p.lib) + '</b> · ' + K(p.lib * p.kgU) + '</div></div>'; }).join('') + '</div>';
+      h += '<div class="card"><h3>' + (s === 'ACERO RECTO' ? '📏 ' : '➰ ') + NOM[s] + '</h3>' + P.map(function (p) { return '<div class="fila"><div>' + posTxt(p) + '</div><div><b>' + pz(p.lib) + '</b> · ' + K(p.lib * p.kgU) + '</div></div>'; }).join('') + '</div>';
     });
     return h;
   }
@@ -163,7 +163,7 @@
       if (!Le.length) h += '<div class="vacio">No hay pedidos de estructuras por llegar.<br>Pide a la oficina que monte el pedido.</div>';
       return h + Le.map(function (q) { return opcion('wLoad', q.id, '🏗️', esc(q.est), 'Pedido ' + esc(q.pedido) + ' · ' + (q.rc.est === 'PARCIAL' ? 'ya llegó una parte · ' : '') + 'faltan ' + K(q.falta)); }).join('') + pie();
     }
-    if (w.p === 'l2s') return cab('¿A cuál stock llegó?') + '<div class="bgs dos">' + grande('wLs', 'ACERO RECTO', '🧱', 'Stock estándar', 'Barras rectas de 6 m y 12 m') + grande('wLs', 'ACERO FIGURADO', '🧵', 'Stock figurado', 'Estribos, ganchos, cortes') + '</div>' + pie();
+    if (w.p === 'l2s') return cab('¿A cuál stock llegó?') + '<div class="bgs dos">' + grande('wLs', 'ACERO RECTO', '📏', 'Stock estándar', 'Barras rectas de 6 m y 12 m') + grande('wLs', 'ACERO FIGURADO', '➰', 'Stock figurado', 'Estribos, ganchos, cortes') + '</div>' + pie();
     if (w.p === 'l2p') { // stock con pedidos montados
       var Ls = pl.filter(function (q) { return q.est === w.stock; });
       return cab('¿Llegó con un pedido?', NOM[w.stock]) + Ls.map(function (q) { return opcion('wLoad', q.id, '📄', 'Pedido ' + esc(q.pedido), 'faltan ' + K(q.falta)); }).join('') + opcion('wLform', '', '📸', 'Llegó sin pedido', 'Se registra con la foto de la remisión') + pie();
@@ -257,7 +257,7 @@
     var e = est1(w.elem), P = posiciones(w.elem);
     if (w.p === 'a2') {
       return cab(esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Para armar ' + K(e.libKg) + ' · armado ' + K(e.armKg) + (e.porLlegar > 0 ? ' · faltan por llegar ' + K(e.porLlegar) : '')) + '<h3 style="margin:6px 0">¿Qué pasó?</h3>' +
-        opcion('wAv', '', '🔧', 'Armé una parte', 'Registrar el avance de hoy') + opcion('wAst', '', '🧱', 'Me faltó acero', 'Usar acero del stock para esta estructura') + opcion('wAc', '', '🏁', 'Terminé de armar todo', 'Cerrar y contar el acero que sobró') + pie();
+        opcion('wAv', '', '🔧', 'Armé una parte', 'Registrar el avance de hoy') + opcion('wAst', '', '📏', 'Me faltó acero', 'Usar acero del stock para esta estructura') + opcion('wAc', '', '🏁', 'Terminé de armar todo', 'Cerrar y contar el acero que sobró') + pie();
     }
     if (w.p === 'a3u') {
       var u = w.u || 1;
@@ -298,7 +298,7 @@
       h = cab('¿Qué acero del stock usaste?', 'Sale del stock y queda armado en ' + esc(e.n) + '.'); var hay = false, tk2 = 0, tp2 = 0;
       STK.forEach(function (s) {
         var Ps = posiciones(s).filter(function (p) { return p.lib > 0; }); if (!Ps.length) return; hay = true;
-        h += '<h3 style="margin:10px 0 2px">' + (s === 'ACERO RECTO' ? '🧱 ' : '🧵 ') + NOM[s] + '</h3>';
+        h += '<h3 style="margin:10px 0 2px">' + (s === 'ACERO RECTO' ? '📏 ' : '➰ ') + NOM[s] + '</h3>';
         Ps.forEach(function (p) { var key = s + '~' + p.k, v = Math.min(p.lib, w.vals[key] || 0); tp2 += v; tk2 += v * p.kgU; h += '<div class="fila"><div>' + posTxt(p) + '<div class="peq mut">Hay ' + pz(p.lib) + '</div></div>' + stp(key, v, p.lib) + '</div>'; });
       });
       if (!hay) return h + '<div class="vacio">No hay acero en el stock.</div>' + pie();
@@ -325,7 +325,7 @@
       if (!Ls.length) h += '<div class="vacio">No hay estructuras armadas.<br>Primero registra el <b>armado</b>.</div>';
       return h + Ls.map(function (e) { return opcion('wSelem', e.n, '🏗️', esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Armado: ' + K(e.armKg) + (e.un > 1 && e.eqArm >= 0.95 ? ' · ' + uds(e.eqArm) : '')); }).join('') + pie();
     }
-    if (w.p === 's2s') return cab('¿De cuál stock sale?') + '<div class="bgs dos">' + grande('wSs', 'ACERO RECTO', '🧱', 'Stock estándar', K((calc().porElem['ACERO RECTO'] || {}).sal_kg || 0)) + grande('wSs', 'ACERO FIGURADO', '🧵', 'Stock figurado', K((calc().porElem['ACERO FIGURADO'] || {}).sal_kg || 0)) + '</div>' + pie();
+    if (w.p === 's2s') return cab('¿De cuál stock sale?') + '<div class="bgs dos">' + grande('wSs', 'ACERO RECTO', '📏', 'Stock estándar', K((calc().porElem['ACERO RECTO'] || {}).sal_kg || 0)) + grande('wSs', 'ACERO FIGURADO', '➰', 'Stock figurado', K((calc().porElem['ACERO FIGURADO'] || {}).sal_kg || 0)) + '</div>' + pie();
     var e = est1(w.elem), stock = esStk(w.elem), P = posiciones(w.elem).filter(function (p) { return (stock ? p.lib : p.arm) > 0; }), mx = function (p) { return stock ? p.lib : p.arm; };
     if (w.p === 's3') return cab('¿Sale todo lo armado?', esc(e.n) + ' · armado ' + K(e.armKg)) + '<div class="bgs dos">' + grande('wStodo', '1', '✅', 'Sí, sale todo', K(e.armKg)) + grande('wStodo', '0', '🟡', 'Solo una parte', 'Marco lo que sale') + '</div>' + pie();
     if (w.p === 's3p') {
