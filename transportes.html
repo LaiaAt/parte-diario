@@ -171,7 +171,7 @@ let GEN = 0;
 const guardarViajes = () => { GEN++; return kv.set('viajes_' + user.llave, VIAJES); };
 const guardarCola = () => kv.set('cola', COLA);
 const guardarDatos = () => kv.set('datos', DATOS);
-const puedeEditar = v => v.fecha === hoy() || v.registrado === hoy();
+const puedeEditar = v => v.fecha >= sumDias(hoy(), -2) || v.registrado === hoy(); // hoy y los 2 días anteriores
 const puedeRecibo = v => hoy() <= sumDias(v.fecha, v.tiene_recibo ? 1 : 14);
 
 const ALF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -315,7 +315,7 @@ function filaViaje(v, solo) {
   if (v.tiene_recibo) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🧾 Albarán'));
   if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🚛 Volqueta'));
   if (puedeEditar(v)) {
-    mas.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); mas.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje'));
+    mas.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); if (v.fecha === hoy() || v.registrado === hoy()) mas.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje'));
     const bm = h('button', { class: 'sec mas3', onclick: () => { mas.hidden = !mas.hidden; bm.textContent = mas.hidden ? '⋯' : '▲'; } }, '⋯');
     bs.appendChild(bm);
   }
