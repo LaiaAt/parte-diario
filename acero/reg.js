@@ -249,7 +249,7 @@
   function vArmar() {
     var w = W(), h = '', E = estructuras();
     if (w.p === 'a1') {
-      var La = E.filter(function (e) { return e.inP > 0 && (e.lib > 0 || !e.cerrada); });
+      var La = E.filter(function (e) { return e.inP > 0 && (e.lib > 0 || !e.cerrada) && !(e.usado > 0 && e.libKg < 0.5 && e.armKg < 0.5 && e.porLlegar < 0.5); });
       h = cab('¿Qué estructura estás armando?', 'Solo aparecen las que ya tienen acero en el almacén.');
       if (!La.length) h += '<div class="vacio">Todavía no hay acero para armar.<br>Primero registra que <b>llegó</b> el acero.</div>';
       return h + La.map(function (e) { return opcion('wElem', e.n, '🏗️', esc(e.n) + (e.un > 1 ? ' × ' + e.un : ''), 'Para armar: ' + K(e.libKg) + (e.un > 1 ? ' · van ' + uds(e.eq) + ' de ' + e.un : (e.armKg > 0 ? ' · armado: ' + K(e.armKg) : ''))); }).join('') + pie();
