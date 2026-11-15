@@ -16,7 +16,7 @@
   var $ = function (id) { return document.getElementById(id); };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function n0(n) { return Number(n || 0).toLocaleString('es-CO'); }
-  function kg(n) { return Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function kg(n) { return Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
   function hoyISO() {
     var d = new Date(), z = function (n) { return String(n).padStart(2, '0'); };
     return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate());
