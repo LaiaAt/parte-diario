@@ -56,7 +56,7 @@
     });
     return L.sort(function (a, b) { return X.C.diamOrder(a.d) - X.C.diamOrder(b.d) || (a.largo - b.largo) || (a.m < b.m ? -1 : 1); });
   }
-  function posTxt(p) { return '<span class="pos"><b>' + esc(p.m) + '</b><small>' + esc(X.C.diamLabel(p.d)) + ' · ' + String(p.largo).replace('.', ',') + ' m</small></span>'; }
+  function posTxt(p) { return '<span class="pos"><b>' + esc(p.m) + '</b><span class="chips"><em class="ch-d">🔩 Varilla ' + esc(X.C.diamLabel(p.d)) + '</em>' + (p.largo ? '<em class="ch-l">📏 ' + String(p.largo).replace('.', ',') + ' m</em>' : '') + '</span></span>'; }
   function uds(n) { var r = Math.round(n * 10) / 10; return String(r).replace('.', ',') + (r === 1 ? ' unidad' : ' unidades'); }
   /** Resumen de cada estructura: pedido, llegó, libre, armado, salió, sobrante y kilos tomados del stock. */
   function estructuras() {

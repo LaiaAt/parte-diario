@@ -659,3 +659,11 @@ details.mv-d[open] th { color: #cbd5e1; }
 .stp.gr button.x10 { width: 58px; height: 68px; font-size: 1.1rem; }
 .stp.gr { gap: 6px; flex-wrap: nowrap; } .stp.gr b { min-width: 72px; }
 @media (max-width: 400px) { .stp button { width: 44px; height: 48px; } .stp button.x10 { width: 42px; } .stp b { min-width: 34px; } }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chips em { font-style: normal; font-weight: 800; font-size: 1.02rem; padding: 5px 10px; border-radius: 10px; }
+.chips .ch-d { background: #e0ecff; color: #1e3a8a; } .chips .ch-l { background: #dcfce7; color: #14532d; }
+.fila:has(.stp) { flex-direction: column; align-items: stretch; gap: 10px; }
+.fila:has(.stp) .stp { width: 100%; justify-content: space-between; }
+.fila:has(.stp) .stp b { flex: 1; font-size: 1.7rem; }
+.fila:has(.stp) .stp button { flex: none; }
