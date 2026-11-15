@@ -93,7 +93,7 @@
 
   /** Menú en dos niveles: arriba los grupos, abajo (si el grupo tiene varias pantallas) sus opciones. */
   function gruposTabs() { // menú plano: el supervisor solo ve Inicio e Informe; el administrador, además, Pedidos, Panel y Regularización
-    if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['panel', '📊', 'Panel'], ['ver', '🧮', 'Regularización'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
+    if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['panel', '📊', 'Panel'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
     var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: [['ini', 'Inicio']] }];
     if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] }); G.push({ k: 'panel', ico: '📊', t: 'Panel', hojas: [['panel', 'Panel']] }); G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] }); }
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
@@ -981,7 +981,7 @@
 
   function vista() {
     if (!S.cargado) return vCargando();
-    if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return AcReg.resumen(); }
+    if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return AcReg.resumen(); }
     else {
       if (/^(reg|llego|armar|fin|salio|stock|mov|salida|hoy|inv|cargar)$/.test(S.tab)) S.tab = 'ini';
       if (!esAdmin() && /^(ped|panel|ver)$/.test(S.tab)) S.tab = 'ini';
@@ -1000,8 +1000,9 @@
     }
   }
 
+  function soloVer() { if (!EMB) return; var q = '[data-a="edPed"],[data-a="edPedOk"],[data-a="anularCarga"],[data-a="anularSalida"],[data-a="borrarLocal"],[data-a="registrarSalida"],[data-a="registrarCarga"],[data-a="guardarTodos"],[data-a="verOk"]'; Array.prototype.forEach.call(document.querySelectorAll(q), function (b) { b.remove(); }); }
   function render() {
-    try { render0(); } catch (e) {
+    try { render0(); soloVer(); } catch (e) {
       try { console.error(e); $('app').innerHTML = '<main><div class="card"><h2>⚠️ Algo falló al mostrar la pantalla</h2><p>Toca el botón para volver a cargar. Si sigue igual, envía una foto de esta pantalla al administrador.</p><p class="peq mut">' + esc(String(e && e.message || e)) + ' · ' + esc(String(e && e.stack || '').split('\n')[1] || '') + '</p><button class="btn blk" onclick="location.reload()">⟳ Volver a cargar</button></div></main>'; } catch (e2) { }
     }
   }
@@ -1389,9 +1390,11 @@
   if (window.AcReg) AcReg.init({ enviarCola: enviarCola, S: S, render: render, toast: toast, esc: esc, n0: n0, kg: kg, fecha: fecha, fechaDia: fechaDia, hoyISO: hoyISO, horaAhora: horaAhora, pz: pz, vMov: vMov, vCargar: vCargar, vFiltro: vFiltro, enPer: enPer, pedidosLista: pedidosLista, recibo: recibo, esc2: esc, Api: Api, C: C, cargarEstado: cargarEstado, enviarCola: enviarCola, esAdmin: esAdmin, posTxt: posTxt });
 
   // ---------- Eventos ----------
+  var SOLO_VER = /^(w[A-Z]\w*|edPed|edPedOk|anularCarga|anularSalida|registrarSalida|registrarCarga|guardarTodos|verOk|verNo|verConf|cierreOk|cierreNo|cierreSi|borrarLocal|quitarCarga|cdest|tipo|pickElem|pickModo|pctset|sumar|restar|una|todas|quitar|vaciar|fase|fdiam|cancelar|otraVez|cerrarBal)$/;
   document.addEventListener('click', function (ev) {
     var el = ev.target.closest('[data-a]'); if (!el) return;
     var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
+    if (EMB && SOLO_VER.test(a)) return; // desde el Dashboard Acero es solo de consulta
     if (window.AcReg && AcReg.click(a, v, el)) return;
     switch (a) {
       case 'tipo': if (S.sal.tipo && S.sal.tipo !== v && !confSal()) break; if (S.sal.tipo !== v) { reinicioSal('tipo'); S.sal.tipo = v; } S.okSal = null; render(); window.scrollTo(0, 0); break;
@@ -1549,7 +1552,7 @@
     window.addEventListener('message', function (ev) {
       if (ev.origin !== location.origin || !ev.data || ev.data.t !== 'per') return;
       S.per = { k: 'rango', d: ev.data.d || '', h: ev.data.h || '' };
-      if (/^(ini|reg|ver|panel|inv|mov|ped|inf)$/.test(ev.data.tab || '')) S.tab = ev.data.tab === 'reg' ? 'ini' : ev.data.tab;
+      if (/^(ini|reg|panel|inv|mov|ped|inf)$/.test(ev.data.tab || '')) S.tab = ev.data.tab === 'reg' ? 'ini' : ev.data.tab;
       if (ev.data.r && S.ses) cargarEstado(); else render();
     });
     try { parent.postMessage({ t: 'acero-listo' }, location.origin); } catch (e) { }
