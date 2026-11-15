@@ -1349,7 +1349,21 @@
     });
     if (M.length) { s3.push([{ v: 'TOTAL ARMADO', s: 2 }, '', '', '', '', '', { v: tA[0], s: 7 }, { v: R(tA[1]), s: 6 }]); s3.push([{ v: 'TOTAL SALIÓ', s: 2 }, '', '', '', '', '', { v: tS[0], s: 7 }, { v: R(tS[1]), s: 6 }]); }
     else s3.push(['No hubo armados ni salidas en este período.']);
+    // 0) Resumen: lo primero que se ve (todo el inventario a hoy, no solo el período)
+    var R1 = function (n) { return Math.round((n || 0) * 10) / 10; }, ES = (window.AcReg && AcReg.datos) ? AcReg.datos() : [], cc = C.calcular(S.estado), pr = cc.porElem || {};
+    var rk = pr['ACERO RECTO'] || {}, fk = pr['ACERO FIGURADO'] || {}, pl = 0, lb = 0, am = 0; ES.forEach(function (e) { pl += e.porLlegar; lb += e.libKg; am += e.armKg; });
+    var s0 = [[{ v: 'Resumen del acero · a ' + F(hoyISO()), s: 5 }], [{ v: 'Kilos (kg) con 1 decimal. Es la situación actual de todo el almacén.', s: 8 }], [],
+      [{ v: 'ALMACÉN AHORA', s: 1 }, { v: 'kg', s: 1 }], ['Por llegar (pedidos montados sin recibir)', { v: R1(pl), s: 3 }], ['Para armar (acero de estructuras en el almacén)', { v: R1(lb), s: 3 }], ['Armado (listo para salir)', { v: R1(am), s: 3 }],
+      ['Stock estándar (barras de 6 y 12 m)', { v: R1(rk.sal_kg), s: 3 }], ['Stock figurado', { v: R1(fk.sal_kg), s: 3 }], [{ v: 'TOTAL EN EL ALMACÉN', s: 2 }, { v: R1(lb + am + (rk.sal_kg || 0) + (fk.sal_kg || 0)), s: 6 }], [],
+      ['Estructura', 'Pedido', 'Estado', 'Kg del pedido', 'Por llegar (kg)', 'Para armar (kg)', 'Armado (kg)', 'Salió (kg)', 'Acero usado (kg)', 'Del pedido (kg)', 'Del stock (kg)', 'Sobró → stock (kg)'].map(function (t) { return { v: t, s: 1 }; })], t0 = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    ES.slice().sort(function (x, y) { return x.n < y.n ? -1 : 1; }).forEach(function (e) {
+      var est = e.cerrada ? 'Terminada' : e.inP <= 0 ? 'Esperando el acero' : (e.usado > 0 && e.libKg < 0.5 && e.armKg < 0.5 && e.porLlegar < 0.5) ? 'Todo salió' : e.usado > 0 ? 'Armando' : 'Lista para armar';
+      var v = [e.pedKg, e.porLlegar, e.libKg, e.armKg, e.salioKg, e.usado, e.usadoPed, e.stockKg, e.sobKg]; v.forEach(function (n, i) { t0[i] += n; });
+      s0.push([e.n + (e.un > 1 ? ' (× ' + e.un + ')' : ''), e.ped, est].concat(v.map(function (n) { return { v: R1(n), s: 3 }; })));
+    });
+    s0.push(ES.length ? [{ v: 'TOTAL', s: 2 }, '', ''].concat(t0.map(function (n) { return { v: R1(n), s: 6 }; })) : ['Todavía no hay estructuras con pedido.']);
     var bytes = MiniXlsx.construir([
+      { name: 'Resumen', rows: s0, widths: [44, 11, 20, 14, 14, 14, 13, 13, 15, 15, 14, 16], freeze: 0 },
       { name: 'Saldo anterior', rows: s1, widths: [30, 12, 13, 13, 13, 13, 15, 15, 13, 13, 13, 13], freeze: 4 },
       { name: 'Entradas', rows: s2, widths: [16, 11, 30, 11, 10, 11, 11, 12, 12, 40, 18], freeze: 3 },
       { name: 'Armados y salidas', rows: s3, widths: [12, 8, 10, 30, 11, 10, 11, 12, 10, 10, 18, 11, 30], freeze: 3 }

@@ -506,5 +506,5 @@
     w[k] = t.value; if (k === 'd') X.render(); return true;
   }
   function reset() { /* las rutas se conservan al cambiar de pestaña */ }
-  window.AcReg = { init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, kpis: almacen, resumen: resumen, estructuras: tarjetasEstructuras, reset: reset, enCurso: function () { return []; } };
+  window.AcReg = { init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, kpis: almacen, resumen: resumen, datos: estructuras, estructuras: tarjetasEstructuras, reset: reset, enCurso: function () { return []; } };
 })();
