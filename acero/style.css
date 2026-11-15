@@ -667,3 +667,17 @@ details.mv-d[open] th { color: #cbd5e1; }
 .fila:has(.stp) .stp { width: 100%; justify-content: space-between; }
 .fila:has(.stp) .stp b { flex: 1; font-size: 1.7rem; }
 .fila:has(.stp) .stp button { flex: none; }
+
+/* conteo del patio */
+.cn2 { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: #fff; }
+.cn2.dif { border-color: #d98a00; background: #fff8e8; }
+.cn2-t { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cn2-t .pos b { font-size: 1.15rem; } .cn2-s { color: #475569; font-size: .95rem; white-space: nowrap; } .cn2-s b { font-size: 1.1rem; color: #0f172a; }
+.cn2 .chips { margin-top: 4px; }
+.cn2-c { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.cn2-c .cb { width: 54px; height: 54px; flex: none; border: 0; border-radius: 14px; background: #e2e8f0; font-size: 1.7rem; font-weight: 800; color: #0f172a; cursor: pointer; }
+.cn2-c .cb:active { background: var(--acc); color: #fff; }
+.cn2-c .cn-q { flex: 1 1 80px !important; width: auto !important; min-width: 70px; height: 54px; font-size: 1.6rem; }
+.cn2-r { flex: 1 1 100%; font-weight: 800; font-size: .95rem; } .cn2-r.ok { color: #15803d; } .cn2-r.mal { color: #b45309; }
+#v-elem { font-size: 1rem; } #ver-q, #cie-q { border-radius: 14px !important; }
+.card .busq { margin: 12px 0 10px; }

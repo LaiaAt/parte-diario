@@ -389,8 +389,11 @@
     h += '<div class="cnt">';
     vis.forEach(function (f) {
       var def = todas ? 0 : f.sal_p, val = vals[f.k] !== undefined ? vals[f.k] : def, dif = vals[f.k] !== undefined && Number(val) !== f.sal_p;
-      h += '<div class="cn' + (dif ? ' dif' : '') + '"><div class="cn-i"><b>' + esc(posTxt(e, f.marca)) + '</b><span>' + esc(C.diamLabel(f.diam)) + (f.largo ? ' · ' + f.largo.toFixed(2) + ' m' : '') + (todas ? '' : ' · sistema: <b>' + n0(f.sal_p) + '</b>') + '</span></div>' +
-        '<input class="cn-q" type="number" inputmode="numeric" min="0" step="1" value="' + esc(val) + '" data-cv="' + pref + ':' + esc(f.k) + '" aria-label="Cantidad contada"></div>';
+      var nv = Math.max(0, Math.floor(Number(val) || 0)), d0 = nv - f.sal_p, key = pref + ':' + f.k;
+      h += '<div class="cn2' + (dif ? ' dif' : '') + '"><div class="cn2-t"><b>' + esc(posTxt(e, f.marca)) + '</b>' + (todas ? '' : '<span class="cn2-s">Sistema: <b>' + n0(f.sal_p) + '</b></span>') + '</div>' +
+        '<div class="chips"><em class="ch-d">🔩 Varilla ' + esc(C.diamLabel(f.diam)) + '</em>' + (f.largo ? '<em class="ch-l">📏 ' + String(f.largo).replace('.', ',') + ' m</em>' : '') + '</div>' +
+        '<div class="cn2-c"><button type="button" class="cb" data-a="cnPaso" data-v="' + esc(key) + '|-1">−</button><input class="cn-q" type="number" inputmode="numeric" min="0" step="1" value="' + esc(val) + '" data-cv="' + esc(key) + '" aria-label="Cantidad contada"><button type="button" class="cb" data-a="cnPaso" data-v="' + esc(key) + '|1">+</button>' +
+        (todas ? '' : '<span class="cn2-r ' + (dif ? 'mal' : 'ok') + '">' + (dif ? (d0 > 0 ? '+' : '') + d0 + ' vs sistema' : '✓ Coincide') + '</span>') + '</div></div>';
     });
     return h + '</div>';
   }
@@ -418,11 +421,11 @@
   }
   function diasDesde(f) { return Math.floor((new Date(hoyISO() + 'T12:00:00') - new Date(f + 'T12:00:00')) / 86400000); }
   function vVerificar() {
-    var v = S.ver, es = todasElems(), h = '<div class="card"><h2>Contar el acero del patio</h2><p class="mut" style="margin-top:0">Una vez al mes. Elija la estructura, cuente y cambie solo el número de las posiciones que no coinciden.</p>' + sinSenal();
+    var v = S.ver, es = todasElems(), h = '<div class="card"><h2>Contar el acero del patio</h2><p class="mut" style="margin-top:0">Una vez al mes: 1) elija la estructura, 2) cuente, 3) cambie solo lo que no coincide.</p>' + sinSenal();
     if (S.estado.verificaciones === undefined && false) return h + '</div>';
     if (!es.length) return h + '<div class="vacio">Todavía no hay acero cargado.</div></div>';
     h += '<div class="fld"><label for="v-elem">Estructura</label><select id="v-elem" data-f="ver.elem">' + (v.elem ? '' : '<option value="">Elija la estructura…</option>') + es.map(function (e) {
-      var u = ultimaVer(e), tx = u ? 'contada hace ' + diasDesde(u) + ' d' : 'nunca contada';
+      var u = ultimaVer(e), tx = u ? 'hace ' + diasDesde(u) + ' d' : 'sin contar';
       return '<option value="' + esc(e) + '"' + (e === v.elem ? ' selected' : '') + '>' + esc(e) + ' · ' + tx + '</option>'; }).join('') + '</select></div>';
     if (v.msg) h += '<div class="okmsg">✓ ' + esc(v.msg) + '</div>';
     if (v.elem) {
@@ -1420,6 +1423,7 @@
       case 'cerrarRes': S.cargaRes = null; render(); break;
       case 'verOk': verOk(); break;
       case 'cerrarBal': if (confirm('Si sale ahora, lo que quedó sin usar no se registra. ¿Salir de todos modos?')) { S.sal.balElem = ''; S.sal.tipo = ''; render(); } break;
+      case 'cnPaso': { var sv = String(v), ix = sv.lastIndexOf('|'), cp = [sv.slice(0, ix), sv.slice(ix + 1)], ck = cp[0].split(':'), kk2 = ck.slice(1).join(':'), est2 = ck[0] === 'cie' ? S.cie : S.ver, f2 = ck[0] === 'cie' ? null : filasPos(S.ver.elem).filter(function (z) { return z.k === kk2; })[0], cur = est2.vals[kk2] !== undefined ? Number(est2.vals[kk2]) : (f2 ? f2.sal_p : 0); est2.vals[kk2] = Math.max(0, Math.floor(cur) + (+cp[1])); S.ver.msg = ''; render(); break; }
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'per': S.per.k = v; render(); break;
       case 'tab': if (window.AcReg) AcReg.reset(v); S.tab = v; (S.ult = S.ult || {})[grupoDe(v).k] = v; S.okSal = null; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
