@@ -625,12 +625,40 @@ function fotosEdit(v, pan) {
 function formEditAlb(v, i, pan) {
   pan.textContent = '';
   const campos = [['fecha', 'Fecha del albarán'], ['n_valera', 'N° de valera / albarán'], ['placa', 'Placa'], ['empresa', 'Empresa'], ['conductor', 'Conductor'], ['material', 'Material'], ['origen', 'Origen'], ['destino', 'Destino'],
-    ['uf', 'UF (1 a 7 u OTRO)'], ['km', 'Km'], ['vol_albaran', 'm³ del albarán'], ['cant', 'm³ confirmado'], ['hora_salida', 'Hora de salida (HH:MM)'], ['hora_llegada', 'Hora de llegada (HH:MM)'], ['obs', 'Observaciones']];
+    ['uf', 'UF'], ['km', 'Km'], ['vol_albaran', 'm³ del albarán'], ['cant', 'm³ confirmado'], ['hora_salida', 'Hora de salida'], ['hora_llegada', 'Hora de llegada'], ['obs', 'Observaciones']];
   const el = {}, msg = h('div', { class: 'small', style: 'color:#b3261e;margin-top:6px' });
   const caja = h('div', { style: 'border:2px solid #12202b;border-radius:8px;padding:10px;background:#fffdf3' }, h('b', {}, '✏️ Editar viaje ' + v.cod));
   caja.appendChild(h('div', { class: 'small', style: 'margin-top:4px' }, 'Parte de origen: ' + fmtF(v.fecha_reporte || v.fecha) + ' · si cambias la fecha, el viaje conserva su parte y su N° de origen: no cambia la numeración de ningún día.'));
   caja.appendChild(fotosEdit(v, pan));
-  campos.forEach(([k, lab]) => { el[k] = h('input', Object.assign({ value: v[k] === undefined || v[k] === null ? '' : v[k], style: 'width:100%' }, k === 'fecha' ? { type: 'date', max: bogota() } : {})); caja.appendChild(h('div', { style: 'margin-top:6px' }, h('label', { class: 'small' }, lab), el[k])); });
+  // Listas desplegables iguales a las de la app de Transportes (con «Otro» para escribir)
+  const MAT_BASE = ['Material de excavación', 'Escombro', 'Material de relleno seleccionado', 'Recebo', 'Subbase granular', 'Base granular tipo A', 'Base granular tipo B', 'Base granular tipo C', 'Base PA', 'Rajón', 'Rajoncillo', 'Arena', 'Arena de trituración', 'Arena de peña', 'Gravilla', 'Triturado', 'Mezcla asfáltica', 'Descapote', 'RCD (demolición)'];
+  const T0 = TR || {}, cat = (T0.catalogos || {}), vq = T0.volquetas || [];
+  const uniqU = L => { const o = []; L.forEach(x => { x = String(x || '').trim(); if (x && !o.some(y => y.toUpperCase() === x.toUpperCase())) o.push(x); }); return o; };
+  const listas = {
+    material: uniqU(MAT_BASE.concat(cat.MATERIAL || [])),
+    empresa: uniqU(vq.map(x => x.empresa)).sort(),
+    conductor: uniqU(vq.map(x => x.conductor)).sort(),
+    origen: uniqU(['UF 1', 'UF 2', 'UF 3', 'UF 4', 'UF 5', 'UF 6', 'UF 7'].concat((T0.sitios || []).map(x => x.n), cat.ORIGEN || [], cat.DESTINO || [])),
+    destino: uniqU((T0.sitios || []).map(x => x.n).concat(cat.DESTINO || [], cat.ORIGEN || [], ['UF 1', 'UF 2', 'UF 3', 'UF 4', 'UF 5', 'UF 6', 'UF 7']))
+  };
+  const selOtro = (k, valor, opciones) => {
+    const v0 = String(valor === undefined || valor === null ? '' : valor), hay = opciones.find(x => x.toUpperCase() === v0.toUpperCase());
+    const sel = h('select', { style: 'width:100%' }, h('option', { value: '' }, '— Elige —'), opciones.map(o => h('option', { value: o }, o)), h('option', { value: '__otro' }, '✏️ Otro (escribir)'));
+    const inp = h('input', { type: 'text', autocomplete: 'off', placeholder: 'Escríbelo aquí', value: hay ? hay : v0, style: 'width:100%;margin-top:6px' });
+    sel.value = hay ? hay : (v0 ? '__otro' : ''); inp.hidden = sel.value !== '__otro';
+    sel.onchange = () => { if (sel.value === '__otro') { inp.value = ''; inp.hidden = false; inp.focus(); } else { inp.hidden = true; inp.value = sel.value; } };
+    const w = h('div', {}, sel, inp); Object.defineProperty(w, 'value', { get: () => (sel.value === '__otro' ? inp.value : sel.value) });
+    return w;
+  };
+  campos.forEach(([k, lab]) => {
+    if (listas[k]) el[k] = selOtro(k, v[k], listas[k]);
+    else if (k === 'uf') { el[k] = h('select', { style: 'width:100%' }, ['', '1', '2', '3', '4', '5', '6', '7', 'OTRO'].map(o => h('option', Object.assign({ value: o }, String(v.uf || '') === o ? { selected: 'selected' } : {}), o ? (o === 'OTRO' ? 'OTRO' : 'UF ' + o) : '— Elige —'))); }
+    else if (k === 'placa') { el[k] = h('input', { value: v.placa || '', list: 'dl-edplaca', style: 'width:100%;text-transform:uppercase' }); }
+    else if (k === 'hora_salida' || k === 'hora_llegada') { el[k] = h('input', { type: 'time', value: v[k] || '', style: 'width:100%' }); }
+    else el[k] = h('input', Object.assign({ value: v[k] === undefined || v[k] === null ? '' : v[k], style: 'width:100%' }, k === 'fecha' ? { type: 'date', max: bogota() } : (/^(km|vol_albaran|cant)$/.test(k) ? { inputmode: 'decimal' } : {})));
+    caja.appendChild(h('div', { style: 'margin-top:6px' }, h('label', { class: 'small' }, lab), el[k]));
+  });
+  caja.appendChild(h('datalist', { id: 'dl-edplaca' }, vq.map(x => h('option', { value: x.placa }))));
   el.valera_de = h('select', { style: 'width:100%' }, [['', '—'], ['NUESTRA', 'Nuestra'], ['VOLQUETERO', 'Del volquetero']].map(o => h('option', Object.assign({ value: o[0] }, v.valera_de === o[0] ? { selected: 'selected' } : {}), o[1])));
   el.mov = h('select', { style: 'width:100%' }, [['ENTREGA', 'Sale de la obra'], ['RECIBE', 'Llega a la obra']].map(o => h('option', Object.assign({ value: o[0] }, (v.mov || 'ENTREGA') === o[0] ? { selected: 'selected' } : {}), o[1])));
   caja.appendChild(h('div', { style: 'margin-top:6px' }, h('label', { class: 'small' }, 'Valera de'), el.valera_de));
@@ -640,6 +668,7 @@ function formEditAlb(v, i, pan) {
     const cambios = {}; Object.keys(el).forEach(k => { const x = el[k].value.trim(), o = v[k] === undefined || v[k] === null ? '' : String(v[k]); if (x !== o.trim()) cambios[k] = x; });
     if (!Object.keys(cambios).length) { msg.textContent = 'No cambiaste nada.'; return; }
     if (cambios.fecha !== undefined && !cambios.fecha) { msg.textContent = 'Elige la fecha.'; return; }
+    if (!String(el.material.value || '').trim()) { msg.textContent = 'El material transportado es obligatorio: elígelo o escríbelo en «Otro».'; return; }
     ok.disabled = true; msg.textContent = 'Guardando…';
     try {
       const r = await api({ accion: 'admin_tr_editar', llave: LLAVE, cod: v.cod, cambios });
