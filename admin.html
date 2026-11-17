@@ -446,6 +446,13 @@ const revCods = () => { if (!TR._rs) { TR._rs = new Set(); (TR.revisados || []).
 const EDRX = /^Corregido por el administrador/;
 function limpiaEd(v) { if (!v || !v.alertas) return v; const L = String(v.alertas).split('; '), e = L.find(a => EDRX.test(a)); if (e) { v.editado = e.replace('Corregido por el administrador', 'Editado por'); v.alertas = L.filter(a => !EDRX.test(a)).join('; '); } return v; }
 const alV = v => (limpiaEd(v), v.alertas && !revCods().has(v.cod)) ? v.alertas : '';
+async function revBloq(lista) {
+  try {
+    let r = null;
+    for (const x of lista) { r = await api({ accion: 'admin_tr_revisar', llave: LLAVE, clave: 'Intento bloqueado|' + x.ts + '|' + x.placa + '|' + x.cod, tipo: 'Intento bloqueado', cods: [], estado: 'revisado', nota: 'Albarán repetido bloqueado · ' + x.placa }); if (!r.ok) { alert(r.mensaje || 'No se pudo guardar'); return; } }
+    if (r) { TR.revisados = r.revisados; TR._rs = null; pintarTr(); }
+  } catch (e) { alert('No se pudo conectar. Intenta de nuevo.'); }
+}
 async function marcarRev(x, estado) {
   try {
     const r = await api({ accion: 'admin_tr_revisar', llave: LLAVE, clave: x.clave, tipo: x.tipo, cods: x.vs.map(v => v.cod), estado });
@@ -1365,15 +1372,16 @@ function pintarTr() {
     aviso(conAl.length, conAl.length === 1 ? 'viaje con alerta' : 'viajes con alertas', () => { TRFIL = 'alerta'; TRTAB = 'viajes'; pintarTr(); }),
     aviso(sinMat.length, sinMat.length === 1 ? 'viaje sin material transportado' : 'viajes sin material transportado', () => { TRSOSP = 'Sin material'; TRTAB = 'sosp'; selSet('tr', 'sosp'); pintarTr(); }),
     aviso(sinRec.length, 'sin albarán', () => { TRFIL = 'sinrec'; TRTAB = 'viajes'; pintarTr(); })].filter(Boolean));
-  const dupA = sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev), blq = TR.dup_bloqueados || [];
+  const claveBq = x => 'Intento bloqueado|' + x.ts + '|' + x.placa + '|' + x.cod, dupA = sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev), blq = (TR.dup_bloqueados || []).filter(x => !(TR.revisados || []).some(r => r.clave === claveBq(x)));
   if (dupA.length || blq.length) {
     const cj = h('div', { class: 'alertaDup' }, h('div', { class: 'alertaDupT' }, dupA.length ? '🚨 HAY ' + dupA.length + (dupA.length === 1 ? ' ALBARÁN REPETIDO' : ' ALBARANES REPETIDOS') : '🚫 SE BLOQUEARON INTENTOS DE REPETIR UN ALBARÁN'));
     if (dupA.length) {
       cj.appendChild(h('div', {}, 'Revisados todos tus registros (no solo este rango): ' + dupA.slice(0, 6).map(x => 'N° ' + x.vs[0].n_valera + ' (' + x.vs.length + ' viajes)').join(' · ') + (dupA.length > 6 ? ' …' : '')));
       cj.appendChild(h('button', { class: 'alertaDupB', onclick: () => { TRSOSP = 'Albarán repetido'; TRTAB = 'sosp'; selSet('tr', 'sosp'); pintarTr(); } }, 'Revisar ahora'));
     }
-    blq.slice(0, 5).forEach(x => cj.appendChild(h('div', { style: 'margin-top:6px;font-size:14px' }, '🚫 Bloqueado ' + fmtTs(x.ts) + ' · ' + (x.usuario || '—') + ' · ' + x.placa + ' — ' + x.detalle)));
+    blq.slice(0, 5).forEach(x => cj.appendChild(h('div', { style: 'margin-top:6px;font-size:14px' }, '🚫 Bloqueado ' + fmtTs(x.ts) + ' · ' + (x.usuario || '—') + ' · ' + x.placa + ' — ' + x.detalle, h('button', { class: 'sec sm', style: 'margin-left:8px;background:#fff', onclick: () => revBloq([x]) }, '✔ Ya lo revisé'))));
     if (blq.length > 5) cj.appendChild(h('div', { style: 'margin-top:4px;font-size:13px' }, '…y ' + (blq.length - 5) + ' intentos más (ver el control de cambios).'));
+    if (blq.length) cj.appendChild(h('button', { class: 'alertaDupB', style: 'margin-top:8px', onclick: () => revBloq(blq) }, '✔ Marcar los ' + blq.length + ' como revisados'));
     top.appendChild(cj);
   }
   const mp = (TR.maquinas || []).filter(x => x.pv);
