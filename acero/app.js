@@ -1018,7 +1018,7 @@
     if (EMB) return;
     var v = Api.vuelo || { lee: 0, escribe: 0 }, msg = '', ok = false;
     if (v.escribe > 0) { msg = 'Subiendo los datos a la nube… no cierre la app'; _hizoEscritura = true; }
-    else if (v.lee > 0 || (S.ses && !S.cargado) || S.auto) msg = S.cargado ? 'Actualizando datos…' : 'Cargando datos…';
+    else if (v.lee > 0 || (S.ses && !S.cargado) || S.auto) msg = !S.ses ? 'Verificando la llave…' : S.cargado ? 'Actualizando datos…' : 'Cargando datos…';
     else if (S.enviando) msg = 'Subiendo los registros guardados a la nube…';
     else if (_hizoEscritura) { _hizoEscritura = false; msg = '✔ Guardado en la nube'; ok = true; }
     if (!_eb) { _eb = document.createElement('div'); _eb.id = 'estadoBox'; _eb.setAttribute('role', 'status'); _eb.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:9998;max-width:92vw;padding:12px 18px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px;color:#fff;pointer-events:none'; document.body.appendChild(_eb); }
