@@ -95,7 +95,7 @@
   function gruposTabs() { // menú plano: el supervisor solo ve Inicio e Informe; el administrador, además, Pedidos, Panel y Regularización
     if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
     var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: [['ini', 'Inicio']] }];
-    if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] }); G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] }); }
+    if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['pnew', 'Nuevo pedido'], ['ped', 'Pedidos creados'], ['pban', 'Pedidos anulados']] }); G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] }); }
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
     return G;
   }
@@ -906,9 +906,22 @@
     var cl = r.est === 'COMPLETO' ? 'ok' : r.est === 'PARCIAL' ? 'warn' : 'bad';
     return '<div class="rec ' + cl + '">' + (r.est === 'COMPLETO' ? '✅ Recibido completo' : r.est === 'PARCIAL' ? '🟡 Recibido parcial' : '⏳ Por recibir en obra') + ' · ' + kg(r.rk) + ' de ' + kg(r.tk) + ' kg</div>';
   }
+  /** «DLI» o «PDF» según el archivo con que se montó el pedido (se descarga ese mismo archivo). */
+  function tipoArch(p) { return /\.pdf$/i.test(String(p && p.archivo || '')) ? 'PDF' : 'DLI'; }
+  function vAnulados() {
+    if (!esAdmin()) return '<div class="card vacio">Solo el administrador ve los pedidos anulados.</div>';
+    var L = (S.estado.anulados || []).slice().sort(function (a, b) { return a.fechaBaja < b.fechaBaja ? 1 : a.fechaBaja > b.fechaBaja ? -1 : 0; });
+    var h = '<div class="hero"><small>Pedidos dados de baja</small><b>' + n0(L.length) + (L.length === 1 ? ' pedido' : ' pedidos') + '</b><span>Ya no suman al inventario</span></div>';
+    if (!L.length) return h + '<div class="card vacio">No hay pedidos anulados.</div>';
+    return h + L.map(function (p) {
+      return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>Anulado ' + fechaDia(p.fechaBaja) + '</span></div><div class="pd-e">' + esc(p.estructura) + '</div>' +
+        '<div class="pd-m"><span><b>' + n0(p.piezas) + '</b> piezas</span><span><b>' + kg(p.kg) + '</b> kg</span><span>por ' + esc(p.usuarioBaja || '') + '</span></div>' +
+        (p.archivoId && Api.remoto ? '<div class="acc"><button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar ' + tipoArch(p) + '</button></div>' : '') + '</div>';
+    }).join('');
+  }
   function vPedidos() {
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador ve los pedidos.</div>';
-    var montar = EMB ? '' : vCargar();
+    var montar = '';
     var q = String(S.ped.q || '').trim().toLowerCase();
     var L = S.estado.pedidos.filter(function (p) {
       if (/^(STOCK|AJUSTE|TRASLADO|SOBRANTE)$/.test(String(p.pedido))) return false; // movimientos internos: no son pedidos
@@ -925,7 +938,7 @@
       var x = S.calc.porElem[p.estructura] || { lib_p: 0, arm_p: 0, out_p: 0 };
       return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>' + fechaDia(p.fecha) + '</span></div><div class="pd-e">' + esc(p.estructura) + (p.descripcion && String(p.descripcion).trim().toLowerCase() !== String(p.estructura).trim().toLowerCase() ? '<em>' + esc(p.descripcion) + '</em>' : '') + '</div>' +
         '<div class="pd-m"><span><b>' + n0(p.piezas) + '</b> piezas</span><span><b>' + kg(p.kg) + '</b> kg</span><span>' + esc(p.usuario) + '</span></div>' +
-        '<div class="acc tres3"><button class="btn chico sec" data-a="edPed" data-v="' + esc(p.loadId) + '" style="margin-top:8px">✏️ Corregir</button> <button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ DLI</button> <button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '" style="margin-top:8px">🗑 Borrar</button></div>' +
+        '<div class="acc tres3"><button class="btn chico sec" data-a="edPed" data-v="' + esc(p.loadId) + '" style="margin-top:8px">✏️ Corregir</button> <button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar ' + tipoArch(p) + '</button> <button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '" style="margin-top:8px">🗑 Borrar</button></div>' +
         (S.edPed[p.loadId] ? (function (e) { return '<div class="edp"><div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" value="' + esc(e.pedido) + '" data-i="edp.' + esc(p.loadId) + '.pedido"></div>' + (recibo(p.loadId) ? '' : '<div class="fld"><label>Fecha en que llegó</label><input type="date" max="' + hoyISO() + '" value="' + esc(e.f) + '" data-i="edp.' + esc(p.loadId) + '.f"></div>') + '</div>' +
           (STOCKS.indexOf(p.estructura) < 0 ? '<div class="fld"><label>¿Para cuántas estructuras es la cartilla?</label><input type="text" inputmode="numeric" value="' + esc(e.n) + '" data-i="edp.' + esc(p.loadId) + '.n"></div>' : '') +
           (e.err ? '<div class="error">' + esc(e.err) + '</div>' : '') + '<div class="row2"><button class="btn" data-a="edPedOk" data-v="' + esc(p.loadId) + '">Guardar corrección</button><button class="btn sec" data-a="edPed" data-v="' + esc(p.loadId) + '">Cancelar</button></div></div>'; })(S.edPed[p.loadId]) : '') +
@@ -992,10 +1005,10 @@
   function conPanel(h) { var ok = (esAdmin() || EMB) && (S.estado.entradas.length || (S.estado.cartilla || []).length); return h.replace('<!--PANEL-->', ok ? vPanel() : ''); }
   function vista() {
     if (!S.cargado) return vCargando();
-    if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver|panel)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return conPanel(AcReg.resumen()); }
+    if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver|panel|pnew|pban)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return conPanel(AcReg.resumen()); }
     else {
       if (/^(reg|llego|armar|fin|salio|stock|mov|salida|hoy|inv|cargar|panel)$/.test(S.tab)) S.tab = 'ini';
-      if (!esAdmin() && /^(ped|ver)$/.test(S.tab)) S.tab = 'ini';
+      if (!esAdmin() && /^(ped|pnew|pban|ver)$/.test(S.tab)) S.tab = 'ini';
       var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return conPanel(nv);
     }
     switch (S.tab) {
@@ -1006,6 +1019,8 @@
       case 'mov': return vMovs();
       case 'cargar': return vCargar();
       case 'ped': return vPedidos();
+      case 'pnew': return vCargar();
+      case 'pban': return vAnulados();
       case 'inf': return vInforme();
       default: return MODO === 'salidas' ? vSalida() : vPanel();
     }
@@ -1328,15 +1343,15 @@
   }
 
   function descargarDLI(loadId) {
-    var p = null; S.estado.pedidos.forEach(function (x) { if (String(x.loadId) === String(loadId)) p = x; });
+    var p = null; S.estado.pedidos.concat(S.estado.anulados || []).forEach(function (x) { if (String(x.loadId) === String(loadId)) p = x; });
     if (!p) return;
     if (p.archivoId && Api.remoto) {
-      toast('Preparando el archivo DLI…');
+      toast('Preparando el archivo ' + tipoArch(p) + '…');
       return Api.dliArchivo(S.ses, loadId).then(function (r) {
         if (!r || !r.ok) { toast((r && r.error) || 'No se pudo bajar el archivo original'); return descargarDLICsv(p, loadId); }
         var bin = atob(r.data), u8 = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-        var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([u8], { type: 'application/octet-stream' })); a.download = r.nombre || ('pedido_' + p.pedido + '.dli');
+        var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([u8], { type: /\.pdf$/i.test(r.nombre || '') ? 'application/pdf' : 'application/octet-stream' })); a.download = r.nombre || ('pedido_' + p.pedido + '.dli');
         document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
       }).catch(function () { toast('Sin conexión: no se pudo bajar el DLI'); });
     }
@@ -1619,7 +1634,7 @@
 
   // ---------- Inicio ----------
   try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(ini|panel|ped|inf|ver)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
-  if (!/^(ini|panel|ped|inf|ver)$/.test(S.tab)) S.tab = 'ini';
+  if (!/^(ini|panel|ped|pnew|pban|inf|ver)$/.test(S.tab)) S.tab = 'ini';
   S.ses = Api.sesion();
   if (S.ses && MODO === 'dashboard' && S.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; }
   if (S.ses) { abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado); }
