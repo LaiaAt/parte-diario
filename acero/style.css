@@ -683,3 +683,15 @@ details.mv-d[open] th { color: #cbd5e1; }
 .card .busq { margin: 12px 0 10px; }
 
 .fotos-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin:8px 0}.fo{position:relative}.fo .foto-p{width:100%;height:86px;object-fit:cover;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:34px;background:#eef3ee}.fo small{display:block;font-size:10px;color:#667;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.fo-x{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:13px;line-height:1;padding:0;cursor:pointer}
+
+/* Día y hora: fichas grandes y atajos */
+.mom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 8px; }
+.mom-c { display: flex; flex-direction: column; gap: 4px; background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 14px; padding: 10px 12px; cursor: pointer; }
+.mom-c:focus-within { border-color: #1b7a3a; background: #fff; box-shadow: 0 0 0 3px rgba(27,122,58,.15); }
+.mom-t { font-size: .78rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #475569; }
+.mom-c input { border: 0 !important; background: transparent !important; padding: 0 !important; min-height: 0 !important; width: 100%; font-size: 1.35rem; font-weight: 800; color: #0f172a; outline: none; box-shadow: none; }
+.mom-q { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.mom-q button { flex: 1; min-width: 80px; padding: 10px 12px; border-radius: 999px; border: 2px solid #cbd5e1; background: #fff; font-weight: 800; font-size: .95rem; color: #0f172a; cursor: pointer; }
+.mom-q button.on { background: #1b7a3a; border-color: #1b7a3a; color: #fff; }
+.mom-r { font-size: .95rem; color: #334155; padding: 8px 2px 12px; }
+@media (max-width: 380px) { .mom { grid-template-columns: 1fr; } }

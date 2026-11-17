@@ -94,7 +94,7 @@
   /** Menú en dos niveles: arriba los grupos, abajo (si el grupo tiene varias pantallas) sus opciones. */
   function gruposTabs() { // menú plano: el supervisor solo ve Inicio e Informe; el administrador, además, Pedidos, Panel y Regularización
     if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
-    var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: [['ini', 'Inicio']] }];
+    var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: [['ini', 'Registrar'], ['dat', 'Datos']] }];
     if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['pnew', 'Nuevo pedido'], ['ped', 'Pedidos creados'], ['pban', 'Pedidos anulados']] }); G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] }); }
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
     return G;
@@ -1005,7 +1005,7 @@
   function conPanel(h) { var ok = (esAdmin() || EMB) && (S.estado.entradas.length || (S.estado.cartilla || []).length); return h.replace('<!--PANEL-->', ok ? vPanel() : ''); }
   function vista() {
     if (!S.cargado) return vCargando();
-    if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver|panel|pnew|pban)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return conPanel(AcReg.resumen()); }
+    if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver|panel|pnew|pban|dat)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return conPanel(AcReg.resumen()); }
     else {
       if (/^(reg|llego|armar|fin|salio|stock|mov|salida|hoy|inv|cargar|panel)$/.test(S.tab)) S.tab = 'ini';
       if (!esAdmin() && /^(ped|pnew|pban|ver)$/.test(S.tab)) S.tab = 'ini';
@@ -1019,6 +1019,7 @@
       case 'mov': return vMovs();
       case 'cargar': return vCargar();
       case 'ped': return vPedidos();
+      case 'dat': return conPanel(window.AcReg.datos());
       case 'pnew': return vCargar();
       case 'pban': return vAnulados();
       case 'inf': return vInforme();
@@ -1634,7 +1635,7 @@
 
   // ---------- Inicio ----------
   try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(ini|panel|ped|inf|ver)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
-  if (!/^(ini|panel|ped|pnew|pban|inf|ver)$/.test(S.tab)) S.tab = 'ini';
+  if (!/^(ini|dat|panel|ped|pnew|pban|inf|ver)$/.test(S.tab)) S.tab = 'ini';
   S.ses = Api.sesion();
   if (S.ses && MODO === 'dashboard' && S.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; }
   if (S.ses) { abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado); }

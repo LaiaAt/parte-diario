@@ -135,13 +135,28 @@
     return L.sort(function (a, b) { return a.f < b.f ? 1 : a.f > b.f ? -1 : 0; });
   }
   function mv(cls, ico, tit, sub, meta) { return '<div class="mv ' + cls + '"><div class="mv-i">' + ico + '</div><div class="mv-c"><div class="mv-t">' + tit + '</div><div class="mv-s">' + esc(sub) + '</div><div class="mv-m">' + meta.map(function (m) { return '<span>' + m + '</span>'; }).join('') + '</div></div></div>'; }
+  /** Día y hora: dos fichas grandes + atajos «Ahora» y «Ayer» + lectura clara de lo elegido. */
+  function momento(w) {
+    var hoy = X.hoyISO(), ayer = isoMenos(hoy, 1), esHoy = w.fecha === hoy, esAyer = w.fecha === ayer;
+    return '<div class="mom"><label class="mom-c"><span class="mom-t">📅 Día</span><input type="date" max="' + hoy + '" value="' + esc(w.fecha) + '" data-r="fecha"></label>' +
+      '<label class="mom-c"><span class="mom-t">🕒 Hora</span><input type="time" value="' + esc(w.hora) + '" data-r="hora"></label></div>' +
+      '<div class="mom-q"><button type="button" class="' + (esHoy ? 'on' : '') + '" data-a="wDia" data-v="hoy">Hoy</button><button type="button" class="' + (esAyer ? 'on' : '') + '" data-a="wDia" data-v="ayer">Ayer</button><button type="button" data-a="wDia" data-v="ahora">⏱ Ahora</button></div>' +
+      '<div class="mom-r">Registra: <b>' + esc(X.fechaDia(w.fecha)) + '</b> · <b>' + esc(hora12(w.hora)) + '</b></div>';
+  }
+  function isoMenos(iso, n) { var d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - n); var z = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
+  function hora12(h) { var m = /^(\d\d):(\d\d)/.exec(h || ''); if (!m) return h || ''; var H = +m[1]; return ((H % 12) || 12) + ':' + m[2] + ' ' + (H < 12 ? 'a. m.' : 'p. m.'); }
   function vInicio() {
     var E = estructuras(), pl = porRecibir(), c = calc();
     var nArm = E.filter(function (e) { return e.lib > 0; }).length, nSal = E.filter(function (e) { return e.arm > 0; }).length, stk = ((c.porElem['ACERO RECTO'] || {}).sal_p || 0) + ((c.porElem['ACERO FIGURADO'] || {}).sal_p || 0);
     var h = '<div class="card"><h2 style="margin:0">¿Qué vas a registrar?</h2></div><div class="tres">' +
       grande('wRuta', 'llego', '📥', 'LLEGÓ ACERO', pl.length ? pl.length + (pl.length === 1 ? ' pedido por llegar' : ' pedidos por llegar') : 'Recibir acero en la obra', 'b1') +
       grande('wRuta', 'armar', '🔧', 'ARMAR', nArm ? nArm + (nArm === 1 ? ' estructura con acero' : ' estructuras con acero') : 'Dar avance de armado', 'b2') +
-      grande('wRuta', 'salio', '🚚', 'SALIÓ ACERO', nSal ? nSal + (nSal === 1 ? ' estructura armada' : ' estructuras armadas') : (stk ? 'Sacar acero del stock' : 'Dar salida del almacén'), 'b3') + '</div><!--PANEL-->';
+      grande('wRuta', 'salio', '🚚', 'SALIÓ ACERO', nSal ? nSal + (nSal === 1 ? ' estructura armada' : ' estructuras armadas') : (stk ? 'Sacar acero del stock' : 'Dar salida del almacén'), 'b3') + '</div>';
+    return h;
+  }
+  /** Subvista «Datos»: panel, almacén y lo último que pasó. */
+  function datos() {
+    var h = '<!--PANEL-->';
     h += '<div class="card"><h3 style="margin:0">🏬 El almacén ahora</h3></div>' + almacen() + tarjetasEstructuras() + vStockListas();
     var Ev = eventos();
     h += '<div class="card"><div class="row2" style="justify-content:space-between"><h3 style="margin:0">🕒 Lo último que pasó</h3>' + (X.esAdmin() ? '<button class="btn chico sec" data-a="csv">⬇ CSV</button>' : '') + '</div></div>';
@@ -210,8 +225,8 @@
       var kgT = w.todo ? (q0 ? q0.falta : 0) : totLleg().kg;
       if (!w.fecha) { w.fecha = X.hoyISO(); w.hora = X.horaAhora(); }
       return cab('¿Cuándo llegó?', 'Ya viene con el día y la hora de ahora. Cámbialos solo si llegó antes.') +
-        '<div class="fgrid"><div class="fld"><label>📅 Día</label><input type="date" max="' + X.hoyISO() + '" value="' + esc(w.fecha) + '" data-r="fecha"></div><div class="fld"><label>🕒 Hora</label><input type="time" value="' + esc(w.hora) + '" data-r="hora"></div></div>' +
-        foto(false) +
+        momento(w) +
+        foto(true) +
         '<div class="resu">Llegan <b>' + K(kgT) + '</b> de <b>' + esc(q0 ? q0.est : '') + '</b>' + (w.todo ? ' (todo lo que faltaba)' : ' (una parte)') + '</div>' + guardarBtn('wLok', '✅ Confirmar que llegó') + pie();
     }
     if (w.p === 'lsf') return vLlegoStock();
@@ -407,6 +422,7 @@
   function click(a, v) {
     var w = W(), P, items, e;
     switch (a) {
+      case 'wDia': if (v === 'hoy') w.fecha = X.hoyISO(); else if (v === 'ayer') w.fecha = isoMenos(X.hoyISO(), 1); else { w.fecha = X.hoyISO(); w.hora = X.horaAhora(); } X.render(); return true;
       case 'wRuta': ruta(v, v === 'llego' ? 'l1' : v === 'armar' ? 'a1' : 's1'); return true;
       case 'wHome': if (sinGuardar() && !confirm('Tiene datos sin guardar. Si sale ahora se pierden.\n\n¿Salir sin guardar?')) return true; inicio(); return true;
       case 'wBack': if (w.hist && w.hist.length) { w.p = w.hist.pop(); w.err = ''; X.render(); window.scrollTo(0, 0); } else inicio(); return true;
@@ -424,6 +440,7 @@
       case 'wFq': if (w.files) { w.files.splice(+v, 1); X.render(); } return true;
       case 'wLok': {
         if (!w.fecha || !w.hora) { fallo('Indica el día y la hora en que llegó.'); return true; }
+        if (!w.files || !w.files.length) { fallo('Falta la foto de la remisión. No puede llegar acero sin ella.'); return true; }
         var d = { loadId: w.load, fecha: w.fecha + 'T' + w.hora, id: w.id };
         if (w.todo) d.todo = true; else { d.items = []; pend(w.load).forEach(function (r) { var q = w.vals[r.diametro + '|' + r.marca] || 0; if (q > 0) d.items.push({ diametro: r.diametro, marca: r.marca, cantidad: q }); }); }
         if (w.files && w.files.length) { d.archivos = w.files.map(function (f) { return { b64: f.b64, nombre: f.nombre }; }); }
