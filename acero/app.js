@@ -422,7 +422,7 @@
   }
   function diasDesde(f) { return Math.floor((new Date(hoyISO() + 'T12:00:00') - new Date(f + 'T12:00:00')) / 86400000); }
   function vVerificar() {
-    var v = S.ver, es = todasElems(), h = '<div class="card"><h2>Contar el acero del patio</h2><p class="mut" style="margin-top:0">Una vez al mes: 1) elija la estructura, 2) cuente, 3) cambie solo lo que no coincide.</p>' + sinSenal();
+    var v = S.ver, es = todasElems(), h = '<div class="card"><h2 style="margin:0 0 2px">Contar el acero del patio</h2><p class="mut" style="margin:0 0 8px">Una vez al mes: elija la estructura, cuente y cambie solo lo que no coincide.</p>' + sinSenal();
     if (S.estado.verificaciones === undefined && false) return h + '</div>';
     if (!es.length) return h + '<div class="vacio">Todavía no hay acero cargado.</div></div>';
     h += '<div class="fld"><label for="v-elem">Estructura</label><select id="v-elem" data-f="ver.elem">' + (v.elem ? '' : '<option value="">Elija la estructura…</option>') + es.map(function (e) {
