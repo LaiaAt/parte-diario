@@ -93,9 +93,9 @@
 
   /** Menú en dos niveles: arriba los grupos, abajo (si el grupo tiene varias pantallas) sus opciones. */
   function gruposTabs() { // menú plano: el supervisor solo ve Inicio e Informe; el administrador, además, Pedidos, Panel y Regularización
-    if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['panel', '📊', 'Panel'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
+    if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
     var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: [['ini', 'Inicio']] }];
-    if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] }); G.push({ k: 'panel', ico: '📊', t: 'Panel', hojas: [['panel', 'Panel']] }); G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] }); }
+    if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['ped', 'Pedidos']] }); G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] }); }
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
     return G;
   }
@@ -988,13 +988,15 @@
     return h;
   }
 
+  /** Inicio y Panel en una sola vista: el panel (totales, período, gráfico) va justo bajo los botones. */
+  function conPanel(h) { var ok = (esAdmin() || EMB) && (S.estado.entradas.length || (S.estado.cartilla || []).length); return h.replace('<!--PANEL-->', ok ? vPanel() : ''); }
   function vista() {
     if (!S.cargado) return vCargando();
-    if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return AcReg.resumen(); }
+    if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver|panel)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return conPanel(AcReg.resumen()); }
     else {
-      if (/^(reg|llego|armar|fin|salio|stock|mov|salida|hoy|inv|cargar)$/.test(S.tab)) S.tab = 'ini';
-      if (!esAdmin() && /^(ped|panel|ver)$/.test(S.tab)) S.tab = 'ini';
-      var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return nv;
+      if (/^(reg|llego|armar|fin|salio|stock|mov|salida|hoy|inv|cargar|panel)$/.test(S.tab)) S.tab = 'ini';
+      if (!esAdmin() && /^(ped|ver)$/.test(S.tab)) S.tab = 'ini';
+      var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return conPanel(nv);
     }
     switch (S.tab) {
       case 'salida': return vSalida();

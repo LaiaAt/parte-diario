@@ -141,7 +141,7 @@
     var h = '<div class="card"><h2 style="margin:0">¿Qué vas a registrar?</h2></div><div class="tres">' +
       grande('wRuta', 'llego', '📥', 'LLEGÓ ACERO', pl.length ? pl.length + (pl.length === 1 ? ' pedido por llegar' : ' pedidos por llegar') : 'Recibir acero en la obra', 'b1') +
       grande('wRuta', 'armar', '🔧', 'ARMAR', nArm ? nArm + (nArm === 1 ? ' estructura con acero' : ' estructuras con acero') : 'Dar avance de armado', 'b2') +
-      grande('wRuta', 'salio', '🚚', 'SALIÓ ACERO', nSal ? nSal + (nSal === 1 ? ' estructura armada' : ' estructuras armadas') : (stk ? 'Sacar acero del stock' : 'Dar salida del almacén'), 'b3') + '</div>';
+      grande('wRuta', 'salio', '🚚', 'SALIÓ ACERO', nSal ? nSal + (nSal === 1 ? ' estructura armada' : ' estructuras armadas') : (stk ? 'Sacar acero del stock' : 'Dar salida del almacén'), 'b3') + '</div><!--PANEL-->';
     h += '<div class="card"><h3 style="margin:0">🏬 El almacén ahora</h3></div>' + almacen() + tarjetasEstructuras() + vStockListas();
     var Ev = eventos();
     h += '<div class="card"><div class="row2" style="justify-content:space-between"><h3 style="margin:0">🕒 Lo último que pasó</h3>' + (X.esAdmin() ? '<button class="btn chico sec" data-a="csv">⬇ CSV</button>' : '') + '</div></div>';
@@ -151,7 +151,7 @@
   }
   /** Resumen para el Dashboard: solo se ve, no se registra. */
   function resumen() {
-    var h = '<div class="card"><h3 style="margin:0">🏬 El almacén ahora</h3></div>' + almacen() + tarjetasEstructuras() + vStockListas();
+    var h = '<!--PANEL--><div class="card"><h3 style="margin:0">🏬 El almacén ahora</h3></div>' + almacen() + tarjetasEstructuras() + vStockListas();
     var Ev = eventos();
     h += '<div class="card"><div class="row2" style="justify-content:space-between"><h3 style="margin:0">🕒 Lo último que pasó</h3></div></div>';
     if (!Ev.length) h += '<div class="card vacio">Todavía no hay movimientos.</div>';
