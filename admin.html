@@ -937,7 +937,7 @@ function vistaVol(c) {
     const mem = VMEM[x.placa], nM = (x.memorias || []).length;
     const fi = h('input', { type: 'file', accept: 'image/*,application/pdf', hidden: true });
     fi.onchange = async () => { const f = fi.files && fi.files[0]; if (!f) return; try { const data = await memData(f); VMEM[x.placa] = { nombre: f.name, data: data }; marca(); pintarTr(); } catch (e) { alert(e && e.message ? e.message : 'No se pudo leer el archivo'); } };
-    const celCap = h('div', {}, iV, h('div', { style: 'margin-top:4px;white-space:nowrap' }, fi,
+    const celCap = h('div', { style: 'display:flex;align-items:center;gap:6px;white-space:nowrap' }, iV, h('div', { style: 'display:flex;align-items:center;gap:6px;white-space:nowrap' }, fi,
       h('button', { class: 'sec', style: 'padding:5px 10px;font-size:16px', title: mem ? 'Memoria lista: ' + mem.nombre : 'Cargar la memoria de cálculo (PDF o foto)', onclick: () => avisoMem(x.placa, () => fi.click()) }, mem ? '📎 ✔' : '📎'),
       nM ? h('a', { href: x.memorias[nM - 1], target: '_blank', style: 'margin-left:6px;font-size:13px' }, '📄 Ver (' + nM + ')') : null));
     if (VDIRTY[x.placa]) setTimeout(() => { fila.style.background = '#fff8e1'; }, 0);
