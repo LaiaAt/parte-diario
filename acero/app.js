@@ -392,7 +392,7 @@
       var def = todas ? 0 : f.sal_p, val = vals[f.k] !== undefined ? vals[f.k] : def, dif = vals[f.k] !== undefined && Number(val) !== f.sal_p;
       var nv = Math.max(0, Math.floor(Number(val) || 0)), d0 = nv - f.sal_p, key = pref + ':' + f.k;
       h += '<div class="cn2' + (dif ? ' dif' : '') + '"><div class="cn2-t"><b>' + esc(posTxt(e, f.marca)) + '</b>' + (todas ? '' : '<span class="cn2-s">Sistema: <b>' + n0(f.sal_p) + '</b></span>') + '</div>' +
-        '<div class="chips"><em class="ch-d">🔩 Varilla ' + esc(C.diamLabel(f.diam)) + '</em>' + (f.largo ? '<em class="ch-l">📏 ' + String(f.largo).replace('.', ',') + ' m</em>' : '') + '</div>' +
+        '<div class="chips"><em class="ch-d">🔩 ' + esc(C.diamLabel(f.diam)) + '</em>' + (f.largo ? '<em class="ch-l">📏 ' + String(f.largo).replace('.', ',') + ' m</em>' : '') + '</div>' +
         '<div class="cn2-c"><button type="button" class="cb" data-a="cnPaso" data-v="' + esc(key) + '|-1">−</button><input class="cn-q" type="number" inputmode="numeric" min="0" step="1" value="' + esc(val) + '" data-cv="' + esc(key) + '" aria-label="Cantidad contada"><button type="button" class="cb" data-a="cnPaso" data-v="' + esc(key) + '|1">+</button>' +
         (todas ? '' : '<span class="cn2-r ' + (dif ? 'mal' : 'ok') + '">' + (dif ? (d0 > 0 ? '+' : '') + d0 + ' vs sistema' : '✓ Coincide') + '</span>') + '</div></div>';
     });
