@@ -123,7 +123,8 @@
   function estCard(titulo, sub, x) {
     return '<div class="ec"><div class="ec-h"><b>' + titulo + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>' + apilada(x) + celdas(x) + '</div>';
   }
-  function vCargando() { return '<div class="cargando"><i class="spin"></i><b>Cargando datos…</b><span>Un momento, estamos trayendo el inventario.</span></div>'; }
+  function embCargado() { if (EMB) { try { parent.postMessage({ t: 'acero-cargado' }, location.origin); } catch (e) { } } }
+  function vCargando() { if (EMB) return ''; return '<div class="cargando"><i class="spin"></i><b>Cargando datos…</b><span>Un momento, estamos trayendo el inventario.</span></div>'; }
   function sinInventario() {
     if (!S.cargado) return vCargando();
     if (EMB) return '<div class="card vacio"><div style="font-size:2.2rem">📭</div><b>Sin datos</b><br><span class="mut">Todavía no hay acero registrado en el inventario.</span></div>';
@@ -1040,7 +1041,7 @@
         S.cargado = true; render(); return;
       }
       S.estado = r.estado; S.offline = !!r.offline; S.cargado = true; render();
-    });
+    }).then(embCargado, embCargado);
   }
   function enviarCola() {
     if (S.enviando || !Api.remoto || !S.ses) return Promise.resolve();
@@ -1557,8 +1558,7 @@
       if (ev.origin !== location.origin || !ev.data || ev.data.t !== 'per') return;
       S.per = { k: 'rango', d: ev.data.d || '', h: ev.data.h || '' };
       if (/^(ini|reg|panel|inv|mov|ped|inf)$/.test(ev.data.tab || '')) S.tab = ev.data.tab === 'reg' ? 'ini' : ev.data.tab;
-      var listo = function () { try { parent.postMessage({ t: 'acero-cargado' }, location.origin); } catch (e) { } };
-      if (ev.data.r && S.ses) cargarEstado().then(listo, listo); else { render(); listo(); }
+      if (ev.data.r && S.ses) cargarEstado(); else { render(); embCargado(); }
     });
     try { parent.postMessage({ t: 'acero-listo' }, location.origin); } catch (e) { }
   }

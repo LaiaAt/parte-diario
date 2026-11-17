@@ -394,15 +394,15 @@ let TRP = null, TRVM = 'alb', TR = null, TRTAB = selGet('tr', 'resumen', v => TR
 async function cargarTr() {
   let desdeCopia = false;
   if (!TR) { const c = await CDB.get('admin_tr'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === $('desde').value && c.hh === $('hasta').value) { TR = c.r; desdeCopia = true; pintarTr(); avisoDatos('Actualizando viajes… (datos de ' + horaTxt(c.t) + ')'); } }
-  if (!desdeCopia) { $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes.'))); }
+  if (!desdeCopia) { $('trBody').textContent = ''; banner('Cargando datos de Transportes…'); }
   try {
     let r = TRP ? await TRP : null; TRP = null;
     if (!r || !r.ok) r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
-    if (!r.ok) { if (!desdeCopia) $('trBody').textContent = r.mensaje || 'No se pudo cargar'; return; }
+    if (!r.ok) { if (!desdeCopia) $('trBody').textContent = r.mensaje || 'No se pudo cargar'; finBanner(false); return; }
     CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: r, d: $('desde').value, hh: $('hasta').value });
     if (desdeCopia && typeof nPend === 'function' && nPend() > 0) return; // hay cambios sin guardar en pantalla: no se repinta
-    const y = window.scrollY; TR = r; pintarTr(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); }
-  } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · viajes guardados'); else $('trBody').textContent = 'No se pudo conectar.'; }
+    const y = window.scrollY; TR = r; pintarTr(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
+  } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · viajes guardados'); else $('trBody').textContent = 'No se pudo conectar.'; finBanner(false); }
 }
 const nf = x => (Math.round((Number(x) || 0) * 100) / 100).toLocaleString('es-CO');
 const nf1 = x => (Math.round((Number(x) || 0) * 10) / 10).toLocaleString('es-CO');
@@ -508,8 +508,8 @@ function formAnular(v, pan) {
     h('div', { class: 'acc', style: 'margin-top:8px' }, ok, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cancelar')), msg));
 }
 async function recargaTr() {
-  { const b = $('trBody'); if (b && !b.querySelector('.cargando')) b.insertBefore(h('div', { class: 'cargando mini' }, h('i'), h('b', { style: 'font-size:1rem' }, 'Actualizando…')), b.firstChild); }
-  try { const r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (r.ok) { TR = r; pintarTr(); } else alert(r.mensaje || 'No se pudo actualizar'); } catch (e) { alert('No se pudo conectar.'); }
+  banner('Actualizando…');
+  try { const r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (r.ok) { TR = r; pintarTr(); finBanner(true); } else { finBanner(false); alert(r.mensaje || 'No se pudo actualizar'); } } catch (e) { finBanner(false); alert('No se pudo conectar.'); }
 }
 function cardRepetido(x) {
   const caja = h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4' },
@@ -1427,13 +1427,13 @@ function enviarAc(recargar) {
 }
 function abrirAcero() {
   let f = $('acFrame');
-  if (!f) { f = h('iframe', { id: 'acFrame', src: 'acero-embed.html', title: 'Acero', scrolling: 'no', style: 'width:100%;border:0;display:block;min-height:70vh;background:transparent' }); $('acHost').appendChild(f); }
+  if (!f) { banner('Cargando datos de Acero…'); ACINI = true; setTimeout(() => { if (ACINI) { ACINI = false; const b = $('bannerCarga'); if (b) b.hidden = true; } }, 20000); f = h('iframe', { id: 'acFrame', src: 'acero-embed.html', title: 'Acero', scrolling: 'no', style: 'width:100%;border:0;display:block;min-height:70vh;background:transparent' }); $('acHost').appendChild(f); }
   else enviarAc(true);
 }
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data) return;
   if (e.data.t === 'acero-listo') enviarAc(false);
-  else if (e.data.t === 'acero-cargado') { if (ACWAIT) { const f = ACWAIT; ACWAIT = null; f(); } }
+  else if (e.data.t === 'acero-cargado') { if (ACWAIT) { const f = ACWAIT; ACWAIT = null; f(); } else if (ACINI) { ACINI = false; banner('✔ Datos actualizados', 'ok'); } }
   else if (e.data.t === 'acero-alto' && $('acFrame')) $('acFrame').style.height = Math.max(400, e.data.h) + 'px';
 });
 function navegacion() {
@@ -1931,15 +1931,16 @@ function banner(txt, tipo) {
   b.appendChild(h('span', {}, txt));
   if (tipo) bnT = setTimeout(() => { b.hidden = true; }, mal ? 5000 : 1800);
 }
-let RECARGA = 0, ACWAIT = null;
+let RECARGA = 0, ACWAIT = null, ENACT = false, ACINI = false;
+function finBanner(ok) { if (!ENACT) banner(ok ? '✔ Datos actualizados' : 'No se pudo cargar. Revisa tu conexión.', ok ? 'ok' : 'mal'); }
 $('act').onclick = async () => {
   const d = $('desde').value, hh = $('hasta').value;
   if (d && hh && (new Date(hh) - new Date(d)) / 86400000 > 31) { $('err').textContent = 'Elige máximo un mes (31 días) para que cargue rápido.'; banner('Elige máximo un mes (31 días)', 'mal'); return; }
   const mi = ++RECARGA, bt = $('act'), t0 = Date.now(), fm = x => x ? x.slice(8) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4) : '';
-  bt.disabled = true; bt.textContent = 'Cargando…';
+  ENACT = true; bt.disabled = true; bt.textContent = 'Cargando…';
   banner('Cargando datos del ' + fm(d) + ' al ' + fm(hh) + '…');
   try {
-    if (MOD === 'transportes' && $('trBody')) { $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes del ' + fm(d) + ' al ' + fm(hh) + '.'))); }
+    if (MOD === 'transportes' && $('trBody')) $('trBody').textContent = '';
     while (CARGANDO) await new Promise(r => setTimeout(r, 150)); // si ya había una carga en curso, espera y pide la del rango nuevo
     let esperaAc = null; if (MOD === 'acero') esperaAc = new Promise(r => { ACWAIT = r; setTimeout(r, 20000); });
     TR = null; const ok = await cargar(false);
@@ -1948,7 +1949,7 @@ $('act').onclick = async () => {
     if (Date.now() - t0 < 700) await new Promise(r => setTimeout(r, 700 - (Date.now() - t0)));
     if (mi === RECARGA) banner(ok === false ? 'No se pudo actualizar' : '✔ Datos actualizados', ok === false ? 'mal' : 'ok');
   } catch (e) { if (mi === RECARGA) banner('No se pudo cargar. Revisa tu conexión.', 'mal'); }
-  finally { if (mi === RECARGA) { bt.disabled = false; bt.textContent = 'Actualizar'; } }
+  finally { if (mi === RECARGA) { ENACT = false; bt.disabled = false; bt.textContent = 'Actualizar'; } }
 };
 let qt;
 ['qPed', 'qPar', 'qFot', 'qCon'].forEach(i => { $(i).oninput = () => { clearTimeout(qt); qt = setTimeout(rerender, 200); }; });
