@@ -5,6 +5,7 @@
   var MODO = window.ACEROS_MODO === 'salidas' ? 'salidas' : 'dashboard', BASE = window.ACEROS_BASE || '', EMB = !!window.ACEROS_EMBED;
 
   var S = {
+    det: {},
     cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [], armados: [] }, calc: null, tab: 'ini', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
     ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false, si: false },
     sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', modoSel: '', eq: '', tipo: '', fase: '', pct: '', balElem: '' }, okSal: null, edPed: {}, cargaRes: null,
@@ -959,7 +960,8 @@
       h += '<div class="card"><h3>' + esc(p.nombre) + (p.descripcion && String(p.descripcion).trim().toLowerCase() !== String(p.nombre).trim().toLowerCase() ? '<span class="tag">' + esc(p.descripcion) + '</span>' : '') + '</h3>' +
         '<div class="peq mut">' + esc(p.archivo) + ' · ' + p.rows.length + ' filas · ' + n0(p.totalPiezas) + ' piezas · ' + kg(p.totalKg) + ' kg</div>';
       if (c.nota) h += '<div class="aviso">ℹ️ ' + esc(c.nota) + '</div>';
-      p.avisos.forEach(function (a) { h += '<div class="aviso">⚠ ' + esc(a) + '</div>'; });
+      if (p.avisos.length === 1) h += '<div class="aviso">⚠ ' + esc(p.avisos[0]) + '</div>';
+      else if (p.avisos.length) h += '<details class="aviso mv-d" data-det="a' + i + '"' + (S.det['a' + i] ? ' open' : '') + '><summary><b>⚠ ' + p.avisos.length + ' avisos del archivo</b> (toque para verlos)</summary>' + p.avisos.map(function (a) { return '<div style="margin-top:4px">' + esc(a) + '</div>'; }).join('') + '</details>';
       if (c.pedirPdf) h += '<div class="error"><b>No pude leer este DLI con seguridad.</b> Para no equivocarnos, seleccione el <b>PDF de la cartilla</b> (el listado, sin -General ni -Resumen).<div style="margin-top:8px"><label class="btn" for="pdf-' + i + '">Elegir el PDF de la cartilla</label><input id="pdf-' + i + '" data-pdfpara="' + i + '" type="file" accept=".pdf,application/pdf" style="display:none"></div></div>';
       if (ya.length) h += '<div class="error"><b>🚫 Este DLI ya fue cargado</b> (pedido ' + ya.map(function (x) { return esc(x.pedido); }).join(', ') + '). No se puede guardar de nuevo, ni con otro número de pedido.</div>';
       h += '<details><summary>Ver kilos por varilla</summary><div class="tw"><table><thead><tr><th>Diámetro</th><th class="n">Piezas</th><th class="n">Kg</th></tr></thead><tbody>' +
@@ -969,8 +971,12 @@
         h += '<div class="aviso"><b>Falta el largo de ' + pend.length + ' marca(s).</b> Escríbalo para poder registrar:</div><div class="tw"><table><tbody>' +
           pend.map(function (o) { return '<tr><td>Marca ' + esc(o.r.marca) + '</td><td>' + esc(o.r.cantidad) + ' pzs · ' + esc(o.r.forma) + '</td><td class="n"><input class="mini" type="number" step="0.01" min="0" placeholder="m" data-largo="' + i + ':' + o.j + '"></td></tr>'; }).join('') + '</tbody></table></div>';
       }
-      h += '<details><summary>Ver las ' + p.rows.length + ' filas</summary><div class="tw"><table><thead><tr><th>Marca</th><th class="n">Cant.</th><th>Diám.</th><th class="n">Largo m</th><th class="n">Kg</th></tr></thead><tbody>' +
-        p.rows.map(function (r) { return '<tr><td>' + esc(r.marca) + '</td><td class="n">' + r.cantidad + '</td><td>' + esc(C.diamLabel(r.diametro)) + '</td><td class="n">' + (r.largo ? kg(r.largo) : '—') + '</td><td class="n">' + kg(r.kg) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
+      h += '<details class="mv-d" data-det="f' + i + '"' + (S.det['f' + i] ? ' open' : '') + '><summary>Ver y corregir las ' + p.rows.length + ' posiciones</summary><div class="peq mut" style="margin:6px 0">Toque un campo para corregirlo; los kilos se recalculan solos.</div><div class="tw"><table><thead><tr><th>Marca</th><th class="n">Cant.</th><th>Diám.</th><th class="n">Largo m</th><th class="n">Kg</th><th></th></tr></thead><tbody>' +
+        p.rows.map(function (r, j) {
+          var k = i + ':' + j + ':', ops = Object.keys(C.PESOS).sort(function (x, y) { return C.diamOrder(x) - C.diamOrder(y); }).map(function (d) { return '<option value="' + esc(d) + '"' + (d === r.diametro ? ' selected' : '') + '>' + esc(C.diamLabel(d)) + '</option>'; }).join('');
+          if (C.PESOS[r.diametro] === undefined) ops = '<option value="' + esc(r.diametro) + '" selected>' + esc(r.diametro) + '</option>' + ops;
+          return '<tr' + (r.aviso ? ' style="background:#fff8e1"' : '') + '><td><input class="mini" style="width:78px;text-align:left" type="text" value="' + esc(r.marca) + '" data-fila="' + k + 'marca"></td><td class="n"><input class="mini" type="text" inputmode="decimal" value="' + r.cantidad + '" data-fila="' + k + 'cantidad"></td><td><select data-fila="' + k + 'diametro">' + ops + '</select></td><td class="n"><input class="mini" type="text" inputmode="decimal" value="' + (r.largo || '') + '" placeholder="m" data-fila="' + k + 'largo"></td><td class="n">' + kg(r.kg) + '</td><td><button type="button" class="lnk" title="Quitar esta posición" data-a="quitarFila" data-v="' + i + ':' + j + '">✕</button></td></tr>';
+        }).join('') + '</tbody></table></div></details>';
       h += '<div class="fld" style="margin-top:10px"><label>¿Para qué es este acero?</label><div class="seg"><button type="button" class="' + (c.dest === 'est' ? 'on' : '') + '" data-a="cdest" data-v="' + i + ':est">Una estructura</button><button type="button" class="' + (c.dest === 'rec' ? 'on' : '') + '" data-a="cdest" data-v="' + i + ':rec">Stock recto</button><button type="button" class="' + (c.dest === 'fig' ? 'on' : '') + '" data-a="cdest" data-v="' + i + ':fig">Stock figurado</button></div>' +
         (c.dest !== 'est' ? '<div class="peq mut">Entra a <b>' + (c.dest === 'rec' ? 'ACERO RECTO' : 'ACERO FIGURADO') + '</b> (acero sin destino específico). Después, al sacarlo, podrá indicar en qué estructura se usa.</div>' : '') + '</div>';
       if (c.dest === 'est') h += '<details class="mas"' + (ya.length ? ' open' : '') + '><summary>Cambiar el nombre de la estructura</summary><div class="fld" style="margin-top:6px"><input type="text" maxlength="80" value="' + esc(p.nombre) + '" data-i="carga.' + i + '.nombre"><div class="peq mut">Solo si es un complemento de otra estructura ya cargada (ej. «CAISSON AT COMPLEMENTO»).</div></div></details>';
@@ -1032,6 +1038,14 @@
   function abrirGuardado() { // abre al instante con lo último guardado; el servidor actualiza después
     var c = Api.guardado && Api.guardado(); if (c && !S.cargado) { S.estado = c; S.cargado = true; S.refresca = true; }
   }
+  /** Datos escritos que todavía no se guardaron con su botón (flujos de Llegó/Armar/Salió, DLI sin registrar, conteo). */
+  function sinGuardarTodo() {
+    if (EMB) return false;
+    var tiene = function (o) { return o && Object.keys(o).some(function (k) { var v = o[k]; return v !== '' && v !== 0 && v !== undefined && v !== null; }); };
+    return !!((window.AcReg && AcReg.sinGuardar()) || (S.cargas && S.cargas.length) || tiene(S.ver && S.ver.vals) || tiene(S.cie && S.cie.vals) || (S.sal && S.sal.items && S.sal.items.length));
+  }
+  function descartarTodo() { if (window.AcReg) AcReg.descartar(); S.cargas = []; if (S.ver) { S.ver.vals = {}; S.ver.obs = ''; } if (S.cie) S.cie.vals = {}; if (S.sal) S.sal.items = []; }
+  window.addEventListener('beforeunload', function (e) { if (sinGuardarTodo()) { e.preventDefault(); e.returnValue = ''; } });
   function cargarEstado() {
     return Api.estado(S.ses).catch(function () { return { ok: false, error: 'No se pudo conectar. Toca ⟳ para intentar de nuevo.' }; }).then(function (r) {
       S.refresca = false;
@@ -1427,7 +1441,7 @@
       case 'cnPaso': { var sv = String(v), ix = sv.lastIndexOf('|'), cp = [sv.slice(0, ix), sv.slice(ix + 1)], ck = cp[0].split(':'), kk2 = ck.slice(1).join(':'), est2 = ck[0] === 'cie' ? S.cie : S.ver, f2 = ck[0] === 'cie' ? null : filasPos(S.ver.elem).filter(function (z) { return z.k === kk2; })[0], cur = est2.vals[kk2] !== undefined ? Number(est2.vals[kk2]) : (f2 ? f2.sal_p : 0); est2.vals[kk2] = Math.max(0, Math.floor(cur) + (+cp[1])); S.ver.msg = ''; render(); break; }
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'per': S.per.k = v; render(); break;
-      case 'tab': if (window.AcReg) AcReg.reset(v); S.tab = v; (S.ult = S.ult || {})[grupoDe(v).k] = v; S.okSal = null; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
+      case 'tab': if (v !== S.tab && sinGuardarTodo() && !confirm('Tiene datos sin guardar en esta pantalla. Si cambia de vista se pierden.\n\n¿Salir sin guardar?')) break; if (v !== S.tab && sinGuardarTodo()) descartarTodo(); if (window.AcReg) AcReg.reset(v); S.tab = v; (S.ult = S.ult || {})[grupoDe(v).k] = v; S.okSal = null; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
       case 'refrescar': cargarEstado().then(function () { toast('Actualizado'); }); break;
       case 'salir': Api.salir(); S.ses = null; S.loginErr = ''; render(); break;
       case 'todas': setCant(S.sal.elem, el.getAttribute('data-d'), v, 99999); render(); break;
@@ -1440,6 +1454,7 @@
       case 'invVista': S.inv.vista = v; render(); break;
       case 'registrarCarga': registrarCarga(+v); break;
       case 'quitarCarga': S.cargas.splice(+v, 1); render(); break;
+      case 'quitarFila': { var qf = String(v).split(':'), cq = S.cargas[+qf[0]]; if (cq) { cq.parsed.rows.splice(+qf[1], 1); recalcCarga(cq); S.det['f' + qf[0]] = true; render(); } break; }
       case 'csv': descargarCSV(); break;
       case 'bajarInforme': descargarInforme(); break;
       case 'bajarExcel': descargarExcel(); break;
@@ -1471,6 +1486,15 @@
     }
   });
 
+  function recalcCarga(c) {
+    var rows = c.parsed.rows;
+    rows.forEach(function (r) { r.peso = C.PESOS[r.diametro] || 0; if (!r.peso) r.aviso = r.aviso || 'Diámetro sin peso definido (' + r.diametro + ')'; else if (r.aviso && /Diámetro sin peso/.test(r.aviso)) r.aviso = ''; if (r.largo > 0 && /largo|Forma no reconocida/i.test(r.aviso || '')) r.aviso = ''; });
+    C.recalcular(rows);
+    var tt = C.totales(rows); c.parsed.totalPiezas = tt.totalPiezas; c.parsed.totalKg = tt.totalKg;
+    c.parsed.avisos = c.parsed.avisos.filter(function (x) { return !/^Marca /.test(x) || rows.some(function (r) { return r.aviso && x.indexOf('Marca ' + r.marca + ':') === 0; }); });
+    c.err = '';
+  }
+  document.addEventListener('toggle', function (ev) { var d = ev.target, k = d && d.getAttribute && d.getAttribute('data-det'); if (k) S.det[k] = d.open; }, true);
   document.addEventListener('change', function (ev) {
     var t = ev.target;
     if (window.AcReg && (t.getAttribute('data-r') || t.getAttribute('data-rc') !== null) && AcReg.cambio(t)) return;
@@ -1490,6 +1514,18 @@
     }
     var dq = t.getAttribute('data-q');
     if (dq !== null) { var itq = S.sal.items[+dq]; if (itq) setCant(itq.elem, itq.diam, itq.marca, t.value); render(); return; }
+    var fl = t.getAttribute('data-fila');
+    if (fl) {
+      var pf = fl.split(':'), cf = S.cargas[+pf[0]], rf = cf && cf.parsed.rows[+pf[1]], vf = String(t.value).trim(), nf = parseFloat(vf.replace(',', '.'));
+      if (rf) {
+        if (pf[2] === 'marca') { if (vf) rf.marca = vf; }
+        else if (pf[2] === 'cantidad') { if (nf > 0) rf.cantidad = rf.diametro === 'ALAMBRE' ? nf : Math.round(nf); else toast('La cantidad debe ser mayor que 0'); }
+        else if (pf[2] === 'diametro') rf.diametro = vf;
+        else if (pf[2] === 'largo') { if (nf > 0) rf.largo = nf; else if (!vf) rf.largo = null; else toast('El largo debe ser mayor que 0'); }
+        recalcCarga(cf); S.det['f' + pf[0]] = true; render();
+      }
+      return;
+    }
     var lg = t.getAttribute('data-largo');
     if (lg) {
       var ij = lg.split(':'), c = S.cargas[+ij[0]], row = c.parsed.rows[+ij[1]], val = parseFloat(String(t.value).replace(',', '.'));
@@ -1504,7 +1540,7 @@
   });
 
   document.addEventListener('input', function (ev) {
-    var t = ev.target; if (window.AcReg && (t.getAttribute('data-r') || t.getAttribute('data-rk') !== null) && AcReg.input(t)) return;
+    var t = ev.target; if (window.AcReg && (t.getAttribute('data-r') || t.getAttribute('data-rk') !== null || t.getAttribute('data-rd') !== null) && AcReg.input(t)) return;
     var i = t.getAttribute('data-i'); if (!i) return;
     if (i === 'sal.obs') S.sal.obs = t.value;
     else if (i === 'sal.eq') { S.sal.eq = t.value; S.focus = 's-eq'; render(); var e5 = $('s-eq'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }

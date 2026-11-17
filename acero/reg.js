@@ -184,6 +184,17 @@
       if (!q0) return cab('Este pedido ya se recibió completo') + pie();
       return cab('¿Llegó todo lo que faltaba?', esc(q0.est) + ' · Pedido ' + esc(q0.pedido) + ' · faltan ' + K(q0.falta)) + '<div class="bgs dos">' + grande('wTodo', '1', '✅', 'Sí, llegó todo', K(q0.falta)) + grande('wTodo', '0', '🟡', 'Solo una parte', 'Marco lo que llegó') + '</div>' + pie();
     }
+    if (w.p === 'l3m') return cab('¿Cómo cuenta lo que llegó?', esc(q0 ? q0.est : '') + ' · Pedido ' + esc(q0 ? q0.pedido : '')) + '<div class="bgs dos">' + grande('wMet', 'pos', '📋', 'Por posición', 'Marco cada posición') + grande('wMet', 'kg', '⚖️', 'Por peso', 'Kilos por diámetro') + '</div>' + pie();
+    if (w.p === 'l3k') {
+      var PD = pend(w.load), gd = {}; PD.forEach(function (e) { (gd[e.diametro] = gd[e.diametro] || { kg: 0 }).kg += (e.cantidad - e.recibida) * e.kgUnit; });
+      h = cab('¿Cuántos kilos llegaron?', 'Escribe los kilos de cada diámetro (como dice la remisión). La app los reparte entre las posiciones de ese diámetro.');
+      Object.keys(gd).sort(function (a, b) { return X.C.diamOrder(a) - X.C.diamOrder(b); }).forEach(function (d, i) {
+        var kd = (w.kd || {})[d], tx = w.kgd && w.kgd[d] !== undefined ? w.kgd[d] : '';
+        h += '<div class="fila" style="gap:8px"><div style="flex:1"><b>' + esc(X.C.diamLabel(d)) + '</b><div class="peq mut">Faltan ' + K(gd[d].kg) + '</div></div><div style="width:112px"><input type="text" inputmode="decimal" placeholder="kg" value="' + esc(tx) + '" data-rd="' + esc(d) + '" aria-label="Kilos que llegaron de ' + esc(X.C.diamLabel(d)) + '"><div class="peq mut" data-kd="' + esc(d) + '">' + (kd ? kdTxt(kd) : '') + '</div></div></div>';
+      });
+      var tk2 = totLleg();
+      return h + '<button type="button" class="btn blk gr" id="rec-ok" data-a="wKsig"' + (tk2.p > 0 ? '' : ' disabled') + '>Siguiente → (<span id="rec-tot">' + X.kg(tk2.kg) + '</span> kg)</button>' + pie();
+    }
     if (w.p === 'l3p') {
       var P = pend(w.load);
       h = cab('¿Qué llegó?', 'Marca ✓ si llegó toda la posición, o escribe los kilos que llegaron.');
@@ -206,19 +217,35 @@
     if (w.p === 'lsf') return vLlegoStock();
     return '';
   }
+  function kdTxt(k) { return pz(k.p) + ' · ' + K(k.kg) + (k.exceso ? ' · ⚠ más de lo que faltaba' : (k.sobra > 0.05 ? ' · sobran ' + K(k.sobra) + ' (menos de una pieza)' : '')); }
+  /** Reparte los kilos escritos por diámetro entre las posiciones pendientes de ese diámetro (piezas completas, en orden). */
+  function repartoKg() {
+    var w = W(); w.vals = {}; w.kd = {};
+    var tot = {}; pend(w.load).forEach(function (e) { tot[e.diametro] = (tot[e.diametro] || 0) + (e.cantidad - e.recibida) * e.kgUnit; });
+    Object.keys(w.kgd || {}).forEach(function (d) {
+      var bud = parseFloat(String(w.kgd[d]).replace(',', '.')); if (!(bud > 0)) return;
+      var ex = bud > (tot[d] || 0) + 0.05, p = 0, kg = 0;
+      pend(w.load).forEach(function (e) {
+        if (e.diametro !== d) return;
+        var pe = e.cantidad - e.recibida, q = Math.min(pe, Math.floor(bud / e.kgUnit + 1e-9));
+        if (q > 0) { w.vals[e.diametro + '|' + e.marca] = q; bud -= q * e.kgUnit; p += q; kg += q * e.kgUnit; }
+      });
+      w.kd[d] = { p: p, kg: kg, sobra: bud, exceso: ex };
+    });
+  }
   function totLleg() { var w = W(), p = 0, k = 0; pend(w.load).forEach(function (e) { var q = w.vals[e.diametro + '|' + e.marca] || 0; p += q; k += q * e.kgUnit; }); return { p: p, kg: k }; }
-  /** Selector de foto/PDF con botones grandes y vista previa. */
+  /** Fotos/PDF de la remisión: una o varias, tomadas con la cámara o elegidas de la biblioteca. */
   function foto(oblig) {
-    var w = W(), f = w.file;
-    if (f) {
+    var w = W(), fs = w.files || [];
+    var h = '<div class="foto' + (fs.length ? ' ok' : '') + '"><div class="foto-h">📎 Fotos de la remisión ' + (oblig ? '<em>obligatoria</em>' : '<span>(opcional)</span>') + (fs.length ? ' · <b>' + fs.length + '</b>' : '') + '</div>';
+    if (fs.length) h += '<div class="fotos-g">' + fs.map(function (f, i) {
       var pdf = /\.pdf$/i.test(f.nombre);
-      return '<div class="foto ok">' + (pdf ? '<div class="foto-p">📄</div>' : '<img class="foto-p" alt="Remisión" src="data:image/jpeg;base64,' + f.b64 + '">') +
-        '<div class="foto-t"><b>✅ Remisión lista</b><small>' + esc(f.nombre) + '</small></div><label class="btn chico sec">Cambiar<input type="file" accept="image/*,application/pdf" data-r="file" hidden></label></div>';
-    }
-    return '<div class="foto"><div class="foto-h">📎 Remisión ' + (oblig ? '<em>obligatoria</em>' : '<span>(opcional)</span>') + '</div><div class="foto-b">' +
-      '<label class="fbtn"><span>📸</span><b>Tomar foto</b><input type="file" accept="image/*" capture="environment" data-r="file" hidden></label>' +
-      '<label class="fbtn"><span>🖼️</span><b>Elegir foto o PDF</b><input type="file" accept="image/*,application/pdf" data-r="file" hidden></label></div>' +
-      (oblig ? '<small>No puede llegar acero sin la remisión.</small>' : '') + '</div>';
+      return '<div class="fo">' + (pdf ? '<div class="foto-p">📄</div>' : '<img class="foto-p" alt="Foto ' + (i + 1) + '" src="data:image/jpeg;base64,' + f.b64 + '">') + '<button type="button" class="fo-x" title="Quitar" data-a="wFq" data-v="' + i + '">✕</button><small>' + esc(f.nombre.slice(0, 18)) + '</small></div>';
+    }).join('') + '</div>';
+    h += '<div class="foto-b"><label class="fbtn"><span>📸</span><b>Tomar foto</b><input type="file" accept="image/*" capture="environment" data-r="file" hidden></label>' +
+      '<label class="fbtn"><span>🖼️</span><b>Elegir de la biblioteca</b><input type="file" accept="image/*,application/pdf" multiple data-r="file" hidden></label></div>' +
+      (fs.length ? '<small>Puede agregar más fotos. Toque ✕ para quitar una.</small>' : (oblig ? '<small>No puede llegar acero sin la remisión.</small>' : '')) + '</div>';
+    return h;
   }
   function kgAuto() { var w = W(), c = parseInt(w.c, 10) || 0, l = parseFloat(String(w.l).replace(',', '.')) || 0; return (X.C.PESOS[w.d] || 0) * l * c; }
   function vLlegoStock() {
@@ -381,22 +408,25 @@
     var w = W(), P, items, e;
     switch (a) {
       case 'wRuta': ruta(v, v === 'llego' ? 'l1' : v === 'armar' ? 'a1' : 's1'); return true;
-      case 'wHome': inicio(); return true;
+      case 'wHome': if (sinGuardar() && !confirm('Tiene datos sin guardar. Si sale ahora se pierden.\n\n¿Salir sin guardar?')) return true; inicio(); return true;
       case 'wBack': if (w.hist && w.hist.length) { w.p = w.hist.pop(); w.err = ''; X.render(); window.scrollTo(0, 0); } else inicio(); return true;
       case 'wIr': ir(v); return true;
       case 'ws': { var x = String(v).split('|'), key = decodeURIComponent(x[0]); w.vals[key] = Math.max(0, Math.min(+x[2], (w.vals[key] || 0) + (+x[1]))); X.render(); return true; }
       // ---- Llegó
       case 'wL1': ir(v === 'est' ? 'l2e' : 'l2s'); return true;
-      case 'wLs': w.stock = v; w.rows = null; w.file = null; ir(porRecibir().some(function (q) { return q.est === v; }) ? 'l2p' : 'lsf'); return true;
+      case 'wLs': w.stock = v; w.rows = null; w.files = []; ir(porRecibir().some(function (q) { return q.est === v; }) ? 'l2p' : 'lsf'); return true;
       case 'wLform': ir('lsf'); return true;
       case 'wLoad': w.load = v; w.vals = {}; w.kgs = {}; w.id = nuevoId('R'); ir('l3'); return true;
-      case 'wTodo': w.todo = v === '1'; ir(w.todo ? 'l4' : 'l3p'); return true;
+      case 'wTodo': w.todo = v === '1'; ir(w.todo ? 'l4' : 'l3m'); return true;
+      case 'wMet': w.vals = {}; w.kgs = {}; w.kgd = {}; w.kd = {}; ir(v === 'kg' ? 'l3k' : 'l3p'); return true;
+      case 'wKsig': if (totLleg().p > 0) ir('l4'); return true;
       case 'wLsig': if (totLleg().p > 0) ir('l4'); return true;
+      case 'wFq': if (w.files) { w.files.splice(+v, 1); X.render(); } return true;
       case 'wLok': {
         if (!w.fecha || !w.hora) { fallo('Indica el día y la hora en que llegó.'); return true; }
         var d = { loadId: w.load, fecha: w.fecha + 'T' + w.hora, id: w.id };
         if (w.todo) d.todo = true; else { d.items = []; pend(w.load).forEach(function (r) { var q = w.vals[r.diametro + '|' + r.marca] || 0; if (q > 0) d.items.push({ diametro: r.diametro, marca: r.marca, cantidad: q }); }); }
-        if (w.file) { d.archivoB64 = w.file.b64; d.archivoNombre = w.file.nombre; }
+        if (w.files && w.files.length) { d.archivos = w.files.map(function (f) { return { b64: f.b64, nombre: f.nombre }; }); }
         var q1 = porRecibir().filter(function (q) { return q.id === w.load; })[0]; enviar('recibirPedido', d, 'Llegaron ' + K(w.todo ? (q1 ? q1.falta : 0) : totLleg().kg), 'Ya están en el almacén, listos para armar.');
         return true;
       }
@@ -417,9 +447,9 @@
       case 'wLdel': w.rows.splice(+v, 1); X.render(); return true;
       case 'wLsok': {
         if (!w.rows.length) return true;
-        if (!w.file) { fallo('Falta la foto o el PDF de la remisión: no puede llegar acero sin soporte.'); return true; }
+        if (!w.files || !w.files.length) { fallo('Falta la foto o el PDF de la remisión: no puede llegar acero sin soporte.'); return true; }
         var tk = 0; w.rows.forEach(function (r) { tk += r.k; });
-        enviar('ingresoStock', { stock: w.stock, obs: w.rows.some(function (r) { return r.man; }) ? 'Kilos según remisión (difieren del cálculo)' : '', items: w.rows.map(function (r) { return { diametro: r.d, largo: r.l, cantidad: r.c, kg: r.k }; }), pedido: w.pedido, archivoB64: w.file.b64, archivoNombre: w.file.nombre, id: w.id || (w.id = nuevoId('G')) }, 'Llegaron ' + K(tk), 'Ya están en el ' + NOM[w.stock].toLowerCase() + '.');
+        enviar('ingresoStock', { stock: w.stock, obs: w.rows.some(function (r) { return r.man; }) ? 'Kilos según remisión (difieren del cálculo)' : '', items: w.rows.map(function (r) { return { diametro: r.d, largo: r.l, cantidad: r.c, kg: r.k }; }), pedido: w.pedido, archivos: w.files.map(function (f) { return { b64: f.b64, nombre: f.nombre }; }), id: w.id || (w.id = nuevoId('G')) }, 'Llegaron ' + K(tk), 'Ya están en el ' + NOM[w.stock].toLowerCase() + '.');
         return true;
       }
       // ---- Armar
@@ -481,6 +511,13 @@
       var tt = totLleg(), tg = document.getElementById('rec-tot'), bt = document.getElementById('rec-ok'); if (tg) tg.textContent = X.kg(tt.kg); if (bt) bt.disabled = tt.p <= 0;
       return true;
     }
+    var rd = t.getAttribute('data-rd');
+    if (rd !== null) { // kilos que llegaron de un diámetro
+      w.kgd = w.kgd || {}; w.kgd[rd] = t.value.replace(/[^\d.,]/g, ''); repartoKg();
+      document.querySelectorAll('[data-kd]').forEach(function (n) { var d2 = n.getAttribute('data-kd'); n.textContent = w.kd[d2] ? kdTxt(w.kd[d2]) : ''; });
+      var t2 = totLleg(), tg2 = document.getElementById('rec-tot'), bt2 = document.getElementById('rec-ok'); if (tg2) tg2.textContent = X.kg(t2.kg); if (bt2) bt2.disabled = t2.p <= 0;
+      return true;
+    }
     var k = t.getAttribute('data-r'); if (!k || k === 'file') return !!k;
     var val = t.value; if (k === 'c') val = val.replace(/[^\d]/g, ''); if (k === 'k' || k === 'l') val = val.replace(/[^\d.,]/g, '');
     w[k] = val;
@@ -489,7 +526,7 @@
   }
   function leerSoporte(f) {
     var w = W(); if (!f) return;
-    var fin = function (b64, nombre) { w.file = { nombre: nombre, b64: b64 }; w.err = ''; X.render(); };
+    var fin = function (b64, nombre) { if (!w.files) w.files = []; if (w.files.length >= 10) { fallo('Máximo 10 fotos por llegada.'); return; } w.files.push({ nombre: nombre, b64: b64 }); w.err = ''; X.render(); };
     if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) { var fr = new FileReader(); fr.onload = function () { fin(String(fr.result).split(',')[1], f.name); }; fr.readAsDataURL(f); return; }
     var img = new Image(), fr2 = new FileReader(); // se lee como data: (la política de seguridad de la página no permite blob:)
     img.onload = function () { var m = 1280, k = Math.min(1, m / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); fin(cv.toDataURL('image/jpeg', 0.7).split(',')[1], String(f.name || 'remision').replace(/\.\w+$/, '') + '.jpg'); };
@@ -503,10 +540,17 @@
       w.vals[key] = t.checked ? pe : 0; if (t.checked) w.kgs[key] = String(Math.round(pe * e.kgUnit * 100) / 100); else delete w.kgs[key]; X.render(); return true;
     }
     var k = t.getAttribute('data-r'); if (!k) return false;
-    if (k === 'file') { leerSoporte(t.files && t.files[0]); return true; }
+    if (k === 'file') { Array.prototype.slice.call(t.files || [], 0, 10).forEach(leerSoporte); t.value = ''; return true; }
     if (k === 'd' && !t.value) return true;
     w[k] = t.value; if (k === 'd') X.render(); return true;
   }
   function reset() { /* las rutas se conservan al cambiar de pestaña */ }
-  window.AcReg = { init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, kpis: almacen, resumen: resumen, datos: estructuras, estructuras: tarjetasEstructuras, reset: reset, enCurso: function () { return []; } };
+  /** ¿Hay datos escritos en un flujo (Llegó, Armar, Salió) que aún no se guardaron con el botón? */
+  function sinGuardar() {
+    var w = X.S.w; if (!w || !w.p || w.p === 'ok') return false;
+    var n = function (o) { return o && Object.keys(o).some(function (k) { var v = o[k]; return v !== '' && v !== 0 && v !== undefined && v !== null; }); };
+    return !!(n(w.vals) || n(w.kgs) || n(w.kgd) || (w.files && w.files.length) || (w.rows && w.rows.length) || w.todo || w.p === 'l4' || w.p === 's4' || w.p === 'a4');
+  }
+  function descartar() { X.S.w = { r: '', p: '', hist: [] }; }
+  window.AcReg = { init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, sinGuardar: sinGuardar, descartar: descartar, kpis: almacen, resumen: resumen, datos: estructuras, estructuras: tarjetasEstructuras, reset: reset, enCurso: function () { return []; } };
 })();
