@@ -390,7 +390,7 @@ function modulo(m) {
   if (m === 'transportes' && !TR) cargarTr();
   if (m === 'acero') abrirAcero();
 }
-let TRP = null, TRVM = 'conf', TR = null, TRTAB = selGet('tr', 'resumen', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
+let TRP = null, TRVM = 'alb', TR = null, TRTAB = selGet('tr', 'resumen', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
 async function cargarTr() {
   let desdeCopia = false;
   if (!TR) { const c = await CDB.get('admin_tr'); if (c && c.llave === LLAVE && c.r && c.r.ok) { TR = c.r; desdeCopia = true; pintarTr(); avisoDatos('Actualizando viajes… (datos de ' + horaTxt(c.t) + ')'); } }
@@ -745,7 +745,7 @@ function tablaBarras(titulo, L, col, conPct, max) {
     h('div', { class: 'tw' }, h('table', { style: 'width:100%;border-collapse:collapse' },
       L.slice(0, max || 12).map(x => h('tr', {}, h('td', { style: 'padding:5px 4px;font-weight:700;white-space:nowrap' }, x.k),
         h('td', { style: 'width:45%;padding:5px 4px' }, h('div', { style: 'height:12px;border-radius:6px;background:' + col + ';width:' + Math.max(2, Math.round(qm(x) / mx * 100)) + '%' })),
-        h('td', { style: 'text-align:right;padding:5px 4px;white-space:nowrap' }, h('b', {}, nf1(x.qa) + ' alb.'), ' · ' + nf1(x.q) + ' conf. · ' + x.n + ' v.'),
+        h('td', { style: 'text-align:right;padding:5px 4px;white-space:nowrap' }, h('b', {}, nf1(x.qa) + ' alb.'), ' · ' + x.n + ' v.'),
         conPct ? h('td', { style: 'text-align:right;padding:5px 4px;white-space:nowrap;' + (pctProm(x) !== null && pctProm(x) < 70 ? 'color:#b3261e;font-weight:700' : '') }, pctProm(x) === null ? '—' : Math.round(pctProm(x)) + ' %') : null)))));
 }
 function vistaRes(c) {
@@ -754,9 +754,9 @@ function vistaRes(c) {
   const q = V.reduce((a, v) => a + (Number(v.cant) || 0), 0), qa = V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0), ps = V.map(pctV).filter(x => x !== null), ks = V.filter(v => Number(v.km) > 0);
   const qkm = ks.reduce((a, v) => a + (Number(v.cant) || 0) * Number(v.km), 0), qkma = ks.reduce((a, v) => a + (Number(v.vol_albaran) || 0) * Number(v.km), 0), baja = ps.filter(x => x < 70).length;
   const K = (t, v, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, h('b', {}, v), t);
-  c.appendChild(h('div', { class: 'kpis kpis2' }, K('Viajes', V.length), K('📥 Llegaron a la obra', V.filter(v => v.mov === 'RECIBE').length), K('📤 Salieron de la obra', V.filter(v => v.mov !== 'RECIBE').length), K('m³ según albarán', nf1(qa)), K('m³ confirmado', nf1(q)), K('Volquetas', new Set(V.map(v => v.placa)).size),
+  c.appendChild(h('div', { class: 'kpis kpis2' }, K('Viajes', V.length), K('📥 Llegaron a la obra', V.filter(v => v.mov === 'RECIBE').length), K('📤 Salieron de la obra', V.filter(v => v.mov !== 'RECIBE').length), K('m³ según albarán', nf1(qa)), K('Volquetas', new Set(V.map(v => v.placa)).size),
     K('Carga promedio', ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) + ' %' : '—', ps.length && ps.reduce((a, b) => a + b, 0) / ps.length < 70 ? 'mal' : 'bien'),
-    K('Km promedio', ks.length ? nf1(ks.reduce((a, v) => a + Number(v.km), 0) / ks.length) : '—'), K('m³ × km (albarán)', nf1(qkma)), K('m³ × km (confirmado)', nf1(qkm)),
+    K('Km promedio', ks.length ? nf1(ks.reduce((a, v) => a + Number(v.km), 0) / ks.length) : '—'), K('m³ × km (albarán)', nf1(qkma)),
     K('Viajes con carga baja (<70 %)', baja, baja ? 'mal' : ''), K('Sin albarán (días pasados)', V.filter(v => !v.tiene_recibo && v.fecha < TR.hoy).length, V.some(v => !v.tiene_recibo && v.fecha < TR.hoy) ? 'mal' : 'bien')));
   // m3 por dia
   const pd = agrupa(V, v => v.fecha).sort((a, b) => a.k.localeCompare(b.k)).map(x => Object.assign(x, { k: fmtF(x.k).slice(0, 5) }));
@@ -765,8 +765,8 @@ function vistaRes(c) {
   const ufs = Array.from(new Set(V.map(ufTxt))).sort(), des = agrupa(V, v => sitioDe(v) || '—').map(x => x.k);
   const M = {}; V.forEach(v => { const k = ufTxt(v) + '|' + (sitioDe(v) || '—'), o = (M[k] = M[k] || { a: 0, c: 0 }); o.a += Number(v.vol_albaran) || 0; o.c += Number(v.cant) || 0; });
   const mv = o => o ? (TRVM === 'alb' ? o.a : o.c) : 0, mx = Math.max.apply(null, Object.keys(M).map(k => mv(M[k])).concat([1]));
-  const tb = h('table', { style: 'border-collapse:collapse;min-width:100%' }, h('tr', {}, h('th', { style: 'text-align:left;padding:6px' }, 'm³ albarán / confirmado  (UF ↓ / destino →)'), des.map(d => h('th', { style: 'padding:6px;font-size:13px' }, d)), h('th', { style: 'padding:6px' }, 'Total')));
-  ufs.forEach(u => { let ta = 0, tc = 0; const r = h('tr', {}, h('td', { style: 'padding:6px;font-weight:700;white-space:nowrap' }, u)); des.forEach(d => { const o = M[u + '|' + d], x = mv(o); if (o) { ta += o.a; tc += o.c; } r.appendChild(h('td', { style: 'padding:6px;text-align:right;white-space:nowrap;background:rgba(10,127,46,' + (x ? (0.12 + 0.55 * x / mx).toFixed(2) : 0) + ')' }, o ? nf1(o.a) + ' / ' + nf1(o.c) : '')); }); r.appendChild(h('td', { style: 'padding:6px;text-align:right;font-weight:700;white-space:nowrap' }, nf1(ta) + ' / ' + nf1(tc))); tb.appendChild(r); });
+  const tb = h('table', { style: 'border-collapse:collapse;min-width:100%' }, h('tr', {}, h('th', { style: 'text-align:left;padding:6px' }, 'm³ según albarán  (UF ↓ / destino →)'), des.map(d => h('th', { style: 'padding:6px;font-size:13px' }, d)), h('th', { style: 'padding:6px' }, 'Total')));
+  ufs.forEach(u => { let ta = 0, tc = 0; const r = h('tr', {}, h('td', { style: 'padding:6px;font-weight:700;white-space:nowrap' }, u)); des.forEach(d => { const o = M[u + '|' + d], x = mv(o); if (o) { ta += o.a; tc += o.c; } r.appendChild(h('td', { style: 'padding:6px;text-align:right;white-space:nowrap;background:rgba(10,127,46,' + (x ? (0.12 + 0.55 * x / mx).toFixed(2) : 0) + ')' }, o ? nf1(o.a) : '')); }); r.appendChild(h('td', { style: 'padding:6px;text-align:right;font-weight:700;white-space:nowrap' }, nf1(ta))); tb.appendChild(r); });
   c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🧭 Cuánto va de cada UF a cada destino'), h('div', { class: 'tw' }, tb)));
   c.appendChild(tablaBarras('📍 Por destino', agrupa(V, v => sitioDe(v) || '—'), '#0277bd', true));
   c.appendChild(tablaBarras('🛣 Por UF de origen', agrupa(V, ufTxt), '#2e7d32', true));
@@ -775,7 +775,7 @@ function vistaRes(c) {
   c.appendChild(tablaBarras('🪨 Por material', agrupa(V, v => v.material || '—'), '#ef6c00', false));
   const lb = agrupa(V, v => v.placa).filter(x => pctProm(x) !== null && pctProm(x) < 70 && x.n >= 2).sort((a, b) => pctProm(a) - pctProm(b));
   c.appendChild(h('div', { class: 'tcard' + (lb.length ? ' warn' : '') }, h('div', { class: 'big' }, '📉 Carga baja (promedio menor a 70 %)'),
-    lb.length ? lb.map(x => h('div', {}, h('b', {}, x.k), ' · ' + Math.round(pctProm(x)) + ' % en ' + x.n + ' viajes · ' + nf1(x.qa) + ' alb. / ' + nf1(x.q) + ' conf. m³')) : h('div', { class: 'trok' }, '✅ Ninguna volqueta con carga baja')));
+    lb.length ? lb.map(x => h('div', {}, h('b', {}, x.k), ' · ' + Math.round(pctProm(x)) + ' % en ' + x.n + ' viajes · ' + nf1(x.qa) + ' m³ albarán')) : h('div', { class: 'trok' }, '✅ Ninguna volqueta con carga baja')));
 }
 
 /* ----- flujo: de dónde sale el material y adónde llega (gráfico propio, sin internet extra) ----- */
@@ -814,21 +814,20 @@ function vistaMapa(c) {
   ls.forEach(a => { rs.forEach(b => { const e = E[a.n + '\u0001' + b.n]; if (e) ribbons.push({ e: e, a: a, b: b }); }); });
   ribbons.forEach(r => { const e = r.e, ta = r.a.h * wt(e) / wt(r.a), tb = r.b.h * wt(e) / wt(r.b); e.ya = r.a.cur; r.a.cur += ta; e.yb = r.b.cur; r.b.cur += tb; e.ta = ta; e.tb = tb;
     const g = el('path', { d: 'M' + x0 + ',' + e.ya + 'C' + xm + ',' + e.ya + ' ' + xm + ',' + e.yb + ' ' + x1 + ',' + e.yb + 'L' + x1 + ',' + (e.yb + tb) + 'C' + xm + ',' + (e.yb + tb) + ' ' + xm + ',' + (e.ya + ta) + ' ' + x0 + ',' + (e.ya + ta) + 'Z', fill: color(r.a.uf ? r.b : r.a), 'fill-opacity': '.45', stroke: '#fff', 'stroke-width': .5 });
-    el('title', {}, r.a.n + ' → ' + r.b.n + ': ' + e.t + ' viaje(s) · ' + nf1(e.va) + ' m³ albarán · ' + nf1(e.vc) + ' m³ confirmado', g); });
+    el('title', {}, r.a.n + ' → ' + r.b.n + ': ' + e.t + ' viaje(s) · ' + nf1(e.va) + ' m³ albarán', g); });
   const caja = (q, lado) => {
     const col0 = color(q), g = el('g', {}); el('rect', { x: q.x, y: q.y, width: NW, height: q.h, rx: 8, fill: col0 }, '', g);
     const cy = q.y + q.h / 2, nombre = q.n.length > 22 ? q.n.slice(0, 21) + '…' : q.n;
     el('text', { x: q.x + 10, y: cy - 18, 'font-size': 14, 'font-weight': 800, style: 'fill:#fff' }, nombre, g);
     el('text', { x: q.x + 10, y: cy - 2, 'font-size': 11.5, style: 'fill:#fff' }, 'Albarán: ' + nf1(q.va) + ' m³', g);
-    el('text', { x: q.x + 10, y: cy + 13, 'font-size': 11.5, style: 'fill:#fff' }, 'Confirmado: ' + nf1(q.vc) + ' m³', g);
-    el('text', { x: q.x + 10, y: cy + 28, 'font-size': 11.5, style: 'fill:#fff' }, 'Viajes: ' + q.t, g);
-    el('title', {}, q.n + ': ' + q.t + ' viaje(s) · ' + nf1(q.va) + ' m³ albarán · ' + nf1(q.vc) + ' m³ confirmado', g);
+    el('text', { x: q.x + 10, y: cy + 13, 'font-size': 11.5, style: 'fill:#fff' }, 'Viajes: ' + q.t, g);
+    el('title', {}, q.n + ': ' + q.t + ' viaje(s) · ' + nf1(q.va) + ' m³ albarán', g);
   };
   ls.forEach(q => caja(q)); rs.forEach(q => caja(q));
   c.appendChild(svg);
-  c.appendChild(h('div', { class: 'small', style: 'margin-top:6px' }, V.length + ' viajes · ' + nf1(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0)) + ' m³ albarán · ' + nf1(V.reduce((a, v) => a + (Number(v.cant) || 0), 0)) + ' m³ confirmado'));
+  c.appendChild(h('div', { class: 'small', style: 'margin-top:6px' }, V.length + ' viajes · ' + nf1(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0)) + ' m³ albarán'));
   const top = ord.slice(0, 5);
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🏁 Recorridos con más material'), h('div', {}, top.map(e => h('div', { class: 'small', style: 'margin:3px 0' }, '• ' + e.a + ' → ' + e.b + ': ' + nf1(e.va) + ' alb. / ' + nf1(e.vc) + ' conf. m³ (' + e.t + ' viaje' + (e.t === 1 ? '' : 's') + ')')))));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🏁 Recorridos con más material'), h('div', {}, top.map(e => h('div', { class: 'small', style: 'margin:3px 0' }, '• ' + e.a + ' → ' + e.b + ': ' + nf1(e.va) + ' m³ albarán (' + e.t + ' viaje' + (e.t === 1 ? '' : 's') + ')')))));
   const sit = (TR.sitios || []).filter(x => x.lat !== '' && x.lat !== undefined && x.lon !== '');
   if (sit.length) c.appendChild(h('details', { style: 'margin-top:8px' }, h('summary', { class: 'small' }, '📍 Ver destinos en Google Maps'), sit.map(x => h('a', { class: 'btnl', href: 'https://www.google.com/maps/search/?api=1&query=' + x.lat + ',' + x.lon, target: '_blank', rel: 'noopener' }, '📍 ' + x.n))));
 }
@@ -1225,7 +1224,7 @@ function vistaPlan(c) {
   c.appendChild(h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px' },
     card('#0a7d32', '📄', 'Planilla diaria', 'Formato de calidad con los datos actuales de los viajes. En un rango sale una hoja por cada día. Se descarga al instante y no se guarda.',
       'Planilla de hoy', 'Rango filtrado · ' + rango(), () => planillasRango(bogota(), bogota(), sel.value, msg), () => planillasRango($('desde').value, $('hasta').value, sel.value, msg)),
-    card('#0d3b66', '📊', 'Reporte consolidado', 'KPIs, ranking, UF, destinos, carga baja, alertas y detalle, con volumen de albarán y confirmado. Se descarga al instante y no se guarda.',
+    card('#0d3b66', '📊', 'Reporte consolidado', 'KPIs, ranking, UF, destinos, carga baja, alertas y detalle, con volumen de albarán. Se descarga al instante y no se guarda.',
       'Consolidado de hoy', 'Rango filtrado · ' + rango(), () => crearCierre(bogota(), bogota(), sel.value, msg), () => crearCierre($('desde').value, $('hasta').value, sel.value, msg))));
   c.appendChild(msg);
 }
@@ -1379,7 +1378,7 @@ function pintarTr() {
   const conAl = V.filter(v => alV(v)), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend), sinMat = (TR.todos || V).filter(v => !String(v.material || '').trim() && v.estado !== 'ANULADO');
   const top = $('trTop'); top.textContent = '';
   const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
-  top.appendChild(h('div', { class: 'kpis' }, K('Viajes', V.length), K('📥 Llegaron', V.filter(v => v.mov === 'RECIBE').length), K('📤 Salieron', V.filter(v => v.mov !== 'RECIBE').length), K('m³ albarán', nf(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0))), K('m³ confirmado', nf(V.reduce((a, v) => a + (Number(v.cant) || 0), 0))), K('Volquetas', new Set(V.map(v => v.placa)).size)));
+  top.appendChild(h('div', { class: 'kpis' }, K('Viajes', V.length), K('📥 Llegaron', V.filter(v => v.mov === 'RECIBE').length), K('📤 Salieron', V.filter(v => v.mov !== 'RECIBE').length), K('m³ albarán', nf(V.reduce((a, v) => a + (Number(v.vol_albaran) || 0), 0))), K('Volquetas', new Set(V.map(v => v.placa)).size)));
   const aviso = (n, txt, fn) => n ? h('button', { class: 'trav', onclick: fn }, '⚠️ ' + n + ' ' + txt) : null;
   top.append(...[
     aviso(pend.length, pend.length === 1 ? 'volqueta nueva por confirmar' : 'volquetas nuevas por confirmar', () => { TRVOL = 'pend'; TRTAB = 'volquetas'; pintarTr(); }),
