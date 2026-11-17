@@ -718,3 +718,21 @@ details.mv-d[open] th { color: #cbd5e1; }
   .cn2-c .cb:last-of-type { grid-column: 6; }
   .cn2-r { grid-row: 1; grid-column: 7; }
 }
+
+/* Nuevo pedido */
+.np { display: flex; flex-direction: column; gap: 14px; max-width: 760px; margin: 0 auto; }
+.np-drop { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 38px 18px; border: 3px dashed #94a3b8; border-radius: 20px; background: linear-gradient(180deg, #f8fafc, #eef6f0); cursor: pointer; transition: .15s; }
+.np-drop:hover, .np-drop.on { border-color: #1b7a3a; background: #e7f5ec; transform: scale(1.005); }
+.np-ico { font-size: 3.2rem; line-height: 1; }
+.np-drop b { font-size: 1.35rem; color: #0f172a; }
+.np-o { color: #475569; font-size: 1rem; }
+.np-fmt { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.np-fmt em { font-style: normal; font-weight: 800; font-size: .85rem; padding: 4px 12px; border-radius: 999px; background: #e0ecff; color: #1e3a8a; }
+.np-btn { margin-top: 6px; padding: 14px 28px; border-radius: 14px; background: #1b7a3a; color: #fff; font-weight: 800; font-size: 1.1rem; }
+.np-pasos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.np-pasos div { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.np-pasos i { width: 28px; height: 28px; border-radius: 50%; background: #0f172a; color: #fff; font-style: normal; font-weight: 800; display: grid; place-items: center; }
+.np-pasos small { color: #475569; line-height: 1.3; }
+.np-nota { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; color: #334155; font-size: .92rem; }
+@media (max-width: 640px) { .np-pasos { grid-template-columns: 1fr; } .np-drop { padding: 28px 14px; } }
+.np-drop.np-min { flex-direction: row; justify-content: center; padding: 12px; gap: 10px; border-width: 2px; } .np-min .np-ico { font-size: 1.5rem; } .np-min b { font-size: 1.05rem; }

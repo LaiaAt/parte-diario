@@ -963,8 +963,10 @@
   function vCargar() {
     sacarRepetidos();
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador puede cargar un DLI.</div>';
-    var h = '<div class="card"><h2>🏢 Montar un pedido nuevo (DLI o PDF)</h2><p class="mut" style="margin-top:0">Seleccione uno o varios .dli (o el PDF de la cartilla). Cada uno queda como pedido <b>por recibir</b>. El almacén se actualiza solo cuando en obra se confirma la llegada (con fecha, hora y kilos).</p>' +
-      '<label class="btn" for="dli-file">📂 Elegir archivos</label><input id="dli-file" type="file" multiple style="display:none"></div>';
+    var h = S.cargas.length ? '<div class="np"><label class="np-drop np-min" id="np-drop" for="dli-file"><span class="np-ico">➕</span><b>Agregar más archivos</b><span class="np-o">suelte o toque aquí</span></label><input id="dli-file" type="file" multiple accept=".dli,.pdf,.DLI,.PDF" style="display:none"></div>' : '<div class="np"><label class="np-drop" id="np-drop" for="dli-file"><span class="np-ico">📥</span><b>Suelte aquí los archivos del pedido</b><span class="np-o">o toque para elegirlos</span>' +
+      '<span class="np-fmt"><em>.dli</em><em>.pdf</em><em>varios a la vez</em></span><span class="np-btn">📂 Elegir archivos</span></label><input id="dli-file" type="file" multiple accept=".dli,.pdf,.DLI,.PDF" style="display:none">' +
+      '<div class="np-pasos"><div><i>1</i><b>Elija el archivo</b><small>El DLI o el PDF de la cartilla. Puede subir varios.</small></div><div><i>2</i><b>Revise y corrija</b><small>Piezas, kilos y posiciones. Todo se puede editar.</small></div><div><i>3</i><b>Registre</b><small>Queda <u>por recibir</u>; el almacén sube cuando llega a obra.</small></div></div>' +
+      '<div class="np-nota">🔒 El archivo original se guarda tal cual en la carpeta <b>DLI</b> como <b>' + (function () { var d = new Date(), z = function (n) { return String(n).padStart(2, '0'); }; return z(d.getDate()) + z(d.getMonth() + 1) + d.getFullYear(); })() + '_nombre</b> y se puede volver a descargar.</div></div>';
     if (S.cargaRes) h += '<div class="card okmsg2"><b>' + (S.cargaRes.ok.length ? '✅ Cargados: ' + S.cargaRes.ok.map(esc).join(', ') : '') + '</b>' + (S.cargaRes.mal ? '<div class="error" style="margin-top:6px">⚠️ ' + S.cargaRes.mal + (S.cargaRes.mal === 1 ? ' archivo quedó' : ' archivos quedaron') + ' sin cargar. Revise el aviso en rojo de cada uno abajo.</div>' : '') + '<button type="button" class="lnk" data-a="cerrarRes">Cerrar</button></div>';
     if (S.cargas.length > 1) h += '<div class="card"><button class="btn" data-a="guardarTodos">💾 Guardar los ' + S.cargas.length + ' archivos</button><div class="peq mut" style="margin-top:6px">Antes, escriba el número de pedido de cada uno.</div></div>';
     S.cargas.forEach(function (c, i) {
@@ -1529,6 +1531,8 @@
     c.err = '';
   }
   document.addEventListener('toggle', function (ev) { var d = ev.target, k = d && d.getAttribute && d.getAttribute('data-det'); if (k) S.det[k] = d.open; }, true);
+  ['dragover', 'dragenter'].forEach(function (n) { document.addEventListener(n, function (ev) { var z = ev.target.closest && ev.target.closest('#np-drop'); if (z) { ev.preventDefault(); z.classList.add('on'); } }); });
+  ['dragleave', 'drop'].forEach(function (n) { document.addEventListener(n, function (ev) { var z = ev.target.closest && ev.target.closest('#np-drop'); if (!z) return; ev.preventDefault(); z.classList.remove('on'); if (n === 'drop' && ev.dataTransfer && ev.dataTransfer.files.length) leerArchivos(ev.dataTransfer.files); }); });
   document.addEventListener('change', function (ev) {
     var t = ev.target;
     if (window.AcReg && (t.getAttribute('data-r') || t.getAttribute('data-rc') !== null) && AcReg.cambio(t)) return;
