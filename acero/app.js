@@ -1023,10 +1023,10 @@
     else if (_hizoEscritura) { _hizoEscritura = false; msg = '✔ Guardado en la nube'; ok = true; }
     if (!_eb) { _eb = document.createElement('div'); _eb.id = 'estadoBox'; _eb.setAttribute('role', 'status'); _eb.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:9998;max-width:92vw;padding:12px 18px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px;color:#fff;pointer-events:none'; document.body.appendChild(_eb); }
     clearTimeout(_ebT);
-    if (!msg) { _eb.hidden = true; return; }
-    _eb.hidden = false; _eb.style.background = ok ? '#1b7a3a' : '#0d3b66';
+    if (!msg) { _eb.hidden = true; _eb.style.display = 'none'; return; }
+    _eb.hidden = false; _eb.style.display = 'flex'; _eb.style.background = ok ? '#1b7a3a' : '#0d3b66';
     _eb.innerHTML = (ok ? '' : '<i class="spin" style="display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:giro .8s linear infinite"></i>') + '<span>' + esc(msg) + '</span>';
-    if (ok) _ebT = setTimeout(function () { _eb.hidden = true; }, 1800);
+    if (ok) _ebT = setTimeout(function () { _eb.hidden = true; _eb.style.display = 'none'; }, 1800);
   }
   Api.onVuelo = function () { estadoBox(); };
   function render() {
