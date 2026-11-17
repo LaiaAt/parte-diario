@@ -1433,6 +1433,7 @@ function abrirAcero() {
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data) return;
   if (e.data.t === 'acero-listo') enviarAc(false);
+  else if (e.data.t === 'acero-cargado') { if (ACWAIT) { const f = ACWAIT; ACWAIT = null; f(); } }
   else if (e.data.t === 'acero-alto' && $('acFrame')) $('acFrame').style.height = Math.max(400, e.data.h) + 'px';
 });
 function navegacion() {
@@ -1930,7 +1931,7 @@ function banner(txt, tipo) {
   b.appendChild(h('span', {}, txt));
   if (tipo) bnT = setTimeout(() => { b.hidden = true; }, mal ? 5000 : 1800);
 }
-let RECARGA = 0;
+let RECARGA = 0, ACWAIT = null;
 $('act').onclick = async () => {
   const d = $('desde').value, hh = $('hasta').value;
   if (d && hh && (new Date(hh) - new Date(d)) / 86400000 > 31) { $('err').textContent = 'Elige máximo un mes (31 días) para que cargue rápido.'; banner('Elige máximo un mes (31 días)', 'mal'); return; }
@@ -1940,7 +1941,9 @@ $('act').onclick = async () => {
   try {
     if (MOD === 'transportes' && $('trBody')) { $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes del ' + fm(d) + ' al ' + fm(hh) + '.'))); }
     while (CARGANDO) await new Promise(r => setTimeout(r, 150)); // si ya había una carga en curso, espera y pide la del rango nuevo
+    let esperaAc = null; if (MOD === 'acero') esperaAc = new Promise(r => { ACWAIT = r; setTimeout(r, 20000); });
     TR = null; const ok = await cargar(false);
+    if (esperaAc) await esperaAc;
     if (MOD === 'transportes') await cargarTr();
     if (Date.now() - t0 < 700) await new Promise(r => setTimeout(r, 700 - (Date.now() - t0)));
     if (mi === RECARGA) banner(ok === false ? 'No se pudo actualizar' : '✔ Datos actualizados', ok === false ? 'mal' : 'ok');

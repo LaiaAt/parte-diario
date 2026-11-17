@@ -1557,7 +1557,8 @@
       if (ev.origin !== location.origin || !ev.data || ev.data.t !== 'per') return;
       S.per = { k: 'rango', d: ev.data.d || '', h: ev.data.h || '' };
       if (/^(ini|reg|panel|inv|mov|ped|inf)$/.test(ev.data.tab || '')) S.tab = ev.data.tab === 'reg' ? 'ini' : ev.data.tab;
-      if (ev.data.r && S.ses) cargarEstado(); else render();
+      var listo = function () { try { parent.postMessage({ t: 'acero-cargado' }, location.origin); } catch (e) { } };
+      if (ev.data.r && S.ses) cargarEstado().then(listo, listo); else { render(); listo(); }
     });
     try { parent.postMessage({ t: 'acero-listo' }, location.origin); } catch (e) { }
   }
