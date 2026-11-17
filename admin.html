@@ -344,7 +344,7 @@ async function cargar(primera) {
   if (CARGANDO) return !!D; CARGANDO = true;
   try {
     if (!D) $('estado').textContent = 'Cargando…'; $('err').textContent = '';
-    if (primera && !TR) TRP = api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }).then(x => { if (x && x.ok) CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: x }); return x; }).catch(() => null); // se pide a la vez para que Transportes abra ya cargado
+    if (primera && !TR) TRP = api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }).then(x => { if (x && x.ok) CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: x, d: $('desde').value, hh: $('hasta').value }); return x; }).catch(() => null); // se pide a la vez para que Transportes abra ya cargado
     let r;
     try { r = await api({ accion: 'admin', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); }
     catch (e) { // sin señal: se queda con lo guardado
@@ -393,13 +393,13 @@ function modulo(m) {
 let TRP = null, TRVM = 'alb', TR = null, TRTAB = selGet('tr', 'resumen', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
 async function cargarTr() {
   let desdeCopia = false;
-  if (!TR) { const c = await CDB.get('admin_tr'); if (c && c.llave === LLAVE && c.r && c.r.ok) { TR = c.r; desdeCopia = true; pintarTr(); avisoDatos('Actualizando viajes… (datos de ' + horaTxt(c.t) + ')'); } }
+  if (!TR) { const c = await CDB.get('admin_tr'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === $('desde').value && c.hh === $('hasta').value) { TR = c.r; desdeCopia = true; pintarTr(); avisoDatos('Actualizando viajes… (datos de ' + horaTxt(c.t) + ')'); } }
   if (!desdeCopia) { $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes.'))); }
   try {
     let r = TRP ? await TRP : null; TRP = null;
     if (!r || !r.ok) r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
     if (!r.ok) { if (!desdeCopia) $('trBody').textContent = r.mensaje || 'No se pudo cargar'; return; }
-    CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: r });
+    CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: r, d: $('desde').value, hh: $('hasta').value });
     if (desdeCopia && typeof nPend === 'function' && nPend() > 0) return; // hay cambios sin guardar en pantalla: no se repinta
     const y = window.scrollY; TR = r; pintarTr(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); }
   } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · viajes guardados'); else $('trBody').textContent = 'No se pudo conectar.'; }
@@ -1938,6 +1938,7 @@ $('act').onclick = async () => {
   bt.disabled = true; bt.textContent = 'Cargando…';
   banner('Cargando datos del ' + fm(d) + ' al ' + fm(hh) + '…');
   try {
+    if (MOD === 'transportes' && $('trBody')) { $('trBody').textContent = ''; $('trBody').appendChild(h('div', { class: 'cargando' }, h('i'), h('b', {}, 'Cargando datos…'), h('span', {}, 'Un momento, estamos trayendo los viajes del ' + fm(d) + ' al ' + fm(hh) + '.'))); }
     while (CARGANDO) await new Promise(r => setTimeout(r, 150)); // si ya había una carga en curso, espera y pide la del rango nuevo
     TR = null; const ok = await cargar(false);
     if (MOD === 'transportes') await cargarTr();
