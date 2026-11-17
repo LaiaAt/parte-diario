@@ -1919,8 +1919,33 @@ $('infSem').onclick = async () => {
   } catch (er) { e.textContent = 'No se pudo conectar. Intenta de nuevo.'; }
   bt.disabled = false;
 };
+let bnT;
+function banner(txt, tipo) {
+  let b = $('bannerCarga');
+  if (!b) { b = h('div', { id: 'bannerCarga', role: 'status', style: 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9998;max-width:92vw;padding:12px 18px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px' }); document.body.appendChild(b); }
+  clearTimeout(bnT); b.textContent = '';
+  const ok = tipo === 'ok', mal = tipo === 'mal';
+  b.style.background = mal ? '#b3261e' : ok ? '#1b7a3a' : '#0d3b66'; b.style.color = '#fff'; b.hidden = false;
+  if (!ok && !mal) b.appendChild(h('i', { style: 'display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:giro .8s linear infinite' }));
+  b.appendChild(h('span', {}, txt));
+  if (tipo) bnT = setTimeout(() => { b.hidden = true; }, mal ? 5000 : 1800);
+}
+let RECARGA = 0;
 $('act').onclick = async () => {
-  if ($('desde').value && $('hasta').value && (new Date($('hasta').value) - new Date($('desde').value)) / 86400000 > 31) { $('err').textContent = 'Elige máximo un mes (31 días) para que cargue rápido.'; return; } TR = null; await cargar(false); if (MOD === 'transportes') cargarTr(); };
+  const d = $('desde').value, hh = $('hasta').value;
+  if (d && hh && (new Date(hh) - new Date(d)) / 86400000 > 31) { $('err').textContent = 'Elige máximo un mes (31 días) para que cargue rápido.'; banner('Elige máximo un mes (31 días)', 'mal'); return; }
+  const mi = ++RECARGA, bt = $('act'), t0 = Date.now(), fm = x => x ? x.slice(8) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4) : '';
+  bt.disabled = true; bt.textContent = 'Cargando…';
+  banner('Cargando datos del ' + fm(d) + ' al ' + fm(hh) + '…');
+  try {
+    while (CARGANDO) await new Promise(r => setTimeout(r, 150)); // si ya había una carga en curso, espera y pide la del rango nuevo
+    TR = null; const ok = await cargar(false);
+    if (MOD === 'transportes') await cargarTr();
+    if (Date.now() - t0 < 700) await new Promise(r => setTimeout(r, 700 - (Date.now() - t0)));
+    if (mi === RECARGA) banner(ok === false ? 'No se pudo actualizar' : '✔ Datos actualizados', ok === false ? 'mal' : 'ok');
+  } catch (e) { if (mi === RECARGA) banner('No se pudo cargar. Revisa tu conexión.', 'mal'); }
+  finally { if (mi === RECARGA) { bt.disabled = false; bt.textContent = 'Actualizar'; } }
+};
 let qt;
 ['qPed', 'qPar', 'qFot', 'qCon'].forEach(i => { $(i).oninput = () => { clearTimeout(qt); qt = setTimeout(rerender, 200); }; });
 ['fSol', 'fSolLlave', 'fSolTipo'].forEach(i => $(i).onchange = solicitudes);
@@ -1950,10 +1975,10 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
   }
   s.onchange = () => {
     if (!s.value) return;
-    if (s.value === '__hoy') { $('desde').value = hy; $('hasta').value = hy; if (LLAVE) cargar(false); return; }
-    if (s.value === '__rec') { $('desde').value = sumDias(hy, -2); $('hasta').value = hy; if (LLAVE) cargar(false); return; }
+    if (s.value === '__hoy') { $('desde').value = hy; $('hasta').value = hy; if (LLAVE) $('act').onclick(); return; }
+    if (s.value === '__rec') { $('desde').value = sumDias(hy, -2); $('hasta').value = hy; if (LLAVE) $('act').onclick(); return; }
     const c = cortes[s.value]; $('desde').value = c[0]; $('hasta').value = c[1] > hy ? hy : c[1];
-    if (LLAVE) cargar(false);
+    if (LLAVE) $('act').onclick();
   };
   s.value = '__hoy'; $('desde').value = hy; $('hasta').value = hy;
   let tAuto; ['desde', 'hasta'].forEach(i => $(i).onchange = () => { s.value = ''; clearTimeout(tAuto); tAuto = setTimeout(() => { const d = $('desde').value, hh = $('hasta').value; if (LLAVE && d && hh && d <= hh) $('act').onclick(); }, 500); });
