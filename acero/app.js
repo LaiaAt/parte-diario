@@ -100,6 +100,15 @@
     return G;
   }
   function grupoDe(tab) { var G = gruposTabs(); for (var i = 0; i < G.length; i++) if (G[i].hojas.some(function (h) { return h[0] === tab; })) return G[i]; return G[0]; }
+  /** Menú en cascada: cada grupo en su fila y, debajo del activo y con sangría, sus subvistas. */
+  function vArbol() {
+    var G = gruposTabs(), g = grupoDe(S.tab);
+    return '<nav class="arbol">' + G.map(function (x) {
+      var act = x.k === g.k, h = '<button class="ar-g' + (act ? ' on' : '') + '" data-a="tab" data-v="' + (act ? S.tab : (S.ult && S.ult[x.k]) || x.hojas[0][0]) + '"><span>' + x.ico + '</span><em>' + x.t + '</em></button>';
+      if (act && x.hojas.length > 1) h += '<div class="ar-h">' + x.hojas.map(function (t) { return '<button class="ar-s' + (S.tab === t[0] ? ' on' : '') + '" data-a="tab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
+      return h;
+    }).join('') + '</nav>';
+  }
   function vTabs() {
     var G = gruposTabs(), g = grupoDe(S.tab), h = '';
     if (!EMB) h += '<nav class="tabs">' + G.map(function (x) {
@@ -1061,7 +1070,7 @@
     var y0 = window.pageYOffset, h0 = app.offsetHeight, sx = {};
     app.style.minHeight = h0 + 'px';
     Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { sx[e.className + i] = e.scrollLeft; });
-    app.innerHTML = '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
+    app.innerHTML = (EMB ? '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' : '<div class="cab">' + vTop() + '</div><div class="lay">' + vArbol() + '<div class="cont">' + vBandas() + '<main>' + vista() + '</main></div></div>') + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
     Array.prototype.forEach.call(app.querySelectorAll('details'), function (d) { if (!d.classList.contains('mv-d')) d.open = true; }); // nada contraído, salvo las posiciones del registro
     if (fo && $(fo)) { var el = $(fo); el.focus(); try { el.select(); } catch (e) { } }
     Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { if (sx[e.className + i] != null) e.scrollLeft = sx[e.className + i]; });

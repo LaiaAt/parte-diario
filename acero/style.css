@@ -753,3 +753,24 @@ details.mv-d[open] th { color: #cbd5e1; }
 @media (max-width: 640px) { .np-pasos { grid-template-columns: 1fr; } .np-drop { flex-direction: column; padding: 16px 12px; } .np-btn { margin: 4px 0 0; } .np-fmt, .np-o { display: none; } }
 @media (max-width: 640px) { .np-pasos { grid-template-columns: repeat(3, 1fr); } .np-pasos div { flex-direction: column; text-align: center; gap: 4px; padding: 8px 4px; } .np-pasos b { font-size: .82rem; } .np-nota { font-size: .82rem; padding: 8px 10px; } }
 @media (max-width: 640px) { .subtabs { flex-wrap: nowrap; gap: 6px; } .subtabs button { flex: 1 1 0; min-width: 0; padding: 8px 4px; font-size: .78rem; white-space: nowrap; } }
+
+/* Menú en cascada */
+.lay { max-width: 1280px; margin: 0 auto; }
+.arbol { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: #fff; border-bottom: 1px solid var(--line); }
+.ar-g { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: transparent; padding: 9px 12px; border-radius: 10px; font-size: 1rem; font-weight: 800; color: #0f172a; cursor: pointer; }
+.ar-g em { font-style: normal; } .ar-g span { font-size: 1.15rem; }
+.ar-g:hover { background: #f1f5f9; }
+.ar-g.on { background: #0f172a; color: #fff; }
+.ar-h { margin: 2px 0 4px 26px; padding-left: 12px; border-left: 3px solid #cbd5e1; display: flex; flex-direction: column; gap: 2px; }
+.ar-s { text-align: left; border: 0; background: transparent; padding: 7px 12px; border-radius: 8px; font-size: .95rem; font-weight: 700; color: #334155; cursor: pointer; position: relative; }
+.ar-s::before { content: ''; position: absolute; left: -15px; top: 50%; width: 12px; border-top: 3px solid #cbd5e1; }
+.ar-s:hover { background: #f1f5f9; }
+.ar-s.on { background: #dcfce7; color: #14532d; }
+@media (min-width: 900px) {
+  .lay { display: grid; grid-template-columns: 230px 1fr; align-items: start; }
+  .arbol { position: sticky; top: 70px; margin: 12px 0 0 10px; border: 1px solid var(--line); border-radius: 14px; }
+  .cont { min-width: 0; }
+}
+@media (max-width: 899px) { .ar-g { padding: 7px 12px; } .ar-s { padding: 6px 12px; } }
+.ar-s { white-space: nowrap; }
+@media (min-width: 900px) { .lay { grid-template-columns: 250px 1fr; } }
