@@ -305,7 +305,9 @@ async function api(d, ms) {
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); if (av) av.fin(); }
 }
-function salir() { CDB.del('admin'); CDB.del('admin_tr'); TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; }
+function salir() { CDB.del('admin'); CDB.del('admin_tr'); TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('nav2').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; try { $('llave').setAttribute('autocomplete', 'off'); } catch (e) {}
+  document.querySelectorAll('[data-m]').forEach(x => { x.hidden = true; }); ['trTop', 'trTabs', 'trBody'].forEach(i => { const e = $(i); if (e) e.textContent = ''; });
+  const af = $('acFrame'); if (af) af.remove(); ACINI = false; const bn = $('bannerCarga'); if (bn) bn.hidden = true; ['nav', 'nav2', 'nav3', 'nav4'].forEach(i => { const e = $(i); if (e) { e.textContent = ''; e.hidden = true; } }); $('detalle').hidden = true; $('visor').hidden = true; }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
 // ---- Copia local de los datos (IndexedDB): el Dashboard abre al instante y funciona sin señal (solo lectura)
 const CDB = (() => {
@@ -1373,6 +1375,7 @@ function sinAlertasVol() {
   (TR.viajes || []).concat(TR.reportes_extra || []).forEach(v => { limpiaEd(v); if (v.alertas) v.alertas = String(v.alertas).split('; ').filter(a => !esVol(a)).join('; '); });
 }
 function pintarTr() {
+  if (!LLAVE) return;
   sinAlertasVol();
   const V = TR.viajes, hoy = TR.hoy;
   const conAl = V.filter(v => alV(v)), sinRec = V.filter(v => !v.tiene_recibo && v.fecha < hoy), pend = TR.volquetas.filter(esPend), sinMat = (TR.todos || V).filter(v => !String(v.material || '').trim() && v.estado !== 'ANULADO');
@@ -1475,6 +1478,7 @@ function llenarOpts(id, todas, vals) { const s = $(id), v = s.value; s.textConte
 function ir(id) { modulo({ cPed: 'pedidos', cPar: 'partes', cFoto: 'fotos' }[id] || 'resumen'); if (id === 'cCon') setTimeout(() => { const e = $('cCon'); if (e) e.scrollIntoView(); }, 30); }
 function rerender() { solicitudes(); partes(); fotos(true); consolidado(); }
 function pintar() {
+  if (!LLAVE) return;
   prep();
   ['fSolLlave', 'fPar', 'fCon', 'fFotoLlave'].forEach(i => llenarSel(i));
   llenarOpts('fSolTipo', 'Todos', uniq(D.SOLICITUD.map(s => s.tipo)));
