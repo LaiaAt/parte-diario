@@ -1627,10 +1627,13 @@
     render();
     // el panel entra solo con la llave de administrador del Dashboard (misma sesión)
     var l0 = ''; try { l0 = MODO === 'dashboard' ? (localStorage.getItem('adm') || sessionStorage.getItem('adm') || '') : ''; } catch (e) { }
-    if (l0) { S.auto = true; render(); }
+    if (l0) { // abre al instante con lo último guardado; el ingreso y la actualización siguen por detrás
+      var g0 = Api.guardado && Api.guardado();
+      if (g0) { S.ses = { pin: l0, rol: 'admin', nombre: 'Administrador', previa: true }; abrirGuardado(); }
+      S.auto = true; render(); }
     if (l0) Api.login(l0).then(function (r) {
-      if (!r.ok || r.ses.rol !== 'admin') { Api.salir(); S.auto = false; render(); return; }
+      if (!r.ok || r.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.cargado = false; S.auto = false; render(); return; }
       S.ses = r.ses; S.loginErr = ''; S.auto = false; abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado);
-    }).catch(function () { S.auto = false; S.loginErr = 'No se pudo conectar.'; render(); });
+    }).catch(function () { S.auto = false; if (S.ses && S.ses.previa) { S.refresca = false; } else S.loginErr = 'No se pudo conectar.'; render(); });
   }
 })();
