@@ -82,7 +82,6 @@
 
   function vBandas() {
     var h = '', pend = Api.pendientes(), errs = Api.erroresCola();
-    if (S.refresca) h += '<div class="banda info"><i class="spin"></i> Actualizando datos…</div>';
     if (!Api.remoto) h += '<div class="banda info">Modo local de prueba: los datos solo existen en este navegador.</div>';
     if (S.offline) h += '<div class="banda warn">Sin conexión: se muestran los últimos datos guardados en este celular.</div>';
     if (pend && S.enviando) h += '<div class="banda info env"><span>Enviando los registros guardados…</span><i class="prog"><b></b></i></div>';
@@ -125,7 +124,7 @@
     return '<div class="ec"><div class="ec-h"><b>' + titulo + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>' + apilada(x) + celdas(x) + '</div>';
   }
   function embCargado() { if (EMB) { try { parent.postMessage({ t: 'acero-cargado' }, location.origin); } catch (e) { } } }
-  function vCargando() { if (EMB) return ''; return '<div class="cargando"><i class="spin"></i><b>Cargando datos…</b><span>Un momento, estamos trayendo el inventario.</span></div>'; }
+  function vCargando() { return ''; var _x = '<div class="cargando"><i class="spin"></i><b>Cargando datos…</b><span>Un momento, estamos trayendo el inventario.</span></div>'; }
   function sinInventario() {
     if (!S.cargado) return vCargando();
     if (EMB) return '<div class="card vacio"><div style="font-size:2.2rem">📭</div><b>Sin datos</b><br><span class="mut">Todavía no hay acero registrado en el inventario.</span></div>';
@@ -1011,8 +1010,25 @@
   }
 
   function soloVer() { if (!EMB) return; var q = '[data-a="edPed"],[data-a="edPedOk"],[data-a="anularCarga"],[data-a="anularSalida"],[data-a="borrarLocal"],[data-a="registrarSalida"],[data-a="registrarCarga"],[data-a="guardarTodos"],[data-a="verOk"]'; Array.prototype.forEach.call(document.querySelectorAll(q), function (b) { b.remove(); }); }
+  /** Aviso azul fijo, igual al del Dashboard: dice qué está haciendo la app (cargando, subiendo a la nube…). */
+  var _eb = null, _ebT = 0, _hizoEscritura = false;
+  function estadoBox() {
+    if (EMB) return;
+    var v = Api.vuelo || { lee: 0, escribe: 0 }, msg = '', ok = false;
+    if (v.escribe > 0) { msg = 'Subiendo los datos a la nube… no cierre la app'; _hizoEscritura = true; }
+    else if (v.lee > 0 || (S.ses && !S.cargado) || S.auto) msg = S.cargado ? 'Actualizando datos…' : 'Cargando datos…';
+    else if (S.enviando) msg = 'Subiendo los registros guardados a la nube…';
+    else if (_hizoEscritura) { _hizoEscritura = false; msg = '✔ Guardado en la nube'; ok = true; }
+    if (!_eb) { _eb = document.createElement('div'); _eb.id = 'estadoBox'; _eb.setAttribute('role', 'status'); _eb.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:9998;max-width:92vw;padding:12px 18px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px;color:#fff;pointer-events:none'; document.body.appendChild(_eb); }
+    clearTimeout(_ebT);
+    if (!msg) { _eb.hidden = true; return; }
+    _eb.hidden = false; _eb.style.background = ok ? '#1b7a3a' : '#0d3b66';
+    _eb.innerHTML = (ok ? '' : '<i class="spin" style="display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:giro .8s linear infinite"></i>') + '<span>' + esc(msg) + '</span>';
+    if (ok) _ebT = setTimeout(function () { _eb.hidden = true; }, 1800);
+  }
+  Api.onVuelo = function () { estadoBox(); };
   function render() {
-    try { render0(); soloVer(); } catch (e) {
+    try { render0(); soloVer(); estadoBox(); } catch (e) {
       try { console.error(e); $('app').innerHTML = '<main><div class="card"><h2>⚠️ Algo falló al mostrar la pantalla</h2><p>Toca el botón para volver a cargar. Si sigue igual, envía una foto de esta pantalla al administrador.</p><p class="peq mut">' + esc(String(e && e.message || e)) + ' · ' + esc(String(e && e.stack || '').split('\n')[1] || '') + '</p><button class="btn blk" onclick="location.reload()">⟳ Volver a cargar</button></div></main>'; } catch (e2) { }
     }
   }

@@ -23,7 +23,15 @@
     return dia + (/^\d\d:\d\d$/.test(hora || '') ? 'T' + hora + ':' + a.slice(17) : a.slice(10));
   }
   // Un solo servidor para Parte diario, Transportes y Acero: la llave viaja en el cuerpo (nunca en la URL).
+  var vuelo = { lee: 0, escribe: 0 };
+  function avisaVuelo() { try { if (typeof Api !== 'undefined' && Api.onVuelo) Api.onVuelo(vuelo); } catch (e) { } }
   function post(body) {
+    var kind = (body && /^(estado|login|ping|dliArchivo)$/.test(body.action || '')) ? 'lee' : 'escribe';
+    vuelo[kind]++; avisaVuelo();
+    var fin = function () { vuelo[kind] = Math.max(0, vuelo[kind] - 1); avisaVuelo(); };
+    return post0(body).then(function (r) { fin(); return r; }, function (e) { fin(); throw e; });
+  }
+  function post0(body) {
     var b = Object.assign({}, body), llave = b.pin; delete b.pin; delete b.usuario; if (window.ACEROS_EMBED) b.embed = true;
     var ctl = window.AbortController ? new AbortController() : null, tm = ctl ? setTimeout(function () { ctl.abort(); }, 45000) : 0; // con mala señal no se queda esperando para siempre
     return fetch(CFG.API_URL, { method: 'POST', body: JSON.stringify({ accion: 'acero', llave: llave, req: b }), signal: ctl ? ctl.signal : undefined }).then(function (r) { clearTimeout(tm); return r.json(); }, function (e) { clearTimeout(tm); throw e; })
@@ -62,6 +70,7 @@
   }
 
   window.Api = {
+    vuelo: vuelo, onVuelo: null,
     remoto: remoto,
     /** Últimos datos guardados en este celular (para abrir al instante). */
     guardado: function () { var c = remoto ? leer(K.cache, null) : null; try { return c && c.pedidos && c.entradas && c.salidas ? conCola(c) : null; } catch (e) { return null; } },
