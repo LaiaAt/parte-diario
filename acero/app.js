@@ -1066,7 +1066,7 @@
   window.addEventListener('beforeunload', function (e) { if (sinGuardarTodo()) { e.preventDefault(); e.returnValue = ''; } });
   function cargarEstado() {
     return Api.estado(S.ses).catch(function () { return { ok: false, error: 'No se pudo conectar. Toca ⟳ para intentar de nuevo.' }; }).then(function (r) {
-      S.refresca = false;
+      S.refresca = false; S.auto = false;
       if (!r.ok) {
         if (r.error === 'Llave no válida') { Api.salir(); S.ses = null; S.loginErr = 'La llave ya no es válida. Ingresa de nuevo.'; }
         else toast(r.error);
@@ -1630,7 +1630,7 @@
     if (l0) { S.auto = true; render(); }
     if (l0) Api.login(l0).then(function (r) {
       if (!r.ok || r.ses.rol !== 'admin') { Api.salir(); S.auto = false; render(); return; }
-      S.ses = r.ses; S.loginErr = ''; abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado);
+      S.ses = r.ses; S.loginErr = ''; S.auto = false; abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado);
     }).catch(function () { S.auto = false; S.loginErr = 'No se pudo conectar.'; render(); });
   }
 })();
