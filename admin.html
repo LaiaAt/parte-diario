@@ -446,6 +446,16 @@ const revCods = () => { if (!TR._rs) { TR._rs = new Set(); (TR.revisados || []).
 const EDRX = /^Corregido por el administrador/;
 function limpiaEd(v) { if (!v || !v.alertas) return v; const L = String(v.alertas).split('; '), e = L.find(a => EDRX.test(a)); if (e) { v.editado = e.replace('Corregido por el administrador', 'Editado por'); v.alertas = L.filter(a => !EDRX.test(a)).join('; '); } return v; }
 const alV = v => (limpiaEd(v), v.alertas && !revCods().has(v.cod)) ? v.alertas : '';
+function avisoMem(placa, siga) {
+  const fondo = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px' });
+  const cierra = () => fondo.remove();
+  fondo.appendChild(h('div', { style: 'background:#fff;border-radius:14px;padding:20px;max-width:340px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3);text-align:center' },
+    h('div', { style: 'font-size:34px' }, '📎'),
+    h('div', { style: 'font-size:18px;font-weight:700;margin:6px 0' }, 'Cargue la memoria de cálculo'),
+    h('div', { class: 'small', style: 'margin-bottom:14px' }, 'Volqueta ' + placa + ' · PDF o foto. Sin la memoria no se guarda el volumen comprobado.'),
+    h('div', { style: 'display:flex;gap:8px' }, h('button', { class: 'sec', style: 'flex:1', onclick: cierra }, 'Cancelar'), h('button', { style: 'flex:1', onclick: () => { cierra(); siga(); } }, 'Continuar'))));
+  document.body.appendChild(fondo);
+}
 async function revBloq(lista) {
   try {
     let r = null;
@@ -631,7 +641,7 @@ function fotosEdit(v, pan) {
 function formEditAlb(v, i, pan) {
   pan.textContent = '';
   const campos = [['fecha', 'Fecha del albarán'], ['n_valera', 'N° de valera / albarán'], ['placa', 'Placa'], ['empresa', 'Empresa'], ['conductor', 'Conductor'], ['material', 'Material'], ['origen', 'Origen'], ['destino', 'Destino'],
-    ['uf', 'UF'], ['km', 'Km'], ['vol_albaran', 'm³ del albarán'], ['cant', 'm³ confirmado'], ['hora_salida', 'Hora de salida'], ['hora_llegada', 'Hora de llegada'], ['obs', 'Observaciones']];
+    ['uf', 'UF'], ['km', 'Km'], ['vol_albaran', 'm³ del albarán'], ['hora_salida', 'Hora de salida'], ['hora_llegada', 'Hora de llegada'], ['obs', 'Observaciones']];
   const el = {}, msg = h('div', { class: 'small', style: 'color:#b3261e;margin-top:6px' });
   const caja = h('div', { style: 'border:2px solid #12202b;border-radius:8px;padding:10px;background:#fffdf3' }, h('b', {}, '✏️ Editar viaje ' + v.cod));
   caja.appendChild(h('div', { class: 'small', style: 'margin-top:4px' }, 'Parte de origen: ' + fmtF(v.fecha_reporte || v.fecha) + ' · si cambias la fecha, el viaje conserva su parte y su N° de origen: no cambia la numeración de ningún día.'));
@@ -928,7 +938,7 @@ function vistaVol(c) {
     const fi = h('input', { type: 'file', accept: 'image/*,application/pdf', hidden: true });
     fi.onchange = async () => { const f = fi.files && fi.files[0]; if (!f) return; try { const data = await memData(f); VMEM[x.placa] = { nombre: f.name, data: data }; marca(); pintarTr(); } catch (e) { alert(e && e.message ? e.message : 'No se pudo leer el archivo'); } };
     const celCap = h('div', {}, iV, h('div', { style: 'margin-top:4px;white-space:nowrap' }, fi,
-      h('button', { class: 'sec', style: 'padding:5px 8px;font-size:13px', title: 'Foto o escáner de la memoria de cálculo', onclick: () => fi.click() }, mem ? '📎 ' + mem.nombre.slice(0, 14) : '📎 Memoria de cálculo'),
+      h('button', { class: 'sec', style: 'padding:5px 10px;font-size:16px', title: mem ? 'Memoria lista: ' + mem.nombre : 'Cargar la memoria de cálculo (PDF o foto)', onclick: () => avisoMem(x.placa, () => fi.click()) }, mem ? '📎 ✔' : '📎'),
       nM ? h('a', { href: x.memorias[nM - 1], target: '_blank', style: 'margin-left:6px;font-size:13px' }, '📄 Ver (' + nM + ')') : null));
     if (VDIRTY[x.placa]) setTimeout(() => { fila.style.background = '#fff8e1'; }, 0);
     const ed = h('tr', { hidden: true }, h('td', { colspan: 8, style: 'padding:6px 10px;background:#fafafa' }, formVol(x, msg)));
@@ -1011,8 +1021,12 @@ function vistaViajes(c) {
 const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
 const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), oriV(v), desV(v), v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
 function csvTr() {
-  const cols = COLS_TR.concat(['Ubicación origen']);
-  const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => filaTr(v).concat([tieneGps(v) ? mapaUrl(v) : '']).map(csvCelda).join(';')));
+  const cols = COLS_TR.concat(['Ubicación origen', 'Tipo de volqueta', 'Vol. nominal volqueta (m³)', 'Vol. comprobado CCSN (m³)', 'Memoria de cálculo', 'Sitio (disposición/proveedor)', 'Sitio latitud', 'Sitio longitud', 'Sitio radio (m)', 'Sitio recibe']);
+  const VQ = {}; (TR.volquetas || []).forEach(x => { VQ[String(x.placa).toUpperCase()] = x; });
+  const ST = {}; ((TR.geo && TR.geo.sitios) || TR.sitios || []).forEach(x => { ST[String(x.n).trim().toUpperCase()] = x; });
+  const ext = v => { const q = VQ[String(v.placa).toUpperCase()] || {}, nm = String(sitioDe(v) || '').trim(), st = ST[nm.toUpperCase()] || {}, m = q.memorias || [];
+    return [tieneGps(v) ? mapaUrl(v) : '', q.tipo || v.tipo || '', q.nominal === undefined ? '' : q.nominal, q.capacidad === undefined || q.capacidad === null ? '' : q.capacidad, m.length ? m[m.length - 1] : '', nm, st.lat === undefined ? '' : st.lat, st.lon === undefined ? '' : st.lon, st.radio === undefined ? '' : st.radio, st.recibe || '']; };
+  const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => filaTr(v).concat(ext(v)).map(csvCelda).join(';')));
   bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Transportes_' + $('desde').value + '_' + $('hasta').value + '.csv');
 }
 // Descarga las fotos de los albaranes del periodo filtrado (lo que se ve en la lista) en ZIP, en partes de máx. 120 fotos
