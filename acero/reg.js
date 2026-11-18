@@ -569,5 +569,5 @@
     return !!(n(w.vals) || n(w.kgs) || n(w.kgd) || (w.files && w.files.length) || (w.rows && w.rows.length) || w.todo || w.p === 'l4' || w.p === 's4' || w.p === 'a4');
   }
   function descartar() { X.S.w = { r: '', p: '', hist: [] }; }
-  window.AcReg = { init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, sinGuardar: sinGuardar, descartar: descartar, kpis: almacen, resumen: resumen, datos: estructuras, estructuras: tarjetasEstructuras, reset: reset, enCurso: function () { return []; } };
+  window.AcReg = { init: function (c) { X = c; }, vista: vista, click: click, input: input, cambio: cambio, sinGuardar: sinGuardar, descartar: descartar, kpis: almacen, resumen: resumen, vistaDatos: datos, datos: estructuras, estructuras: tarjetasEstructuras, reset: reset, enCurso: function () { return []; } };
 })();

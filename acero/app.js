@@ -1030,7 +1030,7 @@
       case 'mov': return vMovs();
       case 'cargar': return vCargar();
       case 'ped': return vPedidos();
-      case 'dat': return conPanel(window.AcReg.datos());
+      case 'dat': return conPanel(window.AcReg.vistaDatos());
       case 'pnew': return vCargar();
       case 'pban': return vAnulados();
       case 'inf': return vInforme();
