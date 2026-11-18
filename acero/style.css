@@ -792,3 +792,24 @@ details.mv-d[open] th { color: #cbd5e1; }
   .en-flujo ~ .mbar { display: none; }
 }
 @media (max-width: 899px) { .pills button { white-space: normal; line-height: 1.15; font-size: .85rem; padding: 10px 4px; display: flex; align-items: center; justify-content: center; text-align: center; } }
+
+/* ===== OPCIÓN ELEGIDA: un solo estilo en toda la app (verde fuerte + ✓ + aro), para que se note de lejos ===== */
+.fc.on, .chip.on, .dch button.on, .seg button.on, .seg.big button.on, .mom-q button.on, .btn.sec.on, .subtabs button.on, .pills button.on, .ar-s.on, .mbar button.on {
+  background: #0a7f2e !important; border-color: #064e1c !important; color: #fff !important; font-weight: 800 !important;
+  box-shadow: 0 0 0 3px rgba(10,127,46,.35) !important;
+}
+.fc.on::before, .chip.on::before, .dch button.on::before, .seg button.on::before, .mom-q button.on::before, .btn.sec.on::before, .subtabs button.on::before, .pills button.on::before, .ar-s.on::before {
+  content: "✓ "; font-weight: 900;
+}
+.seg.big button.on.no { background: #b45309 !important; border-color: #7c3a06 !important; box-shadow: 0 0 0 3px rgba(180,83,9,.35) !important; }
+.mbar button.on em, .mbar button.on span { color: #fff !important; }
+.ar-g.on { background: #0a7f2e !important; color: #fff !important; box-shadow: 0 0 0 3px rgba(10,127,46,.35); }
+/* tarjetas grandes (modo / armé-saqué): fondo verde claro, borde grueso, aro y marca ✓ en la esquina */
+.md, .tp { position: relative; }
+.md.on, .tp.on { background: #e3f6ea !important; border-color: #0a7f2e !important; box-shadow: 0 0 0 4px rgba(10,127,46,.35) !important; }
+.md.on::after, .tp.on::after { content: "✓"; position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; background: #0a7f2e; color: #fff; font-weight: 900; line-height: 26px; text-align: center; font-size: 1rem; }
+.tp.arm.on { border-color: #b45309 !important; background: #fff1e0 !important; box-shadow: 0 0 0 4px rgba(180,83,9,.35) !important; } .tp.arm.on::after { background: #b45309; }
+.tp.out.on { border-color: #1d4ed8 !important; background: #e6efff !important; box-shadow: 0 0 0 4px rgba(29,78,216,.35) !important; } .tp.out.on::after { background: #1d4ed8; }
+/* lo no elegido se ve más apagado: así el contraste es claro */
+.fch .fc:not(.on), .chips .btn.sec:not(.on), .dch button:not(.on), .mom-q button:not(.on) { background: #fff; color: #334155; border: 2px solid #94a3b8; }
+.bg.sel { background: #e3f6ea !important; border-color: #0a7f2e !important; box-shadow: 0 0 0 4px rgba(10,127,46,.35) !important; }
