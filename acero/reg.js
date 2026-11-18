@@ -383,7 +383,7 @@
     if (w.p === 's3') return cab('¿Sale todo lo armado?', esc(e.n) + ' · armado ' + K(e.armKg)) + '<div class="bgs dos">' + grande('wStodo', '1', '✅', 'Sí, sale todo', K(e.armKg)) + grande('wStodo', '0', '🟡', 'Solo una parte', 'Marco lo que sale') + '</div>' + pie();
     if (w.p === 's3p') {
       h = cab('¿Qué sale?', (stock ? NOM[w.elem] : esc(e.n)) + ' · usa + y − en cada ' + (stock ? 'varilla' : 'posición') + '.');
-      if (!stock && e.un > 1 && e.eqArm >= 1) { h += '<div class="chips">'; for (var i = 1; i <= Math.min(6, Math.floor(e.eqArm + 0.05)); i++) h += '<button type="button" class="btn sec" data-a="wSun" data-v="' + i + '">' + i + (i === 1 ? ' unidad' : ' unidades') + '</button>'; h += '</div>'; }
+      if (!stock && e.un > 1 && e.eqArm >= 1) { h += '<div class="card" style="margin:8px 0"><b>🏗️ ¿Cuántas estructuras completas salen?</b><div class="peq mut">Hay ' + Math.floor(e.eqArm + 0.05) + ' armadas. Toque un número y la app llena las cantidades de abajo. Si salen incompletas, ajuste a mano con + y −.</div><div class="chips" style="margin-top:8px">'; for (var i = 1; i <= Math.min(6, Math.floor(e.eqArm + 0.05)); i++) h += '<button type="button" class="btn sec" data-a="wSun" data-v="' + i + '">' + i + '</button>'; h += '</div></div>'; }
       if (!P.length) h += '<div class="vacio">No hay acero para sacar.</div>';
       P.forEach(function (p) { h += '<div class="fila"><div>' + posTxt(p, stock) + '<div class="peq mut">Hay ' + pz(mx(p)) + (stock ? '' : ' armadas') + '</div></div>' + stp(p.k, Math.min(mx(p), w.vals[p.k] || 0), mx(p)) + '</div>'; });
       var t = totVals(P);
