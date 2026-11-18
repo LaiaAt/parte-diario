@@ -1,9 +1,9 @@
-const CACHE = 'pd-v265';
+const CACHE = 'pd-v266';
 const ARCHIVOS = ['./', 'index.html', 'transportes.html', 'admin.html', 'manifest-transportes.json', 'manifest-admin.json', 'acero.html', 'acero-panel.html', 'acero-embed.html', 'acero/modo-embed.js', 'manifest-acero.json', 'manifest-acero-panel.json', 'acero/core.js', 'acero/pdf.js', 'acero/xlsx.js', 'acero/config.js', 'acero/api.js', 'acero/app.js', 'acero/reg.js', 'acero/style.css', 'acero/modo-usuario.js', 'acero/modo-panel.js', 'acero/sw-registro.js', 'acero/icons/icon-192.png', 'acero/icons/icon-512.png', 'comun.js', 'pdf.js', 'pdfgen.html', 'pdf_tr.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'marca.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)));
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(ARCHIVOS.map(u => fetch(new Request(u, { cache: 'reload' })).then(r => { if (!r.ok) throw new Error(u); return c.put(u, r); })))));
   self.skipWaiting();
 });
 

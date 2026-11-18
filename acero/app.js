@@ -1013,7 +1013,7 @@
   }
 
   /** Inicio y Panel en una sola vista: el panel (totales, período, gráfico) va justo bajo los botones. */
-  function conPanel(h) { var ok = (esAdmin() || EMB) && (S.estado.entradas.length || (S.estado.cartilla || []).length); return h.replace('<!--PANEL-->', ok ? vPanel() : ''); }
+  function conPanel(h) { h = typeof h === 'string' ? h : (h == null ? '' : String(h)); var ok = (esAdmin() || EMB) && (S.estado.entradas.length || (S.estado.cartilla || []).length); return h.replace('<!--PANEL-->', ok ? vPanel() : ''); }
   function vista() {
     if (!S.cargado) return vCargando();
     if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver|panel|pnew|pban|dat)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return conPanel(AcReg.resumen()); }
