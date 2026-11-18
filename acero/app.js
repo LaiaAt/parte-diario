@@ -109,6 +109,17 @@
       return h;
     }).join('') + '</nav>';
   }
+  /** Celular: barra de iconos abajo (al alcance del pulgar) y subvistas en una sola fila de botones. */
+  function vBarra() {
+    var G = gruposTabs(), g = grupoDe(S.tab);
+    return '<nav class="mbar">' + G.map(function (x) {
+      return '<button class="' + (x.k === g.k ? 'on' : '') + '" data-a="tab" data-v="' + (x.k === g.k ? S.tab : (S.ult && S.ult[x.k]) || x.hojas[0][0]) + '"><span>' + x.ico + '</span><em>' + x.t + '</em></button>';
+    }).join('') + '</nav>';
+  }
+  function vPills() {
+    var g = grupoDe(S.tab); if (g.hojas.length < 2) return '';
+    return '<nav class="pills">' + g.hojas.map(function (t) { return '<button class="' + (S.tab === t[0] ? 'on' : '') + '" data-a="tab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</nav>';
+  }
   function vTabs() {
     var G = gruposTabs(), g = grupoDe(S.tab), h = '';
     if (!EMB) h += '<nav class="tabs">' + G.map(function (x) {
@@ -972,7 +983,7 @@
   function vCargar() {
     sacarRepetidos();
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador puede cargar un DLI.</div>';
-    var h = S.cargas.length ? '<div class="np"><label class="np-drop np-min" id="np-drop" for="dli-file"><span class="np-ico">➕</span><b>Agregar más archivos</b><span class="np-o">suelte o toque aquí</span></label><input id="dli-file" type="file" multiple accept=".dli,.pdf,.DLI,.PDF" style="display:none"></div>' : '<div class="np"><label class="np-drop" id="np-drop" for="dli-file"><span class="np-ico">📥</span><b>Suelte aquí los archivos del pedido</b><span class="np-o">o toque para elegirlos</span>' +
+    var h = S.cargas.length ? '<div class="np"><label class="np-drop np-min" id="np-drop" for="dli-file"><span class="np-ico">➕</span><b>Agregar más archivos</b><span class="np-o">suelte o toque aquí</span></label><input id="dli-file" type="file" multiple accept=".dli,.pdf,.DLI,.PDF" style="display:none"></div>' : '<div class="np"><label class="np-drop" id="np-drop" for="dli-file"><span class="np-ico">📥</span><b>' + (window.matchMedia && matchMedia('(hover:none)').matches ? 'Toque aquí para elegir los archivos' : 'Suelte aquí los archivos del pedido') + '</b><span class="np-o">o toque para elegirlos</span>' +
       '<span class="np-fmt"><em>.dli</em><em>.pdf</em><em>varios a la vez</em></span><span class="np-btn">📂 Elegir archivos</span></label><input id="dli-file" type="file" multiple accept=".dli,.pdf,.DLI,.PDF" style="display:none">' +
       '<div class="np-pasos"><div><i>1</i><b>Elija el archivo</b><small>El DLI o el PDF de la cartilla. Puede subir varios.</small></div><div><i>2</i><b>Revise y corrija</b><small>Piezas, kilos y posiciones. Todo se puede editar.</small></div><div><i>3</i><b>Registre</b><small>Queda <u>por recibir</u>; el almacén sube cuando llega a obra.</small></div></div>' +
       '<div class="np-nota">🔒 El archivo original se guarda tal cual en la carpeta <b>DLI</b> como <b>' + (function () { var d = new Date(), z = function (n) { return String(n).padStart(2, '0'); }; return z(d.getDate()) + z(d.getMonth() + 1) + d.getFullYear(); })() + '_nombre</b> y se puede volver a descargar.</div></div>';
@@ -1070,7 +1081,7 @@
     var y0 = window.pageYOffset, h0 = app.offsetHeight, sx = {};
     app.style.minHeight = h0 + 'px';
     Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { sx[e.className + i] = e.scrollLeft; });
-    app.innerHTML = (EMB ? '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' : (function () { var v = vista(); return '<div class="cab">' + vTop() + '</div><div class="lay' + (v.indexOf('data-a="wHome"') >= 0 ? ' en-flujo' : '') + '">' + vArbol() + '<div class="cont">' + vBandas() + '<main>' + v + '</main></div></div>'; })()) + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
+    app.innerHTML = (EMB ? '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' : (function () { var v = vista(); return '<div class="cab">' + vTop() + '</div><div class="lay' + (v.indexOf('data-a="wHome"') >= 0 ? ' en-flujo' : '') + '">' + vArbol() + '<div class="cont">' + vBandas() + vPills() + '<main>' + v + '</main></div></div>' + (v.indexOf('data-a="wHome"') >= 0 ? '' : vBarra()); })()) + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
     Array.prototype.forEach.call(app.querySelectorAll('details'), function (d) { if (!d.classList.contains('mv-d')) d.open = true; }); // nada contraído, salvo las posiciones del registro
     if (fo && $(fo)) { var el = $(fo); el.focus(); try { el.select(); } catch (e) { } }
     Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { if (sx[e.className + i] != null) e.scrollLeft = sx[e.className + i]; });

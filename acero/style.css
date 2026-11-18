@@ -775,3 +775,20 @@ details.mv-d[open] th { color: #cbd5e1; }
 .ar-s { white-space: nowrap; }
 @media (min-width: 900px) { .lay { grid-template-columns: 250px 1fr; } }
 @media (max-width: 899px) { .en-flujo .arbol { display: none; } }
+
+/* Celular: barra inferior + botones de subvista; el menú en cascada queda para pantallas grandes */
+.mbar, .pills { display: none; }
+@media (max-width: 899px) {
+  .arbol { display: none !important; }
+  body:not(.emb) { padding-bottom: 76px; }
+  .mbar { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #fff; border-top: 2px solid #cbd5e1; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); gap: 6px; box-shadow: 0 -4px 14px rgba(15,23,42,.1); }
+  .mbar button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border: 0; border-radius: 14px; background: transparent; color: #334155; cursor: pointer; }
+  .mbar button span { font-size: 1.7rem; line-height: 1; }
+  .mbar button em { font-style: normal; font-weight: 800; font-size: .78rem; }
+  .mbar button.on { background: #dcfce7; color: #14532d; }
+  .pills { display: flex; gap: 8px; padding: 10px 12px 0; }
+  .pills button { flex: 1 1 0; min-width: 0; padding: 12px 6px; border-radius: 14px; border: 2px solid #cbd5e1; background: #fff; font-weight: 800; font-size: .9rem; color: #334155; white-space: nowrap; cursor: pointer; }
+  .pills button.on { background: #0f172a; border-color: #0f172a; color: #fff; }
+  .en-flujo ~ .mbar { display: none; }
+}
+@media (max-width: 899px) { .pills button { white-space: normal; line-height: 1.15; font-size: .85rem; padding: 10px 4px; display: flex; align-items: center; justify-content: center; text-align: center; } }
