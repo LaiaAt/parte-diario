@@ -1070,7 +1070,7 @@
     var y0 = window.pageYOffset, h0 = app.offsetHeight, sx = {};
     app.style.minHeight = h0 + 'px';
     Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { sx[e.className + i] = e.scrollLeft; });
-    app.innerHTML = (EMB ? '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' : '<div class="cab">' + vTop() + '</div><div class="lay">' + vArbol() + '<div class="cont">' + vBandas() + '<main>' + vista() + '</main></div></div>') + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
+    app.innerHTML = (EMB ? '<div class="cab">' + vTop() + vTabs() + '</div>' + vBandas() + '<main>' + vista() + '</main>' : (function () { var v = vista(); return '<div class="cab">' + vTop() + '</div><div class="lay' + (v.indexOf('data-a="wHome"') >= 0 ? ' en-flujo' : '') + '">' + vArbol() + '<div class="cont">' + vBandas() + '<main>' + v + '</main></div></div>'; })()) + (EMB ? '' : '<div class="pie">Acero · ' + (MODO === 'salidas' ? 'Salidas' : 'Panel de control') + '</div>');
     Array.prototype.forEach.call(app.querySelectorAll('details'), function (d) { if (!d.classList.contains('mv-d')) d.open = true; }); // nada contraído, salvo las posiciones del registro
     if (fo && $(fo)) { var el = $(fo); el.focus(); try { el.select(); } catch (e) { } }
     Array.prototype.forEach.call(app.querySelectorAll('.tabs,.fch'), function (e, i) { if (sx[e.className + i] != null) e.scrollLeft = sx[e.className + i]; });
