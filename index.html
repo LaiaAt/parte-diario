@@ -74,9 +74,10 @@ small{color:var(--mut)}
 .li b{display:block}
 .tag{font-size:12px;color:#fff;background:var(--mut);border-radius:4px;padding:2px 6px;margin-left:6px}
 .tag.hoy{background:var(--ok)}.tag.pend{background:#b36b00}
-.li button{width:auto;padding:10px 12px;font-size:15px}
+.li button{width:auto;padding:10px 7px;font-size:14px}
 [hidden]{display:none!important}
 .card.nuevo{outline:3px solid #0a7f2e;outline-offset:2px}
+button.env{background:#f59e0b;color:#1b1b1b;border:2px solid #b45309;font-weight:800}button.env:disabled{opacity:.6}
 </style>
 </head>
 <body>
@@ -404,12 +405,13 @@ async function biblioteca(sinRed) {
 function filaParte(x, esHoy, varios) {
   const n = x.n || 1;
   const bs = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' });
+  if (x.pend) bs.appendChild(h('button', { class: 'env', 'aria-label': 'Enviar este parte a la oficina', title: 'Enviar a la oficina', onclick: ev => { ev.currentTarget.disabled = true; sincronizar(true); } }, '🔄 Enviar'));
   if (esHoy) bs.appendChild(h('button', { onclick: () => editarHoy(n, !x.pend || !x.local, x.fecha) }, 'Editar'));
   if (x.pdf || x.local) {
     bs.appendChild(h('button', { class: 'sec', onclick: () => verDe(x.fecha, n) }, 'Ver'));
     bs.appendChild(h('button', { class: 'sec', onclick: () => compDe(x.fecha, n) }, 'Compartir'));
   }
-  if (esHoy) bs.appendChild(h('button', { class: 'sec', 'aria-label': 'Eliminar', title: 'Eliminar', style: 'padding-left:12px;padding-right:12px', onclick: () => eliminarHoy(n, x.fecha) }, '🗑'));
+  if (esHoy) bs.appendChild(h('button', { class: 'sec', 'aria-label': 'Eliminar', title: 'Eliminar', style: 'padding-left:10px;padding-right:10px', onclick: () => eliminarHoy(n, x.fecha) }, '🗑'));
   return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), (n > 1 || varios) ? h('span', { class: 'tag' }, 'Informe ' + n) : null, esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
     x.borr ? h('span', { class: 'tag pend' }, 'Borrador sin guardar') : null, x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), x.error ? h('small', { style: 'color:#b3261e;font-weight:700' }, '⚠ No se envió: ' + x.error) : null, x.error ? h('br') : null, h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
 }
@@ -1095,7 +1097,7 @@ async function sincronizar(manual) {
   sincronizando = true;
   if (manual) aviso('Enviando…');
   try {
-    const rechazos = [];
+    const rechazos = []; let enviados = 0;
     // Un parte rechazado NO debe bloquear a los demás: se anota el motivo y se sigue con el siguiente
     const rechazar = async (e, msg) => { rechazos.push(msg); if (e.error !== msg) { e.error = msg; await mutarCola(c => c.map(x => (x.id === e.id && x.ts === e.ts) ? e : x)); } };
     for (const e of cola) {
@@ -1115,7 +1117,7 @@ async function sincronizar(manual) {
         e.pdfOk = true;
       }
       if (e.datosOk && e.pdfOk) {
-        await mutarCola(c => c.filter(x => !(x.id === e.id && x.ts === e.ts)));
+        await mutarCola(c => c.filter(x => !(x.id === e.id && x.ts === e.ts))); enviados++;
         try {
           const kb = 'bib_' + e.llave, nb = e.parte.n || 1;
           const lb = ((await kv.get(kb)) || []).filter(x => !(x.fecha === e.parte.fecha && (x.n || 1) === nb));
@@ -1124,8 +1126,8 @@ async function sincronizar(manual) {
         } catch (e2) {}
       }
     }
-    if (rechazos.length) aviso(rechazos.length === 1 ? 'Un parte no se pudo enviar: ' + rechazos[0] : rechazos.length + ' partes no se pudieron enviar. Mira el motivo en "Mis partes".', 'err', !manual);
-    else if (manual) aviso('');
+    if (rechazos.length) aviso(rechazos.length === 1 ? 'Un parte no se pudo enviar: ' + rechazos[0] : rechazos.length + ' partes no se pudieron enviar. Mira el motivo en "Mis partes".', 'err', true);
+    else if (manual) aviso(enviados ? (enviados === 1 ? 'Parte enviado a la oficina ✔' : enviados + ' partes enviados a la oficina ✔') : '', enviados ? 'ok' : '', true);
   } catch (err) { if (manual) aviso('No se pudo enviar. Se reintentará cuando haya señal.', 'err'); }
   finally { sincronizando = false; pintarEstado(); if (user && !$('biblio').hidden) biblioteca(); if (otraVez) { otraVez = false; setTimeout(() => sincronizar(false), 300); } }
 }
