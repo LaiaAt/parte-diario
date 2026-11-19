@@ -255,7 +255,7 @@ header>span{gap:6px!important;min-width:0}
       <div class="row"><div><label>🔑 Llave</label><select id="fCon"></select></div>
         <div id="fEstW"><label id="fEstL">Estado</label><select id="fEst"></select></div>
         <div id="fCCW"><label>💰 Centro de costos</label><select id="fCC"></select></div></div>
-      <div class="conBajar"><button class="sec sm" id="csv">⬇ Descargar esta tabla (CSV)</button>
+      <div class="conBajar"><button class="sec sm" id="csv">⬇ Descargar esta tabla (Excel)</button>
         <button class="sm" id="xlsx">⬇ Descargar todo (Excel)</button></div>
     </div>
     <div id="totales" class="conTot"></div>
@@ -1010,12 +1010,12 @@ function vistaViajes(c) {
   const bus = h('input', { type: 'search', placeholder: '🔍 Buscar placa, material, destino, valera…', value: TRQ });
   bus.oninput = () => { TRQ = bus.value; pintaLista(); };
   c.append(bus, chips([['', 'Todos'], ['alerta', '⚠️ Con alerta'], ['sinrec', 'Sin albarán']], TRFIL, k => { TRFIL = k; pintarTr(); }),
-    h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px' }, h('button', { class: 'sec', onclick: csvTr }, '⬇ CSV'), h('button', { onclick: xlsxTr, id: 'btnXlsxTr' }, '⬇ Excel con fotos'), h('button', { class: 'sec', onclick: xlsxCambios, id: 'btnCamb' }, '⬇ Control de cambios (Excel)'), h('button', { class: 'sec', onclick: zipAlbaranes, id: 'btnZip' }, '🖼️ Fotos de albaranes (ZIP)')), h('div', { id: 'xlsxMsg', class: 'small', style: 'margin:0 0 6px' }), lista);
+    h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px' }, h('button', { class: 'sec', onclick: csvTr }, '⬇ Excel (solo datos)'), h('button', { onclick: xlsxTr, id: 'btnXlsxTr' }, '⬇ Excel con fotos'), h('button', { class: 'sec', onclick: xlsxCambios, id: 'btnCamb' }, '⬇ Control de cambios (Excel)'), h('button', { class: 'sec', onclick: zipAlbaranes, id: 'btnZip' }, '🖼️ Fotos de albaranes (ZIP)')), h('div', { id: 'xlsxMsg', class: 'small', style: 'margin:0 0 6px' }), lista);
   function pintaLista() {
     const L = viajesTr(); lista.textContent = '';
     L.slice(0, 300).forEach(v => lista.appendChild(cardViaje(v)));
     if (!L.length) lista.appendChild(h('div', { class: 'trok' }, 'No hay viajes'));
-    if (L.length > 300) lista.appendChild(h('div', { class: 'small' }, 'Se muestran 300 de ' + L.length + '. Usa la búsqueda o descarga el CSV.'));
+    if (L.length > 300) lista.appendChild(h('div', { class: 'small' }, 'Se muestran 300 de ' + L.length + '. Usa la búsqueda o descarga el Excel.'));
   }
   pintaLista();
 }
@@ -1027,8 +1027,20 @@ function csvTr() {
   const ST = {}; ((TR.geo && TR.geo.sitios) || TR.sitios || []).forEach(x => { ST[String(x.n).trim().toUpperCase()] = x; });
   const ext = v => { const q = VQ[String(v.placa).toUpperCase()] || {}, nm = String(sitioDe(v) || '').trim(), st = ST[nm.toUpperCase()] || {}, m = q.memorias || [];
     return [tieneGps(v) ? mapaUrl(v) : '', q.tipo || v.tipo || '', q.nominal === undefined ? '' : q.nominal, q.capacidad === undefined || q.capacidad === null ? '' : q.capacidad, m.length ? m[m.length - 1] : '', nm, st.lat === undefined ? '' : st.lat, st.lon === undefined ? '' : st.lon, st.radio === undefined ? '' : st.radio, st.recibe || '']; };
-  const out = [cols.map(csvCelda).join(';')].concat(viajesTr().map(v => filaTr(v).concat(ext(v)).map(csvCelda).join(';')));
-  bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Transportes_' + $('desde').value + '_' + $('hasta').value + '.csv');
+  const rows = viajesTr().map(v => filaTr(v).concat(ext(v)));
+  const arch = 'Transportes_' + $('desde').value + '_' + $('hasta').value;
+  if (window.XLSX) { excelHoja('Viajes', cols, rows, arch + '.xlsx'); return; }
+  const out = [cols.map(csvCelda).join(';')].concat(rows.map(r => r.map(csvCelda).join(';')));
+  bajar(new Blob(['\ufeff' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), arch + '.csv');
+}
+// Excel real (columnas separadas): los textos que son números se guardan como número
+function excelHoja(nombre, cols, rows, archivo) {
+  const aoa = [cols].concat(rows.map(r => r.map(v => (typeof v === 'string' && v.trim() !== '' && /^-?\d+([.,]\d+)?$/.test(v.trim()) && !/^0\d/.test(v.trim())) ? Number(v.trim().replace(',', '.')) : v)));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = cols.map((c, i) => ({ wch: Math.min(40, Math.max(10, String(c).length + 2, ...rows.slice(0, 200).map(r => String(r[i] === undefined || r[i] === null ? '' : r[i]).length + 1))) }));
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 }; ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: cols.length - 1 } }) };
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, nombre.slice(0, 31));
+  XLSX.writeFile(wb, archivo);
 }
 // Descarga las fotos de los albaranes del periodo filtrado (lo que se ve en la lista) en ZIP, en partes de máx. 120 fotos
 async function zipAlbaranes() {
@@ -1069,7 +1081,7 @@ function miniatura(data, ancho) { return new Promise(res => { if (!data) return 
 async function xlsxTr() {
   const L = viajesTr().slice().sort((a, b) => (a.fecha + (a.hora_salida || '')).localeCompare(b.fecha + (b.hora_salida || ''))), msg = $('xlsxMsg'), btn = $('btnXlsxTr');
   if (!L.length) { msg.textContent = 'No hay viajes para exportar.'; return; }
-  if (L.length > 150) { msg.textContent = 'Con fotos el máximo es 150 viajes (hay ' + L.length + '). Filtra por día, placa o destino, o usa el CSV.'; return; }
+  if (L.length > 150) { msg.textContent = 'Con fotos el máximo es 150 viajes (hay ' + L.length + '). Filtra por día, placa o destino, o usa el Excel.'; return; }
   btn.disabled = true; msg.textContent = 'Preparando Excel…';
   try {
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
@@ -1895,11 +1907,13 @@ function consolidado() {
 }
 function csvCelda(v) { let s = String(v); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; }
 function descargarCsv() {
-  const dt = datos(tab, true), out = [dt.cols.map(csvCelda).join(';')].concat(dt.rows.map(r => r.map(csvCelda).join(';')));
-  bajar(new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'Consolidado_' + DEF[tab].nombre.replace(/\s/g, '_') + '_' + $('desde').value + '_' + $('hasta').value + '.csv');
+  const dt = datos(tab, true), arch = 'Consolidado_' + DEF[tab].nombre.replace(/\s/g, '_') + '_' + $('desde').value + '_' + $('hasta').value;
+  if (window.XLSX) { excelHoja(DEF[tab].nombre, dt.cols, dt.rows, arch + '.xlsx'); return; }
+  const out = [dt.cols.map(csvCelda).join(';')].concat(dt.rows.map(r => r.map(csvCelda).join(';')));
+  bajar(new Blob(['\ufeff' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), arch + '.csv');
 }
 function descargarXlsx() {
-  if (!window.XLSX) { $('err').textContent = 'No cargó el módulo de Excel. Usa la descarga CSV o revisa tu conexión.'; return; }
+  if (!window.XLSX) { $('err').textContent = 'No cargó el módulo de Excel. Revisa tu conexión e intenta de nuevo.'; return; }
   const wb = XLSX.utils.book_new(), ll = $('fCon').value;
   Object.keys(DEF).forEach(k => {
     const dt = datos(k, false), num = dt.cols.map(c => /^(Cantidad|Horas|N°|Total|Días)$/.test(c));
