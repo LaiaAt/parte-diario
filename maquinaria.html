@@ -212,7 +212,7 @@ const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
 const puedeEditar = r => r.fecha >= sumDias(hoy(), -3) || r.registrado === hoy();
 const ALF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function nuevoId() { const a = new Uint8Array(5); crypto.getRandomValues(a); let s = ''; a.forEach(b => s += ALF[b % 32]); const id = 'MQ-' + hoy().slice(2).replace(/-/g, '') + '-' + s; return REPS.some(r => r.id === id) ? nuevoId() : id; }
-const normAlb = x => { let t = String(x || '').toUpperCase().replace(/\s+/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
+const normAlb = x => { let t = String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
 
 /* ---------- ingreso ---------- */
 async function cargarLocal() {
