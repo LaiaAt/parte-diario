@@ -771,7 +771,7 @@ async function xlsxBusqueda() {
     if (!rr.ok) throw new Error('x'); const r = { viajes: rr.viajes }; if (!r.viajes.length) return;
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Búsqueda');
-    const C = [['Fecha', 11, v => v.fecha], ['Hora', 7, v => v.hora_salida || ''], ['Vale', 17, v => v.cod], ['N° albarán', 11, v => v.n_valera || ''], ['Placa', 9, v => v.placa], ['Empresa', 18, v => v.empresa || ''], ['Conductor', 18, v => v.conductor || ''], ['Material', 20, v => v.material || ''], ['Movimiento', 11, v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['Origen', 22, v => oriV(v)], ['Destino', 22, v => desV(v)], ['m³ albarán', 11, v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Foto albarán', 12, v => v.estado || ''], ['Alertas', 32, v => alV(v) || '']];
+    const C = [['Fecha', 11, v => v.fecha], ['Hora', 7, v => v.hora_salida || ''], ['Vale', 17, v => v.cod], ['N° albarán', 11, v => v.n_valera || ''], ['Placa', 9, v => v.placa], ['Empresa', 18, v => v.empresa || ''], ['Conductor', 18, v => v.conductor || ''], ['Usuario que registró', 20, v => v.creado_por || v.usuario || ''], ['Material', 20, v => v.material || ''], ['Movimiento', 11, v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['Origen', 22, v => oriV(v)], ['Destino', 22, v => desV(v)], ['m³ albarán', 11, v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Foto albarán', 12, v => v.estado || ''], ['Alertas', 32, v => alV(v) || '']];
     ws.columns = C.map(c => ({ header: c[0], width: c[1] }));
     r.viajes.forEach(v => ws.addRow(C.map(c => { try { return c[2](v); } catch (e) { return ''; } })));
     const hr = ws.getRow(1); hr.font = { bold: true, color: { argb: 'FFFFFFFF' } }; hr.eachCell(ce => { ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B5E20' } }; });
@@ -1073,8 +1073,8 @@ function vistaViajes(c) {
   }
   pintaLista();
 }
-const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
-const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), oriV(v), desV(v), v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
+const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Placa', 'Empresa', 'Conductor', 'Usuario que registró', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
+const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.placa, v.empresa, v.conductor, v.creado_por || v.usuario || '', v.material, ufTxt(v), oriV(v), desV(v), v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
 function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen', 'Tipo de volqueta', 'Vol. nominal volqueta (m³)', 'Vol. comprobado CCSN (m³)', 'Memoria de cálculo', 'Sitio (disposición/proveedor)', 'Sitio latitud', 'Sitio longitud', 'Sitio radio (m)', 'Sitio recibe']);
   const VQ = {}; (TR.volquetas || []).forEach(x => { VQ[String(x.placa).toUpperCase()] = x; });
@@ -1145,14 +1145,14 @@ async function xlsxTr() {
     // [encabezado, ancho, tipo, valor(v)]
     const C = [
       ['Fecha', 11, 'f', v => v.fecha], ['Hora', 7, 't', v => v.hora_salida || ''], ['Vale', 17, 't', v => v.cod], ['Valera', 9, 't', v => v.n_valera || ''], ['Placa', 9, 't', v => v.placa],
-      ['Empresa', 18, 't', v => v.empresa || ''], ['Conductor', 18, 't', v => v.conductor || ''], ['Material', 20, 't', v => v.material || ''], ['Máquina que cargó', 26, 't', v => v.maquina || ''],
+      ['Empresa', 18, 't', v => v.empresa || ''], ['Conductor', 18, 't', v => v.conductor || ''], ['Usuario que registró', 20, 't', v => v.creado_por || v.usuario || ''], ['Material', 20, 't', v => v.material || ''], ['Máquina que cargó', 26, 't', v => v.maquina || ''],
       ['Movimiento', 11, 't', v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['UF', 8, 't', v => ufTxt(v)], ['Origen', 22, 't', v => oriV(v)], ['Destino', 22, 't', v => desV(v)], ['Km', 7, 'n', v => v.km === '' ? '' : Number(v.km)],
       ['m³ albarán', 11, 'n', v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, 'n', v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Diferencia m³', 11, 'n', v => Number(v.vol_albaran) > 0 && Number(v.cant) > 0 ? Math.round((Number(v.vol_albaran) - Number(v.cant)) * 100) / 100 : ''],
       ['% carga', 8, 'n0', v => pctV(v) === null ? '' : pctV(v)], ['Foto albarán', 12, 't', v => v.estado || ''], ['Alertas', 32, 't', v => v.alertas || ''], ['Ubicación', 18, 'l', v => v], ['Foto volqueta', 24, 'img', null], ['Foto albarán', 24, 'img', null]];
     ws.columns = C.map(c => ({ width: c[1] }));
     ws.mergeCells(1, 1, 1, C.length); ws.getCell('A1').value = 'REGISTRO DE TRANSPORTES — Consorcio Constructor Sabana Norte'; ws.getCell('A1').font = { bold: true, size: 15, color: { argb: VERDE } }; ws.getRow(1).height = 24;
     ws.mergeCells(2, 1, 2, C.length); ws.getCell('A2').value = 'Periodo: ' + fmtF($('desde').value) + ' al ' + fmtF($('hasta').value) + '  ·  ' + L.length + ' viajes  ·  Generado ' + new Date().toLocaleString('es-CO') + '  ·  Autor: Carlos Eduardo Bermúdez Castro'; ws.getCell('A2').font = { size: 10, color: { argb: 'FF455A64' } };
-    const hr = ws.getRow(4); C.forEach((c, i) => { const ce = hr.getCell(i + 1); ce.value = c[0]; ce.font = { bold: true, color: { argb: 'FFFFFFFF' } }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i >= 13 && i <= 15 ? 'FF0D3B66' : VERDE } }; ce.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; ce.border = B4; });
+    const hr = ws.getRow(4); C.forEach((c, i) => { const ce = hr.getCell(i + 1); ce.value = c[0]; ce.font = { bold: true, color: { argb: 'FFFFFFFF' } }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i >= 14 && i <= 16 ? 'FF0D3B66' : VERDE } }; ce.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; ce.border = B4; });
     hr.height = 30; ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: C.length } };
     const iF = C.length - 2, ini = 5;
     for (let i = 0; i < L.length; i += 5) {
@@ -1162,7 +1162,7 @@ async function xlsxTr() {
         const v = lote[j], f = (r.ok && r.fotos && r.fotos[v.cod]) || {}, row = ws.addRow(C.map(c => c[2] === 'img' ? '' : c[2] === 'l' ? (tieneGps(v) ? { text: 'Abrir en Maps', hyperlink: mapaUrl(v) } : '') : c[2] === 'f' ? fmtF(c[3](v)) : c[3](v))), n = row.number;
         row.height = 96; row.alignment = { vertical: 'middle', wrapText: true };
         row.eachCell({ includeEmpty: true }, (ce, k) => { ce.border = B4; const t = C[k - 1][2]; if (t === 'n') ce.numFmt = '#,##0.0'; if (t === 'n0') ce.numFmt = '0'; if (t === 'n' || t === 'n0') ce.alignment = { vertical: 'middle', horizontal: 'right' }; if (t === 'l' && ce.value && ce.value.hyperlink) ce.font = { color: { argb: 'FF0563C1' }, underline: true }; if ((n - ini) % 2) ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GRIS } }; });
-        if (v.alertas) row.getCell(19).font = { color: { argb: 'FFC62828' } };
+        if (v.alertas) row.getCell(C.findIndex(c => c[0] === 'Alertas') + 1).font = { color: { argb: 'FFC62828' } };
         for (const [k, d] of [[iF, f.c], [iF + 1, f.r]]) { const m = await miniatura(d, 320); if (m) { const id = wb.addImage({ base64: m.url, extension: 'jpeg' }); ws.addImage(id, { tl: { col: k, row: n - 1 }, ext: { width: 125, height: Math.min(92, Math.round(125 * m.h / m.w)) } }); } }
       }
     }
