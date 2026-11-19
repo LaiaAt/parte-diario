@@ -164,6 +164,24 @@ header>span{gap:6px!important;min-width:0}
 #panel>.card:first-child .row select,#panel>.card:first-child .row input{min-height:0;height:36px;padding:0 6px;font-size:14px;width:100%}
 #panel>.card:first-child .row #act,#panel>.card:first-child .row #infSem{grid-column:span 3;min-height:0;height:38px;padding:0 8px;font-size:14px;margin:0;width:100%}
 #panel>.card:first-child .row #estado{grid-column:1/-1}
+
+/* ---- PC: menú lateral en cascada (igual al de Acero). El celular conserva sus pestañas ---- */
+.arbol{display:none}
+.ar-g{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:transparent;padding:9px 12px;border-radius:10px;font-size:16px;font-weight:800;color:#0f172a;cursor:pointer}
+.ar-g em{font-style:normal}.ar-g span{font-size:18px}
+.ar-g:hover{background:#f1f5f9}
+.ar-g.on{background:#0f172a;color:#fff}
+.ar-h{margin:2px 0 4px 26px;padding-left:12px;border-left:3px solid #cbd5e1;display:flex;flex-direction:column;gap:2px}
+.ar-s{text-align:left;border:0;background:transparent;padding:7px 12px;border-radius:8px;font-size:15px;font-weight:700;color:#334155;cursor:pointer;position:relative;white-space:nowrap}
+.ar-s::before{content:'';position:absolute;left:-15px;top:50%;width:12px;border-top:3px solid #cbd5e1}
+.ar-s:hover{background:#f1f5f9}
+.ar-s.on{background:#dcfce7;color:#14532d}
+.ar-s b{background:#b3261e;color:#fff;border-radius:10px;font-size:12px;padding:1px 7px;margin-left:6px}
+@media (min-width:900px){
+  .lay{display:grid;grid-template-columns:250px minmax(0,1fr);align-items:start;max-width:1500px;margin:0 auto}
+  #arbolAdm:not([hidden]){display:flex;flex-direction:column;gap:2px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:14px;position:sticky;top:12px;margin:12px 0 0 12px;max-height:calc(100vh - 24px);overflow-y:auto}
+  #nav,#nav2,#nav3,#nav4{display:none!important}
+}
 </style>
 <link rel="manifest" href="manifest-admin.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -177,6 +195,7 @@ header>span{gap:6px!important;min-width:0}
 <div id="nav2" class="bar" hidden style="margin-top:-4px"></div>
 <div id="nav3" class="bar" hidden style="margin-top:-4px"></div>
 <div id="nav4" class="bar" hidden style="margin-top:-4px"></div>
+<div class="lay"><aside id="arbolAdm" class="arbol" aria-label="Menú del Dashboard" hidden></aside>
 <main>
 <section id="login" class="card">
   <img class="marca" src="logo.png" alt="Consorcio Constructor Sabana Norte">
@@ -267,7 +286,7 @@ header>span{gap:6px!important;min-width:0}
 </div>
 <div id="detalle" hidden></div>
 <div id="visor" hidden></div>
-</main>
+</main></div>
 
 <script>
 'use strict';
@@ -305,7 +324,7 @@ async function api(d, ms) {
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); if (av) av.fin(); }
 }
-function salir() { CDB.del('admin'); CDB.del('admin_tr'); TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('nav2').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; try { $('llave').setAttribute('autocomplete', 'off'); } catch (e) {}
+function salir() { CDB.del('admin'); CDB.del('admin_tr'); TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; { const ar = $('arbolAdm'); if (ar) { ar.textContent = ''; ar.hidden = true; } } $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('nav2').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; try { $('llave').setAttribute('autocomplete', 'off'); } catch (e) {}
   document.querySelectorAll('[data-m]').forEach(x => { x.hidden = true; }); ['trTop', 'trTabs', 'trBody'].forEach(i => { const e = $(i); if (e) e.textContent = ''; });
   const af = $('acFrame'); if (af) af.remove(); ACINI = false; const bn = $('bannerCarga'); if (bn) bn.hidden = true; ['nav', 'nav2', 'nav3', 'nav4'].forEach(i => { const e = $(i); if (e) { e.textContent = ''; e.hidden = true; } }); $('detalle').hidden = true; $('visor').hidden = true; }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
@@ -377,6 +396,26 @@ function navTr() {
   { const bq = TRTAB === 'albaran'; $('cPer').hidden = bq; $('trTop').hidden = TRTAB !== 'resumen'; const t = document.querySelector('#cTr > h2'); if (t) t.hidden = bq; }
   const nDup = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán' || x.tipo === 'Sin m³ de albarán') && !x.rev).length : 0;
   TR_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: TRTAB === k ? 'on' : '', onclick: () => { if (k !== TRTAB && !puedeSalir()) return; TRTAB = k; selSet('tr', k); if (k === 'albaran') { navTr(); const c = $('trBody'); c.textContent = ''; vistaAlb(c); } else if (TR) pintarTr(); else navTr(); } }, t, k === 'sosp' && nDup ? h('span', { class: 'tabBadge' }, '🚨 ' + nDup) : null)));
+  pintarArbol();
+}
+function pintarArbol() {
+  const a = $('arbolAdm'); if (!a) return;
+  a.textContent = '';
+  if (typeof D === 'undefined' || !D || !D.usuarios || $('panel').hidden) { a.hidden = true; return; }
+  const gt = MOD === 'transportes', ga = MOD === 'acero';
+  let nDupTr = 0; try { nDupTr = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán' || x.tipo === 'Sin m³ de albarán') && !x.rev).length : 0; } catch (e) {}
+  const irGrupo = g => { const b = document.querySelector('#nav button[data-g="' + g + '"]'); if (b) b.click(); };
+  const irSub = (nav, i, mod) => { if (MOD !== mod) modulo(mod); if (MOD !== mod) return; const b = $(nav).children[i]; if (b) b.click(); };
+  const G = [
+    { g: 'p', ico: '📅', t: 'Parte diario', on: !gt && !ga, hojas: MODS.filter(x => x[0] !== 'transportes').map(x => [x[1], MOD === x[0], () => modulo(x[0])]) },
+    { g: 't', ico: '🚛', t: 'Transportes', on: gt, hojas: TR_TABS.map((x, i) => [x[1] + (x[0] === 'sosp' && nDupTr ? '  🚨 ' + nDupTr : ''), gt && TRTAB === x[0], () => irSub('nav3', i, 'transportes')]) }
+  ];
+  if (D.acero) G.push({ g: 'a', ico: '🔩', t: 'Acero', on: ga, hojas: AC_TABS.map((x, i) => [x[1], ga && ACTAB === x[0], () => irSub('nav4', i, 'acero')]) });
+  G.forEach(x => {
+    a.appendChild(h('button', { class: 'ar-g' + (x.on ? ' on' : ''), onclick: () => { if (!x.on) irGrupo(x.g); } }, h('span', {}, x.ico), h('em', {}, x.t)));
+    if (x.on) a.appendChild(h('div', { class: 'ar-h' }, x.hojas.map(t => h('button', { class: 'ar-s' + (t[1] ? ' on' : ''), onclick: t[2] }, t[0]))));
+  });
+  a.hidden = false;
 }
 function modulo(m) {
   if (m !== MOD && !puedeSalir()) return;
@@ -388,7 +427,7 @@ function modulo(m) {
   $('nav2').hidden = gt || ga; $('nav3').hidden = !gt; $('nav4').hidden = !ga; if (!gt) $('cPer').hidden = false; if (gt) navTr(); if (ga) navAc();
   { const t = $('nav').offsetHeight + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav4').style.top = t; $('nav4').style.marginTop = '0'; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
-  window.scrollTo(0, 0);
+  window.scrollTo(0, 0); pintarArbol();
   if (m === 'transportes' && !TR) cargarTr();
   if (m === 'acero') abrirAcero();
 }
@@ -1435,6 +1474,7 @@ const AC_TABS = [['reg', '🏠 Resumen'], ['inv', '📦 Inventario'], ['mov', '�
 function navAc() {
   const tb = $('nav4'); tb.textContent = '';
   AC_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: ACTAB === k ? 'on' : '', onclick: () => { ACTAB = k; selSet('ac', k); navAc(); enviarAc(false); } }, t)));
+  pintarArbol();
 }
 function enviarAc(recargar) {
   const f = $('acFrame'); if (!f || !f.contentWindow) return;
