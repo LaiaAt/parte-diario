@@ -210,7 +210,7 @@ async function cargarLocal() {
   aplicarSitios();
   VIAJES = (await kv.get('viajes_' + user.llave)) || [];
   COLA = (await kv.get('cola')) || [];
-  { const lim = sumDias(hoy(), -2), pend = new Set(COLA.map(o => o.cod)); VIAJES = VIAJES.filter(v => repDe(v) >= lim || v.fecha >= lim || pend.has(v.cod)); } // el celular solo guarda hoy y los 2 días anteriores
+  { const lim = sumDias(hoy(), -15), pend = new Set(COLA.map(o => o.cod)); VIAJES = VIAJES.filter(v => repDe(v) >= lim || v.fecha >= lim || pend.has(v.cod)); } // el celular guarda hoy y los 15 días anteriores
 }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
 async function ingresar() {
