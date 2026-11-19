@@ -107,7 +107,7 @@ button.env{background:#f59e0b;color:#1b1b1b;border:2px solid #b45309;font-weight
   </section>
 
   <section id="app" hidden>
-    <div class="card"><b id="saludo"></b> · <span id="fecha"></span><br><small id="info"></small><br>
+    <div class="card"><b id="saludo"></b> · <span id="fecha"></span><br><small id="info"></small><div id="avisoFecha"></div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button id="btnBib" style="flex:1;background:#12202b;color:#fff;border:0;font-size:16px;font-weight:800;padding:12px;box-shadow:0 2px 6px rgba(0,0,0,.35)">← VOLVER</button>
         <button id="btnSalir" style="flex:1;background:#fff;color:#b00020;border:3px solid #b00020;font-size:16px;font-weight:800;padding:10px">🚪 CERRAR SESIÓN</button>
@@ -134,6 +134,18 @@ const MAXACT = 6, MAXFOTOS = 15;
 const PASOS = ['Datos del día', 'Actividades', 'Personal', 'Máquinas', 'Materiales', 'Fotos', 'Pedir para mañana', 'Revisar y guardar'];
 const $ = id => document.getElementById(id);
 const hoy = () => new Date().toLocaleDateString('sv-SE');
+// Fecha del parte vs fecha en que se creó: siempre se muestran las dos y se avisa si no coinciden
+function creadoMs(c) { if (typeof c === 'number') return c; if (typeof c === 'string' && c) { const t = new Date(c.replace(' ', 'T')).getTime(); return isNaN(t) ? 0 : t; } return 0; }
+const ymdDe = ms => new Date(ms).toLocaleDateString('sv-SE');
+function txtCreado(c) { const ms = creadoMs(c); return ms ? PD.fechaLarga(ymdDe(ms)) + ' · ' + new Date(ms).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true }) : ''; }
+function difDias(fechaParte, c) { const ms = creadoMs(c); return ms ? Math.round((new Date(ymdDe(ms) + 'T12:00:00') - new Date(fechaParte + 'T12:00:00')) / 86400000) : 0; }
+function bloqueFechas(fecha, c) {
+  const d = difDias(fecha, c), cr = txtCreado(c);
+  return h('div', { style: 'margin:6px 0' },
+    h('div', {}, '📅 Fecha del parte: ', h('b', {}, PD.fechaLarga(fecha))),
+    cr ? h('div', {}, '🕒 Creado: ', h('b', {}, cr)) : null,
+    d > 0 ? h('div', { style: 'margin-top:6px;padding:8px 10px;border-radius:8px;background:#fdecea;color:#b3261e;font-weight:800;border:2px solid #b3261e' }, '⚠ Este parte es del ' + PD.fechaLarga(fecha) + ' pero se creó el ' + PD.fechaLarga(ymdDe(creadoMs(c))) + ' (' + d + (d === 1 ? ' día' : ' días') + ' después).') : null);
+}
 // Fechas permitidas: hoy y los 2 días anteriores; el lunes, 3 (viernes, sábado, domingo y lunes)
 let ABIERTAS = []; try { ABIERTAS = JSON.parse(localStorage.getItem('pd_abiertas') || '[]'); } catch (e) {}
 const fechasPermitidas = () => {
@@ -371,8 +383,8 @@ async function pintarBiblio(lista) {
   const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave && !estaElim(e.parte.fecha, e.parte.n));
   const h0 = hoy(), por = {}, permit = fechasPermitidas();
   const K = (f, n) => f + '|' + (n || 1);
-  lista.forEach(x => { por[K(x.fecha, x.n)] = { fecha: x.fecha, n: x.n || 1, pdf: x.pdf, rev: x.rev || 1, pend: false }; });
-  cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf, rev: e.parte.rev || 1, error: e.error || '' }); });
+  lista.forEach(x => { por[K(x.fecha, x.n)] = { fecha: x.fecha, n: x.n || 1, pdf: x.pdf, rev: x.rev || 1, pend: false, creado: x.creado || '' }; });
+  cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf, rev: e.parte.rev || 1, error: e.error || '', creado: e.ts }); });
   const bo = await kv.get('borrador');
   if (bo && bo.llave === user.llave && fechaOk(bo.fecha) && bo.guardado === false && bo.parte && !estaElim(bo.fecha, bo.parte.n)) {
     const bn = bo.parte.n || 1, bk = K(bo.fecha, bn);
@@ -424,7 +436,7 @@ function filaParte(x, esHoy, varios) {
   }
   if (esHoy) bs.appendChild(h('button', { class: 'sec', 'aria-label': 'Eliminar', title: 'Eliminar', style: 'padding-left:10px;padding-right:10px', onclick: () => eliminarHoy(n, x.fecha) }, '🗑'));
   return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), (n > 1 || varios) ? h('span', { class: 'tag' }, 'Informe ' + n) : null, esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
-    x.borr ? h('span', { class: 'tag pend' }, 'Borrador sin guardar') : null, x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), x.error ? h('small', { style: 'color:#b3261e;font-weight:700' }, '⚠ No se envió: ' + x.error) : null, x.error ? h('br') : null, h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
+    x.borr ? h('span', { class: 'tag pend' }, 'Borrador sin guardar') : null, x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, (esHoy ? 'Se puede editar' : 'Solo ver y compartir') + (txtCreado(x.creado) ? ' · Creado ' + txtCreado(x.creado) : '')), h('br'), difDias(x.fecha, x.creado) > 0 ? h('small', { style: 'color:#b3261e;font-weight:800' }, '⚠ Creado ' + difDias(x.fecha, x.creado) + (difDias(x.fecha, x.creado) === 1 ? ' día' : ' días') + ' después de la fecha del parte') : null, difDias(x.fecha, x.creado) > 0 ? h('br') : null, x.error ? h('small', { style: 'color:#b3261e;font-weight:700' }, '⚠ No se envió: ' + x.error) : null, x.error ? h('br') : null, h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
 }
 function b64Blob(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Blob([u], { type: 'application/pdf' }); }
 function bajar(blob, nombre) {
@@ -535,6 +547,7 @@ async function editarHoy(n, existe, fx) {
   ['biblio', 'listo'].forEach(i => $(i).hidden = true); $('app').hidden = false; $('barra').hidden = false;
   $('saludo').textContent = 'Hola, ' + user.nombre + (n > 1 ? ' · Informe ' + n : '');
   $('fecha').textContent = PD.fechaLarga(fx);
+  { const av = $('avisoFecha'); av.textContent = ''; av.appendChild(bloqueFechas(fx, Date.now())); }
   const b = await kv.get('borrador');
   const cola = ((await kv.get('cola')) || []).find(x => x.llave === user.llave && x.parte.fecha === fx && (x.parte.n || 1) === n);
   RF = (await kv.get('rf_' + user.llave)) || {}; pasoMostrado = -1; foco = false;
@@ -1043,17 +1056,17 @@ async function guardar() {
   clearTimeout(tBorr);
   await kv.set('borrador', { fecha: P.fecha, llave: user.llave, parte: P, paso: paso, guardado: true });
   aviso('');
-  mostrarListo(parte, !!blob);
+  mostrarListo(parte, !!blob, entrada.ts);
   await sincronizar(true, true); // se envía solo, con barra de progreso
   pintarEstado();
 }
 
 async function mutarCola(fn) { const c = (await kv.get('cola')) || []; await kv.set('cola', fn(c)); }
 
-function mostrarListo(parte, hayPdf) {
+function mostrarListo(parte, hayPdf, creado) {
   $('app').hidden = true; $('barra').hidden = true; $('listo').hidden = false;
   const L = $('listo'); L.textContent = '';
-  L.appendChild(h('div', { class: 'card' }, h('h2', {}, '✔ Parte guardado'), h('p', { id: 'estadoEnvio', style: 'font-weight:700' }, 'Está guardado en el teléfono.')));
+  L.appendChild(h('div', { class: 'card' }, h('h2', {}, '✔ Parte guardado'), bloqueFechas(parte.fecha, creado || Date.now()), h('p', { id: 'estadoEnvio', style: 'font-weight:700' }, 'Está guardado en el teléfono.')));
   L.appendChild(h('div', { class: 'row', id: 'filaReintento', hidden: true }, h('button', { class: 'env', id: 'btnEnviar', onclick: () => sincronizar(true, true) }, '🔄 Reintentar envío')));
   L.appendChild(h('div', { class: 'row' }, h('button', { onclick: () => biblioteca() }, '🏠 Volver al inicio')));
   if (hayPdf) {
@@ -1163,7 +1176,7 @@ async function sincronizar(manual, ui) {
         try {
           const kb = 'bib_' + e.llave, nb = e.parte.n || 1;
           const lb = ((await kv.get(kb)) || []).filter(x => !(x.fecha === e.parte.fecha && (x.n || 1) === nb));
-          lb.unshift({ fecha: e.parte.fecha, n: nb, pdf: true, rev: e.parte.rev || 1 });
+          lb.unshift({ fecha: e.parte.fecha, n: nb, pdf: true, rev: e.parte.rev || 1, creado: e.ts });
           await kv.set(kb, lb);
         } catch (e2) {}
       }
