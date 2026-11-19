@@ -81,8 +81,12 @@ button.chipm{cursor:pointer;font:inherit}
 #visor .small{color:#fff}
 .nav{display:flex;gap:6px;flex-wrap:wrap}.nav button{padding:4px 10px;font-size:13px;background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:14px}
 [hidden]{display:none!important}
-#login{max-width:380px;margin:60px auto}
-#login input{width:100%;margin:8px 0}
+#login{max-width:380px;margin:7vh auto 0;padding:26px 24px 22px;text-align:center;box-shadow:0 6px 24px rgba(16,32,43,.10);border-radius:16px}
+#login .marca{max-width:230px;width:75%;margin:0 auto 14px}
+#login h2{margin:0 0 14px;font-size:22px;font-weight:800}
+#login input{width:100%;margin:0 0 12px;height:48px;font-size:17px;text-align:center;box-sizing:border-box}
+#login #entrar{height:48px;font-size:17px;font-weight:700}
+#login .msg{margin-top:10px}
 #cTr .kpis{margin-bottom:8px;grid-template-columns:repeat(3,1fr);gap:6px}#cTr .kpi{padding:8px}#cTr .kpi b{font-size:24px}#cTr input[type=search],#cTr details input{width:100%;font-size:17px;padding:12px;margin:2px 0 8px}
 .trtabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.trtabs button{padding:14px 6px;font-size:17px;font-weight:700;background:#fff;color:var(--ink);border:2px solid var(--line);border-radius:12px}.trtabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
 .trav{display:block;width:100%;text-align:left;margin:6px 0;padding:14px;font-size:17px;font-weight:700;background:#fff3cd;color:#664d03;border:2px solid #f0c36d;border-radius:12px}
@@ -182,6 +186,7 @@ header>span{gap:6px!important;min-width:0}
 @media (min-width:900px){
   .lay{display:grid;grid-template-columns:250px minmax(0,1fr);align-items:start;max-width:1500px;margin:0 auto}
   #arbolAdm:not([hidden]){display:flex;flex-direction:column;gap:2px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:14px;position:sticky;top:calc(var(--hh,0px) + 12px);margin:12px 0 0 12px;max-height:calc(100vh - var(--hh,0px) - 24px);overflow-y:auto}
+  .lay:has(#arbolAdm[hidden]){grid-template-columns:minmax(0,1fr)}
   #nav,#nav2,#nav3,#nav4{display:none!important}
   /* aprovechar todo el ancho de la pantalla */
   .lay{max-width:none}
@@ -213,7 +218,6 @@ header>span{gap:6px!important;min-width:0}
 <section id="login" class="card">
   <img class="marca" src="logo.png" alt="Consorcio Constructor Sabana Norte">
   <h2>Acceso administradores</h2>
-  <div class="small">Solo llaves de administrador o super administrador.</div>
   <input id="llave" type="text" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Escribe tu llave">
   <button id="entrar" style="width:100%">Entrar</button>
   <div id="loginmsg" class="msg"></div>
