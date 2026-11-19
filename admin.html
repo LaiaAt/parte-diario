@@ -1074,6 +1074,15 @@ function vistaViajes(c) {
   pintaLista();
 }
 const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Placa', 'Empresa', 'Conductor', 'Usuario que registró', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
+// Tabla consolidada (Fecha × Usuario que registró × Material) para los Excel de Transportes
+const COLS_CONS = ['Fecha', 'Usuario que registró', 'Material', 'Viajes', 'm³ albarán', 'm³ confirmado', 'Diferencia m³'];
+function consolidadoTr(L) {
+  const M = {}, r2 = x => Math.round(x * 100) / 100;
+  L.forEach(v => { const k = [v.fecha, v.creado_por || v.usuario || '—', v.material || '—'].join('|'), o = (M[k] = M[k] || { f: v.fecha, u: v.creado_por || v.usuario || '—', m: v.material || '—', n: 0, a: 0, c: 0 }); o.n++; o.a += Number(v.vol_albaran) || 0; o.c += Number(v.cant) || 0; });
+  const rows = Object.values(M).sort((x, y) => (x.f + x.u + x.m).localeCompare(y.f + y.u + y.m)).map(o => [o.f, o.u, o.m, o.n, r2(o.a), r2(o.c), r2(o.a - o.c)]);
+  const t = rows.reduce((z, r) => [z[0] + r[3], z[1] + r[4], z[2] + r[5], z[3] + r[6]], [0, 0, 0, 0]);
+  return { rows, total: ['TOTAL', '', '', t[0], r2(t[1]), r2(t[2]), r2(t[3])] };
+}
 const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.placa, v.empresa, v.conductor, v.creado_por || v.usuario || '', v.material, ufTxt(v), oriV(v), desV(v), v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
 function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen', 'Tipo de volqueta', 'Vol. nominal volqueta (m³)', 'Vol. comprobado CCSN (m³)', 'Memoria de cálculo', 'Sitio (disposición/proveedor)', 'Sitio latitud', 'Sitio longitud', 'Sitio radio (m)', 'Sitio recibe']);
@@ -1083,17 +1092,18 @@ function csvTr() {
     return [tieneGps(v) ? mapaUrl(v) : '', q.tipo || v.tipo || '', q.nominal === undefined ? '' : q.nominal, q.capacidad === undefined || q.capacidad === null ? '' : q.capacidad, m.length ? m[m.length - 1] : '', nm, st.lat === undefined ? '' : st.lat, st.lon === undefined ? '' : st.lon, st.radio === undefined ? '' : st.radio, st.recibe || '']; };
   const rows = viajesTr().map(v => filaTr(v).concat(ext(v)));
   const arch = 'Transportes_' + $('desde').value + '_' + $('hasta').value;
-  if (window.XLSX) { excelHoja('Viajes', cols, rows, arch + '.xlsx'); return; }
+  if (window.XLSX) { { const cn = consolidadoTr(viajesTr()); excelHoja('Viajes', cols, rows, arch + '.xlsx', [{ nombre: 'Consolidado', cols: COLS_CONS, rows: cn.rows.concat([cn.total]) }]); return; } }
   const out = [cols.map(csvCelda).join(';')].concat(rows.map(r => r.map(csvCelda).join(';')));
   bajar(new Blob(['\ufeff' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), arch + '.csv');
 }
 // Excel real (columnas separadas): los textos que son números se guardan como número
-function excelHoja(nombre, cols, rows, archivo) {
+function excelHoja(nombre, cols, rows, archivo, extras) {
   const aoa = [cols].concat(rows.map(r => r.map(v => (typeof v === 'string' && v.trim() !== '' && /^-?\d+([.,]\d+)?$/.test(v.trim()) && !/^0\d/.test(v.trim())) ? Number(v.trim().replace(',', '.')) : v)));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = cols.map((c, i) => ({ wch: Math.min(40, Math.max(10, String(c).length + 2, ...rows.slice(0, 200).map(r => String(r[i] === undefined || r[i] === null ? '' : r[i]).length + 1))) }));
   ws['!freeze'] = { xSplit: 0, ySplit: 1 }; ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: cols.length - 1 } }) };
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, nombre.slice(0, 31));
+  (extras || []).forEach(x => { const w2 = XLSX.utils.aoa_to_sheet([x.cols].concat(x.rows)); w2['!cols'] = x.cols.map((c, i) => ({ wch: Math.max(10, String(c).length + 2, ...x.rows.map(r => String(r[i] === undefined || r[i] === null ? '' : r[i]).length + 1)) })); w2['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: x.rows.length, c: x.cols.length - 1 } }) }; XLSX.utils.book_append_sheet(wb, w2, x.nombre.slice(0, 31)); });
   XLSX.writeFile(wb, archivo);
 }
 // Descarga las fotos de los albaranes del periodo filtrado (lo que se ve en la lista) en ZIP, en partes de máx. 120 fotos
@@ -1171,6 +1181,11 @@ async function xlsxTr() {
     tot.getCell(1).value = 'TOTALES'; ['m³ albarán', 'm³ confirmado', 'Diferencia m³'].forEach(nm => { const k = C.findIndex(c => c[0] === nm) + 1, col = ws.getColumn(k).letter; tot.getCell(k).value = { formula: 'SUBTOTAL(109,' + col + ini + ':' + col + fin + ')' }; tot.getCell(k).numFmt = '#,##0.0'; });
     tot.getCell(C.findIndex(c => c[0] === 'Km') + 1).value = L.length + ' viajes';
     tot.eachCell({ includeEmpty: true }, (ce, k) => { if (k <= C.length) { ce.font = { bold: true }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCFD8DC' } }; ce.border = B4; } });
+    // hoja consolidado (Fecha × Usuario × Material)
+    { const cn = consolidadoTr(L), wc = wb.addWorksheet('Consolidado', { views: [{ state: 'frozen', ySplit: 1 }] }); wc.columns = [11, 24, 22, 9, 13, 14, 14].map(w => ({ width: w }));
+      const hc = wc.getRow(1); COLS_CONS.forEach((t, i) => { const ce = hc.getCell(i + 1); ce.value = t; ce.font = { bold: true, color: { argb: 'FFFFFFFF' } }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: VERDE } }; ce.border = B4; ce.alignment = { horizontal: 'center', wrapText: true }; });
+      cn.rows.concat([cn.total]).forEach((r, k) => { const row = wc.addRow(r.map((x, i) => i === 0 && k < cn.rows.length ? fmtF(x) : x)), ult = k === cn.rows.length; row.eachCell({ includeEmpty: true }, (ce, i) => { ce.border = B4; if (i >= 5) ce.numFmt = '#,##0.0'; if (ult) { ce.font = { bold: true }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCFD8DC' } }; } }); });
+      wc.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: COLS_CONS.length } }; }
     // hoja resumen
     const rs = wb.addWorksheet('Resumen'); rs.columns = [{ width: 26 }, { width: 10 }, { width: 14 }, { width: 14 }, { width: 14 }];
     rs.getCell('A1').value = 'RESUMEN DEL PERIODO'; rs.getCell('A1').font = { bold: true, size: 14, color: { argb: VERDE } };
