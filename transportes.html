@@ -193,7 +193,7 @@ const guardarViajes = () => { GEN++; return kv.set('viajes_' + user.llave, VIAJE
 const guardarCola = () => kv.set('cola', COLA);
 const guardarDatos = () => kv.set('datos', DATOS);
 const puedeEditar = v => v.fecha >= sumDias(hoy(), -2) || v.registrado === hoy(); // hoy y los 2 días anteriores
-const puedeRecibo = v => hoy() <= sumDias(v.fecha, v.tiene_recibo ? 1 : 14);
+const puedeRecibo = v => v.tiene_recibo ? hoy() <= sumDias(v.fecha, 1) : true; // sin foto: se puede completar en cualquier fecha
 
 const ALF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function nuevoCod() {
@@ -210,7 +210,7 @@ async function cargarLocal() {
   aplicarSitios();
   VIAJES = (await kv.get('viajes_' + user.llave)) || [];
   COLA = (await kv.get('cola')) || [];
-  { const lim = sumDias(hoy(), -15), pend = new Set(COLA.map(o => o.cod)); VIAJES = VIAJES.filter(v => repDe(v) >= lim || v.fecha >= lim || pend.has(v.cod)); } // el celular guarda hoy y los 15 días anteriores
+  { const lim = sumDias(hoy(), -15), pend = new Set(COLA.map(o => o.cod)); VIAJES = VIAJES.filter(v => repDe(v) >= lim || v.fecha >= lim || !v.tiene_recibo || pend.has(v.cod)); } // el celular guarda hoy y los 15 días anteriores
 }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
 async function ingresar() {
@@ -321,7 +321,7 @@ function abrirDia(f) {
   const vs = VIAJES.filter(v => repDe(v) === f).sort((a, b) => consecDe(a) - consecDe(b) || a.cod.localeCompare(b.cod));
   D.appendChild(h('div', { class: 'gr', style: 'margin-bottom:12px' }, h('button', { class: 'sec', style: 'font-size:20px;padding:14px;background:#12202b;color:#fff;border:0;box-shadow:0 2px 6px rgba(0,0,0,.35)', onclick: abrirAnteriores }, '← VOLVER A DÍAS ANTERIORES'),
     h('h3', { style: 'margin:6px 0 0' }, fmtF(f) + (f === hoy() ? ' (hoy)' : '')),
-    h('small', {}, puedeRecibo({ fecha: f }) ? 'Este día ya cerró. Aún puedes subir la foto del recibo.' : 'Este día ya cerró.'),
+    h('small', {}, VIAJES.some(v => repDe(v) === f && !v.tiene_recibo) ? 'Este día ya cerró. Aún puedes subir la foto del recibo.' : 'Este día ya cerró.'),
     h('button', { class: 'verde', onclick: () => planilla(f) }, '📄 Planilla del día')));
   if (!vs.length) D.appendChild(h('div', { class: 'card' }, 'No hay viajes este día.'));
   vs.slice().reverse().forEach(v => D.appendChild(filaViaje(v)));
