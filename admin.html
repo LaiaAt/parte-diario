@@ -1530,8 +1530,8 @@ window.addEventListener('message', e => {
   else if (e.data.t === 'acero-alto' && $('acFrame')) $('acFrame').style.height = Math.max(400, e.data.h) + 'px';
 });
 /* ----- Maquinaria: reportes de las máquinas (horómetro, parte diario, horas por actividad) ----- */
-const MQ_TABS = [['rep', '📋 Reportes'], ['res', '📊 Resumen']];
-let MQ = null, MQTAB = selGet('mq', 'rep', v => v === 'rep' || v === 'res'), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
+const MQ_TABS = [['rep', '📋 Reportes'], ['res', '📊 Resumen'], ['maq', '⚙ Máquinas']];
+let MQ = null, MQTAB = selGet('mq', 'rep', v => v === 'rep' || v === 'res' || v === 'maq'), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
 const mqNorm = x => { let t = String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
 const mqSinTilde = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const mqAl = r => String(r.alertas || '').split(';').map(x => x.trim()).filter(Boolean);
@@ -1553,6 +1553,33 @@ async function cargarMq() {
     const y = window.scrollY; MQ = r; pintarMq(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
   } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · maquinaria guardada'); else $('mqBody').textContent = 'No se pudo conectar.'; finBanner(false); }
 }
+function vistaMqMaq(c) {
+  const msg = h('div', { id: 'mqMsg', style: 'margin:8px 0;font-weight:700;min-height:22px' });
+  const envia = async (req, ok) => {
+    msg.style.color = '#51606d'; msg.textContent = 'Guardando…';
+    try {
+      const r = await api(Object.assign({ accion: 'admin_tr_geo', llave: LLAVE }, req));
+      if (!r.ok) { msg.style.color = '#b3261e'; msg.textContent = '⚠ ' + (r.mensaje || 'No se pudo guardar'); return; }
+      MQ.maquinas = r.maquinas || []; const y = window.scrollY; pintarMq(); window.scrollTo(0, y);
+      const m2 = $('mqMsg'); if (m2) { m2.style.color = '#1b7a3a'; m2.textContent = '✔ ' + ok; }
+    } catch (e) { msg.style.color = '#b3261e'; msg.textContent = '⚠ Sin señal. Intenta de nuevo.'; }
+  };
+  const th = t => h('th', { style: 'text-align:left;padding:6px' }, t), td = x => h('td', { style: 'padding:4px 6px;vertical-align:middle' }, x);
+  const fila = (x, nuevo) => {
+    const cod = h('input', { type: 'text', value: x.movil || '', placeholder: 'Código único', style: 'width:140px;font-size:16px;padding:8px;font-weight:700' });
+    const des = h('input', { type: 'text', value: x.tipo || '', placeholder: 'Descripción sencilla (ej. RETROEXCAVADORA CAT 420)', style: 'width:100%;min-width:260px;font-size:16px;padding:8px' });
+    const req = () => ({ tabla: 'maquina', op: 'guardar', movil: cod.value.trim(), movil_orig: nuevo ? '' : (x.movil || ''), tipo_orig: nuevo ? '' : (x.tipo || ''), tipo: des.value.trim() });
+    const guardar = () => { if (!cod.value.trim()) { cod.focus(); msg.style.color = '#b3261e'; msg.textContent = '⚠ Escribe el código de la máquina'; return; } if (!des.value.trim()) { des.focus(); msg.style.color = '#b3261e'; msg.textContent = '⚠ Escribe la descripción'; return; } envia(req(), nuevo ? 'Máquina agregada' : 'Máquina guardada'); };
+    const bs = h('div', { style: 'display:flex;gap:6px' }, h('button', { style: 'padding:8px 12px', onclick: guardar }, nuevo ? '➕ Agregar' : '💾 Guardar'));
+    if (!nuevo) bs.appendChild(h('button', { class: 'sec', style: 'padding:8px 12px', title: 'Retirar máquina', onclick: () => { if (confirm('¿Retirar la máquina ' + (x.movil || x.tipo) + '? Los reportes ya hechos conservan su nombre.')) envia({ tabla: 'maquina', op: 'eliminar', movil: x.movil || '', movil_orig: x.movil || '', tipo_orig: x.tipo || '' }, 'Máquina retirada'); } }, '🗑'));
+    des.onkeydown = cod.onkeydown = e => { if (e.key === 'Enter') guardar(); };
+    return h('tr', { style: nuevo ? 'background:#f1f8f1' : (x.pv || !x.movil ? 'background:#fff3cd' : '') }, td(cod), td(des), td(x.pv ? h('small', {}, '⚠ Escrita por un usuario: asígnale código') : (!x.movil ? h('small', {}, '⚠ Falta código') : '')), td(bs));
+  };
+  const tb = h('table', { style: 'border-collapse:collapse;width:100%' }, h('thead', {}, h('tr', {}, ['Código único', 'Descripción', '', ''].map(th))));
+  const body = h('tbody', {}, fila({}, true)); (MQ.maquinas || []).forEach(x => body.appendChild(fila(x, false))); tb.appendChild(body);
+  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Lista de máquinas (retroexcavadoras, pajaritas, buldócer, etc.). El código lo asignas tú y no se puede repetir. Esta lista es la que ven los usuarios al reportar. ' + (MQ.maquinas || []).length + ' máquina(s).'));
+  c.appendChild(msg); c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tb));
+}
 function mqFiltrados() {
   const f = MQF, q = mqSinTilde(f.q.trim()), qa = mqNorm(f.q);
   return MQ.reportes.filter(r => {
@@ -1567,6 +1594,7 @@ function mqFiltrados() {
 }
 function pintarMq() {
   const c = $('mqBody'); if (!MQ) return; c.textContent = '';
+  if (MQTAB === 'maq') { vistaMqMaq(c); return; }
   const R = MQ.reportes;
   if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay reportes de maquinaria en estas fechas')); return; }
   const maqs = Array.from(new Set(R.map(r => r.maquina))).sort(), usrs = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => nomDe(a).localeCompare(nomDe(b)));
