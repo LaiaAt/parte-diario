@@ -76,7 +76,7 @@ button.chipm{cursor:pointer;font:inherit}
 .ft{border:1px solid var(--line);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px}
 .ft img{width:100%;height:130px;object-fit:cover;border-radius:6px;background:var(--line);cursor:pointer;display:block}
 .ft .small{font-size:12px;line-height:1.25;overflow-wrap:anywhere}
-#visor{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px}
+#visor{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px}
 #visor img{max-width:96vw;max-height:78vh;border-radius:6px}
 #visor .small{color:#fff}
 .nav{display:flex;gap:6px;flex-wrap:wrap}.nav button{padding:4px 10px;font-size:13px;background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:14px}
@@ -301,6 +301,7 @@ header>span{gap:6px!important;min-width:0}
 <div class="card" id="cTr" data-m="transportes" hidden><h2>🚛 Transportes</h2>
   <div id="trTop"></div><div id="trTabs" class="trtabs"></div><div id="trBody"></div>
 </div>
+<div class="card" id="mqCard" data-m="maquinaria" hidden><h2>🚜 Maquinaria</h2><div id="mqBody"></div></div>
 <div id="detalle" hidden></div>
 <div id="visor" hidden></div>
 </main></div>
@@ -341,7 +342,7 @@ async function api(d, ms) {
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); if (av) av.fin(); }
 }
-function salir() { CDB.del('admin'); CDB.del('admin_tr'); TR = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; { const ar = $('arbolAdm'); if (ar) { ar.textContent = ''; ar.hidden = true; } } $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('nav2').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; try { $('llave').setAttribute('autocomplete', 'off'); } catch (e) {}
+function salir() { CDB.del('admin'); CDB.del('admin_tr'); CDB.del('admin_mq'); TR = null; MQ = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; { const ar = $('arbolAdm'); if (ar) { ar.textContent = ''; ar.hidden = true; } } $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('nav2').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; try { $('llave').setAttribute('autocomplete', 'off'); } catch (e) {}
   document.querySelectorAll('[data-m]').forEach(x => { x.hidden = true; }); ['trTop', 'trTabs', 'trBody'].forEach(i => { const e = $(i); if (e) e.textContent = ''; });
   const af = $('acFrame'); if (af) af.remove(); ACINI = false; const bn = $('bannerCarga'); if (bn) bn.hidden = true; ['nav', 'nav2', 'nav3', 'nav4'].forEach(i => { const e = $(i); if (e) { e.textContent = ''; e.hidden = true; } }); $('detalle').hidden = true; $('visor').hidden = true; }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
@@ -372,7 +373,7 @@ async function entrar() {
       return;
     }
     const ok = await cargar(true); // el servidor valida la llave en esta misma llamada (una ida y vuelta menos)
-    if (ok) { try { localStorage.setItem('adm', l); } catch (e) {} $('login').hidden = true; $('panel').hidden = false; $('salirTop').hidden = false; $('loginmsg').textContent = ''; }
+    if (ok) { try { localStorage.setItem('adm', l); } catch (e) {} $('login').hidden = true; $('panel').hidden = false; $('salirTop').hidden = false; $('loginmsg').textContent = ''; try { pintarArbol(); } catch (e) {} }
     else { LLAVE = ''; TRP = null; try { localStorage.removeItem('adm'); } catch (e) {} }
   } catch (e) { $('loginmsg').textContent = 'No se pudo conectar.'; LLAVE = ''; TRP = null; }
   $('entrar').disabled = false;
@@ -406,7 +407,7 @@ async function cargar(primera) {
 const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['transportes', '🚛 Transportes']];
 function selGet(k, def, ok) { try { const v = sessionStorage.getItem('adm_sel_' + k); return v && ok(v) ? v : def; } catch (e) { return def; } }
 function selSet(k, v) { try { sessionStorage.setItem('adm_sel_' + k, v); } catch (e) {} }
-let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] === v));
+let MOD = selGet('mod', 'resumen', v => v === 'acero' || v === 'maquinaria' || MODS.some(x => x[0] === v));
 const TR_TABS = [['resumen', '📊 Resumen'], ['viajes', '📋 Viajes'], ['albaran', '🔎 Búsquedas'], ['sosp', '⚠️ Alertas'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;
@@ -422,15 +423,16 @@ function pintarArbol() {
   const a = $('arbolAdm'); if (!a) return;
   a.textContent = '';
   if (typeof D === 'undefined' || !D || !D.usuarios || $('panel').hidden) { a.hidden = true; return; }
-  const gt = MOD === 'transportes', ga = MOD === 'acero';
+  const gt = MOD === 'transportes', ga = MOD === 'acero', gm = MOD === 'maquinaria';
   let nDupTr = 0; try { nDupTr = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán' || x.tipo === 'Sin m³ de albarán') && !x.rev).length : 0; } catch (e) {}
   const irGrupo = g => { const b = document.querySelector('#nav button[data-g="' + g + '"]'); if (b) b.click(); };
   const irSub = (nav, i, mod) => { if (MOD !== mod) modulo(mod); if (MOD !== mod) return; const b = $(nav).children[i]; if (b) b.click(); };
   const G = [
-    { g: 'p', ico: '📅', t: 'Parte diario', on: !gt && !ga, hojas: MODS.filter(x => x[0] !== 'transportes').map(x => [x[1], MOD === x[0], () => modulo(x[0])]) },
+    { g: 'p', ico: '📅', t: 'Parte diario', on: !gt && !ga && !gm, hojas: MODS.filter(x => x[0] !== 'transportes').map(x => [x[1], MOD === x[0], () => modulo(x[0])]) },
     { g: 't', ico: '🚛', t: 'Transportes', on: gt, hojas: TR_TABS.map((x, i) => [x[1] + (x[0] === 'sosp' && nDupTr ? '  🚨 ' + nDupTr : ''), gt && TRTAB === x[0], () => irSub('nav3', i, 'transportes')]) }
   ];
   if (D.acero) G.push({ g: 'a', ico: '🔩', t: 'Acero', on: ga, hojas: AC_TABS.map((x, i) => [x[1], ga && ACTAB === x[0], () => irSub('nav4', i, 'acero')]) });
+  G.push({ g: 'm', ico: '🚜', t: 'Maquinaria', on: gm, hojas: MQ_TABS.map((x, i) => [x[1], gm && MQTAB === x[0], () => irSub('nav4', i, 'maquinaria')]) });
   G.forEach(x => {
     a.appendChild(h('button', { class: 'ar-g' + (x.on ? ' on' : ''), onclick: () => { if (!x.on) irGrupo(x.g); } }, h('span', {}, x.ico), h('em', {}, x.t)));
     if (x.on) a.appendChild(h('div', { class: 'ar-h' }, x.hojas.map(t => h('button', { class: 'ar-s' + (t[1] ? ' on' : ''), onclick: t[2] }, t[0]))));
@@ -442,14 +444,15 @@ function modulo(m) {
   if (m === 'acero' && !(D && D.acero)) m = 'resumen';
   MOD = m; selSet('mod', m);
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
-  const gt = m === 'transportes', ga = m === 'acero', grp = gt ? 't' : ga ? 'a' : 'p';
+  const gt = m === 'transportes', ga = m === 'acero', gm = m === 'maquinaria', grp = gt ? 't' : ga ? 'a' : gm ? 'm' : 'p';
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g === grp));
-  $('nav2').hidden = gt || ga; $('nav3').hidden = !gt; $('nav4').hidden = !ga; if (!gt) $('cPer').hidden = false; if (gt) navTr(); if (ga) navAc();
+  $('nav2').hidden = gt || ga || gm; $('nav3').hidden = !gt; $('nav4').hidden = !(ga || gm); if (!gt) $('cPer').hidden = false; if (gt) navTr(); if (ga) navAc(); if (gm) navMq();
   { medirHeader(); const t = (headerH() + $('nav').offsetHeight) + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav4').style.top = t; $('nav4').style.marginTop = '0'; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
   window.scrollTo(0, 0); pintarArbol();
   if (m === 'transportes' && !TR) cargarTr();
   if (m === 'acero') abrirAcero();
+  if (m === 'maquinaria' && !MQ) cargarMq();
 }
 let TRP = null, TRVM = 'alb', TR = null, TRTAB = selGet('tr', 'resumen', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
 async function cargarTr() {
@@ -1526,10 +1529,132 @@ window.addEventListener('message', e => {
   else if (e.data.t === 'acero-cargado') { if (ACWAIT) { const f = ACWAIT; ACWAIT = null; f(); } else if (ACINI) { ACINI = false; banner('✔ Datos actualizados', 'ok'); } }
   else if (e.data.t === 'acero-alto' && $('acFrame')) $('acFrame').style.height = Math.max(400, e.data.h) + 'px';
 });
+/* ----- Maquinaria: reportes de las máquinas (horómetro, parte diario, horas por actividad) ----- */
+const MQ_TABS = [['rep', '📋 Reportes'], ['res', '📊 Resumen']];
+let MQ = null, MQTAB = selGet('mq', 'rep', v => v === 'rep' || v === 'res'), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
+const mqNorm = x => { let t = String(x || '').toUpperCase().replace(/\s+/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
+const mqSinTilde = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const mqAl = r => String(r.alertas || '').split(';').map(x => x.trim()).filter(Boolean);
+const mqFuera = r => (r.det || []).some(x => x.fuera);
+const mqSin = r => Math.max(0, Math.round(((Number(r.h_hor) || 0) - (Number(r.h_trab) || 0)) * 100) / 100);
+function navMq() {
+  const tb = $('nav4'); tb.textContent = '';
+  MQ_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: MQTAB === k ? 'on' : '', onclick: () => { MQTAB = k; selSet('mq', k); navMq(); if (MQ) pintarMq(); else cargarMq(); } }, t)));
+  pintarArbol();
+}
+async function cargarMq() {
+  let desdeCopia = false;
+  if (!MQ) { const c = await CDB.get('admin_mq'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === $('desde').value && c.hh === $('hasta').value) { MQ = c.r; desdeCopia = true; pintarMq(); avisoDatos('Actualizando maquinaria… (datos de ' + horaTxt(c.t) + ')'); } }
+  if (!desdeCopia) { $('mqBody').textContent = ''; banner('Cargando datos de Maquinaria…'); }
+  try {
+    const r = await api({ accion: 'admin_mq', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
+    if (!r.ok) { if (!desdeCopia) $('mqBody').textContent = r.mensaje || 'No se pudo cargar'; finBanner(false); return; }
+    CDB.set('admin_mq', { llave: LLAVE, t: Date.now(), r: r, d: $('desde').value, hh: $('hasta').value });
+    const y = window.scrollY; MQ = r; pintarMq(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
+  } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · maquinaria guardada'); else $('mqBody').textContent = 'No se pudo conectar.'; finBanner(false); }
+}
+function mqFiltrados() {
+  const f = MQF, q = mqSinTilde(f.q.trim()), qa = mqNorm(f.q);
+  return MQ.reportes.filter(r => {
+    if (f.maq && r.maquina !== f.maq) return false;
+    if (f.usr && r.llave !== f.usr) return false;
+    if (f.est === 'alerta' && !mqAl(r).length) return false;
+    if (f.est === 'fuera' && !mqFuera(r)) return false;
+    if (f.est === 'sin' && mqSin(r) < 0.05) return false;
+    if (q) { const alb = mqNorm(r.albaran); if (!(alb.indexOf(qa) >= 0 || mqSinTilde([r.maquina, r.usuario, r.obs, (r.det || []).map(x => x.cc + ' ' + x.a + ' ' + (x.n || '')).join(' ')].join(' ')).indexOf(q) >= 0)) return false; }
+    return true;
+  });
+}
+function pintarMq() {
+  const c = $('mqBody'); if (!MQ) return; c.textContent = '';
+  const R = MQ.reportes;
+  if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay reportes de maquinaria en estas fechas')); return; }
+  const maqs = Array.from(new Set(R.map(r => r.maquina))).sort(), usrs = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => nomDe(a).localeCompare(nomDe(b)));
+  const q = h('input', { type: 'search', placeholder: '🔎 Buscar por N° de albarán, máquina, usuario o actividad', value: MQF.q, style: 'font-size:17px;padding:10px;min-width:260px;flex:2' });
+  let tq; q.oninput = () => { MQF.q = q.value; clearTimeout(tq); tq = setTimeout(() => { MQN = 40; pintarLista(); }, 250); };
+  const sel = (k, op, def) => { const s = h('select', { onchange: () => { MQF[k] = s.value; MQN = 40; pintarLista(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = MQF[k]; return s; };
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, q, sel('maq', maqs.map(m => [m, m]), 'Todas las máquinas'), sel('usr', usrs.map(l => [l, nomDe(l)]), 'Todos los usuarios'), sel('est', [['alerta', '⚠ Con alertas'], ['fuera', '✏️ Con actividad fuera de estructura'], ['sin', '⏳ Horas sin repartir']], 'Todos'),
+    h('button', { onclick: xlsxMq }, '⬇ Excel')));
+  const K = (t, v, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, h('b', {}, v), t);
+  const T = R.reduce((a, r) => { a.h += r.h_hor; a.t += r.h_trab; a.p += r.h_parada; return a; }, { h: 0, t: 0, p: 0 });
+  const nAl = R.filter(r => mqAl(r).length).length, nFu = R.filter(mqFuera).length;
+  c.appendChild(h('div', { class: 'kpis kpis2', style: 'margin-bottom:10px' }, K('Reportes', R.length), K('Horas según horómetro', nf1(T.h)), K('Horas trabajadas', nf1(T.t)), K('Horas paradas', nf1(T.p), T.p ? 'mal' : ''), K('Con alertas', nAl, nAl ? 'mal' : 'bien'), K('Con actividad fuera de estructura', nFu, nFu ? 'mal' : 'bien')));
+  const caja = h('div', { id: 'mqLista' }); c.appendChild(caja);
+  if (MQTAB === 'res') { caja.remove(); vistaMqRes(c); return; }
+  pintarLista();
+}
+function pintarLista() {
+  const caja = $('mqLista'); if (!caja) return; caja.textContent = '';
+  const L = mqFiltrados();
+  caja.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, L.length + ' reporte(s)' + (MQF.q ? ' con «' + MQF.q + '»' : '')));
+  L.slice(0, MQN).forEach(r => caja.appendChild(tarjetaMq(r)));
+  if (L.length > MQN) caja.appendChild(h('button', { class: 'sec', onclick: () => { MQN += 40; pintarLista(); } }, 'Mostrar más (' + (L.length - MQN) + ')'));
+}
+function tarjetaMq(r) {
+  const al = mqAl(r), sin = mqSin(r);
+  const tag = (t, w) => h('span', { class: 'tag' + (w ? ' w' : ''), style: w ? 'color:#12202b' : '' }, t);
+  const filas = (r.det || []).map(x => h('tr', {}, h('td', {}, x.parada ? '⏸ Parada' : x.fuera ? '✏️ Fuera de estructura' : '🏗 Productiva'), h('td', {}, x.cc || ''), h('td', { class: 'w' }, x.a + (x.n ? ' — ' + x.n : '')), h('td', {}, x.g || ''), h('td', {}, x.d ? x.d + ' → ' + x.t : ''), h('td', { style: 'text-align:right;font-weight:700' }, nf(x.h) + ' h')));
+  return h('div', { class: 'tcard' + (al.length || sin >= 0.05 ? ' warn' : '') },
+    h('div', { class: 'big' }, '🧾 Albarán ' + r.albaran, h('span', { style: 'font-weight:400' }, '  ·  ' + r.maquina)),
+    h('div', { class: 'small', style: 'margin:2px 0 8px' }, fmtF(r.fecha) + ' · ' + nomDe(r.llave) + (r.registrado && r.registrado.slice(0, 10) !== r.fecha ? ' · registrado ' + r.registrado : '') + (r.modificado && r.modificado !== r.registrado ? ' · corregido ' + r.modificado : '')),
+    h('div', { class: 'kpis kpis2', style: 'margin-bottom:8px' },
+      h('div', { class: 'kpi' }, h('b', { style: 'font-size:20px' }, String(r.h_ini).replace('.', ',') + ' → ' + String(r.h_fin).replace('.', ',')), 'Horómetro inicio → final'), h('div', { class: 'kpi' }, h('b', { style: 'font-size:20px' }, nf(r.h_hor) + ' h'), 'Según horómetro'),
+      h('div', { class: 'kpi' }, h('b', { style: 'font-size:20px' }, nf(r.h_trab) + ' h'), 'Trabajadas (repartidas)'), h('div', { class: 'kpi' + (r.h_parada ? ' mal' : '') }, h('b', { style: 'font-size:20px' }, nf(r.h_parada) + ' h'), 'Paradas'),
+      sin >= 0.05 ? h('div', { class: 'kpi mal' }, h('b', { style: 'font-size:20px' }, nf(sin) + ' h'), 'Sin repartir') : null),
+    h('div', { class: 'tw', style: 'max-height:none;margin-bottom:8px' }, h('table', {}, h('thead', {}, h('tr', {}, ['Tipo', 'Centro de costo', 'Actividad', 'Grupo', 'Horario', 'Horas'].map(t => h('th', {}, t)))), h('tbody', {}, filas))),
+    r.obs ? h('div', { style: 'margin:6px 0' }, '📝 ' + r.obs) : null,
+    al.length ? h('div', { style: 'margin:6px 0;display:flex;gap:6px;flex-wrap:wrap' }, al.map(a => tag('⚠ ' + a, true))) : null,
+    h('div', { class: 'row', style: 'margin-top:8px' }, h('button', { onclick: () => verFotosMq(r) }, '📷 Ver fotos (' + r.n_ini + ' inicio · ' + r.n_fin + ' final · ' + r.n_parte + ' parte)')));
+}
+async function verFotosMq(r) {
+  const v = $('visor'); v.textContent = ''; v.style.overflow = 'auto'; v.style.justifyContent = 'flex-start';
+  const cerrar = () => { v.hidden = true; v.style.overflow = ''; v.style.justifyContent = ''; };
+  v.appendChild(h('div', { class: 'row', style: 'width:min(96vw,900px);justify-content:space-between;align-items:center;color:#fff;position:sticky;top:0;background:rgba(0,0,0,.85);padding:6px 0;z-index:2' }, h('b', {}, '🧾 Albarán ' + r.albaran + ' · ' + r.maquina + ' · ' + fmtF(r.fecha)), h('button', { onclick: cerrar }, '✕ Cerrar')));
+  const cuerpo = h('div', { style: 'width:min(96vw,900px)' }, h('div', { class: 'small' }, 'Abriendo fotos…')); v.appendChild(cuerpo); v.hidden = false;
+  try {
+    const x = await api({ accion: 'admin_mq_foto', llave: LLAVE, id: r.id });
+    cuerpo.textContent = '';
+    if (!x.ok) { cuerpo.appendChild(h('div', { class: 'small' }, x.mensaje || 'No se pudieron abrir las fotos')); return; }
+    [['ini', '⏱ Horómetro de inicio (' + String(r.h_ini).replace('.', ',') + ')'], ['fin', '⏱ Horómetro final (' + String(r.h_fin).replace('.', ',') + ')'], ['parte', '🧾 Parte diario — albarán ' + r.albaran]].forEach(([k, t]) => {
+      cuerpo.appendChild(h('div', { style: 'color:#fff;font-weight:700;font-size:18px;margin:14px 0 4px' }, t));
+      if (!(x[k] || []).length) cuerpo.appendChild(h('div', { class: 'small' }, 'Sin foto'));
+      (x[k] || []).forEach((d, i) => cuerpo.appendChild(h('div', { style: 'margin-bottom:8px' }, h('img', { src: d, alt: t, style: 'max-width:100%;max-height:none;background:#fff' }), h('div', {}, h('button', { class: 'sec', onclick: () => fetch(d).then(b => b.blob()).then(b => bajar(b, 'Maquinaria_' + r.albaran + '_' + k + (i ? '_' + (i + 1) : '') + '.jpg')) }, '⬇ Descargar')))));
+    });
+  } catch (e) { cuerpo.textContent = 'No se pudo conectar.'; }
+}
+function tablaMq(titulo, cols, rows, anchos) {
+  return h('div', { class: 'card', style: 'margin:10px 0' }, h('h3', { style: 'margin:0 0 6px' }, titulo), rows.length ? h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, cols.map(t => h('th', {}, t)))), h('tbody', {}, rows.map(r => h('tr', {}, r.map((v, i) => h('td', { style: i > 0 && typeof v === 'number' ? 'text-align:right' : '' }, typeof v === 'number' ? nf(v) : v))))))) : h('div', { class: 'small' }, 'Sin datos'));
+}
+function mqAgrupa(L, fk) {
+  const o = {}; L.forEach(r => (r.det || []).forEach(x => { const k = fk(r, x); if (k === null) return; const a = (o[k.k] = o[k.k] || { k: k.k, v: k.v, h: 0, n: 0, m: new Set(), u: new Set(), rs: new Set() }); a.h += Number(x.h) || 0; a.n++; a.m.add(r.maquina); a.u.add(nomDe(r.llave)); a.rs.add(r.albaran); })); return Object.values(o).sort((a, b) => b.h - a.h);
+}
+function vistaMqRes(c) {
+  const L = mqFiltrados();
+  const maq = {}; L.forEach(r => { const a = (maq[r.maquina] = maq[r.maquina] || { n: 0, h: 0, t: 0, p: 0 }); a.n++; a.h += r.h_hor; a.t += r.h_trab; a.p += r.h_parada; });
+  c.appendChild(tablaMq('🚜 Por máquina', ['Máquina', 'Reportes', 'Horas horómetro', 'Horas trabajadas', 'Horas paradas', '% repartido'], Object.keys(maq).sort().map(k => { const a = maq[k]; return [k, a.n, a.h, a.t, a.p, a.h ? Math.round(a.t / a.h * 100) + ' %' : '—']; })));
+  const prod = mqAgrupa(L, (r, x) => x.k === 'P' ? { k: x.cc, v: x.a } : null);
+  c.appendChild(tablaMq('🏗 Horas por centro de costo', ['Código', 'Actividad', 'Horas', 'Máquinas', 'Reportes'], prod.map(a => [a.k, a.v, a.h, Array.from(a.m).join(', '), a.rs.size])));
+  const par = mqAgrupa(L, (r, x) => x.parada ? { k: x.a, v: x.a } : null);
+  c.appendChild(tablaMq('⏸ Paradas', ['Motivo', 'Horas', 'Veces', 'Máquinas'], par.map(a => [a.v, a.h, a.n, Array.from(a.m).join(', ')])));
+  const fu = mqAgrupa(L, (r, x) => x.fuera ? { k: mqSinTilde(x.a), v: x.a } : null);
+  c.appendChild(tablaMq('✏️ Actividades que NO están en la estructura (revisar y crear centro de costo)', ['Actividad', 'Horas', 'Veces', 'Máquinas', 'Usuarios'], fu.map(a => [a.v, a.h, a.n, Array.from(a.m).join(', '), Array.from(a.u).join(', ')])));
+}
+function xlsxMq() {
+  const L = mqFiltrados(); if (!L.length) { banner('No hay reportes para descargar', 'mal'); return; }
+  const cols = ['Fecha', 'N° albarán', 'Máquina', 'Usuario que registró', 'Horómetro inicio', 'Horómetro final', 'Horas horómetro', 'Horas trabajadas', 'Horas paradas', 'Horas sin repartir', 'Forma de registro', 'Alertas', 'Observaciones', 'Fotos inicio', 'Fotos final', 'Fotos parte', 'Registrado', 'Última modificación'];
+  const rows = L.map(r => [r.fecha, r.albaran, r.maquina, nomDe(r.llave), r.h_ini, r.h_fin, r.h_hor, r.h_trab, r.h_parada, mqSin(r), r.modo === 'HORARIO' ? 'Por horarios' : 'Por total de horas', mqAl(r).join('; '), r.obs || '', r.n_ini, r.n_fin, r.n_parte, r.registrado, r.modificado]);
+  const det = []; L.forEach(r => (r.det || []).forEach(x => det.push([r.fecha, r.albaran, r.maquina, nomDe(r.llave), x.parada ? 'Parada' : x.fuera ? 'Fuera de estructura' : 'Productiva', x.cc || '', x.a, x.g || '', x.d || '', x.t || '', Number(x.h) || 0, x.n || ''])));
+  const dm = {}; L.forEach(r => (r.det || []).forEach(x => { const k = r.maquina + '|' + (x.cc || '') + '|' + x.a; const a = (dm[k] = dm[k] || [r.maquina, x.parada ? 'Parada' : x.fuera ? 'Fuera de estructura' : 'Productiva', x.cc || '', x.a, 0, 0]); a[4] += Number(x.h) || 0; a[5]++; }));
+  const cons = Object.values(dm).map(a => [a[0], a[1], a[2], a[3], Math.round(a[4] * 100) / 100, a[5]]).sort((a, b) => a[0].localeCompare(b[0]) || b[4] - a[4]);
+  excelHoja('Reportes', cols, rows, 'Maquinaria_' + $('desde').value + '_' + $('hasta').value + '.xlsx', [
+    { nombre: 'Detalle de actividades', cols: ['Fecha', 'N° albarán', 'Máquina', 'Usuario que registró', 'Tipo', 'Centro de costo', 'Actividad', 'Grupo', 'Desde', 'Hasta', 'Horas', 'Detalle'], rows: det },
+    { nombre: 'Consolidado', cols: ['Máquina', 'Tipo', 'Centro de costo', 'Actividad', 'Horas', 'Veces'], rows: cons }]);
+}
+const esPd = m => m !== 'transportes' && m !== 'acero' && m !== 'maquinaria';
 function navegacion() {
   const n = $('nav'); n.hidden = false; if (n.firstChild) { modulo(MOD); return; }
   const n2 = $('nav2'); let ultP = 'resumen';
-  [['p', '📅 Parte diario', () => modulo(MOD !== 'transportes' && MOD !== 'acero' ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (MOD !== 'transportes' && MOD !== 'acero') ultP = MOD; modulo('transportes'); }], D.acero ? ['a', '🔩 Acero', () => { if (MOD !== 'transportes' && MOD !== 'acero') ultP = MOD; modulo('acero'); }] : null].filter(Boolean).forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
+  [['p', '📅 Parte diario', () => modulo(esPd(MOD) ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (esPd(MOD)) ultP = MOD; modulo('transportes'); }], D.acero ? ['a', '🔩 Acero', () => { if (esPd(MOD)) ultP = MOD; modulo('acero'); }] : null, ['m', '🚜 Maquinaria', () => { if (esPd(MOD)) ultP = MOD; modulo('maquinaria'); }]].filter(Boolean).forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
   MODS.filter(x => x[0] !== 'transportes').forEach(x => { const b = h('button', { onclick: () => modulo(x[0]) }, x[1]); b.dataset.mod = x[0]; n2.appendChild(b); });
   modulo(MOD);
 }
@@ -2044,9 +2169,10 @@ $('act').onclick = async () => {
     if (MOD === 'transportes' && $('trBody')) $('trBody').textContent = '';
     while (CARGANDO) await new Promise(r => setTimeout(r, 150)); // si ya había una carga en curso, espera y pide la del rango nuevo
     let esperaAc = null; if (MOD === 'acero') esperaAc = new Promise(r => { ACWAIT = r; setTimeout(r, 20000); });
-    TR = null; const ok = await cargar(false);
+    TR = null; MQ = null; const ok = await cargar(false);
     if (esperaAc) await esperaAc;
     if (MOD === 'transportes') await cargarTr();
+    if (MOD === 'maquinaria') await cargarMq();
     if (Date.now() - t0 < 700) await new Promise(r => setTimeout(r, 700 - (Date.now() - t0)));
     if (mi === RECARGA) banner(ok === false ? 'No se pudo actualizar' : '✔ Datos actualizados', ok === false ? 'mal' : 'ok');
   } catch (e) { if (mi === RECARGA) banner('No se pudo cargar. Revisa tu conexión.', 'mal'); }

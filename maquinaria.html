@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0a7f2e">
+<link rel="manifest" href="manifest-maquinaria.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Maquinaria">
+<link rel="icon" href="icon-192.png">
+<title>Maquinaria</title>
+<style>
+:root{--ink:#14202b;--hv:#0a7f2e;--navy:#1f2d3d;--paper:#eef0f2;--line:#c9d0d6;--ok:#1f7a3d;--err:#b3261e;--mut:#51606d}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:19px;padding-bottom:30px}
+.ib{width:38px;height:38px;min-height:0;min-width:0;padding:0;margin:0;border-radius:10px;border:0;background:rgba(0,0,0,.28);color:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;box-shadow:none}.ib:active{background:rgba(0,0,0,.5)}.ib svg{width:20px;height:20px}.ib[hidden]{display:none}
+header{background:var(--hv);color:#fff;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:4px solid var(--navy)}
+header .logo{height:38px;width:auto;background:#fff;border-radius:6px;padding:2px 4px}
+header h1{font-size:18px;margin:0;flex:1}
+input.lista{background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><path d='M3 5l5 6 5-6z' fill='%23555'/></svg>") no-repeat right 12px center;padding-right:36px;cursor:pointer}
+#red{font-size:13px;font-weight:700;text-align:right;line-height:1.3}#red .pen{display:inline-block;margin-top:3px;background:#f59e0b;color:#1f2937;border-radius:10px;padding:2px 9px}
+.marca{display:block;max-width:240px;width:70%;margin:4px auto 10px}
+main{max-width:640px;margin:auto;padding:14px}
+h2{font-size:20px;margin:6px 0 4px}
+.guia{margin:0 0 12px;color:var(--mut);font-size:15px}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:flex-end}
+.row>*{flex:1;min-width:120px}
+label{font-size:16px;color:var(--mut);display:block;margin-bottom:3px}
+input,select{width:100%;padding:14px;font-size:20px;border:1px solid #8794a0;border-radius:6px;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--hv);outline-offset:1px}
+button{padding:16px 16px;min-height:56px;font-size:19px;font-weight:700;border:0;border-radius:6px;background:var(--ink);color:#fff;width:100%}
+button.sec{background:#fff;color:#12202b;border:2px solid #12202b}
+button.link{background:none;color:var(--ink);text-decoration:underline;width:auto;padding:4px;font-weight:400;font-size:15px}
+.chk{display:flex;align-items:center;gap:10px;font-size:18px;color:var(--ink);margin:0;font-weight:700}
+.chk input{width:28px;height:28px}
+.malcampo{border:3px solid #b00020!important;background:#fff0f0!important}.malmsg{color:#b00020;font-weight:700;margin-top:4px}
+.aviso{padding:10px 12px;border-radius:6px;margin:0 0 12px;font-size:16px;border:1px solid var(--line);background:#fff}
+.aviso.ok{border-color:var(--ok);color:var(--ok)}.aviso.err{border-color:var(--err);color:var(--err)}
+.off{opacity:.5}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{width:auto;min-width:64px;padding:10px 12px;background:#fff;color:var(--ink);border:2px solid var(--ink);font-weight:600}
+.chip.on{background:var(--ink);color:#fff}
+.total{margin-top:10px;font-size:19px;font-weight:700}
+.n{display:inline-block;background:var(--hv);color:#fff;border-radius:50%;width:30px;height:30px;line-height:30px;text-align:center;font-weight:800;margin-right:6px}
+.fotos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fotos img{width:100%;border-radius:4px;display:block}
+.prob{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0;color:var(--err);font-size:16px}
+.prob button{width:auto;padding:8px 12px;font-size:15px}
+small{color:var(--mut)}
+#barra{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 14px;display:flex;gap:10px}
+#barra button{flex:1}
+.err-c input,.err-c select{border:3px solid var(--err);background:#fdecea}
+.err-c label{color:var(--err);font-weight:700}
+.err-c .chip{border-color:var(--err)}
+.card.err-c{border:3px solid var(--err);background:#fdecea}
+.msgerr{color:var(--err);font-weight:700;display:block;margin-top:3px}
+.req{color:var(--err)}
+.li{display:flex;gap:8px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:10px 0;flex-wrap:wrap}
+.li b{display:block}
+.tag{font-size:12px;color:#fff;background:var(--mut);border-radius:4px;padding:2px 6px;margin-left:6px}
+.tag.hoy{background:var(--ok)}.tag.pend{background:#b36b00}
+.li button{width:auto;padding:10px 12px;font-size:15px}
+button.verde{background:var(--hv)}
+button.grande{background:var(--hv);font-size:24px;padding:22px 16px;min-height:76px;border-radius:12px;box-shadow:0 3px 0 #06551e}
+button.rojo{background:#fff;color:var(--err);border:2px solid var(--err)}
+h3{font-size:21px;margin:0 0 10px}
+.paso{border-left:6px solid var(--hv)}
+input.placa{font-size:32px;font-weight:800;text-align:center;letter-spacing:3px;text-transform:uppercase}
+input.cant{font-size:28px;font-weight:800;text-align:center}
+.resumen{background:#e8f5ec;border:2px solid var(--ok);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:18px}
+details.mas{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:12px}
+details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
+.viaje{background:#fff;border:1px solid var(--line);border-left:6px solid var(--hv);border-radius:8px;padding:12px;margin-bottom:10px}
+.viaje.falta{border-left-color:#b36b00}
+.viaje .t{font-size:22px;font-weight:800}
+.viaje .s{font-size:16px;color:var(--mut);margin:2px 0 8px}
+.viaje .bs{display:flex;gap:8px;flex-wrap:wrap}
+.viaje .bs>*{flex:1;min-width:110px}
+.viaje .bs button{padding:12px 10px;font-size:17px;min-height:48px}
+.hecho{font-size:64px;text-align:center;margin:0}
+.gr{display:flex;flex-direction:column;gap:10px}
+[hidden]{display:none!important}
+#cargando{position:fixed;inset:0;z-index:9999;background:rgba(18,32,43,.55);display:flex;align-items:center;justify-content:center;padding:24px}
+#cargando .caja{background:#fff;border-radius:12px;padding:22px 26px;text-align:center;max-width:320px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+#cargando .caja b{display:block;font-size:19px;margin-top:12px;color:#12202b}
+#cargando .caja small{display:block;color:#5b6b78;margin-top:4px;font-size:14px}
+.rueda{width:46px;height:46px;margin:0 auto;border:5px solid #d6dde3;border-top-color:#12202b;border-radius:50%;animation:giro .8s linear infinite}
+@keyframes giro{to{transform:rotate(360deg)}}
+#bgpill{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9000;background:#12202b;color:#fff;border-radius:20px;padding:8px 16px;font-size:14px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+#bgpill .rueda{width:16px;height:16px;border-width:3px;margin:0;border-color:#ffffff55;border-top-color:#fff}
+.bs{display:flex;gap:8px;flex-wrap:wrap}
+.bs button{flex:1;min-width:130px}
+.fotos>div{position:relative}
+.fotos .x{position:absolute;top:4px;right:4px;width:auto;min-height:0;padding:4px 12px;font-size:18px;border-radius:20px}
+.sub{color:var(--mut);font-size:15px;margin:-4px 0 10px}
+#form label{font-size:18px;font-weight:700}#form input,#form select{font-size:20px;padding:14px}#form .card h3{font-size:22px}#form .grande{font-size:24px;padding:20px}
+.dosbtn{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}.dosbtn button{margin:0!important;padding:14px 4px!important;font-size:18px!important}
+.viaje .fila1{flex-wrap:nowrap}.viaje .fila1>button{flex:1 1 0;min-width:0;margin:0}.viaje .fila1>.mas3{flex:0 0 60px;font-size:26px;font-weight:800;padding:0}
+
+.pasoh{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+.pasoh .barra{flex:1;height:10px;background:#d6dde3;border-radius:6px;overflow:hidden}.pasoh .barra i{display:block;height:100%;background:var(--hv)}
+.pasoh b{font-size:16px;color:var(--mut);white-space:nowrap}
+.q{font-size:26px;font-weight:800;margin:6px 0 12px;line-height:1.2}
+.ayuda{font-size:17px;color:var(--mut);margin:0 0 12px}
+#barra{z-index:30}
+#barra button{font-size:21px}
+body{padding-bottom:110px}
+input.gran{font-size:30px;font-weight:800;text-align:center;padding:16px}
+.opc{display:flex;gap:8px}.opc button{flex:1;font-size:17px;padding:14px 6px}
+.opc button.sec.on{background:var(--ink);color:#fff}
+.act{border:2px solid var(--line);border-left:8px solid var(--hv);border-radius:8px;padding:10px;margin-bottom:10px;background:#fff}
+.act.par{border-left-color:#b36b00}.act.fue{border-left-color:#7b3fa0}
+.act .tt{font-size:19px;font-weight:800;margin:0 0 6px;word-break:break-word}
+.act .hh{font-size:22px;font-weight:800;color:var(--hv);margin:4px 0}
+.cont{position:sticky;top:0;z-index:20;background:#fff3cd;border:2px solid var(--ink);border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:17px;font-weight:700;line-height:1.3}
+.cont.mal{background:#fdecea;border-color:var(--err);color:var(--err)}.cont.bien{background:#e8f5ec;border-color:var(--ok);color:var(--ok)}
+.mini{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}.mini img{width:100px;height:100px;object-fit:cover;border-radius:6px;border:2px solid var(--line)}
+.mini .f{position:relative}.mini .f button{position:absolute;top:2px;right:2px;width:auto;min-height:0;padding:2px 9px;font-size:16px;border-radius:14px}
+#envio{position:fixed;inset:0;z-index:9998;background:rgba(18,32,43,.78);display:flex;align-items:center;justify-content:center;padding:22px}
+#envio .caja{background:#fff;border-radius:14px;padding:24px;max-width:360px;width:100%;text-align:center}
+#envio .caja b{font-size:22px;display:block;margin:6px 0}
+#envio .pb{height:14px;background:#d6dde3;border-radius:8px;overflow:hidden;margin:14px 0 8px}#envio .pb i{display:block;height:100%;width:40%;background:var(--hv);border-radius:8px;animation:corre 1.2s ease-in-out infinite}
+@keyframes corre{0%{margin-left:-40%}100%{margin-left:100%}}
+.rep{background:#fff;border:1px solid var(--line);border-left:6px solid var(--hv);border-radius:8px;padding:12px;margin-bottom:10px}
+.rep.falta{border-left-color:#b36b00}.rep.mal{border-left-color:var(--err)}
+.rep .t{font-size:21px;font-weight:800}.rep .s{font-size:16px;color:var(--mut);margin:2px 0 8px}
+.rep .bs button{padding:12px 8px;font-size:17px;min-height:48px}
+</style>
+</head>
+<body>
+<header><img class="logo" src="marca.png" alt="Consorcio Constructor Sabana Norte"><h1>Maquinaria</h1><span style="display:flex;align-items:center;gap:10px"><span id="red"></span><button type="button" id="recargar" class="ib" title="Recargar" aria-label="Recargar" onclick="location.reload()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></button><button type="button" id="salirTop" class="ib" hidden title="Cerrar sesión" aria-label="Cerrar sesión" onclick="cerrarSesion()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg></button></span></header>
+<main>
+  <div id="aviso" class="aviso" hidden></div>
+  <div id="cargando" hidden role="alert" aria-live="assertive"><div class="caja"><div class="rueda"></div><b id="cargTxt">Cargando datos…</b><small>Espera un momento</small></div></div>
+  <div id="bgpill" hidden role="status"><span class="rueda"></span><span>Actualizando datos…</span></div>
+  <div id="envio" hidden role="alert" aria-live="assertive"><div class="caja"><div id="envIco" style="font-size:54px">📤</div><b id="envTit">Enviando el reporte…</b><div class="pb" id="envPb"><i></i></div><div id="envTxt" style="font-size:17px;color:#51606d">No cierres la aplicación hasta que termine.</div><div id="envBt" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div></div></div>
+  <section id="login" class="card" hidden>
+    <img class="marca" src="logo.png" alt="Consorcio Constructor Sabana Norte">
+    <label for="llave" style="font-size:20px;color:var(--ink)">🔑 Escribe tu llave</label>
+    <input id="llave" type="text" autocapitalize="characters" autocomplete="off">
+    <div class="row"><button id="btnIngresar" class="grande">Entrar</button></div>
+    <p><small>La primera vez necesitas señal. Después funciona sin internet.</small></p>
+  </section>
+  <section id="inicio" hidden></section>
+  <section id="form" hidden></section>
+  <section id="visor" hidden></section>
+</main>
+<div id="barra" hidden></div>
+<script>
+'use strict';
+const API = 'https://script.google.com/macros/s/AKfycbz6LjPHWbh_vLcYhwSvYFp8tMN737nX-hJUPiX6vOvLb_3tEAyH9zeCC_4pqNSPRz9O1w/exec';
+const $ = id => document.getElementById(id);
+const hoy = () => new Date().toLocaleDateString('sv-SE');
+const sumDias = (f, n) => { const d = new Date(f + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE'); };
+const fmtF = f => { const p = String(f).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f; };
+const num = v => { const s = String(v === undefined || v === null ? '' : v).trim().replace(',', '.'); const x = Number(s); return (s === '' || !isFinite(x)) ? NaN : x; };
+const r2 = x => Math.round(x * 100) / 100;
+const nh = x => String(r2(x)).replace('.', ',');
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const k in (props || {})) {
+    const v = props[k];
+    if (k === 'class') e.className = v;
+    else if (k.slice(0, 2) === 'on') e[k] = v;
+    else if (k === 'value') e.value = v;
+    else if (v !== false && v !== null && v !== undefined) e.setAttribute(k, v);
+  }
+  kids.flat().forEach(c => { if (c === null || c === undefined || c === false) return; e.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c))); });
+  return e;
+}
+let tCarga = null;
+function carga(t) { clearTimeout(tCarga); const c = $('cargando'); if (!c) return; if (t) { $('cargTxt').textContent = t.replace(/…$/, '') + '…'; c.hidden = false; tCarga = setTimeout(() => { c.hidden = true; }, 60000); } else c.hidden = true; }
+let bgN = 0;
+function actualizando(on) { bgN = Math.max(0, bgN + (on ? 1 : -1)); const b = $('bgpill'); if (b) b.hidden = bgN === 0; }
+function aviso(t, c, quieto) {
+  const a = $('aviso'); const espera = !!t && !c && /…$/.test(t);
+  a.textContent = espera ? '' : (t || ''); a.className = 'aviso ' + (c || ''); a.hidden = !t || espera; carga(espera ? t : '');
+  if (t && !quieto) window.scrollTo(0, 0);
+}
+function pantalla(id) { $('salirTop').hidden = id === 'login' || !user; ['login', 'inicio', 'form'].forEach(i => $(i).hidden = i !== id); if (id !== 'form') $('barra').hidden = true; window.scrollTo(0, 0); }
+
+/* ---------- almacenamiento en el teléfono ---------- */
+const kv = (() => {
+  let dbp;
+  const open = () => dbp || (dbp = new Promise((res, rej) => { const r = indexedDB.open('maquinaria', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
+  const tx = async (modo, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('kv', modo); const rq = fn(t.objectStore('kv')); t.oncomplete = () => res(rq && rq.result); t.onerror = () => rej(t.error); }); };
+  const LS = 'mq_user';
+  const lsGet = () => { try { return JSON.parse(localStorage.getItem(LS)); } catch (e) { return null; } };
+  const lsSet = v => { try { if (v == null) localStorage.removeItem(LS); else localStorage.setItem(LS, JSON.stringify(v)); } catch (e) {} };
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  return {
+    get: async k => { let v; try { v = await tx('readonly', s => s.get(k)); } catch (e) { if (k !== 'user') throw e; } if (k === 'user' && !v) { v = lsGet(); if (v) { try { await tx('readwrite', s => s.put(v, k)); } catch (e) {} } } return v; },
+    set: async (k, v) => { if (k === 'user') lsSet(v); return tx('readwrite', s => s.put(v, k)); },
+    del: async k => { if (k === 'user') lsSet(null); return tx('readwrite', s => s.delete(k)); }
+  };
+})();
+async function api(d, ms) {
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms || 60000);
+  try { const r = await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal }); return await r.json(); } finally { clearTimeout(t); }
+}
+
+/* ---------- estado ---------- */
+let user = null, DATOS = { maquinas: [], estructura: [] }, REPS = [], COLA = [], sincronizando = false, GEN = 0;
+const guardarReps = () => { GEN++; return kv.set('reps_' + user.llave, REPS); };
+const guardarCola = () => kv.set('cola', COLA);
+const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
+const puedeEditar = r => r.fecha >= sumDias(hoy(), -3) || r.registrado === hoy();
+const ALF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function nuevoId() { const a = new Uint8Array(5); crypto.getRandomValues(a); let s = ''; a.forEach(b => s += ALF[b % 32]); const id = 'MQ-' + hoy().slice(2).replace(/-/g, '') + '-' + s; return REPS.some(r => r.id === id) ? nuevoId() : id; }
+const normAlb = x => { let t = String(x || '').toUpperCase().replace(/\s+/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
+
+/* ---------- ingreso ---------- */
+async function cargarLocal() {
+  const d = await kv.get('datos'); if (d) DATOS = d;
+  REPS = (await kv.get('reps_' + user.llave)) || [];
+  COLA = (await kv.get('cola')) || [];
+}
+try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {}
+async function ingresar() {
+  const l = $('llave').value.trim();
+  if (!l) { aviso('Escribe tu llave.', 'err'); return; }
+  if (!navigator.onLine) { aviso('La primera vez necesitas señal.', 'err'); return; }
+  aviso('Entrando…');
+  try {
+    const r = await api({ accion: 'validar', llave: l, app: 'maquinaria' }, 30000);
+    if (!r.ok) { aviso(r.admin ? 'Las llaves de administrador no crean reportes. Usa el dashboard.' : (r.mensaje || 'Llave no válida'), 'err'); return; }
+    user = { llave: r.llave, nombre: r.nombre }; ULT_REF = 0;
+    await kv.set('user', user); await cargarLocal();
+    aviso(''); abrirInicio(); sincronizar();
+  } catch (e) { aviso('No se pudo conectar. Intenta de nuevo.', 'err'); }
+}
+async function aplicarServidor(r) {
+  DATOS = { maquinas: r.maquinas || DATOS.maquinas || [], estructura: r.estructura || DATOS.estructura || [] };
+  await kv.set('datos', DATOS);
+  const pend = new Set(COLA.filter(o => o.llave === user.llave).map(o => o.rid));
+  const locales = REPS.filter(x => pend.has(x.id));
+  REPS = (r.reportes || []).filter(x => !pend.has(x.id)).map(x => Object.assign(x, { llave: user.llave, nuevo: false })).concat(locales);
+  await guardarReps();
+}
+let ULT_REF = 0;
+async function refrescar(forzar) {
+  if (!user || !navigator.onLine || sincronizando || COLA.some(o => !o.error)) return;
+  if (!forzar && Date.now() - ULT_REF < 45000) return;
+  const g = GEN;
+  try {
+    actualizando(true);
+    const r = await api({ accion: 'mq_ingresar', llave: user.llave }, 25000).finally(() => actualizando(false));
+    if (g !== GEN || sincronizando || COLA.some(o => !o.error)) return;
+    if (r.ok) { ULT_REF = Date.now(); await aplicarServidor(r); if (!$('inicio').hidden) pintarInicio(); }
+    else if (/no v[aá]lida/i.test(r.mensaje || '')) await cerrarSesion(r.mensaje);
+  } catch (e) {}
+}
+async function cerrarSesion(msg) {
+  if (!msg && COLA.length && !confirm('Hay ' + COLA.length + ' reporte(s) sin enviar. Se enviarán cuando haya señal. ¿Cerrar sesión?')) return;
+  await kv.del('user'); user = null; REPS = [];
+  $('llave').value = ''; pantalla('login'); aviso(msg || '', msg ? 'err' : '');
+}
+
+/* ---------- inicio ---------- */
+function abrirInicio() { aviso(''); F = null; pintarInicio(); pantalla('inicio'); refrescar(); }
+function estadoRep(r) {
+  const op = COLA.find(o => o.rid === r.id && o.error);
+  if (op) return { t: 'mal', txt: '⚠ La oficina no lo aceptó: ' + op.error, op: op };
+  if (COLA.some(o => o.rid === r.id && !o.error)) return { t: 'falta', txt: '⏳ Sin enviar todavía' };
+  return { t: 'ok', txt: '✔ Ya llegó a la oficina' };
+}
+function pintarInicio() {
+  const B = $('inicio'); B.textContent = '';
+  B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()))));
+  const gr = h('div', { class: 'gr', style: 'margin-bottom:14px' }, h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO REPORTE'));
+  B.appendChild(gr);
+  kv.get('borrador_' + user.llave).then(b => { if (b && b.F && $('inicio') && !$('inicio').hidden) gr.appendChild(h('div', { class: 'card', style: 'border:3px solid #b36b00;margin:0' }, h('b', {}, '📝 Dejaste un reporte a medias'), h('div', { class: 'bs', style: 'margin-top:8px' }, h('button', { class: 'verde', onclick: () => abrirForm(null, b) }, '▶ Continuar'), h('button', { class: 'rojo', onclick: async () => { if (confirm('¿Borrar el reporte que dejaste a medias?')) { await kv.del('borrador_' + user.llave); pintarInicio(); } } }, '🗑 Borrar')))); });
+  const pend = COLA.filter(o => !o.error && o.llave === user.llave).length;
+  if (pend) B.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700' }, '⏳ ' + pend + ' reporte(s) sin enviar. Se envían solos cuando hay señal.', h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => sincronizar(true) }, '🔄 Enviar ahora'))));
+  const dias = {}; REPS.forEach(r => (dias[r.fecha] = dias[r.fecha] || []).push(r));
+  const ks = Object.keys(dias).sort().reverse();
+  if (!ks.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay reportes. Toca el botón verde para empezar.'));
+  ks.forEach(f => {
+    B.appendChild(h('h3', { style: 'margin:14px 0 6px' }, (f === hoy() ? 'Hoy · ' : '') + fmtF(f)));
+    dias[f].sort((a, b) => String(b.registrado).localeCompare(String(a.registrado))).forEach(r => B.appendChild(filaRep(r)));
+  });
+}
+function filaRep(r) {
+  const e = estadoRep(r), bs = h('div', { class: 'bs' });
+  if (e.t === 'falta' && navigator.onLine) bs.appendChild(h('button', { onclick: () => sincronizar(true) }, '🔄 Enviar'));
+  bs.appendChild(h('button', { class: 'sec', onclick: () => verFotos(r) }, '📷 Ver fotos'));
+  if (puedeEditar(r)) bs.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(r) }, '✏️ Corregir'));
+  if (r.fecha === hoy() || r.registrado === hoy()) bs.appendChild(h('button', { class: 'rojo', onclick: () => borrar(r) }, '🗑 Borrar'));
+  if (e.op) bs.appendChild(h('button', { class: 'link', onclick: () => descartar(e.op, r) }, 'Descartar cambio'));
+  return h('div', { class: 'rep ' + e.t },
+    h('div', { class: 't' }, '🧾 N° ' + r.albaran + ' · ' + r.maquina),
+    h('div', { class: 's' }, 'Horómetro ' + nh(r.h_ini) + ' → ' + nh(r.h_fin) + ' · ' + nh(r.h_trab !== undefined ? r.h_trab : 0) + ' h trabajadas' + (r.h_parada ? ' · ' + nh(r.h_parada) + ' h paradas' : '')),
+    h('div', { style: 'margin-bottom:8px;font-weight:700;color:' + (e.t === 'ok' ? 'var(--ok)' : e.t === 'mal' ? 'var(--err)' : '#b36b00') }, e.txt),
+    r.fecha !== (r.registrado || r.fecha) && r.registrado ? h('div', { class: 's', style: 'color:#b36b00' }, '⚠ Creado el ' + fmtF(r.registrado) + ' para el día ' + fmtF(r.fecha)) : null,
+    bs);
+}
+async function descartar(op, r) { COLA = COLA.filter(o => o !== op); await guardarCola(); if (r.nuevo) { REPS = REPS.filter(x => x.id !== r.id); await guardarReps(); } refrescar(true); pintarInicio(); }
+async function borrar(r) {
+  if (!confirm('¿Borrar este reporte (N° ' + r.albaran + ')? No se puede deshacer.')) return;
+  COLA = COLA.filter(o => o.rid !== r.id);
+  if (!r.nuevo) COLA.push({ id: Date.now() + Math.random(), t: 'e', llave: user.llave, rid: r.id });
+  REPS = REPS.filter(x => x.id !== r.id);
+  for (const c of ['ini', 'fin', 'parte']) await kv.del('f_' + r.id + '_' + c);
+  await guardarReps(); await guardarCola(); pintarInicio(); sincronizar();
+}
+
+/* ---------- fotos ---------- */
+function comprimir(file, max, cal) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, (max || 1280) / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * k), hh = Math.round(img.naturalHeight * k);
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = hh; cv.getContext('2d').drawImage(img, 0, 0, w, hh);
+      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg', cal || 0.65));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('foto')); };
+    img.src = url;
+  });
+}
+function confirmarFoto(data) {
+  return new Promise(res => {
+    const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9990;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px' },
+      h('img', { src: data, style: 'max-width:96vw;max-height:62vh;border-radius:8px' }),
+      h('button', { class: 'verde grande', style: 'width:min(92vw,420px)', onclick: () => { ov.remove(); res('ok'); } }, '✔ USAR ESTA FOTO'),
+      h('button', { class: 'sec', style: 'width:min(92vw,420px)', onclick: () => { ov.remove(); res('retry'); } }, '🔄 Tomar otra'),
+      h('button', { class: 'rojo', style: 'width:min(92vw,420px)', onclick: () => { ov.remove(); res('no'); } }, '✕ Descartar'));
+    document.body.appendChild(ov);
+  });
+}
+function selectorFotos(o) {
+  const mk = (texto, cam) => {
+    const inp = h('input', { type: 'file', accept: 'image/*', hidden: true });
+    if (cam) inp.setAttribute('capture', 'environment'); else inp.multiple = !!o.varias;
+    inp.onchange = async () => {
+      const fs = Array.from(inp.files || []); inp.value = ''; if (!fs.length) return;
+      aviso('Preparando la foto…', '', true);
+      const out = []; for (const f of fs.slice(0, o.varias ? 4 : 1)) { try { out.push(await comprimir(f, o.max, o.cal)); } catch (e) {} }
+      aviso(out.length < Math.min(fs.length, o.varias ? 4 : 1) ? 'No se pudo leer la foto.' : '', out.length ? '' : 'err', true);
+      if (!out.length) return;
+      if (cam) { const r = await confirmarFoto(out[0]); if (r === 'retry') { inp.click(); return; } if (r !== 'ok') return; }
+      o.alAgregar(out);
+    };
+    return h('span', { style: 'display:contents' }, inp, h('button', { class: cam ? 'verde' : 'sec', type: 'button', onclick: () => inp.click() }, texto));
+  };
+  const fr = document.createDocumentFragment(); fr.appendChild(mk('📷 Tomar foto', true)); fr.appendChild(mk('🖼 Elegir de la galería', false)); return fr;
+}
+// visor de fotos del reporte (se abre encima de la pantalla)
+async function verFotos(r) {
+  const V = $('visor'); V.textContent = '';
+  V.style.cssText = 'position:fixed;inset:0;z-index:50;background:rgba(18,32,43,.96);overflow:auto;padding:12px;-webkit-overflow-scrolling:touch';
+  const cerrar = () => { V.hidden = true; V.textContent = ''; document.body.style.overflow = ''; };
+  const cuerpo = h('div', {}, h('p', { style: 'color:#fff;font-size:18px;text-align:center;margin-top:30px' }, 'Abriendo…'));
+  V.appendChild(h('div', { style: 'max-width:640px;margin:0 auto' }, h('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:#12202b;padding:8px 0;color:#fff;font-weight:700' }, h('span', {}, '📷 N° ' + r.albaran + ' · ' + r.maquina), h('button', { class: 'verde', style: 'width:auto;padding:8px 18px', onclick: cerrar }, '✕ Cerrar')), cuerpo));
+  V.hidden = false; V.scrollTop = 0; document.body.style.overflow = 'hidden';
+  const sec = [['ini', '⏱ Horómetro de inicio'], ['fin', '⏱ Horómetro final'], ['parte', '🧾 Parte diario']];
+  cuerpo.textContent = '';
+  for (const [c, t] of sec) {
+    cuerpo.appendChild(h('p', { style: 'color:#fff;font-weight:800;font-size:18px;margin:14px 0 4px' }, t));
+    const caja = h('div', {}, h('p', { style: 'color:#cfd8dc' }, 'Abriendo…')); cuerpo.appendChild(caja);
+    let datas = asArr(await kv.get('f_' + r.id + '_' + c));
+    if (!datas.length) {
+      if (!navigator.onLine) { caja.textContent = 'Para ver esta foto necesitas señal.'; continue; }
+      try { const x = await api({ accion: 'mq_foto', llave: user.llave, id: r.id, cual: c }); datas = x.ok ? (x.datas || []) : []; if (!x.ok) { caja.textContent = x.mensaje || 'No hay foto.'; continue; } } catch (e) { caja.textContent = 'No se pudo abrir.'; continue; }
+    }
+    caja.textContent = ''; datas.forEach(d => caja.appendChild(h('img', { src: d, style: 'width:100%;margin-top:6px;border-radius:6px;background:#fff' })));
+  }
+}
+
+/* ---------- formulario por pasos ---------- */
+let F = null, PASO = 1;
+const PASOS = 7;
+function filaVacia(k) { return { k: k || 'P', cc: '', a: '', g: '', h: '', d: '', t: '', n: '' }; }
+function abrirForm(rep, borrador) {
+  aviso('');
+  if (borrador && borrador.F) { F = borrador.F; PASO = borrador.paso || 1; }
+  else if (rep) {
+    F = { id: rep.id, nuevo: !!rep.nuevo, editar: true, fecha: rep.fecha, maquina: rep.maquina, albaran: rep.albaran, h_ini: rep.h_ini === '' ? '' : String(rep.h_ini), h_fin: rep.h_fin === '' ? '' : String(rep.h_fin), modo: rep.modo === 'TOTAL' ? 'TOTAL' : 'HORARIO', det: (rep.det || []).map(x => ({ k: x.k || (x.parada ? 'X' : x.fuera ? 'F' : 'P'), cc: x.cc || '', a: x.a || '', g: x.g || '', h: String(x.h || ''), d: x.d || '', t: x.t || '', n: x.n || '' })), obs: rep.obs || '', fotos: { ini: [], fin: [], parte: [] }, tiene: { ini: rep.n_ini || 0, fin: rep.n_fin || 0, parte: rep.n_parte || 0 }, creado: rep.creado_ms || 0 };
+    PASO = 1;
+  } else { F = { id: nuevoId(), nuevo: true, editar: false, fecha: hoy(), maquina: '', albaran: '', h_ini: '', h_fin: '', modo: 'HORARIO', det: [filaVacia()], obs: '', fotos: { ini: [], fin: [], parte: [] }, tiene: { ini: 0, fin: 0, parte: 0 }, creado: Date.now() }; PASO = 1; }
+  // fotos ya guardadas en el teléfono (reportes sin enviar que se vuelven a abrir)
+  if (rep) { ['ini', 'fin', 'parte'].forEach(async c => { const d = asArr(await kv.get('f_' + rep.id + '_' + c)); if (d.length && F && F.id === rep.id) { F.fotos[c] = d; if (!$('form').hidden) pasoN(PASO, true); } }); }
+  pantalla('form'); pasoN(PASO, true);
+}
+let tBor = null;
+function guardarBorrador() { clearTimeout(tBor); tBor = setTimeout(() => { if (F && user) kv.set('borrador_' + user.llave, { F: F, paso: PASO }).catch(() => {}); }, 400); }
+function filasTrab() { return F.det.filter(x => x.k !== 'X'); }
+function horaFila(x) {
+  if (F.modo === 'HORARIO') { const m = s => { const p = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return p ? Number(p[1]) * 60 + Number(p[2]) : NaN; }, a = m(x.d), b = m(x.t); if (isNaN(a) || isNaN(b) || a === b) return NaN; return r2(((b > a ? b : b + 1440) - a) / 60); }
+  return num(x.h);
+}
+function totales() {
+  const hi = num(F.h_ini), hf = num(F.h_fin), hh = (!isNaN(hi) && !isNaN(hf) && hf >= hi) ? r2(hf - hi) : NaN;
+  let trab = 0, par = 0; F.det.forEach(x => { const v = horaFila(x); if (!isNaN(v) && v > 0) { if (x.k === 'X') par += v; else trab += v; } });
+  return { hh: hh, trab: r2(trab), par: r2(par), falta: isNaN(hh) ? NaN : r2(hh - trab) };
+}
+function cabeza(n, titulo) {
+  return h('div', {}, h('div', { class: 'pasoh' }, h('b', {}, 'Paso ' + n + ' de ' + PASOS), h('div', { class: 'barra' }, h('i', { style: 'width:' + Math.round(n / PASOS * 100) + '%' }))), h('div', { class: 'q' }, titulo));
+}
+function barraPasos(n, alSiguiente, textoSig) {
+  const B = $('barra'); B.textContent = '';
+  B.appendChild(n > 1 ? h('button', { class: 'sec', onclick: () => { PASO = n - 1; pasoN(PASO); } }, '← Atrás') : h('button', { class: 'sec', onclick: salirForm }, '✕ Salir'));
+  B.appendChild(h('button', { class: 'grande', style: 'font-size:22px;padding:14px;min-height:60px;box-shadow:none', onclick: alSiguiente }, textoSig || 'Siguiente →'));
+  B.hidden = false;
+}
+async function salirForm() {
+  if (F && (F.maquina || F.albaran || F.h_ini || F.fotos.ini.length || F.fotos.parte.length) && !confirm('¿Salir? Lo que llevas se guarda para que continúes después.')) return;
+  await kv.set('borrador_' + user.llave, F && !F.editar ? { F: F, paso: PASO } : null).catch(() => {}); if (F && F.editar) await kv.del('borrador_' + user.llave).catch(() => {});
+  abrirInicio();
+}
+function malMsg(t) { const m = h('div', { class: 'msgerr', style: 'font-size:19px;margin:10px 0' }, '⚠ ' + t); return m; }
+function listaMaquinas() { return (DATOS.maquinas || []).map(m => m.n || m.tipo).filter(Boolean); }
+function abrirLista(titulo, grupos, alElegir, libreTxt) {
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9980;display:flex;align-items:flex-end;justify-content:center' });
+  const hoja = h('div', { style: 'background:#fff;width:min(100%,560px);max-height:88vh;border-radius:14px 14px 0 0;display:flex;flex-direction:column;padding:12px' });
+  const q = h('input', { type: 'search', placeholder: '🔍 Buscar…', autocomplete: 'off', style: 'font-size:18px;margin:8px 0' });
+  const lista = h('div', { style: 'overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px' });
+  const cerrar = () => ov.remove();
+  const pintar = () => {
+    lista.textContent = ''; const t = q.value.trim().toUpperCase();
+    grupos.forEach(g => {
+      const ops = g.ops.filter(o => !t || (o.t + ' ' + (o.sub || '')).toUpperCase().indexOf(t) >= 0); if (!ops.length) return;
+      if (g.titulo) lista.appendChild(h('div', { style: 'font-weight:800;color:#51606d;margin:8px 0 2px;font-size:16px' }, g.titulo));
+      ops.forEach(o => lista.appendChild(h('button', { type: 'button', class: 'sec', style: 'text-align:left;font-size:19px;padding:14px', onclick: () => { cerrar(); alElegir(o); } }, o.t, o.sub ? h('div', { style: 'font-size:14px;font-weight:400;color:#51606d' }, o.sub) : null)));
+    });
+    if (libreTxt) lista.appendChild(h('button', { type: 'button', style: 'background:#7b3fa0;font-size:18px;padding:14px;margin-top:8px', onclick: () => { cerrar(); alElegir({ libre: true, t: q.value.trim() }); } }, '✏️ ' + libreTxt + (q.value.trim() ? ': «' + q.value.trim() + '»' : '')));
+  };
+  q.oninput = pintar; pintar();
+  hoja.appendChild(h('div', { style: 'display:flex;justify-content:space-between;align-items:center' }, h('b', { style: 'font-size:20px' }, titulo), h('button', { type: 'button', class: 'sec', style: 'padding:8px 18px;width:auto;flex:none;min-height:0', onclick: cerrar }, '✕')));
+  hoja.appendChild(q); hoja.appendChild(lista); ov.appendChild(hoja); ov.addEventListener('click', e => { if (e.target === ov) cerrar(); });
+  document.body.appendChild(ov);
+}
+function bloqueFoto(cual, max, cal) {
+  const w = h('div', {}), n = F.fotos[cual].length;
+  if (n) { const m = h('div', { class: 'mini' }); F.fotos[cual].forEach((d, i) => m.appendChild(h('div', { class: 'f' }, h('img', { src: d }), h('button', { class: 'rojo', onclick: () => { F.fotos[cual].splice(i, 1); guardarBorrador(); pasoN(PASO); } }, '✕')))); w.appendChild(m); }
+  else if (F.tiene[cual]) w.appendChild(h('div', { class: 'resumen' }, '✔ Ya hay una foto guardada en la oficina. Si quieres cambiarla, toma otra.'));
+  const bs = h('div', { class: 'gr', style: 'margin-top:8px' });
+  bs.appendChild(selectorFotos({ max: max, cal: cal, varias: cual === 'parte', alAgregar: arr => { F.fotos[cual] = cual === 'parte' ? F.fotos[cual].concat(arr).slice(0, 4) : arr.slice(0, 1); guardarBorrador(); pasoN(PASO); } }));
+  w.appendChild(bs); return w;
+}
+function pasoN(n, arriba) {
+  PASO = n; guardarBorrador();
+  const C = $('form'); const y = window.scrollY; C.textContent = '';
+  const err = t => { C.appendChild(malMsg(t)); window.scrollTo(0, document.body.scrollHeight); };
+  if (n === 1) {
+    C.appendChild(cabeza(1, '¿Con qué máquina trabajó?'));
+    const b = h('button', { class: 'sec', style: 'font-size:22px;padding:18px;text-align:left', onclick: () => abrirLista('Elige la máquina', [{ ops: listaMaquinas().map(t => ({ t: t })) }], o => { F.maquina = o.t; pasoN(1); }, 'Otra máquina (escribir)') }, F.maquina ? '🚜 ' + F.maquina : 'Toca aquí para elegir la máquina');
+    C.appendChild(b);
+    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, 'Fecha del reporte:'));
+    const hoyF = F.fecha === hoy();
+    C.appendChild(h('div', { class: 'card', style: 'margin:0' }, h('div', { style: 'font-size:22px;font-weight:800' }, (hoyF ? 'Hoy · ' : '') + fmtF(F.fecha)), !hoyF ? h('div', { style: 'color:#b36b00;font-weight:700;margin-top:4px' }, '⚠ Estás creando un reporte de otro día. Solo se puede de los últimos 3 días.') : null,
+      h('div', { style: 'margin-top:8px' }, h('button', { class: 'link', onclick: () => { const i = h('input', { type: 'date', min: sumDias(hoy(), -3), max: hoy(), value: F.fecha, style: 'margin-top:8px' }); i.onchange = () => { if (i.value && i.value <= hoy() && i.value >= sumDias(hoy(), -3)) { F.fecha = i.value; pasoN(1); } }; C.appendChild(i); i.focus(); } }, 'Cambiar la fecha'))));
+    barraPasos(1, () => { if (!F.maquina.trim()) { pasoN(1); err('Elige la máquina.'); return; } pasoN(2); });
+  } else if (n === 2) {
+    C.appendChild(cabeza(2, '¿Cuál es el número del informe diario?'));
+    C.appendChild(h('p', { class: 'ayuda' }, 'Es el número en rojo que está arriba a la derecha del papel (el parte diario).'));
+    const i = h('input', { class: 'gran', inputmode: 'numeric', autocomplete: 'off', value: F.albaran, placeholder: 'Ej: 9503' }); i.oninput = () => { F.albaran = i.value.trim(); guardarBorrador(); }; C.appendChild(i);
+    barraPasos(2, () => {
+      if (!F.albaran) { pasoN(2); err('Escribe el número del informe.'); return; }
+      const rep = REPS.find(x => x.id !== F.id && normAlb(x.albaran) === normAlb(F.albaran));
+      if (rep) { pasoN(2); err('Ese número ya fue registrado (' + rep.maquina + ', ' + fmtF(rep.fecha) + '). Revisa el número del papel.'); return; }
+      pasoN(3);
+    });
+  } else if (n === 3 || n === 4) {
+    const ini = n === 3, k = ini ? 'ini' : 'fin';
+    C.appendChild(cabeza(n, ini ? 'Horómetro del INICIO del día' : 'Horómetro del FINAL del día'));
+    C.appendChild(h('p', { class: 'ayuda' }, '1. Toma la foto del horómetro (el reloj de la máquina). 2. Escribe el número que se ve.'));
+    C.appendChild(bloqueFoto(k, 1280, 0.7));
+    C.appendChild(h('label', { style: 'margin-top:14px', for: 'hor' }, 'Número del horómetro'));
+    const i = h('input', { id: 'hor', class: 'gran', inputmode: 'decimal', autocomplete: 'off', value: ini ? F.h_ini : F.h_fin, placeholder: 'Ej: 2376,5' }); i.oninput = () => { if (ini) F.h_ini = i.value.trim(); else F.h_fin = i.value.trim(); guardarBorrador(); }; C.appendChild(i);
+    if (!ini) { const t = totales(); if (!isNaN(t.hh)) C.appendChild(h('div', { class: 'resumen' }, '⏱ La máquina trabajó ' + nh(t.hh) + ' horas según el horómetro.')); }
+    barraPasos(n, () => {
+      const v = num(ini ? F.h_ini : F.h_fin);
+      if (isNaN(v) || v < 0) { pasoN(n); err('Escribe el número del horómetro.'); return; }
+      if (!ini) { const a = num(F.h_ini); if (v < a) { pasoN(n); err('El horómetro final no puede ser menor que el inicial (' + nh(a) + ').'); return; } if (v - a > 24) { pasoN(n); err('Entre el inicio y el final hay más de 24 horas. Revisa los números.'); return; } }
+      if (!F.fotos[k].length && !F.tiene[k]) { pasoN(n); err('Falta la foto del horómetro.'); return; }
+      pasoN(n + 1);
+    });
+  } else if (n === 5) {
+    C.appendChild(cabeza(5, 'Foto del parte diario (el papel)'));
+    C.appendChild(h('p', { class: 'ayuda' }, 'Toma la foto de todo el papel, que se lean bien el número y lo escrito. Si el papel tiene varias hojas, puedes agregar más fotos.'));
+    C.appendChild(bloqueFoto('parte', 1800, 0.72));
+    barraPasos(5, () => { if (!F.fotos.parte.length && !F.tiene.parte) { pasoN(5); err('Falta la foto del parte diario.'); return; } pasoN(6); });
+  } else if (n === 6) {
+    C.appendChild(cabeza(6, '¿Qué hizo la máquina?'));
+    const t = totales(), cont = h('div', { class: 'cont' });
+    const pintaCont = () => { const t2 = totales(); cont.className = 'cont ' + (t2.falta < -0.001 ? 'mal' : (Math.abs(t2.falta) < 0.001 ? 'bien' : '')); cont.textContent = ''; cont.appendChild(h('div', {}, '⏱ ' + nh(t2.hh) + ' h del horómetro · puesto: ' + nh(t2.trab) + ' h')); cont.appendChild(h('div', {}, t2.falta < -0.001 ? '⚠ te pasaste ' + nh(-t2.falta) + ' h' : t2.falta > 0.001 ? 'Te faltan ' + nh(t2.falta) + ' h por repartir' : '✔ Horas completas')); if (t2.par) cont.appendChild(h('div', { style: 'font-size:16px;font-weight:600' }, 'Paradas (no cuentan en el horómetro): ' + nh(t2.par) + ' h')); };
+    pintaCont(); C.appendChild(cont);
+    C.appendChild(h('p', { class: 'ayuda' }, 'Reparte las horas del horómetro entre los trabajos que hizo. Si estuvo parada, agrégalo aparte.'));
+    C.appendChild(h('div', { class: 'opc', style: 'margin-bottom:12px' },
+      h('button', { class: 'sec' + (F.modo === 'HORARIO' ? ' on' : ''), onclick: () => cambiarModo('HORARIO') }, '⏰ Pongo hora de inicio y fin'),
+      h('button', { class: 'sec' + (F.modo === 'TOTAL' ? ' on' : ''), onclick: () => cambiarModo('TOTAL') }, '🔢 Pongo el total de horas')));
+    F.det.forEach((x, i) => {
+      const cl = x.k === 'X' ? 'par' : x.k === 'F' ? 'fue' : '';
+      const card = h('div', { class: 'act ' + cl });
+      card.appendChild(h('button', { class: 'sec', style: 'text-align:left;font-size:19px;padding:12px', onclick: () => elegirActividad(i) }, x.a ? ((x.k === 'P' && x.cc ? x.cc + ' · ' : x.k === 'X' ? '⏸ ' : '✏️ ') + x.a) : 'Toca aquí: ¿qué hizo?'));
+      if (x.k === 'F') card.appendChild(h('div', { style: 'color:#7b3fa0;font-weight:700;margin-top:4px;font-size:15px' }, 'Fuera de la estructura: la oficina lo revisará.'));
+      const hr = h('div', { class: 'hh' });
+      const pintaHr = () => { const v = horaFila(x); hr.textContent = isNaN(v) ? '= — horas' : '= ' + nh(v) + ' h'; pintaCont(); };
+      if (F.modo === 'HORARIO') {
+        const d = h('input', { type: 'time', value: x.d }), t3 = h('input', { type: 'time', value: x.t });
+        d.oninput = () => { x.d = d.value; pintaHr(); guardarBorrador(); }; t3.oninput = () => { x.t = t3.value; pintaHr(); guardarBorrador(); };
+        card.appendChild(h('div', { class: 'row', style: 'margin-top:6px' }, h('div', {}, h('label', {}, 'Desde'), d), h('div', {}, h('label', {}, 'Hasta'), t3)));
+      } else {
+        const hi = h('input', { inputmode: 'decimal', class: 'cant', value: x.h, placeholder: 'Horas' }); hi.oninput = () => { x.h = hi.value.trim(); pintaHr(); guardarBorrador(); };
+        card.appendChild(h('div', { style: 'margin-top:6px' }, h('label', {}, 'Cuántas horas'), hi));
+      }
+      pintaHr(); card.appendChild(hr);
+      const nt = h('input', { placeholder: 'Detalle (si quieres): ej. K4+500', value: x.n, style: 'font-size:17px;padding:10px;margin-top:4px' }); nt.oninput = () => { x.n = nt.value; guardarBorrador(); }; card.appendChild(nt);
+      if (F.det.length > 1) card.appendChild(h('div', { style: 'text-align:right;margin-top:6px' }, h('button', { class: 'link', style: 'color:#b3261e', onclick: () => { F.det.splice(i, 1); pasoN(6); } }, '🗑 Quitar esta actividad')));
+      C.appendChild(card);
+    });
+    C.appendChild(h('button', { class: 'sec', style: 'margin:4px 0 8px', onclick: () => { F.det.push(filaVacia()); pasoN(6); setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50); } }, '➕ Agregar otra actividad'));
+    barraPasos(6, () => {
+      const t2 = totales();
+      for (let i = 0; i < F.det.length; i++) {
+        const x = F.det[i], v = horaFila(x);
+        if (!x.a) { pasoN(6); err('Elige qué hizo en la actividad ' + (i + 1) + '.'); return; }
+        if (isNaN(v) || v <= 0) { pasoN(6); err('Revisa las horas de «' + x.a + '».'); return; }
+      }
+      if (t2.falta < -0.001) { pasoN(6); err('Las horas trabajadas (' + nh(t2.trab) + ') superan las del horómetro (' + nh(t2.hh) + '). Corrige las horas.'); return; }
+      if (t2.trab + t2.par > 24.001) { pasoN(6); err('Entre horas trabajadas y paradas suman más de 24 horas.'); return; }
+      if (F.modo === 'HORARIO') { const iv = F.det.map(x => { const m = s => { const p = s.split(':'); return Number(p[0]) * 60 + Number(p[1]); }, a = m(x.d), b = m(x.t); return [a, b > a ? b : b + 1440, x.a]; }); for (let i = 0; i < iv.length; i++) for (let j = i + 1; j < iv.length; j++) if (iv[i][0] < iv[j][1] && iv[j][0] < iv[i][1]) { pasoN(6); err('Los horarios de «' + iv[i][2] + '» y «' + iv[j][2] + '» se cruzan.'); return; } }
+      pasoN(7);
+    });
+  } else {
+    C.appendChild(cabeza(7, 'Revisa y envía'));
+    const t = totales();
+    const fila = (a, b) => h('div', { style: 'display:flex;justify-content:space-between;gap:10px;border-top:1px solid #dde1e6;padding:7px 0;font-size:18px' }, h('span', { style: 'color:#51606d' }, a), h('b', { style: 'text-align:right' }, b));
+    C.appendChild(h('div', { class: 'card' }, fila('Fecha', fmtF(F.fecha)), fila('Máquina', F.maquina), fila('N° del informe', F.albaran), fila('Horómetro', nh(num(F.h_ini)) + ' → ' + nh(num(F.h_fin)) + ' (' + nh(t.hh) + ' h)'), fila('Fotos', '⏱ 2 · 🧾 ' + Math.max(F.fotos.parte.length, F.tiene.parte)),
+      h('div', { style: 'font-weight:800;margin:10px 0 4px;font-size:18px' }, 'Trabajo de la máquina'),
+      F.det.map(x => h('div', { style: 'border-top:1px solid #dde1e6;padding:6px 0;font-size:17px' }, h('b', {}, (x.k === 'P' && x.cc ? x.cc + ' · ' : '') + x.a), ' — ' + nh(horaFila(x)) + ' h' + (F.modo === 'HORARIO' ? ' (' + x.d + ' a ' + x.t + ')' : '') + (x.k === 'X' ? ' · parada' : ''))),
+      fila('Total trabajado', nh(t.trab) + ' h')));
+    C.appendChild(h('label', { for: 'obs' }, 'Observaciones (si quieres)'));
+    const o = h('input', { id: 'obs', value: F.obs, placeholder: 'Ej: horómetro dañado' }); o.oninput = () => { F.obs = o.value; guardarBorrador(); }; C.appendChild(o);
+    barraPasos(7, guardarReporte, '✔ ENVIAR REPORTE');
+  }
+  window.scrollTo(0, arriba ? 0 : y);
+}
+function cambiarModo(m) {
+  if (F.modo === m) return;
+  if (F.det.some(x => x.a || x.h || x.d || x.t) && !confirm('Se borrarán las horas que ya escribiste (las actividades se quedan). ¿Cambiar?')) return;
+  F.modo = m; F.det.forEach(x => { x.h = ''; x.d = ''; x.t = ''; }); pasoN(6);
+}
+function elegirActividad(i) {
+  const est = DATOS.estructura || [], gr = {};
+  est.forEach(e => { (gr[e.g || 'Otros'] = gr[e.g || 'Otros'] || []).push({ t: (e.cod ? e.cod + ' · ' : '') + e.a, sub: '', k: 'P', cc: e.cod, a: e.a, g: e.g }); });
+  const grupos = Object.keys(gr).map(g => ({ titulo: '🏗 ' + g, ops: gr[g] }));
+  grupos.push({ titulo: '⏸ La máquina estuvo parada (no es trabajo)', ops: PARADAS.map(p => ({ t: p, k: 'X', a: p })) });
+  abrirLista('¿Qué hizo la máquina?', grupos, o => {
+    const x = F.det[i];
+    if (o.libre) { if (!o.t) { const v = prompt('Escribe la actividad que hizo (no está en la lista):'); if (!v || !v.trim()) return; o.t = v.trim(); } x.k = 'F'; x.cc = ''; x.a = o.t.slice(0, 80); x.g = ''; }
+    else { x.k = o.k; x.cc = o.cc || ''; x.a = o.a; x.g = o.g || ''; }
+    pasoN(6);
+  }, 'No está en la lista (escribirla)');
+}
+const PARADAS = ['Almuerzo / descanso', 'Disponible (sin trabajo)', 'Varada (dañada)', 'Mantenimiento', 'Reparación', 'Traslado de la máquina', 'Lluvia'];
+
+/* ---------- guardar y enviar ---------- */
+function envio(ico, tit, txt, barra, botones) {
+  $('envio').hidden = false; $('envIco').textContent = ico; $('envTit').textContent = tit; $('envTxt').textContent = txt || ''; $('envPb').hidden = !barra;
+  const b = $('envBt'); b.textContent = ''; (botones || []).forEach(x => b.appendChild(h('button', { class: x[2] || '', onclick: x[1] }, x[0])));
+}
+async function guardarReporte() {
+  const t = totales();
+  const r = { id: F.id, fecha: F.fecha, llave: user.llave, usuario: user.nombre, maquina: F.maquina.trim(), albaran: F.albaran.toUpperCase().replace(/\s+/g, ''), h_ini: num(F.h_ini), h_fin: num(F.h_fin), h_hor: t.hh, h_trab: t.trab, h_parada: t.par, modo: F.modo,
+    det: F.det.map(x => { const o = { k: x.k, cc: x.cc, a: x.a, g: x.g, h: horaFila(x), n: x.n }; if (F.modo === 'HORARIO') { o.d = x.d; o.t = x.t; } o.parada = x.k === 'X'; o.fuera = x.k === 'F'; return o; }),
+    obs: F.obs.trim(), n_ini: Math.max(F.fotos.ini.length, F.tiene.ini), n_fin: Math.max(F.fotos.fin.length, F.tiene.fin), n_parte: Math.max(F.fotos.parte.length, F.tiene.parte), registrado: F.editar ? (REPS.find(x => x.id === F.id) || {}).registrado || hoy() : hoy(), creado_ms: F.creado || 0, alertas: '', nuevo: F.nuevo };
+  envio('💾', 'Guardando…', 'No cierres la aplicación hasta que termine.', true);
+  try {
+    for (const c of ['ini', 'fin', 'parte']) { if (F.fotos[c].length) await kv.set('f_' + r.id + '_' + c, F.fotos[c]); }
+    const i = REPS.findIndex(x => x.id === r.id); if (i >= 0) REPS[i] = r; else REPS.push(r);
+    COLA = COLA.filter(o => !(o.t === 'g' && o.rid === r.id));
+    COLA.push({ id: Date.now() + Math.random(), t: 'g', llave: user.llave, rid: r.id, creado: F.editar ? 0 : (F.creado || Date.now()) });
+    await guardarReps(); await guardarCola(); await kv.del('borrador_' + user.llave);
+  } catch (e) { envio('⚠️', 'No se pudo guardar en el teléfono', 'Revisa que el teléfono tenga espacio y vuelve a intentar.', false, [['Cerrar', () => { $('envio').hidden = true; }, 'sec']]); return; }
+  F = null; $('barra').hidden = true;
+  await enviarYMostrar(r);
+}
+async function enviarYMostrar(r) {
+  if (!navigator.onLine) return finEnvio(r, 'red');
+  envio('📤', 'Enviando el reporte…', 'Guardado en el teléfono ✔  ·  Enviando a la oficina… No cierres la aplicación.', true);
+  const res = await sincronizar(true, true);
+  finEnvio(r, res);
+}
+function finEnvio(r, res) {
+  const volver = ['🏠 Ir al inicio', () => { $('envio').hidden = true; abrirInicio(); }, 'verde'];
+  if (res === 'ok' || (res && res.ok)) envio('✅', '¡Reporte enviado!', 'Ya llegó a la oficina. Guarda el papel junto con el reporte.', false, [volver, ['➕ Otro reporte', () => { $('envio').hidden = true; abrirForm(null); }, 'sec']]);
+  else if (res && res.error) envio('⚠️', 'La oficina no aceptó el reporte', res.error, false, [['✏️ Corregir el reporte', () => { $('envio').hidden = true; const x = REPS.find(y => y.id === r.id); if (x) abrirForm(x); else abrirInicio(); }, 'verde'], ['Ir al inicio', () => { $('envio').hidden = true; abrirInicio(); }, 'sec']]);
+  else envio('💾', 'Guardado en el teléfono', 'NO ha llegado a la oficina todavía. Se enviará solo cuando haya señal. No borres la aplicación.', false, [volver, ['🔄 Intentar enviar otra vez', () => enviarYMostrar(r), 'sec']]);
+}
+async function sincronizar(manual, ui) {
+  if (sincronizando) return 'ocupado';
+  if (!COLA.some(o => !o.error) || !navigator.onLine) return COLA.some(o => !o.error) ? 'red' : 'ok';
+  sincronizando = true; let resultado = 'ok';
+  try {
+    for (const op of COLA.slice()) {
+      if (op.error || !COLA.includes(op)) continue;
+      let r;
+      if (op.t === 'g') {
+        const rep = REPS.find(x => x.id === op.rid); if (!rep) { COLA = COLA.filter(o => o !== op); await guardarCola(); continue; }
+        const p = { id: rep.id, fecha: rep.fecha, maquina: rep.maquina, albaran: rep.albaran, h_ini: rep.h_ini, h_fin: rep.h_fin, modo: rep.modo, det: rep.det.map(x => ({ k: x.k, cc: x.cc, a: x.a, h: x.h, d: x.d, t: x.t, n: x.n })), obs: rep.obs };
+        for (const c of ['ini', 'fin', 'parte']) { const f = asArr(await kv.get('f_' + rep.id + '_' + c)); if (f.length) p['foto_' + c] = f; }
+        try { r = await api({ accion: 'mq_guardar', llave: op.llave, rep: p, creado: op.creado || 0 }, 240000); } catch (e) { resultado = 'red'; break; }
+      } else { try { r = await api({ accion: 'mq_eliminar', llave: op.llave, id: op.rid }, 60000); } catch (e) { resultado = 'red'; break; } }
+      if (!r || !r.ok) { op.error = (r && r.mensaje) || 'La oficina no aceptó el cambio'; await guardarCola(); resultado = { error: op.error }; continue; }
+      const vigente = COLA.find(o => o.t === op.t && o.rid === op.rid);
+      if (vigente && vigente.id === op.id) COLA = COLA.filter(o => o !== op);
+      if (op.t === 'g') { const rep = REPS.find(x => x.id === op.rid); if (rep && vigente && vigente.id === op.id) { rep.nuevo = false; rep.alertas = (r.alertas || []).join('; '); rep.n_ini = r.n_ini || rep.n_ini; rep.n_fin = r.n_fin || rep.n_fin; rep.n_parte = r.n_parte || rep.n_parte; } for (const c of ['ini', 'fin', 'parte']) await kv.del('f_' + op.rid + '_' + c); }
+      await guardarReps(); await guardarCola();
+    }
+  } catch (e) { resultado = 'red'; }
+  finally { sincronizando = false; if (user && !$('inicio').hidden) pintarInicio(); if (!ui) refrescar(true); }
+  if (resultado === 'ok' && COLA.some(o => o.error)) resultado = { error: (COLA.find(o => o.error) || {}).error };
+  return resultado;
+}
+
+/* ---------- arranque ---------- */
+async function estadoRed() {
+  let n = 0; try { const c = (await kv.get('cola')) || []; n = c.filter(o => !user || o.llave === user.llave).length; } catch (x) {}
+  const r = $('red'); r.textContent = navigator.onLine ? 'Con señal' : 'Sin señal';
+  if (n) { const b = document.createElement('div'); b.className = 'pen'; b.textContent = '⏳ ' + n + (n === 1 ? ' sin enviar' : ' sin enviar'); r.appendChild(b); }
+}
+setInterval(estadoRed, 3000);
+setInterval(() => { if (user && navigator.onLine && !sincronizando && COLA.some(o => !o.error) && $('envio').hidden) sincronizar(); }, 25000);
+$('btnIngresar').onclick = ingresar;
+$('llave').onkeydown = e => { if (e.key === 'Enter') ingresar(); };
+window.addEventListener('online', () => { estadoRed(); sincronizar(); refrescar(true); });
+window.addEventListener('offline', estadoRed);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && user && !$('inicio').hidden) { pintarInicio(); refrescar(); } });
+estadoRed();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+(async () => {
+  try { user = await kv.get('user'); } catch (e) { user = null; }
+  if (user) { await cargarLocal(); abrirInicio(); sincronizar(); } else pantalla('login');
+})();
+</script>
+</body></html>
