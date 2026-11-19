@@ -43,6 +43,16 @@ button.link{background:none;color:var(--ink);text-decoration:underline;width:aut
 .off{opacity:.5}
 #cargando{position:fixed;inset:0;z-index:9999;background:rgba(18,32,43,.55);display:flex;align-items:center;justify-content:center;padding:24px}
 #cargando[hidden]{display:none}
+#envio{position:fixed;inset:0;z-index:10000;background:rgba(18,32,43,.7);display:flex;align-items:center;justify-content:center;padding:24px}
+#envio[hidden]{display:none}
+.row[hidden]{display:none}
+#envio .caja{background:#fff;border-radius:14px;padding:22px 22px 20px;text-align:center;width:100%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+#envio .caja b{display:block;font-size:20px;margin-top:12px;color:#12202b}
+#envio .barra{height:18px;background:#e2e8ee;border-radius:9px;overflow:hidden;margin:14px 0 6px}
+#envio .barra i{display:block;height:100%;width:0;background:#0a7f2e;border-radius:9px;transition:width .35s ease}
+#envPct{font-size:22px;font-weight:800;color:#0a7f2e}
+#envio small{display:block;color:#5b6b78;margin-top:4px;font-size:15px}
+#envio strong{display:block;margin-top:12px;padding:10px;border-radius:8px;background:#fff4d6;color:#7a4b00;font-size:15px}
 #cargando .caja{background:#fff;border-radius:12px;padding:22px 26px;text-align:center;max-width:320px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 #cargando .caja b{display:block;font-size:19px;margin-top:12px;color:#12202b}
 #cargando .caja small{display:block;color:#5b6b78;margin-top:4px;font-size:14px}
@@ -82,6 +92,7 @@ button.env{background:#f59e0b;color:#1b1b1b;border:2px solid #b45309;font-weight
 </head>
 <body>
 <header><img class="logo" src="marca.png" alt="Consorcio Constructor Sabana Norte"><h1>Parte diario de obra</h1><span style="display:flex;align-items:center;gap:8px"><span id="red"></span><button type="button" id="recargar" class="ib" title="Recargar" aria-label="Recargar" onclick="location.reload()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></button><button type="button" id="salirTop" class="ib" hidden title="Cerrar sesión" aria-label="Cerrar sesión" onclick="salir()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg></button></span></header>
+<div id="envio" hidden role="alert" aria-live="assertive"><div class="caja"><div class="rueda"></div><b>Enviando tu parte a la oficina</b><div class="barra"><i id="envBar"></i></div><div id="envPct">0%</div><small id="envTxt">Preparando…</small><strong>⚠ No cierres la aplicación ni apagues la pantalla hasta que termine.</strong></div></div>
 <div id="cargando" hidden role="alert" aria-live="assertive"><div class="caja"><div class="rueda"></div><b id="cargTxt">Cargando datos…</b><small>Espera un momento</small></div></div>
 <div id="bgpill" hidden role="status"><span class="rueda"></span><span>Actualizando datos…</span></div>
 <main>
@@ -405,7 +416,7 @@ async function biblioteca(sinRed) {
 function filaParte(x, esHoy, varios) {
   const n = x.n || 1;
   const bs = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' });
-  if (x.pend) bs.appendChild(h('button', { class: 'env', 'aria-label': 'Enviar este parte a la oficina', title: 'Enviar a la oficina', onclick: ev => { ev.currentTarget.disabled = true; sincronizar(true); } }, '🔄 Enviar'));
+  if (x.pend) bs.appendChild(h('button', { class: 'env', 'aria-label': 'Enviar este parte a la oficina', title: 'Enviar a la oficina', onclick: ev => { ev.currentTarget.disabled = true; sincronizar(true, true); } }, '🔄 Enviar'));
   if (esHoy) bs.appendChild(h('button', { onclick: () => editarHoy(n, !x.pend || !x.local, x.fecha) }, 'Editar'));
   if (x.pdf || x.local) {
     bs.appendChild(h('button', { class: 'sec', onclick: () => verDe(x.fecha, n) }, 'Ver'));
@@ -1033,7 +1044,8 @@ async function guardar() {
   await kv.set('borrador', { fecha: P.fecha, llave: user.llave, parte: P, paso: paso, guardado: true });
   aviso('');
   mostrarListo(parte, !!blob);
-  sincronizar(false);
+  await sincronizar(true, true); // se envía solo, con barra de progreso
+  pintarEstado();
 }
 
 async function mutarCola(fn) { const c = (await kv.get('cola')) || []; await kv.set('cola', fn(c)); }
@@ -1041,13 +1053,13 @@ async function mutarCola(fn) { const c = (await kv.get('cola')) || []; await kv.
 function mostrarListo(parte, hayPdf) {
   $('app').hidden = true; $('barra').hidden = true; $('listo').hidden = false;
   const L = $('listo'); L.textContent = '';
-  L.appendChild(h('div', { class: 'card' }, h('h2', {}, '✔ Parte guardado'), h('p', { id: 'estadoEnvio' }, 'Está guardado en el teléfono.')));
+  L.appendChild(h('div', { class: 'card' }, h('h2', {}, '✔ Parte guardado'), h('p', { id: 'estadoEnvio', style: 'font-weight:700' }, 'Está guardado en el teléfono.')));
+  L.appendChild(h('div', { class: 'row', id: 'filaReintento', hidden: true }, h('button', { class: 'env', id: 'btnEnviar', onclick: () => sincronizar(true, true) }, '🔄 Reintentar envío')));
   L.appendChild(h('div', { class: 'row' }, h('button', { onclick: () => biblioteca() }, '🏠 Volver al inicio')));
   if (hayPdf) {
     L.appendChild(h('div', { class: 'row' }, h('button', { onclick: compartir }, 'Compartir PDF por WhatsApp')));
     L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: verPdf }, 'Ver / descargar PDF')));
   } else L.appendChild(h('p', { class: 'aviso err' }, 'No se pudo crear el PDF en este teléfono. Los datos sí quedaron guardados.'));
-  L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', id: 'btnEnviar', onclick: () => sincronizar(true) }, 'Enviar ahora')));
   L.appendChild(h('div', { class: 'row' }, h('button', { class: 'sec', onclick: () => { menuEdicion(); } }, 'Corregir el parte')));
   pintarEstado();
 }
@@ -1055,7 +1067,9 @@ async function pintarEstado() {
   const e = $('estadoEnvio'); if (!e) return;
   const c = (await kv.get('cola')) || [];
   const pend = c.some(x => x.id === (P && user ? idP(P.fecha, user.llave, P.n || 1) : ''));
-  e.textContent = pend ? 'Falta enviarlo a la oficina. Se enviará solo cuando haya señal.' : 'Ya se envió a la oficina. ✔';
+  e.textContent = pend ? '⚠ NO ha llegado a la oficina. Está guardado en este celular y se enviará solo cuando haya señal. Si ya tienes señal, toca "Reintentar envío".' : '✔ Ya llegó a la oficina.';
+  e.style.color = pend ? '#b3261e' : '#14532d';
+  const fr = $('filaReintento'); if (fr) fr.hidden = !pend;
 }
 function nombrePdf() {
   if (!ultId) ultId = { hhmm: new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }).replace(':', ''), uid: (Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-3)).toLowerCase() };
@@ -1089,35 +1103,63 @@ function payload(parte) {
   return p;
 }
 let otraVez = false;
-async function sincronizar(manual) {
-  if (sincronizando) { otraVez = true; return; }
-  const cola = (await kv.get('cola')) || [];
-  if (!cola.length) { await pintarEstado(); return; }
-  if (!navigator.onLine) { if (manual) aviso('No hay señal. Se enviará cuando haya.'); return; }
+const dormir = ms => new Promise(r => setTimeout(r, ms));
+let wl = null;
+const bloquearSalida = ev => { ev.preventDefault(); ev.returnValue = ''; return ''; };
+function envioUI(on, frac, txt) {
+  const e = $('envio'); if (!e) return;
+  if (!on) { e.hidden = true; return; }
+  const p = Math.round(Math.max(0, Math.min(1, frac || 0)) * 100);
+  e.hidden = false; $('envBar').style.width = p + '%'; $('envPct').textContent = p + '%'; if (txt) $('envTxt').textContent = txt;
+}
+// Envía a la oficina todo lo que está en la cola. Con ui=true muestra la ventana con barra de progreso.
+// Un parte rechazado NO bloquea a los demás; un parte solo sale de la cola cuando la oficina confirma que lo recibió.
+async function sincronizar(manual, ui) {
+  if (sincronizando) {
+    if (!ui) { otraVez = true; return { ocupado: true }; }
+    for (let k = 0; k < 300 && sincronizando; k++) await dormir(300);
+    if (sincronizando) return { ocupado: true };
+  }
   sincronizando = true;
-  if (manual) aviso('Enviando…');
+  const res = { enviados: 0, rechazos: [], sinSenal: false, quedan: 0 };
+  let uiOn = false, tmr = null;
   try {
-    const rechazos = []; let enviados = 0;
-    // Un parte rechazado NO debe bloquear a los demás: se anota el motivo y se sigue con el siguiente
-    const rechazar = async (e, msg) => { rechazos.push(msg); if (e.error !== msg) { e.error = msg; await mutarCola(c => c.map(x => (x.id === e.id && x.ts === e.ts) ? e : x)); } };
+    const cola = (await kv.get('cola')) || [];
+    if (!cola.length) return res;
+    if (!navigator.onLine) { res.sinSenal = true; res.quedan = cola.length; if (ui) aviso('No hay señal. Tu parte está guardado en el celular y se enviará solo cuando haya señal.', 'err', true); return res; }
+    const pasos = cola.reduce((n, e) => n + (e.datosOk ? 0 : 1) + (e.pdfOk ? 0 : 1), 0) || 1;
+    let hechos = 0;
+    if (ui) {
+      uiOn = true; envioUI(true, 0, 'Conectando con la oficina…');
+      window.addEventListener('beforeunload', bloquearSalida);
+      try { if (navigator.wakeLock) wl = await navigator.wakeLock.request('screen'); } catch (e) {}
+    }
+    // la barra avanza suave dentro de cada paso y salta al completarlo
+    const conBarra = async (txt, fn) => {
+      const t0 = Date.now(), base = hechos / pasos, tope = (hechos + 1) / pasos;
+      if (uiOn) { envioUI(true, base, txt); tmr = setInterval(() => envioUI(true, base + (tope - base) * 0.9 * (1 - Math.exp(-(Date.now() - t0) / 7000)), txt), 400); }
+      try { return await fn(); } finally { clearInterval(tmr); }
+    };
+    const rechazar = async (e, msg) => { res.rechazos.push(msg); if (e.error !== msg) { e.error = msg; await mutarCola(c => c.map(x => (x.id === e.id && x.ts === e.ts) ? e : x)); } };
     for (const e of cola) {
+      const nom = PD.fechaLarga(e.parte.fecha);
       if (!e.datosOk) {
         const mal = unidadMala(e.parte);
-        if (mal) { await rechazar(e, 'Tiene una unidad no válida ("' + mal.unidad + '" en la actividad ' + mal.n + '). Ábrelo, elige la unidad de la lista y guarda de nuevo.'); continue; }
-        const r = await api({ accion: 'guardar', llave: e.llave, parte: payload(e.parte) });
-        if (!r.ok && r.codigo !== 'PASADO') { await rechazar(e, r.mensaje || 'La oficina no aceptó el parte.'); continue; }
+        if (mal) { await rechazar(e, 'Tiene una unidad no válida ("' + mal.unidad + '" en la actividad ' + mal.n + '). Ábrelo, elige la unidad de la lista y guarda de nuevo.'); hechos += (e.pdfOk ? 1 : 2); continue; }
+        const r = await conBarra('Enviando los datos del parte del ' + nom + '…', () => api({ accion: 'guardar', llave: e.llave, parte: payload(e.parte), creado: e.ts }, 120000));
+        if (!r.ok && r.codigo !== 'PASADO') { await rechazar(e, r.mensaje || 'La oficina no aceptó el parte.'); hechos += (e.pdfOk ? 1 : 2); continue; }
         e.parte.fotos.forEach(f => { if (r.fotos && r.fotos[f.id]) f.url = r.fotos[f.id]; });
         if (P && P.fecha === e.parte.fecha && (P.n || 1) === (e.parte.n || 1)) P.fotos.forEach(f => { if (r.fotos && r.fotos[f.id]) f.url = r.fotos[f.id]; });
-        e.datosOk = true;
+        e.datosOk = true; hechos++;
         await mutarCola(c => c.map(x => (x.id === e.id && x.ts === e.ts) ? e : x));
       }
       if (e.datosOk && !e.pdfOk) {
-        const r2 = await api({ accion: 'pdf', llave: e.llave, fecha: e.parte.fecha, n: e.parte.n || 1, rev: e.parte.rev || 1, pdf: e.pdf, hhmm: e.hhmm, uid: e.uid });
-        if (!r2.ok && r2.codigo !== 'PASADO') { await rechazar(e, r2.mensaje || 'No se pudo subir el PDF.'); continue; }
-        e.pdfOk = true;
+        const r2 = await conBarra('Enviando el PDF del parte del ' + nom + '…', () => api({ accion: 'pdf', llave: e.llave, fecha: e.parte.fecha, n: e.parte.n || 1, rev: e.parte.rev || 1, pdf: e.pdf, hhmm: e.hhmm, uid: e.uid, creado: e.ts }, 120000));
+        if (!r2.ok && r2.codigo !== 'PASADO') { await rechazar(e, r2.mensaje || 'No se pudo subir el PDF.'); hechos++; continue; }
+        e.pdfOk = true; hechos++;
       }
       if (e.datosOk && e.pdfOk) {
-        await mutarCola(c => c.filter(x => !(x.id === e.id && x.ts === e.ts))); enviados++;
+        await mutarCola(c => c.filter(x => !(x.id === e.id && x.ts === e.ts))); res.enviados++;
         try {
           const kb = 'bib_' + e.llave, nb = e.parte.n || 1;
           const lb = ((await kv.get(kb)) || []).filter(x => !(x.fecha === e.parte.fecha && (x.n || 1) === nb));
@@ -1126,11 +1168,25 @@ async function sincronizar(manual) {
         } catch (e2) {}
       }
     }
-    if (rechazos.length) aviso(rechazos.length === 1 ? 'Un parte no se pudo enviar: ' + rechazos[0] : rechazos.length + ' partes no se pudieron enviar. Mira el motivo en "Mis partes".', 'err', true);
-    else if (manual) aviso(enviados ? (enviados === 1 ? 'Parte enviado a la oficina ✔' : enviados + ' partes enviados a la oficina ✔') : '', enviados ? 'ok' : '', true);
-  } catch (err) { if (manual) aviso('No se pudo enviar. Se reintentará cuando haya señal.', 'err'); }
-  finally { sincronizando = false; pintarEstado(); if (user && !$('biblio').hidden) biblioteca(); if (otraVez) { otraVez = false; setTimeout(() => sincronizar(false), 300); } }
+    if (uiOn) envioUI(true, 1, 'Listo');
+  } catch (err) {
+    res.sinSenal = true; // se cortó la conexión: el parte sigue guardado y se reintenta solo
+    if (ui) aviso('No se pudo enviar (la conexión falló). Tu parte sigue guardado en el celular y se reintentará solo.', 'err', true);
+  } finally {
+    clearInterval(tmr);
+    if (uiOn) { await dormir(450); envioUI(false); window.removeEventListener('beforeunload', bloquearSalida); try { if (wl) await wl.release(); } catch (e) {} wl = null; }
+    try { res.quedan = ((await kv.get('cola')) || []).length; } catch (e) {}
+    sincronizando = false; await pintarEstado();
+    if (user && !$('biblio').hidden) biblioteca();
+    if (otraVez) { otraVez = false; setTimeout(() => sincronizar(false), 300); }
+  }
+  if (res.rechazos.length) aviso(res.rechazos.length === 1 ? 'Un parte no se pudo enviar: ' + res.rechazos[0] : res.rechazos.length + ' partes no se pudieron enviar. Mira el motivo en "Mis partes".', 'err', true);
+  else if (ui && res.enviados && !res.sinSenal) aviso(res.enviados === 1 ? 'Parte enviado a la oficina ✔' : res.enviados + ' partes enviados a la oficina ✔', 'ok', true);
+  return res;
 }
+// Reintentos automáticos: cada 45 s, al volver a la app y al recuperar señal (además de al abrirla)
+setInterval(() => { try { if (user && navigator.onLine && !sincronizando) kv.get('cola').then(c => { if (c && c.length) sincronizar(false); }); } catch (e) {} }, 45000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && user && navigator.onLine) sincronizar(false); });
 
 /* ---------- arranque ---------- */
 $('btnIngresar').onclick = ingresar;
