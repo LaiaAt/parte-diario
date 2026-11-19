@@ -694,7 +694,7 @@ function abrirForm(v, base) {
   turno.value = v ? v.turno : ((hh >= 6 && hh < 18) ? 'DIA' : 'NOCHE');
   const vd = h('select', { id: 'valera_de' }, h('option', { value: '' }, '— Elige —'), h('option', { value: 'NUESTRA' }, 'Nuestra'), h('option', { value: 'VOLQUETERO' }, 'Del volquetero'));
   vd.value = val('valera_de');
-  const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '1️⃣ 📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -2), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala solo si el vale es de un día anterior.'));
+  const filaFecha = h('div', { class: 'card', style: 'padding:10px 14px' }, h('label', { for: 'fecha_vale', style: 'font-size:18px;font-weight:700' }, '1️⃣ 📅 Fecha del vale'), h('input', { id: 'fecha_vale', type: 'date', value: v ? v.fecha : hoy(), max: hoy(), min: sumDias(hoy(), -15), disabled: !!v }), h('small', {}, 'Es la de hoy. Cámbiala si el vale es de un día anterior (hasta 15 días atrás).'));
   const cMaq = h('div', { class: 'card paso' }, h('h3', {}, '6️⃣ 🏗️ Máquina que cargó'),
     campo('maquina', '¿Con qué máquina se cargó la volqueta?', val('maquina'), { ph: 'Elegir…' }), h('small', { class: 'sub' }, 'Si no está en la lista, toca «Escribir otra máquina». Queda guardada y el administrador la valida.'));
   const masDatos = h('div', { class: 'card paso' }, h('h3', {}, '7️⃣ 🧾 Datos del vale'),
