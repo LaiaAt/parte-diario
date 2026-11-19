@@ -360,7 +360,7 @@ async function pintarBiblio(lista) {
   const h0 = hoy(), por = {}, permit = fechasPermitidas();
   const K = (f, n) => f + '|' + (n || 1);
   lista.forEach(x => { por[K(x.fecha, x.n)] = { fecha: x.fecha, n: x.n || 1, pdf: x.pdf, rev: x.rev || 1, pend: false }; });
-  cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf, rev: e.parte.rev || 1 }); });
+  cola.forEach(e => { const f = e.parte.fecha, n = e.parte.n || 1; por[K(f, n)] = Object.assign(por[K(f, n)] || { fecha: f, n: n, pdf: false }, { pend: true, local: !!e.pdf, rev: e.parte.rev || 1, error: e.error || '' }); });
   const bo = await kv.get('borrador');
   if (bo && bo.llave === user.llave && fechaOk(bo.fecha) && bo.guardado === false && bo.parte && !estaElim(bo.fecha, bo.parte.n)) {
     const bn = bo.parte.n || 1, bk = K(bo.fecha, bn);
@@ -411,7 +411,7 @@ function filaParte(x, esHoy, varios) {
   }
   if (esHoy) bs.appendChild(h('button', { class: 'sec', 'aria-label': 'Eliminar', title: 'Eliminar', style: 'padding-left:12px;padding-right:12px', onclick: () => eliminarHoy(n, x.fecha) }, '🗑'));
   return h('div', { class: 'li' }, h('div', {}, h('b', {}, PD.fechaLarga(x.fecha), (n > 1 || varios) ? h('span', { class: 'tag' }, 'Informe ' + n) : null, esHoy ? h('span', { class: 'tag hoy' }, 'HOY') : null,
-    x.borr ? h('span', { class: 'tag pend' }, 'Borrador sin guardar') : null, x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
+    x.borr ? h('span', { class: 'tag pend' }, 'Borrador sin guardar') : null, x.pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null), h('small', {}, esHoy ? 'Se puede editar' : 'Solo ver y compartir'), h('br'), x.error ? h('small', { style: 'color:#b3261e;font-weight:700' }, '⚠ No se envió: ' + x.error) : null, x.error ? h('br') : null, h('small', {}, 'Código: ' + PD.codigoParte(x.fecha, user.llave, n, x.rev))), bs);
 }
 function b64Blob(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Blob([u], { type: 'application/pdf' }); }
 function bajar(blob, nombre) {
@@ -1095,12 +1095,15 @@ async function sincronizar(manual) {
   sincronizando = true;
   if (manual) aviso('Enviando…');
   try {
+    const rechazos = [];
+    // Un parte rechazado NO debe bloquear a los demás: se anota el motivo y se sigue con el siguiente
+    const rechazar = async (e, msg) => { rechazos.push(msg); if (e.error !== msg) { e.error = msg; await mutarCola(c => c.map(x => (x.id === e.id && x.ts === e.ts) ? e : x)); } };
     for (const e of cola) {
       if (!e.datosOk) {
         const mal = unidadMala(e.parte);
-        if (mal) { aviso('El parte del ' + PD.fechaLarga(e.parte.fecha) + ' tiene una unidad no válida ("' + mal.unidad + '" en la actividad ' + mal.n + '). Ábrelo, elige la unidad de la lista y guarda de nuevo.', 'err'); break; }
+        if (mal) { await rechazar(e, 'Tiene una unidad no válida ("' + mal.unidad + '" en la actividad ' + mal.n + '). Ábrelo, elige la unidad de la lista y guarda de nuevo.'); continue; }
         const r = await api({ accion: 'guardar', llave: e.llave, parte: payload(e.parte) });
-        if (!r.ok && r.codigo !== 'PASADO') { aviso(r.mensaje || 'La oficina no aceptó el parte.', 'err'); break; }
+        if (!r.ok && r.codigo !== 'PASADO') { await rechazar(e, r.mensaje || 'La oficina no aceptó el parte.'); continue; }
         e.parte.fotos.forEach(f => { if (r.fotos && r.fotos[f.id]) f.url = r.fotos[f.id]; });
         if (P && P.fecha === e.parte.fecha && (P.n || 1) === (e.parte.n || 1)) P.fotos.forEach(f => { if (r.fotos && r.fotos[f.id]) f.url = r.fotos[f.id]; });
         e.datosOk = true;
@@ -1108,7 +1111,7 @@ async function sincronizar(manual) {
       }
       if (e.datosOk && !e.pdfOk) {
         const r2 = await api({ accion: 'pdf', llave: e.llave, fecha: e.parte.fecha, n: e.parte.n || 1, rev: e.parte.rev || 1, pdf: e.pdf, hhmm: e.hhmm, uid: e.uid });
-        if (!r2.ok && r2.codigo !== 'PASADO') { aviso(r2.mensaje || 'No se pudo subir el PDF.', 'err'); break; }
+        if (!r2.ok && r2.codigo !== 'PASADO') { await rechazar(e, r2.mensaje || 'No se pudo subir el PDF.'); continue; }
         e.pdfOk = true;
       }
       if (e.datosOk && e.pdfOk) {
@@ -1121,7 +1124,8 @@ async function sincronizar(manual) {
         } catch (e2) {}
       }
     }
-    if (manual) aviso('');
+    if (rechazos.length) aviso(rechazos.length === 1 ? 'Un parte no se pudo enviar: ' + rechazos[0] : rechazos.length + ' partes no se pudieron enviar. Mira el motivo en "Mis partes".', 'err', !manual);
+    else if (manual) aviso('');
   } catch (err) { if (manual) aviso('No se pudo enviar. Se reintentará cuando haya señal.', 'err'); }
   finally { sincronizando = false; pintarEstado(); if (user && !$('biblio').hidden) biblioteca(); if (otraVez) { otraVez = false; setTimeout(() => sincronizar(false), 300); } }
 }
