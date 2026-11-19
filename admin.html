@@ -1585,7 +1585,7 @@ function matriz() {
   $('matNota').textContent = dias().length > 14 ? 'Se muestran los últimos 14 días del rango.' : '';
   const ds = dias().slice(-14);
   const mapa = {}; D.partes.forEach(p => { mapa[p.llave + '|' + p.fecha] = p; });
-  t.appendChild(h('thead', {}, h('tr', {}, h('th', {}, 'Llave'), ds.map(f => h('th', { class: f === D.hoy ? 'c-hoy' : '' }, f.slice(8) + '/' + f.slice(5, 7))))));
+  t.appendChild(h('thead', {}, h('tr', {}, h('th', {}, 'Llave'), ds.map(f => h('th', { class: f === D.hoy ? 'c-hoy' : '' }, h('div', { style: 'font-size:11px;font-weight:700;color:#5b6672;text-transform:lowercase' }, ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][new Date(f + 'T12:00:00').getDay()]), f.slice(8) + '/' + f.slice(5, 7))))));
   const b = h('tbody');
   D.usuarios.forEach(u => b.appendChild(h('tr', {}, h('td', {}, u.llave, h('div', { class: 'small' }, u.nombre)), ds.map(f => {
     const p = mapa[u.llave + '|' + f], hoyc = f === D.hoy ? ' c-hoy' : '';
