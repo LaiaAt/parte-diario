@@ -236,7 +236,7 @@ header>span{gap:6px!important;min-width:0}
   <div class="card" id="cPed" data-m="pedidos"><h2>Planeación y requerimientos <span id="nSol" class="small"></span></h2>
     <div class="buscar"><input id="qPed" type="search" placeholder="🔍 Buscar en pedidos (llave, material, código…)…"><button class="sec sm" data-limpiar>Limpiar</button></div>
     <div class="row"><div><label>Mostrar</label><select id="fSol"><option value="pend">Por liberar</option><option value="lib">Liberados</option><option value="todos">Todos</option></select></div>
-      <div><label>Llave</label><select id="fSolLlave"></select></div>
+      <div><label>Usuario</label><select id="fSolLlave"></select></div>
       <div><label>Qué piden</label><select id="fSolTipo"></select></div>
       <button class="sec sm" id="libTodos">Liberar todos los visibles</button></div>
     <div class="small" style="margin-top:6px">Rojo = ya venció (era para hoy o antes) · amarillo = es para hoy</div>
@@ -250,7 +250,7 @@ header>span{gap:6px!important;min-width:0}
 
   <div class="card" id="cPar" data-m="partes"><h2>Partes diarios <span id="nPar" class="small"></span></h2>
     <div class="buscar" style="align-items:center;flex-wrap:wrap"><input id="qPar" type="search" placeholder="🔍 Buscar en partes (nombre, lugar…)…" style="flex:1 1 220px">
-      <span style="display:flex;align-items:center;gap:6px"><label style="margin:0">Llave</label><select id="fPar"></select></span>
+      <span style="display:flex;align-items:center;gap:6px"><label style="margin:0">Usuario</label><select id="fPar"></select></span>
       <span style="display:flex;align-items:center;gap:6px"><label style="margin:0">PDF</label><select id="fPdf"><option value="">Todos</option><option value="no">Solo sin PDF</option></select></span>
       <button class="sec sm" id="todosPdf">⬇ Todos los PDF</button><button class="sec sm" data-limpiar>Limpiar</button></div>
     <div class="tw" style="margin-top:8px"><table id="tPar"></table></div>
@@ -259,7 +259,7 @@ header>span{gap:6px!important;min-width:0}
   <div class="card" id="cFoto" data-m="fotos"><h2>Fotos <span id="nFoto" class="small"></span></h2>
     <div class="buscar"><input id="qFot" type="search" placeholder="🔍 Buscar en fotos (código del parte, actividad…)…"><button class="sec sm" data-limpiar>Limpiar</button></div>
     <div class="small">Cada foto lleva la llave, el código del parte y las actividades con que se etiquetó. Solo se ven y se descargan: aquí no se puede borrar ni cambiar nada.</div>
-    <div class="row" style="margin-top:8px"><div><label>Llave</label><select id="fFotoLlave"></select></div>
+    <div class="row" style="margin-top:8px"><div><label>Usuario</label><select id="fFotoLlave"></select></div>
       <div><label>Actividad</label><select id="fFotoAct"></select></div>
       <div><label>Tipo</label><select id="fFotoTipo"><option value="">Todas</option><option value="GENERAL">Del trabajo</option><option value="ALBARAN">Albaranes</option></select></div>
       <button class="sm" id="bajaZip">Descargar visibles en un ZIP</button><button class="sec sm" id="bajaFotos">Una por una</button></div>
@@ -272,7 +272,7 @@ header>span{gap:6px!important;min-width:0}
     <div class="conTiles" id="tabs"></div>
     <div class="conFiltros">
       <div class="conBusca"><input id="qCon" type="search" placeholder="🔍 Escribe para buscar…"><button class="sec sm" data-limpiar>Limpiar</button></div>
-      <div class="row"><div><label>🔑 Llave</label><select id="fCon"></select></div>
+      <div class="row"><div><label>👤 Usuario</label><select id="fCon"></select></div>
         <div id="fEstW"><label id="fEstL">Estado</label><select id="fEst"></select></div>
         <div id="fCCW"><label>💰 Centro de costos</label><select id="fCC"></select></div></div>
       <div class="conBajar"><button class="sec sm" id="csv">⬇ Descargar esta tabla (Excel)</button>
@@ -1062,8 +1062,8 @@ function vistaViajes(c) {
   }
   pintaLista();
 }
-const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Llave', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
-const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.llave, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), oriV(v), desV(v), v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
+const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Placa', 'Empresa', 'Conductor', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
+const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.placa, v.empresa, v.conductor, v.material, ufTxt(v), oriV(v), desV(v), v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
 function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen', 'Tipo de volqueta', 'Vol. nominal volqueta (m³)', 'Vol. comprobado CCSN (m³)', 'Memoria de cálculo', 'Sitio (disposición/proveedor)', 'Sitio latitud', 'Sitio longitud', 'Sitio radio (m)', 'Sitio recibe']);
   const VQ = {}; (TR.volquetas || []).forEach(x => { VQ[String(x.placa).toUpperCase()] = x; });
@@ -1223,7 +1223,7 @@ async function planillaDia(g, msg) {
     await cargaJs('vendor/jspdf.umd.min.js', () => window.jspdf); await cargaJs('pdf_tr.js', () => window.PDT);
     if (!LOGO_PL) { try { LOGO_PL = await new Promise((res, rej) => { const i = new Image(); i.onload = () => { const cv = document.createElement('canvas'); cv.width = i.naturalWidth; cv.height = i.naturalHeight; cv.getContext('2d').drawImage(i, 0, 0); res({ data: cv.toDataURL('image/png'), w: i.naturalWidth, h: i.naturalHeight }); }; i.onerror = rej; i.src = 'logo.png'; }); } catch (e) {} }
     const doc = window.PDT.generarPlanilla(g.fecha, g.v, { nombre: g.usuario }, window.jspdf.jsPDF, LOGO_PL);
-    bajar(doc.output('blob'), 'Planilla_viajes_' + g.llave + '_' + g.fecha + '.pdf'); msg.textContent = '';
+    bajar(doc.output('blob'), 'Planilla_viajes_' + String(g.usuario || nomDe(g.llave) || 'usuario').normalize('NFD').replace(/[^\w ]/g, '').trim().replace(/\s+/g, '_') + '_' + g.fecha + '.pdf'); msg.textContent = '';
   } catch (e) { console.error(e); msg.textContent = 'No se pudo generar la planilla.'; }
 }
 async function bajarPlan(p, msg) {
@@ -1243,14 +1243,14 @@ async function xlsxCambios() {
     const VERDE = 'FF1B5E20', BORDE = { style: 'thin', color: { argb: 'FFB0BEC5' } }, B4 = { top: BORDE, left: BORDE, bottom: BORDE, right: BORDE };
     const COL = { CREADO: 'FF2E7D32', MODIFICADO: 'FFEF6C00', ELIMINADO: 'FFC62828', 'FOTO ALBARÁN': 'FF0277BD', 'AJUSTE ADMIN': 'FF6A1B9A', 'MODIFICADO (ADMIN)': 'FFEF6C00', 'ANULADO (ADMIN)': 'FFC62828', 'RESTAURADO (ADMIN)': 'FF2E7D32', 'REVISADO (ADMIN)': 'FF2E7D32', 'REVISIÓN QUITADA': 'FFEF6C00', 'ALBARÁN REPETIDO (BLOQUEADO)': 'FFC62828', 'ELIMINADO (ADMIN)': 'FFC62828', VALIDADA: 'FF00838F' };
     const ws = wb.addWorksheet('Control de cambios', { views: [{ state: 'frozen', ySplit: 4 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
-    const H = [['Fecha y hora', 17], ['Vale / elemento', 30], ['Acción', 15], ['Usuario', 22], ['Llave', 12], ['Placa', 10], ['Fecha del viaje', 13], ['Detalle (antes → después)', 90]];
+    const H = [['Fecha y hora', 17], ['Vale / elemento', 30], ['Acción', 15], ['Usuario', 22], ['Placa', 10], ['Fecha del viaje', 13], ['Detalle (antes → después)', 90]];
     ws.columns = H.map(x => ({ width: x[1] }));
     ws.mergeCells(1, 1, 1, H.length); ws.getCell('A1').value = 'CONTROL DE CAMBIOS — REGISTRO DE TRANSPORTES'; ws.getCell('A1').font = { bold: true, size: 15, color: { argb: VERDE } }; ws.getRow(1).height = 24;
     ws.mergeCells(2, 1, 2, H.length); ws.getCell('A2').value = 'Periodo: ' + fmtF($('desde').value) + ' al ' + fmtF($('hasta').value) + '  ·  ' + rr.filas.length + ' movimientos  ·  Generado ' + new Date().toLocaleString('es-CO') + '  ·  Autor: Carlos Eduardo Bermúdez Castro'; ws.getCell('A2').font = { size: 10, color: { argb: 'FF455A64' } };
     const hr = ws.getRow(4); H.forEach((x, i) => { const c = hr.getCell(i + 1); c.value = x[0]; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: VERDE } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; c.border = B4; }); hr.height = 24;
     ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: H.length } };
     rr.filas.slice().sort((a, b) => String(a.ts).localeCompare(String(b.ts))).forEach((x, i) => {
-      const row = ws.addRow([fmtTs(x.ts), x.cod, x.accion, x.usuario, x.llave, x.placa, x.fecha ? fmtF(x.fecha) : '', x.detalle]);
+      const row = ws.addRow([fmtTs(x.ts), x.cod, x.accion, x.usuario, x.placa, x.fecha ? fmtF(x.fecha) : '', x.detalle]);
       row.alignment = { vertical: 'top', wrapText: true };
       row.eachCell({ includeEmpty: true }, (c, k) => { c.border = B4; if (i % 2) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F8F1' } }; });
       row.getCell(3).font = { bold: true, color: { argb: COL[x.accion] || 'FF37474F' } };
@@ -1269,7 +1269,7 @@ async function xlsxCambios() {
 }
 function vistaPlan(c) {
   const msg = h('div', { class: 'small', style: 'margin:10px 2px 0;min-height:18px;font-weight:600' });
-  const llaves = Array.from(new Set(TR.viajes.map(v => v.llave).filter(Boolean))).sort(), sel = h('select', { style: 'width:100%;margin:0' }, h('option', { value: '' }, 'Todas las llaves'), llaves.map(l => h('option', { value: l }, l)));
+  const llaves = Array.from(new Set(TR.viajes.map(v => v.llave).filter(Boolean))).sort(), sel = h('select', { style: 'width:100%;margin:0' }, h('option', { value: '' }, 'Todos los usuarios'), llaves.map(l => h('option', { value: l }, nomDe(l))));
   const ff = x => fmtF(x).slice(0, 5), rango = () => ff($('desde').value) + ' al ' + ff($('hasta').value);
   const card = (color, ico, tit, desc, bHoy, bRango, fHoy, fRango) => h('div', { style: 'background:#fff;border:1px solid var(--line);border-top:5px solid ' + color + ';border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px' },
     h('div', { style: 'font-size:18px;font-weight:800' }, ico + ' ' + tit), h('div', { class: 'small', style: 'flex:1;line-height:1.35' }, desc),
@@ -1503,10 +1503,17 @@ function navegacion() {
   modulo(MOD);
 }
 function llaves() { return D.usuarios.map(u => u.llave); }
+// En el Dashboard solo se ven nombres de usuario; la llave (clave de acceso) no se muestra
+let _nm = null, _nmD = null, _nmT = null;
+function nomDe(l) {
+  if (!l) return '';
+  if (_nm === null || _nmD !== D || _nmT !== TR) { _nm = {}; ((TR && TR.viajes) || []).forEach(v => { if (v.llave && v.usuario && !_nm[v.llave]) _nm[v.llave] = v.usuario; }); ((D && D.usuarios) || []).forEach(u => { _nm[u.llave] = u.nombre; }); _nmD = D; _nmT = TR; }
+  return _nm[l] || (String(l).toUpperCase() === 'HISTORICO' ? 'Histórico' : String(l));
+}
 function llenarSel(id, conTodas) {
   const s = $(id), v = s.value; s.textContent = '';
   s.appendChild(h('option', { value: '' }, 'Todas'));
-  llaves().forEach(l => s.appendChild(h('option', { value: l }, l)));
+  llaves().forEach(l => s.appendChild(h('option', { value: l }, nomDe(l))));
   s.value = v && llaves().indexOf(v) >= 0 ? v : '';
 }
 function dias() { const a = [], d = $('desde').value, hh = $('hasta').value; for (let f = d; f <= hh && a.length < 93; f = sumDias(f, 1)) a.push(f); return a; }
@@ -1576,8 +1583,8 @@ function faltan() {
   const hechos = new Set(D.partes.filter(p => p.fecha === hoy).map(p => p.llave));
   const no = D.usuarios.filter(u => !hechos.has(u.llave));
   if ($('desde').value <= hoy && $('hasta').value >= hoy) {
-    if (!no.length) c.appendChild(h('div', { class: 'okmsg' }, '✔ Todas las llaves ya crearon el parte de hoy'));
-    else c.appendChild(h('div', { class: 'miss' }, no.map(u => h('span', { class: 'chipm' }, u.llave + ' · ' + u.nombre))));
+    if (!no.length) c.appendChild(h('div', { class: 'okmsg' }, '✔ Todos los usuarios ya crearon el parte de hoy'));
+    else c.appendChild(h('div', { class: 'miss' }, no.map(u => h('span', { class: 'chipm' }, u.nombre))));
   }
 }
 function matriz() {
@@ -1585,9 +1592,9 @@ function matriz() {
   $('matNota').textContent = dias().length > 14 ? 'Se muestran los últimos 14 días del rango.' : '';
   const ds = dias().slice(-14);
   const mapa = {}; D.partes.forEach(p => { mapa[p.llave + '|' + p.fecha] = p; });
-  t.appendChild(h('thead', {}, h('tr', {}, h('th', {}, 'Llave'), ds.map(f => h('th', { class: f === D.hoy ? 'c-hoy' : '' }, h('div', { style: 'font-size:11px;font-weight:700;color:#5b6672;text-transform:lowercase' }, ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][new Date(f + 'T12:00:00').getDay()]), f.slice(8) + '/' + f.slice(5, 7))))));
+  t.appendChild(h('thead', {}, h('tr', {}, h('th', {}, 'Usuario'), ds.map(f => h('th', { class: f === D.hoy ? 'c-hoy' : '' }, h('div', { style: 'font-size:11px;font-weight:700;color:#5b6672;text-transform:lowercase' }, ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][new Date(f + 'T12:00:00').getDay()]), f.slice(8) + '/' + f.slice(5, 7))))));
   const b = h('tbody');
-  D.usuarios.forEach(u => b.appendChild(h('tr', {}, h('td', {}, u.llave, h('div', { class: 'small' }, u.nombre)), ds.map(f => {
+  D.usuarios.forEach(u => b.appendChild(h('tr', {}, h('td', {}, u.nombre), ds.map(f => {
     const p = mapa[u.llave + '|' + f], hoyc = f === D.hoy ? ' c-hoy' : '';
     if (!p) return h('td', { class: 'c-no' + hoyc }, '✖');
     return h('td', { class: 'c-ok' + hoyc, title: 'Bajar PDF', onclick: () => bajarPdf(p) }, '✔');
@@ -1622,14 +1629,14 @@ function solicitudes() {
   $('nSol').textContent = '(' + L.length + ')';
   $('libTodos').disabled = !L.some(s => !s.liberado);
   const t = $('tSol'); t.textContent = '';
-  t.appendChild(h('thead', {}, h('tr', {}, ['Liberado', 'Llave', 'Código', 'Parte del', 'Para cuándo', 'Qué', 'Detalle', 'Cant.', 'Observación'].map(x => h('th', {}, x)))));
+  t.appendChild(h('thead', {}, h('tr', {}, ['Liberado', 'Usuario', 'Código', 'Parte del', 'Para cuándo', 'Qué', 'Detalle', 'Cant.', 'Observación'].map(x => h('th', {}, x)))));
   const b = h('tbody');
   L.forEach(s => {
     const cb = h('input', { type: 'checkbox' }); cb.checked = !!s.liberado;
     cb.onchange = async () => { cb.disabled = true; const ok = await liberar(s, cb.checked); if (!ok) { cb.checked = !cb.checked; cb.disabled = false; } else refrescarPed(); };
     const ef = efectiva(s), cl = s.liberado ? '' : (ef < D.hoy ? 'late' : (ef === D.hoy ? 'hoyp' : ''));
     b.appendChild(h('tr', { class: cl }, h('td', {}, cb, s.liberado ? h('div', { class: 'small' }, s.liberado_por + ' ' + String(s.liberado_ts).slice(5, 16)) : ''),
-      h('td', {}, s.llave), h('td', {}, s._cod), h('td', {}, fmtF(s.fecha)), h('td', {}, paraTxt(s)), h('td', {}, s.tipo), h('td', { class: 'w' }, s.detalle), h('td', {}, [s.cantidad, s.unidad].join(' ').trim()), h('td', { class: 'w' }, s.obs)));
+      h('td', {}, nomDe(s.llave)), h('td', {}, s._cod), h('td', {}, fmtF(s.fecha)), h('td', {}, paraTxt(s)), h('td', {}, s.tipo), h('td', { class: 'w' }, s.detalle), h('td', {}, [s.cantidad, s.unidad].join(' ').trim()), h('td', { class: 'w' }, s.obs)));
   });
   if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 9 }, 'Nada por mostrar')));
   t.appendChild(b);
@@ -1642,7 +1649,7 @@ function grafico() {
   const max = Math.max(1, ...ls.map(l => sol[l]));
   const W = Math.max(320, ls.length * 90 + 50), H = 240, m = { l: 34, b: 50, t: 14 }, ph = H - m.b - m.t, ns = 'http://www.w3.org/2000/svg';
   const E = (n, a, tx) => { const e = document.createElementNS(ns, n); for (const k in a) e.setAttribute(k, a[k]); if (tx !== undefined) e.textContent = tx; return e; };
-  const svg = E('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img', 'aria-label': 'Pedidos solicitados y liberados por llave' });
+  const svg = E('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img', 'aria-label': 'Pedidos solicitados y liberados por usuario' });
   const paso = max <= 5 ? 1 : Math.ceil(max / 5);
   for (let v = 0; v <= max; v += paso) { const y = m.t + ph - ph * v / max; svg.appendChild(E('line', { x1: m.l, x2: W, y1: y, y2: y, stroke: 'var(--line)' })); svg.appendChild(E('text', { x: m.l - 6, y: y + 4, 'text-anchor': 'end' }, v)); }
   const gw = (W - m.l) / ls.length, bw = Math.min(26, gw / 3);
@@ -1653,7 +1660,7 @@ function grafico() {
       svg.appendChild(E('rect', { x: x0 + dx, y: m.t + ph - bh, width: bw - 2, height: bh, fill: col, rx: 2 }));
       svg.appendChild(E('text', { x: x0 + dx + (bw - 2) / 2, y: m.t + ph - bh - 4, 'text-anchor': 'middle' }, v));
     });
-    svg.appendChild(E('text', { x: x0, y: H - m.b + 16, 'text-anchor': 'middle' }, l.length > 12 ? l.slice(0, 11) + '…' : l));
+    { const nl = nomDe(l); svg.appendChild(E('text', { x: x0, y: H - m.b + 16, 'text-anchor': 'middle' }, nl.length > 12 ? nl.slice(0, 11) + '…' : nl)); }
   });
   const w = h('div', { class: 'tw', style: 'border:0' }); w.appendChild(svg); c.appendChild(w);
   const tot = ls.reduce((a, l) => a + sol[l], 0), tl = ls.reduce((a, l) => a + lib[l], 0);
@@ -1681,9 +1688,9 @@ function partes() {
   const L = partesVisibles();
   $('nPar').textContent = '(' + L.length + ')';
   const t = $('tPar'); t.textContent = '';
-  t.appendChild(h('thead', {}, h('tr', {}, ['Fecha', 'Llave', 'Usuario', 'Lugar', 'PK', 'Act.', 'Pers.', 'Máq.', 'Mat.', 'Ped.', 'Fot.', ''].map(x => h('th', {}, x)))));
+  t.appendChild(h('thead', {}, h('tr', {}, ['Fecha', 'Usuario', 'Lugar', 'PK', 'Act.', 'Pers.', 'Máq.', 'Mat.', 'Ped.', 'Fot.', ''].map(x => h('th', {}, x)))));
   const b = h('tbody');
-  L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, fmtF(p.fecha)), h('td', {}, p.llave), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
+  L.forEach(p => b.appendChild(h('tr', {}, h('td', {}, fmtF(p.fecha)), h('td', {}, p.usuario), h('td', { class: 'w' }, p.localizacion), h('td', {}, p.pk),
     h('td', {}, p._n.ACTIVIDAD), h('td', {}, p._n.PERSONAL), h('td', {}, p._n.MAQUINA), h('td', {}, p._n.MATERIAL), h('td', {}, p._n.SOLICITUD), h('td', {}, nFotos(p.id) ? h('button', { class: 'sm sec', onclick: () => { $('qFot').value = p._cod; rerender(); ir('cFoto'); } }, '📷 ' + nFotos(p.id)) : '0'),
     h('td', {}, h('button', { class: 'sm sec', onclick: () => detalle(p) }, 'Detalle'), ' ', p.pdf ? h('button', { class: 'sm', onclick: () => bajarPdf(p) }, 'PDF') : h('button', { class: 'sm', onclick: e => crearPdf(p, e.target) }, 'Crear PDF')))));
   if (!L.length) b.appendChild(h('tr', {}, h('td', { colspan: 12 }, 'No hay partes con esos filtros')));
@@ -1743,7 +1750,7 @@ function detalle(p) {
   const del = k => D[k].filter(r => r.id === p.id);
   const tabla = (tit, cols, rows) => rows.length ? h('div', {}, h('h2', {}, tit + ' (' + rows.length + ')'), h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, cols.map(c => h('th', {}, c)))), h('tbody', {}, rows.map(r => h('tr', {}, r.map(v => h('td', { class: 'w' }, v)))))))) : null;
   o.appendChild(h('div', { class: 'card', style: 'max-width:1000px;margin:20px auto' },
-    h('div', { class: 'row' }, h('div', {}, h('h2', { style: 'margin:0' }, p._cod), h('div', { class: 'small' }, [fmtF(p.fecha), p.llave, p.usuario, p.localizacion, p.pk].join(' · '))),
+    h('div', { class: 'row' }, h('div', {}, h('h2', { style: 'margin:0' }, p._cod), h('div', { class: 'small' }, [fmtF(p.fecha), p.usuario, p.localizacion, p.pk].join(' · '))),
       p.pdf ? h('button', { onclick: () => bajarPdf(p) }, 'Descargar PDF') : h('button', { onclick: e => crearPdf(p, e.target) }, 'Crear PDF'),
       h('button', { class: 'sec', onclick: () => { try { navigator.clipboard.writeText(p._cod); } catch (e) {} } }, 'Copiar código'),
       h('button', { class: 'sec', onclick: () => { o.hidden = true; $('qFot').value = p._cod; rerender(); ir('cFoto'); } }, 'Ver fotos'),
@@ -1876,7 +1883,7 @@ function fotos(reset) {
     img._t = { f: f, img: img }; img.onclick = () => verFoto(f);
     if (obs) obs.observe(img); else { COLA.push(img._t); }
     g.appendChild(h('div', { class: 'ft' }, img,
-      h('div', { class: 'small' }, h('b', {}, f.llave + ' · ' + fmtF(f.fecha)), f.tipo === 'ALBARAN' ? ' · albarán' : '', ' · #' + f.n),
+      h('div', { class: 'small' }, h('b', {}, nomDe(f.llave) + ' · ' + fmtF(f.fecha)), f.tipo === 'ALBARAN' ? ' · albarán' : '', ' · #' + f.n),
       h('div', { class: 'small' }, f._ad.length ? f._ad.map(x => 'Act. ' + x.n + ' ' + x.t).join(' | ') : 'Sin actividad'),
       f.caption ? h('div', { class: 'small' }, f.caption) : null,
       h('button', { class: 'sm', onclick: () => bajarFoto(f) }, 'Descargar')));
@@ -1893,7 +1900,7 @@ const DEF = {
   MAQUINA: { nombre: 'Máquinas', est: ['Estado', 'estado'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Máquina', 'nombre'], ['Recibo', 'recibo'], ['Inicio', 'inicio'], ['Fin', 'fin'], ['Horas', 'horas'], ['Estado', 'estado'], ['Actividades', 'acts'], ['Observación', 'obs']] },
   MATERIAL: { nombre: 'Materiales', est: ['Estado', 'estado'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha', 'fecha'], ['Usuario', 'usuario'], ['C. costo', 'c_costo'], ['Material', 'nombre'], ['Almacén', 'almacen'], ['Albarán', 'albaran'], ['Cantidad', 'cantidad'], ['Unidad', 'unidad'], ['Ubicación', 'ubicacion'], ['Estado', 'estado'], ['Actividades', 'acts']] },
   SOLICITUD: { nombre: 'Pedidos', est: ['Tipo', 'tipo'], cols: [['Llave', 'llave'], ['Código', '_cod'], ['Fecha parte', 'fecha'], ['Usuario', 'usuario'], ['Qué', 'tipo'], ['Detalle', 'detalle'], ['Cantidad', 'cantidad'], ['Unidad', 'unidad'], ['Para cuándo', '_para'], ['Observación', 'obs'], ['Liberado', '_lib'], ['Liberado por', 'liberado_por']] },
-  RESUMEN: { nombre: 'Resumen por ítem', cols: [['Tipo'], ['Ítem'], ['Unidad'], ['Total'], ['Días'], ['Llaves']] }
+  RESUMEN: { nombre: 'Resumen por ítem', cols: [['Tipo'], ['Ítem'], ['Unidad'], ['Total'], ['Días'], ['Usuarios']] }
 };
 function valor(k, r) { if (k === '_para') return paraTxt(r); if (k === '_lib') return r.liberado ? 'SI' : 'NO'; return r[k] === undefined || r[k] === null ? '' : r[k]; }
 function base(k) { const ll = $('fCon').value; return D[k].filter(r => (!ll || r.llave === ll) && coincide(r, 'qCon')); }
@@ -1904,7 +1911,7 @@ function resumen() {
   base('MAQUINA').forEach(r => { if (r.estado !== 'NO ESTUVO') add('Máquina', r.nombre, 'horas', Number(r.horas) || 0, r); });
   base('MATERIAL').forEach(r => { if (r.estado !== 'NO USADO') add('Material', r.nombre, r.unidad, Number(r.cantidad) || 0, r); });
   base('ACTIVIDAD').forEach(r => add('Actividad', r.descripcion, r.unidad, Number(r.cantidad) || 0, r));
-  return Object.keys(g).map(k => { const o = g[k]; return [o.tipo, o.item, o.unidad, Math.round(o.total * 100) / 100, o.dias.size, Array.from(o.llaves).sort().join(', ')]; });
+  return Object.keys(g).map(k => { const o = g[k]; return [o.tipo, o.item, o.unidad, Math.round(o.total * 100) / 100, o.dias.size, Array.from(o.llaves).map(nomDe).sort().join(', ')]; });
 }
 function datos(k, usarTab) {
   const d = DEF[k], cols = d.cols.map(c => c[0]); let rows;
@@ -1938,7 +1945,7 @@ function consolidado() {
   const oculta = c => c === 'Llave' || c === 'Código';
   t.appendChild(h('thead', {}, h('tr', {}, dt.cols.map((c, i) => oculta(c) ? null : h('th', { class: 's', onclick: () => { SORT = { k: i, d: SORT.k === i ? -SORT.d : 1 }; consolidado(); } }, c + (SORT.k === i ? (SORT.d > 0 ? ' ▲' : ' ▼') : ''))))));
   const b = h('tbody');
-  dt.rows.slice(0, 1500).forEach(r => b.appendChild(h('tr', {}, r.map((v, i) => { const col = dt.cols[i]; if (oculta(col)) return null; const est = /^Estado$/.test(col) && v !== ''; return h('td', { class: /Observ|Detalle|Actividad$|Ítem|Llaves/.test(col) ? 'w' : '' }, est ? h('span', { class: 'chipE' + (/AUSENTE|NO ESTUVO|NO USADO|VAR/i.test(String(v)) ? ' mal' : '') }, v) : v); }))));
+  dt.rows.slice(0, 1500).forEach(r => b.appendChild(h('tr', {}, r.map((v, i) => { const col = dt.cols[i]; if (oculta(col)) return null; const est = /^Estado$/.test(col) && v !== ''; return h('td', { class: /Observ|Detalle|Actividad$|Ítem|Usuarios/.test(col) ? 'w' : '' }, est ? h('span', { class: 'chipE' + (/AUSENTE|NO ESTUVO|NO USADO|VAR/i.test(String(v)) ? ' mal' : '') }, v) : v); }))));
   if (!dt.rows.length) b.appendChild(h('tr', {}, h('td', { colspan: dt.cols.filter(c => !oculta(c)).length, class: 'conVacio' }, '📭 No hay nada para mostrar con estos filtros')));
   t.appendChild(b);
   const ih = dt.cols.indexOf('Horas');
@@ -1950,8 +1957,9 @@ function consolidado() {
   $('nCon').textContent = '';
 }
 function csvCelda(v) { let s = String(v); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; }
+function sinLlave(dt) { const k = dt.cols.map((c, i) => c === 'Llave' ? -1 : i).filter(i => i >= 0); return { cols: k.map(i => dt.cols[i]), rows: dt.rows.map(r => k.map(i => r[i])) }; }
 function descargarCsv() {
-  const dt = datos(tab, true), arch = 'Consolidado_' + DEF[tab].nombre.replace(/\s/g, '_') + '_' + $('desde').value + '_' + $('hasta').value;
+  const dt = sinLlave(datos(tab, true)), arch = 'Consolidado_' + DEF[tab].nombre.replace(/\s/g, '_') + '_' + $('desde').value + '_' + $('hasta').value;
   if (window.XLSX) { excelHoja(DEF[tab].nombre, dt.cols, dt.rows, arch + '.xlsx'); return; }
   const out = [dt.cols.map(csvCelda).join(';')].concat(dt.rows.map(r => r.map(csvCelda).join(';')));
   bajar(new Blob(['\ufeff' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), arch + '.csv');
@@ -1960,9 +1968,9 @@ function descargarXlsx() {
   if (!window.XLSX) { $('err').textContent = 'No cargó el módulo de Excel. Revisa tu conexión e intenta de nuevo.'; return; }
   const wb = XLSX.utils.book_new(), ll = $('fCon').value;
   Object.keys(DEF).forEach(k => {
-    const dt = datos(k, false), num = dt.cols.map(c => /^(Cantidad|Horas|N°|Total|Días)$/.test(c));
+    const dt = sinLlave(datos(k, false)), num = dt.cols.map(c => /^(Cantidad|Horas|N°|Total|Días)$/.test(c));
     const aoa = [dt.cols].concat(dt.rows.map(r => r.map((v, i) => { if (num[i] && typeof v === 'string' && v !== '' && !isNaN(Number(v))) return Number(v); return typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v; })));
-    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = dt.cols.map(c => ({ wch: /Observ|Detalle|Actividad$|Ítem|Llaves|Código|Usuario/.test(c) ? 28 : 13 }));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = dt.cols.map(c => ({ wch: /Observ|Detalle|Actividad$|Ítem|Usuarios|Código|Usuario/.test(c) ? 28 : 13 }));
     XLSX.utils.book_append_sheet(wb, ws, DEF[k].nombre.slice(0, 31));
   });
   XLSX.writeFile(wb, 'Consolidado_' + (ll || 'TODAS') + '_' + $('desde').value + '_' + $('hasta').value + '.xlsx');
