@@ -9,7 +9,7 @@
     cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [], armados: [] }, calc: null, tab: 'ini', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
     ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false, si: false },
     sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', modoSel: '', eq: '', tipo: '', fase: '', pct: '', balElem: '' }, okSal: null, edPed: {}, cargaRes: null,
-    inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, bit: { filas: null, total: 0, q: '', acc: '', pag: 0, cargando: false, err: '' }, inf: { d: '' },
+    inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, sum: { filas: null, cargando: false, err: '', q: '', f: null, busy: false, msg: '' }, bit: { filas: null, total: 0, q: '', acc: '', pag: 0, cargando: false, err: '' }, inf: { d: '' },
     cargas: [], loginErr: '', loginNom: ''
   };
 
@@ -93,9 +93,9 @@
 
   /** Menú en dos niveles: arriba los grupos, abajo (si el grupo tiene varias pantallas) sus opciones. */
   function gruposTabs() { // menú plano: el supervisor solo ve Inicio e Informe; el administrador, además, Pedidos, Panel y Regularización
-    if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['bit', '📝', 'Cambios'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
+    if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['sum', '🚚', 'Suministros'], ['bit', '📝', 'Cambios'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
     var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: esAdmin() ? [['ini', 'Registrar'], ['dat', 'Datos']] : [['ini', 'Registrar']] }];
-    if (esAdmin()) G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['pnew', 'Nuevo pedido'], ['ped', 'Pedidos creados'], ['pban', 'Pedidos anulados']] });
+    if (esAdmin()) G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['pnew', 'Nuevo pedido'], ['ped', 'Pedidos creados'], ['pban', 'Pedidos anulados'], ['sum', 'Suministros']] });
     G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] });
     if (esAdmin()) G.push({ k: 'bit', ico: '📝', t: 'Cambios', hojas: [['bit', 'Control de cambios']] });
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
@@ -114,7 +114,7 @@
   /** Celular: barra de iconos abajo (al alcance del pulgar) y subvistas en una sola fila de botones. */
   function vBarra() {
     var G = gruposTabs(), g = grupoDe(S.tab);
-    return '<nav class="mbar">' + G.map(function (x) {
+    return '<nav class="mbar" style="grid-template-columns:repeat(' + G.length + ',1fr)">' + G.map(function (x) {
       return '<button class="' + (x.k === g.k ? 'on' : '') + '" data-a="tab" data-v="' + (x.k === g.k ? S.tab : (S.ult && S.ult[x.k]) || x.hojas[0][0]) + '"><span>' + x.ico + '</span><em>' + x.t + '</em></button>';
     }).join('') + '</nav>';
   }
@@ -941,6 +941,122 @@
         (p.archivoId && Api.remoto ? '<div class="acc"><button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar ' + tipoArch(p) + '</button></div>' : '') + '</div>';
     }).join('');
   }
+  /** Suministros del proveedor (Paz del Río): una línea por remisión/pedido con los kilos por diámetro, igual a la hoja 1_SUMINISTROS del control unificado. Solo administrador. */
+  var SUM_D = ['ALAMBRE', '1/4', '3/8', '1/2', '5/8', '3/4', '7/8', '1', '1-1/8', '1-1/4'];
+  var sumDL = function (d) { return d === 'ALAMBRE' ? 'ALAMBRE' : d + '"(' + ({ '1/4': '#2', '3/8': '#3', '1/2': '#4', '5/8': '#5', '3/4': '#6', '7/8': '#7', '1': '#8', '1-1/8': '#9', '1-1/4': '#10' })[d] + ')'; };
+  function sumCalc(x) {
+    var tot = 0; SUM_D.forEach(function (d) { tot += Number(x[d]) || 0; });
+    var peso = Number(x.pesoPedido) || 0, sinPed = !String(x.pedido || '').trim(), sinRem = !String(x.remision || '').trim();
+    var est = sinPed ? 'SIN No. PEDIDO' : sinRem ? 'EN TRÁNSITO / SIN REMISIÓN' : 'RECIBIDO EN PATIO';
+    var chk = Math.abs(tot - peso) < 0.05 && tot > 0 ? 'OK EXACTO' : 'REVISAR DESGLOSE';
+    return { tot: tot, peso: peso, est: est, enPatio: sinPed || sinRem ? 0 : peso, chk: chk, ok: chk === 'OK EXACTO' };
+  }
+  function cargarSum(forzar) {
+    var b = S.sum; if (b.cargando || !Api.remoto || !esAdmin()) return; if (b.filas !== null && !forzar) return;
+    b.cargando = true; b.err = ''; render();
+    Api.accion(S.ses, 'suministros').then(function (r) {
+      b.cargando = false;
+      if (r && r.ok) b.filas = r.filas || []; else { b.err = (r && r.error) || 'No se pudo leer los suministros'; if (!b.filas) b.filas = []; }
+      render();
+    });
+  }
+  function sumGuardar(que, d, ok) {
+    var b = S.sum; b.busy = true; b.err = ''; render();
+    return Api.accion(S.ses, que, d).then(function (r) {
+      b.busy = false;
+      if (r && r.ok) { b.f = null; b.msg = ok(r); b.filas = null; cargarSum(true); }
+      else { b.err = (r && r.error) || 'No se pudo guardar'; render(); }
+    });
+  }
+  function sumForm(x) {
+    var f = { id: x ? x.id : '', empresa: x ? x.empresa : 'PAZ DEL RIO', pedido: x ? x.pedido : '', pedidoAnt: x ? x.pedidoAnt : '', cartilla: x ? x.cartilla : '', tipo: x ? x.tipo : 'FIGURADO',
+      fechaSolicitud: x ? x.fechaSolicitud : '', fechaEntrega: x ? x.fechaEntrega : '', remision: x ? x.remision : '', estructura: x ? x.estructura : '', pesoPedido: x ? String(x.pesoPedido || '') : '', obs: x ? x.obs : '', loadId: x ? x.loadId : '', d: {} };
+    SUM_D.forEach(function (d) { f.d[d] = x && Number(x[d]) ? String(x[d]) : ''; });
+    return f;
+  }
+  function vSumForm() {
+    var f = S.sum.f, bloq = !!f.loadId, fl = function (k, et, o) { o = o || {}; return '<div class="fld"><label>' + et + '</label><input type="' + (o.t || 'text') + '"' + (o.m ? ' inputmode="' + o.m + '"' : '') + ' value="' + esc(f[k]) + '" data-i="sum.f.' + k + '"' + (o.ro ? ' readonly' : '') + '></div>'; };
+    var h = '<div class="card edp"><h2 style="margin:0 0 8px">' + (f.id ? 'Corregir suministro' : 'Nuevo suministro') + '</h2>' +
+      (bloq ? '<div class="aviso">Este suministro ya sumó al inventario: aquí solo se corrigen los datos generales, no los kilos.</div>' : '') +
+      '<div class="fgrid">' + fl('empresa', 'Empresa') + fl('pedido', 'N.º de pedido (vacío si aún no lo dan)') + fl('pedidoAnt', 'Pedido anterior (si cambió)') + fl('cartilla', 'Nombre de la cartilla') +
+      '<div class="fld"><label>Tipo</label><select data-f="sum.tipo"><option value="FIGURADO"' + (f.tipo === 'FIGURADO' ? ' selected' : '') + '>Figurado</option><option value="RECTO"' + (f.tipo === 'RECTO' ? ' selected' : '') + '>Recto</option></select></div>' +
+      fl('estructura', 'Estructura (STOCK o ALAMBRE si es acero recto)') + fl('fechaSolicitud', 'Fecha de solicitud', { t: 'date' }) + fl('fechaEntrega', 'Fecha de entrega', { t: 'date' }) + fl('remision', 'Remisión (vacía si no ha llegado)') +
+      '<div class="fld"><label>Peso del pedido (kg)</label><input type="text" inputmode="decimal" value="' + esc(f.pesoPedido) + '" data-i="sum.f.pesoPedido"></div></div>' +
+      '<div class="mut peq" style="margin:10px 0 4px"><b>Kilos por diámetro</b> (déjelos vacíos mientras no llegue)</div><div class="fgrid">' +
+      SUM_D.map(function (d) { return '<div class="fld"><label>' + esc(sumDL(d)) + '</label><input type="text" inputmode="decimal" value="' + esc(f.d[d]) + '" data-i="sum.d.' + esc(d) + '"' + (bloq ? ' readonly' : '') + '></div>'; }).join('') + '</div>' +
+      fl('obs', 'Nota (opcional)');
+    var tot = 0; SUM_D.forEach(function (d) { tot += parseFloat(String(f.d[d] || '').replace(',', '.')) || 0; });
+    h += '<div class="mut peq" id="sum-tot" style="margin-top:8px">Suma de diámetros: <b>' + kg(tot) + '</b> kg</div>' +
+      (S.sum.err ? '<div class="error">' + esc(S.sum.err) + '</div>' : '') +
+      '<div class="row2" style="margin-top:10px"><button class="btn" data-a="sumOk"' + (S.sum.busy ? ' disabled' : '') + '>' + (S.sum.busy ? 'Guardando…' : 'Guardar') + '</button><button class="btn sec" data-a="sumCancel">Cancelar</button>' +
+      (f.id && !bloq ? '<button class="btn chico peligro" data-a="sumDel">Eliminar</button>' : '') + '</div></div>';
+    return h;
+  }
+  function vSuministros() {
+    if (!esAdmin()) return '<div class="card vacio">Solo el administrador ve los suministros.</div>';
+    var b = S.sum;
+    if (!Api.remoto) return '<div class="card vacio">Los suministros necesitan conexión con el servidor.</div>';
+    if (b.filas === null && !b.cargando) setTimeout(function () { cargarSum(); }, 0);
+    var L = b.filas || [], q = String(b.q || '').trim().toLowerCase();
+    var F = L.filter(function (x) { return !q || (x.pedido + ' ' + x.pedidoAnt + ' ' + x.cartilla + ' ' + x.estructura + ' ' + x.remision + ' ' + x.empresa).toLowerCase().indexOf(q) >= 0; })
+      .sort(function (a, c) { return String(c.fechaEntrega || c.fechaSolicitud) < String(a.fechaEntrega || a.fechaSolicitud) ? -1 : 1; });
+    var T = { ped: 0, patio: 0, transito: 0, n: F.length, nT: 0 };
+    F.forEach(function (x) { var c = sumCalc(x); T.ped += c.peso; T.patio += c.enPatio; if (!c.enPatio) { T.transito += c.peso; T.nT++; } });
+    var h = '<div class="hero"><small>Suministros del proveedor</small><b>' + kg(T.ped) + ' kg pedidos</b><span>' + kg(T.patio) + ' kg recibidos en patio · ' + kg(T.transito) + ' kg por llegar (' + T.nT + ')</span></div>';
+    if (b.msg) h += '<div class="okmsg">✓ ' + esc(b.msg) + '</div>';
+    if (b.f) return h + vSumForm();
+    h += '<div class="card busca"><div class="row2"><input id="su-q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Buscar pedido, cartilla, estructura o remisión" value="' + esc(b.q) + '" data-i="sum.q">' +
+      '<button class="btn chico" data-a="sumNuevo">➕ Nuevo</button><button class="btn chico sec" data-a="sumXlsx"' + (L.length ? '' : ' disabled') + '>⬇ Excel</button></div></div>';
+    if (b.cargando) h += '<div class="cargando"><i class="spin"></i><b>Cargando datos…</b><span>Trayendo los suministros.</span></div>';
+    if (b.err) h += '<div class="error">' + esc(b.err) + '</div>';
+    if (b.filas === null) return h;
+    if (!b.cargando && !L.length) return h + '<div class="card vacio"><b>Aún no hay suministros.</b><br><span class="mut">Cargue el histórico de la hoja 1_SUMINISTROS_PAZDELRIO (28 líneas) o agréguelos uno a uno.</span><div style="margin-top:10px"><button class="btn" data-a="sumImp"' + (b.busy ? ' disabled' : '') + '>' + (b.busy ? 'Cargando…' : '⬆ Cargar histórico del Excel') + '</button></div></div>';
+    h += F.map(function (x) {
+      var c = sumCalc(x), col = c.enPatio ? 'lib' : 'out';
+      return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(x.pedido || 'sin número') + (x.pedidoAnt ? ' <small class="mut">(' + esc(x.pedidoAnt) + ')</small>' : '') + '</b><span>' + (x.fechaEntrega ? 'Entrega ' + fechaDia(x.fechaEntrega) : 'sin fecha') + '</span></div>' +
+        '<div class="pd-e">' + esc(x.cartilla) + ' · ' + esc(x.estructura) + '</div>' +
+        '<div class="pd-m"><span>' + esc(x.tipo === 'RECTO' ? 'Recto' : 'Figurado') + '</span><span><b>' + kg(c.peso) + '</b> kg</span><span>' + (x.remision ? 'Remisión <b>' + esc(x.remision) + '</b>' : 'sin remisión') + '</span><span class="' + col + '">' + (c.enPatio ? '✅ ' : '🚚 ') + esc(c.est.charAt(0) + c.est.slice(1).toLowerCase()) + '</span></div>' +
+        '<div class="pd-s">' + (c.tot > 0 ? SUM_D.filter(function (d) { return Number(x[d]) > 0; }).map(function (d) { return '<span><b>' + esc(sumDL(d)) + '</b> ' + kg(x[d]) + '</span>'; }).join('') : '<span class="mut">Sin desglose por diámetro todavía</span>') + (c.tot > 0 && !c.ok ? '<span class="out">⚠ Revisar desglose (' + kg(c.tot) + ' de ' + kg(c.peso) + ')</span>' : '') + (x.loadId ? '<span class="arm">📦 Suma al inventario</span>' : '') + '</div>' +
+        '<div class="acc"><button class="btn chico sec" data-a="sumEd" data-v="' + esc(x.id) + '" style="margin-top:8px">✏️ Corregir</button></div></div>';
+    }).join('');
+    return h;
+  }
+  function sumXlsx() {
+    var L = (S.sum.filas || []).slice().sort(function (a, c) { return Number(String(a.id).replace(/\D/g, '')) - Number(String(c.id).replace(/\D/g, '')) || (a.id < c.id ? -1 : 1); });
+    var R1 = function (n) { return Math.round((Number(n) || 0) * 100) / 100; };
+    var enc = ['EMPRESA', 'No. PEDIDO', 'NOMBRE CARTILLA', 'TIPO (RECTO/FIGURADO)', 'FECHA SOLICITUD', 'FECHA ENTREGA', 'REMISIÓN (LLEGADA)', 'ESTRUCTURA', 'PESO PEDIDO (KG)', 'ESTADO EN PATIO', 'KG EN PATIO'].concat(SUM_D.map(sumDL)).concat(['CHECK DESGLOSE']);
+    var rows = [[{ v: 'CONTROL DE SUMINISTROS Y PEDIDOS DE ACERO (PAZ DEL RÍO / ACERÍA)', s: 2 }], [], enc.map(function (t) { return { v: t, s: 1 }; })];
+    var tp = 0, tk = 0, td = SUM_D.map(function () { return 0; }), rp = 0, rk = 0, rd = SUM_D.map(function () { return 0; });
+    L.forEach(function (x) {
+      var c = sumCalc(x); tp += c.peso; tk += c.enPatio; SUM_D.forEach(function (d, i) { td[i] += Number(x[d]) || 0; });
+      if (x.tipo === 'RECTO' && c.enPatio) { rp += c.peso; rk += c.enPatio; SUM_D.forEach(function (d, i) { rd[i] += Number(x[d]) || 0; }); }
+      rows.push([x.empresa, (x.pedido || '') + (x.pedidoAnt ? ' (' + x.pedidoAnt + ')' : ''), x.cartilla, x.tipo, x.fechaSolicitud, x.fechaEntrega, x.remision, x.estructura, { v: R1(c.peso), s: 3 }, c.est, { v: R1(c.enPatio), s: 3 }]
+        .concat(SUM_D.map(function (d) { return { v: R1(x[d]), s: 3 }; })).concat([c.chk]));
+    });
+    rows.push([]);
+    rows.push([{ v: 'TOTAL SUMINISTROS PAZ DEL RÍO (CCSN)', s: 2 }, '', '', '', '', '', '', '', { v: R1(tp), s: 6 }, 'CONSOLIDADO', { v: R1(tk), s: 6 }].concat(td.map(function (n) { return { v: R1(n), s: 6 }; })));
+    rows.push([{ v: 'SUBTOTAL ACERO RECTO Y ALAMBRE RECIBIDO EN PATIO (KG)', s: 2 }, '', '', '', '', '', '', '', { v: R1(rp), s: 3 }, 'SOLO RECTO', { v: R1(rk), s: 3 }].concat(rd.map(function (n) { return { v: R1(n), s: 3 }; })));
+    rows.push([{ v: 'EQUIVALENTE RECIBIDO: CHISPAS DE 25 KG (ALAMBRE) Y VARILLAS DE 12 m (RECTO)', s: 2 }, '', '', '', '', '', '', '', '', 'CHISPAS / VARILLAS 12m', ''].concat(SUM_D.map(function (d, i) { var u = d === 'ALAMBRE' ? 25 : (C.PESOS[d] || 0) * 12; return { v: u ? Math.round(rd[i] / u * 10) / 10 : 0, s: 3 }; })));
+    var bytes = MiniXlsx.construir([{ name: '1_SUMINISTROS_PAZDELRIO', rows: rows, widths: [14, 20, 44, 12, 12, 12, 16, 34, 13, 26, 13, 10, 9, 9, 9, 9, 9, 9, 9, 10, 10, 18], freeze: 3 }], 'Carlos Eduardo Bermúdez Castro');
+    var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Suministros_Acero_' + hoyISO() + '.xlsx';
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast('Excel descargado');
+  }
+  function sumImportar() {
+    var b = S.sum; b.busy = true; b.err = ''; render();
+    fetch(BASE + 'historico-suministros.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (filas) {
+      return Api.accion(S.ses, 'suministroImportar', { filas: filas });
+    }).then(function (r) {
+      b.busy = false;
+      if (r && r.ok) { b.msg = 'Histórico cargado: ' + r.detalle; b.filas = null; cargarSum(true); } else { b.err = (r && r.error) || 'No se pudo cargar el histórico'; render(); }
+    }).catch(function () { b.busy = false; b.err = 'No se pudo leer el archivo del histórico'; render(); });
+  }
+  function sumLeerForm() {
+    var f = S.sum.f, num = function (v) { return parseFloat(String(v || '').replace(',', '.')) || 0; }, s = {};
+    Object.keys(f).forEach(function (k) { if (k !== 'd') s[k] = f[k]; });
+    s.pesoPedido = num(f.pesoPedido); s.desglose = {}; SUM_D.forEach(function (d) { s.desglose[d] = num(f.d[d]); }); return s;
+  }
   /** Control de cambios: quién hizo qué y cuándo en el inventario de Acero. Solo el administrador. */
   function cargarBit() {
     var b = S.bit; if (b.cargando || !Api.remoto) return; b.cargando = true; b.err = ''; render();
@@ -1066,7 +1182,7 @@
     if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver|panel|pnew|pban|dat)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return conPanel(AcReg.resumen()); }
     else {
       if (/^(reg|llego|armar|fin|salio|stock|mov|salida|hoy|inv|cargar|panel)$/.test(S.tab)) S.tab = 'ini';
-      if (!esAdmin() && /^(ped|pnew|pban|dat|bit)$/.test(S.tab)) S.tab = 'ini';
+      if (!esAdmin() && /^(ped|pnew|pban|dat|bit|sum)$/.test(S.tab)) S.tab = 'ini';
       var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return conPanel(nv);
     }
     switch (S.tab) {
@@ -1081,6 +1197,7 @@
       case 'pnew': return vCargar();
       case 'pban': return vAnulados();
       case 'bit': return vBitacora();
+      case 'sum': return vSuministros();
       case 'inf': return vInforme();
       default: return MODO === 'salidas' ? vSalida() : vPanel();
     }
@@ -1534,6 +1651,13 @@
       case 'verOk': verOk(); break;
       case 'cerrarBal': if (confirm('Si sale ahora, lo que quedó sin usar no se registra. ¿Salir de todos modos?')) { S.sal.balElem = ''; S.sal.tipo = ''; render(); } break;
       case 'cnPaso': { var sv = String(v), ix = sv.lastIndexOf('|'), cp = [sv.slice(0, ix), sv.slice(ix + 1)], ck = cp[0].split(':'), kk2 = ck.slice(1).join(':'), est2 = ck[0] === 'cie' ? S.cie : S.ver, f2 = ck[0] === 'cie' ? null : filasPos(S.ver.elem).filter(function (z) { return z.k === kk2; })[0], cur = est2.vals[kk2] !== undefined ? Number(est2.vals[kk2]) : (f2 ? f2.sal_p : 0); est2.vals[kk2] = Math.max(0, Math.floor(cur) + (+cp[1])); S.ver.msg = ''; render(); break; }
+      case 'sumNuevo': S.sum.f = sumForm(null); S.sum.err = ''; S.sum.msg = ''; render(); window.scrollTo(0, 0); break;
+      case 'sumEd': var xs = (S.sum.filas || []).filter(function (y) { return String(y.id) === String(v); })[0]; if (xs) { S.sum.f = sumForm(xs); S.sum.err = ''; S.sum.msg = ''; render(); window.scrollTo(0, 0); } break;
+      case 'sumCancel': S.sum.f = null; S.sum.err = ''; render(); break;
+      case 'sumOk': sumGuardar('suministroGuardar', { s: sumLeerForm() }, function (r) { return r.accion === 'editada' ? 'Suministro corregido' : 'Suministro guardado' + (r.inventario ? ' y sumado al inventario' : ''); }); break;
+      case 'sumDel': if (confirm('¿Eliminar este suministro? No se puede deshacer.')) sumGuardar('suministroEliminar', { id: S.sum.f.id }, function () { return 'Suministro eliminado'; }); break;
+      case 'sumImp': sumImportar(); break;
+      case 'sumXlsx': sumXlsx(); break;
       case 'bitRef': S.bit.filas = null; S.bit.cargando = false; cargarBit(); break;
       case 'pagBit': S.bit.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
@@ -1598,6 +1722,7 @@
     var t = ev.target;
     if (window.AcReg && (t.getAttribute('data-r') || t.getAttribute('data-rc') !== null) && AcReg.cambio(t)) return;
     if (t.getAttribute('data-cv')) { var pp = t.getAttribute('data-cv').split(':'), kk = pp.slice(1).join(':'), vv = Math.max(0, Math.floor(Number(t.value) || 0)); (pp[0] === 'cie' ? S.cie : S.ver).vals[kk] = vv; S.ver.msg = ''; render(); return; }
+    if (t.getAttribute('data-f') === 'sum.tipo') { S.sum.f.tipo = t.value; return; }
     if (t.getAttribute('data-f') === 'bit.acc') { S.bit.acc = t.value; S.bit.pag = 0; render(); return; }
     if (t.getAttribute('data-f') === 'ver.elem') { S.ver.elem = t.value; S.ver.vals = {}; S.ver.q = ''; S.ver.err = ''; S.ver.msg = ''; render(); return; }
     if (t.getAttribute('data-pdfpara') != null) { usarPdf(+t.getAttribute('data-pdfpara'), t.files[0]).then(function () { t.value = ''; }); return; }
@@ -1646,6 +1771,9 @@
     else if (i === 'sal.eq') { S.sal.eq = t.value; S.focus = 's-eq'; render(); var e5 = $('s-eq'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }
     else if (i === 'sal.q') { S.sal.q = t.value; S.focus = 's-q'; render(); var e3 = $('s-q'); if (e3) { try { e3.setSelectionRange(e3.value.length, e3.value.length); } catch (x) { } } }
     else if (i === 'bit.q') { S.bit.q = t.value; S.bit.pag = 0; S.focus = 'b-q'; render(); var e9 = $('b-q'); if (e9) { try { e9.setSelectionRange(e9.value.length, e9.value.length); } catch (x) { } } }
+    else if (i === 'sum.q') { S.sum.q = t.value; S.focus = 'su-q'; render(); var e10 = $('su-q'); if (e10) { try { e10.setSelectionRange(e10.value.length, e10.value.length); } catch (x) { } } }
+    else if (i.indexOf('sum.f.') === 0) { S.sum.f[i.slice(6)] = t.value; if (i === 'sum.f.pesoPedido') { } }
+    else if (i.indexOf('sum.d.') === 0) { S.sum.f.d[i.slice(6)] = t.value; var tt = 0; SUM_D.forEach(function (d) { tt += parseFloat(String(S.sum.f.d[d] || '').replace(',', '.')) || 0; }); var et = $('sum-tot'); if (et) et.innerHTML = 'Suma de diámetros: <b>' + kg(tt) + '</b> kg'; }
     else if (i === 'ped.q') { S.ped.q = t.value; S.ped.pag = 0; S.focus = 'p-q'; render(); var e5 = $('p-q'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }
     else if (i === 'cie.q' || i === 'ver.q') { (i === 'cie.q' ? S.cie : S.ver).q = t.value; S.focus = i.slice(0, 3) + '-q'; render(); var e7 = $(i.slice(0, 3) + '-q'); if (e7) { try { e7.setSelectionRange(e7.value.length, e7.value.length); } catch (x) { } } }
     else if (i === 'ver.obs') S.ver.obs = t.value;
@@ -1700,8 +1828,8 @@
   }
 
   // ---------- Inicio ----------
-  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(ini|panel|ped|inf|ver|bit)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
-  if (!/^(ini|dat|panel|ped|pnew|pban|inf|ver|bit)$/.test(S.tab)) S.tab = 'ini';
+  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(ini|panel|ped|inf|ver|bit|sum)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
+  if (!/^(ini|dat|panel|ped|pnew|pban|inf|ver|bit|sum)$/.test(S.tab)) S.tab = 'ini';
   S.ses = Api.sesion();
   if (S.ses) { abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado); }
   else {
