@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.AcerosCore, Api = window.Api, CFG = window.ACEROS_CONFIG;
-  var MODO = window.ACEROS_MODO === 'salidas' ? 'salidas' : 'dashboard', BASE = window.ACEROS_BASE || '', EMB = !!window.ACEROS_EMBED;
+  var MODO = window.ACEROS_MODO === 'salidas' ? 'salidas' : 'dashboard', BASE_MODO = MODO, BASE = window.ACEROS_BASE || '', EMB = !!window.ACEROS_EMBED;
 
   var S = {
     det: {},
@@ -1074,6 +1074,8 @@
   }
   function render0() {
     var app = $('app');
+    // Una misma app: el administrador ve todo el panel; el usuario con permiso de Acero (supervisor) entra por el mismo enlace y ve solo su vista de registro.
+    MODO = (BASE_MODO !== 'salidas' && !EMB && S.ses && S.ses.rol !== 'admin') ? 'salidas' : BASE_MODO;
     if (!S.ses) { app.innerHTML = S.auto ? '<main>' + vCargando() + '</main>' : vLogin(); return; }
     S.calc = C.calcular(S.estado);
     var fo = S.focus; S.focus = '';
@@ -1632,7 +1634,6 @@
     var pin = $('l-pin').value;
     Api.login(pin).then(function (r) {
       if (!r.ok) { S.loginErr = r.error; render(); return; }
-      if (MODO === 'dashboard' && r.ses.rol !== 'admin') { Api.salir(); S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; render(); return; }
       S.ses = r.ses; S.loginErr = ''; S.tab = 'ini';
       render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado);
     });
@@ -1661,7 +1662,6 @@
   try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(ini|panel|ped|inf|ver)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
   if (!/^(ini|dat|panel|ped|pnew|pban|inf|ver)$/.test(S.tab)) S.tab = 'ini';
   S.ses = Api.sesion();
-  if (S.ses && MODO === 'dashboard' && S.ses.rol !== 'admin') { Api.salir(); S.ses = null; S.loginErr = 'Este panel es solo para administradores. Usa la app de Acero.'; }
   if (S.ses) { abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado); }
   else {
     render();
