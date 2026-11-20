@@ -203,8 +203,8 @@ function vPaso() {
   if (k === 'uf') h = grandes(S.cat.ufs, f.uf, 'uf');
   else if (k === 'costado') h = grandes(COSTADOS, f.costado, 'costado');
   else if (k === 'abs') {
-    h = '<label class="f" style="margin-top:0">Abscisa de inicio</label><input type="text" inputmode="text" autocomplete="off" data-f="aI" value="' + esc(f.aI) + '" placeholder="Ej: 12+340"><div class="pv" id="pvI">' + (abTxt(f.aI) ? '✔ ' + abTxt(f.aI) : '') + '</div>' +
-      '<label class="f">Abscisa de fin</label><input type="text" inputmode="text" autocomplete="off" data-f="aF" value="' + esc(f.aF) + '" placeholder="Ej: 12+380"><div class="pv" id="pvF">' + (abTxt(f.aF) ? '✔ ' + abTxt(f.aF) : '') + '</div><div class="peq mut" style="margin-top:8px">Escríbela como 12+340 (kilómetro + metros).</div>';
+    h = '<label class="f" style="margin-top:0">Abscisa de inicio</label><input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-f="aI" value="' + esc(f.aI) + '" placeholder="Ej: 12340"><div class="pv" id="pvI">' + (abTxt(f.aI) ? '✔ ' + abTxt(f.aI) : '') + '</div>' +
+      '<label class="f">Abscisa de fin</label><input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-f="aF" value="' + esc(f.aF) + '" placeholder="Ej: 12380"><div class="pv" id="pvF">' + (abTxt(f.aF) ? '✔ ' + abTxt(f.aF) : '') + '</div><div class="peq mut" style="margin-top:8px">Solo números: los 3 últimos son los metros. Ej: 12340 = K12+340.</div>';
   } else if (k === 'paquete') {
     const pqs = paquetesDe(S.hito, f.uf);
     h = pqs.length ? pqs.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + p[1].length + ' actividades</small></button>').join('') : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>';
@@ -268,7 +268,7 @@ function validarPaso() {
   const f = S.f, k = PASOS[f.p][0];
   if (k === 'uf' && !f.uf) return 'Elige la UF.';
   if (k === 'costado' && !f.costado) return 'Elige el costado.';
-  if (k === 'abs') { if (!abTxt(f.aI) || !abTxt(f.aF)) return 'Escribe las dos abscisas, por ejemplo 12+340.'; }
+  if (k === 'abs') { if (!abTxt(f.aI) || !abTxt(f.aF)) return 'Escribe las dos abscisas, solo números (ej: 12340).'; }
   if (k === 'paquete' && f.pq === '') return 'Elige el paquete.';
   if (k === 'act' && !f.act) return 'Elige la actividad.';
   if (k === 'med') { const K = calc(); if (isNaN(K.c) || K.c <= 0) return 'Escribe las medidas (mayores que cero).'; if (K.d < 0 || K.d > K.c) return 'El descuento no puede ser mayor que la cantidad.'; if (!(K.fa > 0)) return 'El factor debe ser mayor que cero.'; }
@@ -325,6 +325,7 @@ document.addEventListener('input', ev => {
   const t = ev.target;
   if (t.id === 'buscar') { S.q = t.value; render(); const n = $('#buscar'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
   const k = t.dataset && t.dataset.f; if (!k || !S.f) return;
+  if (k === 'aI' || k === 'aF') t.value = t.value.replace(/\D/g, '');
   S.f[k] = t.value;
   if (k === 'aI' || k === 'aF') { const e = $(k === 'aI' ? '#pvI' : '#pvF'); if (e) e.textContent = abTxt(t.value) ? '✔ ' + abTxt(t.value) : ''; }
   if (['largo', 'ancho', 'alto', 'cant', 'desc', 'fac'].includes(k)) { const e = $('#tot'); if (e) e.innerHTML = totHtml(calc(), S.f.act.u); }
