@@ -38,13 +38,14 @@ main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padd
 .reg{border-top:1px solid var(--line);padding:9px 0}.reg:first-child{border-top:0}.reg b{display:block}.reg .tt{color:#0a7f2e;display:inline}
 img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:#000;margin-top:10px}
 .lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
-.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
+.dh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;font-size:1.05rem}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
 .sbar .sres{flex:1}.sbar .btn{white-space:nowrap}.btn.blk{box-sizing:border-box}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<script src="acero/xlsx.js?v=281"></script>
 <script>
 
 'use strict';
@@ -69,7 +70,8 @@ const UND = { 'M3': 3, 'M2': 2, 'ML': 1 };
 const NDIM = ['Largo (m)', 'Ancho (m)', 'Alto / espesor (m)'];
 const undTxt = u => ({ 'M3': 'm³', 'M2': 'm²', 'ML': 'm', 'UN': 'und', 'KG': 'kg', 'M3-KM': 'm³·km', 'TON-M': 'ton·m' }[u] || u);
 
-let S = { ses: lsGet(LS), cat: null, tab: 'ini', fecha: hoyISO(), hito: '', srv: [], pend: [], f: null, busy: false, cargando: false, offline: false, loginErr: '', q: '' };
+const LSM = 'oe_mis_v1';
+let S = { ses: lsGet(LS), cat: null, tab: 'rep', mis: {}, cargMis: false, fecha: hoyISO(), hito: '', srv: [], pend: [], f: null, busy: false, cargando: false, offline: false, loginErr: '', q: '' };
 
 /* ---------- Cola local (IndexedDB): los registros con foto esperan aquí hasta que haya señal ---------- */
 const DB = (() => {
@@ -103,7 +105,7 @@ async function pedirDia() {
   try {
     const r = await llamar({ accion: 'oe_lista', llave: S.ses.llave, fecha: S.fecha });
     S.offline = false;
-    if (r && r.ok) { S.srv = r.registros; lsSet(LSC, { llave: S.ses.llave, f: S.fecha, r: r.registros }); }
+    if (r && r.ok) { S.srv = r.registros; S.mis[S.fecha] = r.registros; lsSet(LSC, { llave: S.ses.llave, f: S.fecha, r: r.registros }); }
     else if (r && /Llave/.test(r.mensaje || '')) { salir(); S.loginErr = 'Tu llave ya no es válida.'; render(); return; }
   } catch (e) { S.offline = true; }
   S.cargando = false; render();
@@ -120,12 +122,27 @@ async function sincronizar() {
       else if (r && !r.ok) { x.error = r.mensaje || 'Error'; await DB.poner(x); }
     }
   } finally { S.busy = false; }
-  await pedirDia();
+  await pedirDia(); if (S.tab === 'mis') pedirMis();
 }
-const todosDia = () => {
-  const ids = new Set(S.srv.map(x => x.id));
-  return S.srv.map(x => ({ ...x, _ok: true })).concat(S.pend.filter(x => x.fecha === S.fecha && !ids.has(x.id)).map(x => ({ ...x, foto: !!x.foto, _ok: false })));
+const regDe = f => {
+  const base = f === S.fecha ? S.srv : (S.mis[f] || []), ids = new Set(base.map(x => x.id));
+  return base.map(x => ({ ...x, _ok: true })).concat(S.pend.filter(x => x.fecha === f && !ids.has(x.id)).map(x => ({ ...x, foto: !!x.foto, _ok: false })));
 };
+const todosDia = () => regDe(S.fecha);
+const ultimosDias = () => [0, 1, 2, 3].map(n => sumDias(hoyISO(), -n));
+/* Mis reportes: últimos 4 días; se abre con lo guardado y se actualiza por detrás */
+async function pedirMis() {
+  if (!S.ses) return;
+  const c = lsGet(LSM); if (c && c.llave === S.ses.llave) S.mis = Object.assign({}, c.d, S.mis);
+  S.cargMis = true; render();
+  try {
+    const dias = ultimosDias();
+    const rs = await Promise.all(dias.map(f => llamar({ accion: 'oe_lista', llave: S.ses.llave, fecha: f }).catch(() => null)));
+    let ok = false; rs.forEach((r, i) => { if (r && r.ok) { S.mis[dias[i]] = r.registros; ok = true; } });
+    S.offline = !ok; if (ok) lsSet(LSM, { llave: S.ses.llave, d: S.mis });
+  } catch (e) { S.offline = true; }
+  S.cargMis = false; render();
+}
 
 /* ---------- Vistas: simple, un paso por pantalla ---------- */
 function vLogin() {
@@ -145,7 +162,7 @@ function vBandas() {
   if (S.offline) h += '<div class="banda warn">Sin conexión: se muestran los últimos datos guardados.</div>';
   if (S.busy) h += '<div class="banda info"><span>Enviando registros…</span></div>';
   else if (pen) h += '<div class="banda warn"><span>📴 <b>' + pen + (pen === 1 ? ' registro' : ' registros') + ' por enviar.</b> Se envían solos con señal.</span><button class="btn chico" data-a="sync">Enviar</button></div>';
-  if (S.cargando && !S.busy) h += '<div class="banda info"><span>Actualizando datos…</span></div>';
+  if ((S.cargando || S.cargMis) && !S.busy) h += '<div class="banda info"><span>Actualizando datos…</span></div>';
   return h;
 }
 function vDia() {
@@ -169,6 +186,62 @@ function vHito() {
   return '<button class="btn chico sec" data-a="volver" style="margin-bottom:10px">◀ Hitos</button><div class="card"><h2 style="margin:0">' + (ICO[S.hito] || '') + ' ' + esc(nomHito(S.hito)) + '</h2><span class="peq mut">' + fechaTxt(S.fecha) + '</span></div>' +
     '<button class="btn blk grande" data-a="nuevo">➕ Nuevo registro</button><div style="height:14px"></div>' +
     (reg.length ? '<div class="card">' + reg.map(filaReg).join('') + '</div>' : '<p class="mut cen">Aún no hay registros en este hito.</p>');
+}
+
+/* ---- Mis reportes: resumen por día + Excel por WhatsApp ---- */
+const diaTxt = f => { const h = hoyISO(); const d = new Date(f + 'T12:00:00'); const w = d.toLocaleDateString('es-CO', { weekday: 'long' }); return (f === h ? 'Hoy' : f === sumDias(h, -1) ? 'Ayer' : w.charAt(0).toUpperCase() + w.slice(1)) + ' · ' + fechaTxt(f); };
+function totUnd(reg) { const t = {}; reg.forEach(x => { const k = undTxt(x.und); t[k] = (t[k] || 0) + Number(x.total || 0); }); return Object.keys(t).map(k => '<b>' + fmt(t[k]) + '</b> ' + esc(k)).join(' · '); }
+function vMis() {
+  let h = '<h2 class="preg">Mis reportes</h2>';
+  ultimosDias().forEach(f => {
+    const reg = regDe(f).sort((a, b) => String(a.hito).localeCompare(String(b.hito)) || String(a.creado || '~').localeCompare(String(b.creado || '~')));
+    h += '<div class="card"><div class="dh"><b>' + diaTxt(f) + '</b><span class="peq mut">' + reg.length + (reg.length === 1 ? ' registro' : ' registros') + '</span></div>';
+    if (!reg.length) h += '<div class="mut">Sin reportes este día.</div>';
+    else {
+      let hit = '';
+      reg.forEach(x => {
+        if (x.hito !== hit) { hit = x.hito; h += '<div class="hh">' + (ICO[hit] || '') + ' ' + esc(nomHito(hit)) + '</div>'; }
+        h += '<div class="rl"><div><b>' + esc(x.actividad) + '</b><span class="peq mut">' + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + (x._ok ? '' : ' · ⏳ por subir') + '</span></div><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b></div>';
+      });
+      h += '<div class="rt">Total: ' + totUnd(reg) + '</div><button class="btn blk wa" data-a="excel" data-v="' + f + '">📲 Enviar Excel por WhatsApp</button>';
+    }
+    h += '</div>';
+  });
+  return h;
+}
+const TABS = [['rep', '📝', 'Reporte'], ['mis', '📋', 'Mis reportes']];
+const vArbol = () => '<nav class="arbol">' + TABS.map(t => '<button class="ar-g' + (t[0] === S.tab ? ' on' : '') + '" data-a="tab" data-v="' + t[0] + '"><span>' + t[1] + '</span><em>' + t[2] + '</em></button>').join('') + '</nav>';
+const vBarra = () => '<nav class="mbar" style="grid-template-columns:repeat(2,1fr)">' + TABS.map(t => '<button class="' + (t[0] === S.tab ? 'on' : '') + '" data-a="tab" data-v="' + t[0] + '"><span>' + t[1] + '</span><em>' + t[2] + '</em></button>').join('') + '</nav>';
+function excelDia(f) {
+  const reg = regDe(f).sort((a, b) => String(a.hito).localeCompare(String(b.hito)) || String(a.creado || '~').localeCompare(String(b.creado || '~')));
+  const H = t => ({ v: t, s: 1 });
+  const filas = [['Fecha', 'Hito', 'UF', 'Costado', 'Abscisa inicio', 'Abscisa fin', 'Paquete', 'Código', 'Actividad', 'Unidad', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Factor', 'Total', 'Latitud', 'Longitud', 'Topógrafo'].map(H)];
+  const nz = v => (v === '' || v == null || isNaN(Number(v))) ? '' : Number(v);
+  reg.forEach(x => filas.push([fechaTxt(f), x.hito + ' ' + nomHito(x.hito), x.uf, x.costado, x.abIni, x.abFin, x.paquete, x.cc, x.actividad, undTxt(x.und), nz(x.largo), nz(x.ancho), nz(x.alto), nz(x.cantidad), nz(x.descuento), nz(x.factor), nz(x.total), nz(x.lat), nz(x.lon), S.ses.nombre]));
+  const res = {}; reg.forEach(x => { const k = x.hito + '|' + x.actividad + '|' + x.und; res[k] = (res[k] || 0) + Number(x.total || 0); });
+  const f2 = [['Hito', 'Actividad', 'Unidad', 'Total'].map(H)];
+  Object.keys(res).sort().forEach(k => { const p = k.split('|'); f2.push([p[0] + ' ' + nomHito(p[0]), p[1], undTxt(p[2]), r3(res[k])]); });
+  return MiniXlsx.construir([
+    { name: 'Reporte', rows: filas, widths: [11, 24, 7, 12, 13, 13, 28, 10, 44, 8, 9, 9, 9, 10, 10, 8, 10, 11, 11, 22], freeze: 1 },
+    { name: 'Resumen', rows: f2, widths: [24, 48, 9, 12], freeze: 1 }
+  ], 'Carlos Eduardo Bermúdez Castro');
+}
+function enviarExcel(f) {
+  const reg = regDe(f); if (!reg.length) return;
+  let bytes; try { bytes = excelDia(f); } catch (e) { toast('No se pudo crear el Excel.'); return; }
+  const nom = 'OE_' + f + '_' + String(S.ses.nombre || 'topografo').replace(/[^\w]+/g, '_') + '.xlsx';
+  const tipo = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const file = new File([bytes], nom, { type: tipo });
+  const texto = 'Reporte OE ' + fechaTxt(f) + ' · ' + S.ses.nombre + ' · ' + reg.length + (reg.length === 1 ? ' registro' : ' registros');
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: 'Reporte OE ' + fechaTxt(f), text: texto }).catch(e => { if (e && e.name !== 'AbortError') descargarYWa(file, texto); });
+  } else descargarYWa(file, texto);
+}
+function descargarYWa(file, texto) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  toast('Excel descargado: adjúntalo en WhatsApp');
+  setTimeout(() => { window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank'); }, 900);
 }
 
 /* ---- Formulario: un paso por pantalla ---- */
@@ -240,8 +313,11 @@ function vSbar() {
 function render() {
   const app = $('#app'), y = window.pageYOffset;
   if (!S.ses) { app.innerHTML = vLogin(); return; }
-  const enForm = !!S.f;
-  app.innerHTML = '<div class="cab">' + vTop() + '</div>' + vBandas() + '<main class="oe' + (enForm ? ' conbar' : '') + '">' + (enForm ? vForm() : (S.hito ? vHito() : vInicio())) + '</main>' + (enForm ? vSbar() : '');
+  if (S.f) { app.innerHTML = '<div class="cab">' + vTop() + '</div>' + vBandas() + '<main class="oe conbar">' + vForm() + '</main>' + vSbar(); }
+  else {
+    const main = S.tab === 'mis' ? vMis() : (S.hito ? vHito() : vInicio());
+    app.innerHTML = '<div class="cab">' + vTop() + '</div><div class="lay">' + vArbol() + '<div class="cont">' + vBandas() + '<main class="oe">' + main + '</main></div></div>' + vBarra();
+  }
   if (window.pageYOffset !== y) window.scrollTo(0, y);
 }
 
@@ -262,7 +338,7 @@ function reducirFoto(file) {
 }
 
 /* ---------- Acciones ---------- */
-function salir() { lsSet(LS, null); lsSet(LSC, null); S.ses = null; S.f = null; S.hito = ''; }
+function salir() { lsSet(LS, null); lsSet(LSC, null); lsSet(LSM, null); S.mis = {}; S.tab = 'rep'; S.ses = null; S.f = null; S.hito = ''; }
 function ir(p) { S.f.p = p; S.f.msg = ''; S.q = ''; render(); window.scrollTo(0, 0); if (PASOS[p][0] === 'foto' && !S.f.gps) tomarGps(); }
 function validarPaso() {
   const f = S.f, k = PASOS[f.p][0];
@@ -305,7 +381,9 @@ document.addEventListener('submit', async ev => {
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-a]'); if (!b) return;
   const a = b.dataset.a, v = b.dataset.v;
-  if (a === 'refrescar') { sincronizar(); if (!navigator.onLine) pedirDia(); return; }
+  if (a === 'tab') { S.tab = v; S.hito = ''; render(); window.scrollTo(0, 0); if (v === 'mis') pedirMis(); return; }
+  if (a === 'excel') { enviarExcel(v); return; }
+  if (a === 'refrescar') { if (S.tab === 'mis') pedirMis(); sincronizar(); if (!navigator.onLine) pedirDia(); return; }
   if (a === 'salir') { if (!S.pend.length || confirm('Hay registros sin subir en este equipo. No se pierden, pero no se subirán hasta que entres de nuevo. ¿Salir?')) { salir(); render(); } return; }
   if (a === 'dia') { cambioDia(sumDias(S.fecha, Number(v))); return; }
   if (a === 'hito') { S.hito = v; render(); window.scrollTo(0, 0); return; }
