@@ -110,8 +110,8 @@
       return post({ action: 'personal', pin: ses.pin, fecha: dia }).catch(function () { return { ok: false }; });
     },
 
-    cargarDLI: function (ses, parsed, pedido, llegada, b64, nEst) {
-      pedido = String(pedido).trim();
+    cargarDLI: function (ses, parsed, pedido, llegada, b64, nEst, extra) {
+      pedido = String(pedido).trim(); extra = extra || {};
       var loadId = uid('L');
       var fllega = /^\d{4}-\d\d-\d\d$/.test(llegada || '') ? llegada + 'T00:00:00' : ahora();
       var entradas = C.aEntradas(parsed, pedido, loadId, fllega);
@@ -121,12 +121,13 @@
           return Promise.resolve({ ok: false, error: 'Este DLI ya está cargado (' + parsed.nombre + '). No se permite repetirlo.' });
         s.entradas = s.entradas.concat(entradas);
         s.pedidos.push({ loadId: loadId, pedido: pedido, estructura: parsed.nombre, descripcion: parsed.descripcion, proyecto: parsed.proyecto,
-          archivo: parsed.archivo, fecha: fllega, usuario: ses.nombre, piezas: parsed.totalPiezas, kg: parsed.totalKg, nEstructuras: nEst || 1 });
+          archivo: parsed.archivo, fecha: fllega, usuario: ses.nombre, piezas: parsed.totalPiezas, kg: parsed.totalKg, nEstructuras: nEst || 1,
+          empresa: extra.empresa || '', fechaSolicitud: extra.fechaSolicitud || '', fechaEntrega: extra.fechaEntrega || '', pedidoAnt: '' });
         guardar(K.local, s);
         return Promise.resolve({ ok: true });
       }
       return post({ action: 'cargarDLI', pin: ses.pin, usuario: ses.nombre, loadId: loadId, pedido: pedido, estructura: parsed.nombre,
-        descripcion: parsed.descripcion, proyecto: parsed.proyecto, archivo: parsed.archivo, fechaLlegada: llegada, entradas: entradas, archivoB64: b64 || '', nEstructuras: nEst || 1 })
+        descripcion: parsed.descripcion, proyecto: parsed.proyecto, archivo: parsed.archivo, fechaLlegada: llegada, entradas: entradas, archivoB64: b64 || '', nEstructuras: nEst || 1, empresa: extra.empresa || '', fechaSolicitud: extra.fechaSolicitud || '', fechaEntrega: extra.fechaEntrega || '' })
         .catch(function () { return { ok: false, error: 'Sin conexión: la carga de un DLI necesita internet' }; });
     },
 
@@ -202,10 +203,11 @@
         if (!c) return Promise.resolve({ ok: false, error: 'No se encontró el pedido' });
         var f = d.fechaLlegada + 'T00:00:00';
         c.pedido = d.pedido; c.fecha = f; c.nEstructuras = d.nEstructuras;
+        ['empresa', 'fechaSolicitud', 'fechaEntrega', 'pedidoAnt'].forEach(function (k) { if (d[k] !== undefined) c[k] = d[k]; });
         s.entradas.forEach(function (e) { if (e.loadId === loadId) { e.pedido = d.pedido; e.fecha = f; } });
         guardar(K.local, s); return Promise.resolve({ ok: true });
       }
-      return post({ action: 'editarCarga', pin: ses.pin, loadId: loadId, pedido: d.pedido, fechaLlegada: d.fechaLlegada, nEstructuras: d.nEstructuras }).catch(function () { return { ok: false, error: 'Sin conexión' }; });
+      return post({ action: 'editarCarga', pin: ses.pin, loadId: loadId, pedido: d.pedido, fechaLlegada: d.fechaLlegada, nEstructuras: d.nEstructuras, empresa: d.empresa, fechaSolicitud: d.fechaSolicitud, fechaEntrega: d.fechaEntrega, pedidoAnt: d.pedidoAnt }).catch(function () { return { ok: false, error: 'Sin conexión' }; });
     },
 
     anularCarga: function (ses, loadId) {

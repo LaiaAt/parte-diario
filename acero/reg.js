@@ -226,6 +226,7 @@
       if (!w.fecha) { w.fecha = X.hoyISO(); w.hora = X.horaAhora(); }
       return cab('¿Cuándo llegó?', 'Ya viene con el día y la hora de ahora. Cámbialos solo si llegó antes.') +
         momento(w) +
+        '<div class="fld" style="margin-top:10px"><label for="l-rem">🧾 Número de remisión</label><input id="l-rem" type="text" maxlength="30" autocomplete="off" placeholder="Ej. 8091338246" value="' + esc(w.remision || '') + '" data-r="remision"></div>' +
         foto(true) +
         '<div class="resu">Llegan <b>' + K(kgT) + '</b> de <b>' + esc(q0 ? q0.est : '') + '</b>' + (w.todo ? ' (todo lo que faltaba)' : ' (una parte)') + '</div>' + guardarBtn('wLok', '✅ Confirmar que llegó') + pie();
     }
@@ -434,7 +435,7 @@
       case 'wL1': ir(v === 'est' ? 'l2e' : 'l2s'); return true;
       case 'wLs': w.stock = v; w.rows = null; w.files = []; ir(porRecibir().some(function (q) { return q.est === v; }) ? 'l2p' : 'lsf'); return true;
       case 'wLform': ir('lsf'); return true;
-      case 'wLoad': w.load = v; w.vals = {}; w.kgs = {}; w.id = nuevoId('R'); ir('l3'); return true;
+      case 'wLoad': w.load = v; w.vals = {}; w.kgs = {}; w.remision = ''; w.id = nuevoId('R'); ir('l3'); return true;
       case 'wTodo': w.todo = v === '1'; ir(w.todo ? 'l4' : 'l3m'); return true;
       case 'wMet': w.vals = {}; w.kgs = {}; w.kgd = {}; w.kd = {}; ir(v === 'kg' ? 'l3k' : 'l3p'); return true;
       case 'wKsig': if (totLleg().p > 0) ir('l4'); return true;
@@ -442,8 +443,9 @@
       case 'wFq': if (w.files) { w.files.splice(+v, 1); X.render(); } return true;
       case 'wLok': {
         if (!w.fecha || !w.hora) { fallo('Indica el día y la hora en que llegó.'); return true; }
+        if (!String(w.remision || '').trim()) { fallo('Escribe el número de remisión.'); return true; }
         if (!w.files || !w.files.length) { fallo('Falta la foto de la remisión. No puede llegar acero sin ella.'); return true; }
-        var d = { loadId: w.load, fecha: w.fecha + 'T' + w.hora, id: w.id };
+        var d = { loadId: w.load, fecha: w.fecha + 'T' + w.hora, id: w.id, remision: String(w.remision).trim() };
         if (w.todo) d.todo = true; else { d.items = []; pend(w.load).forEach(function (r) { var q = w.vals[r.diametro + '|' + r.marca] || 0; if (q > 0) d.items.push({ diametro: r.diametro, marca: r.marca, cantidad: q }); }); }
         if (w.files && w.files.length) { d.archivos = w.files.map(function (f) { return { b64: f.b64, nombre: f.nombre }; }); }
         var q1 = porRecibir().filter(function (q) { return q.id === w.load; })[0]; enviar('recibirPedido', d, 'Llegaron ' + K(w.todo ? (q1 ? q1.falta : 0) : totLleg().kg), 'Ya están en el almacén, listos para armar.');
