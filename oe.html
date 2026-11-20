@@ -38,7 +38,7 @@ main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padd
 .reg{border-top:1px solid var(--line);padding:9px 0}.reg:first-child{border-top:0}.reg b{display:block}.reg .tt{color:#0a7f2e;display:inline}
 img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:#000;margin-top:10px}
 .lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
-.dh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;font-size:1.05rem}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
+.dh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;font-size:1.05rem}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.uch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.uch button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:12px;min-height:54px;font-weight:700;font-size:.98rem;cursor:pointer;padding:6px}.uch button.on{background:#0a7f2e;border-color:#0a7f2e;color:#fff}.otro{margin:10px 0 4px;min-height:48px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
 .sbar .sres{display:none}.sbar{gap:12px}.sbar .btn,.sbar .btn.sacar2,.sbar .btn.cnl{flex:1 1 0;width:0;min-width:0;box-sizing:border-box;margin:0;padding:0 8px;min-height:56px;font-size:1.1rem}.sbar .btn{white-space:nowrap}.btn.blk{box-sizing:border-box}
 </style>
 </head>
@@ -201,7 +201,7 @@ function vMis() {
       let hit = '';
       reg.forEach(x => {
         if (x.hito !== hit) { hit = x.hito; h += '<div class="hh">' + (ICO[hit] || '') + ' ' + esc(nomHito(hit)) + '</div>'; }
-        h += '<div class="rl"><div><b>' + esc(x.actividad) + '</b><span class="peq mut">' + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + (x._ok ? '' : ' · ⏳ por subir') + '</span></div><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b></div>';
+        h += '<div class="rl"><div><b>' + esc(x.actividad) + '</b><span class="peq mut">' + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + (x.cc === 'NUEVA' ? ' · actividad nueva' : '') + (x._ok ? '' : ' · ⏳ por subir') + '</span></div><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b></div>';
       });
       h += '<div class="rt">Total: ' + totUnd(reg) + '</div><button class="btn blk wa" data-a="excel" data-v="' + f + '">📲 Enviar Excel por WhatsApp</button>';
     }
@@ -246,9 +246,10 @@ function descargarYWa(file, texto) {
 
 /* ---- Formulario: un paso por pantalla ---- */
 function idNuevo() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', d = new Date(); let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * a.length)]; return 'OE-' + String(d.getFullYear()).slice(2) + z2(d.getMonth() + 1) + z2(d.getDate()) + '-' + s; }
-function nuevoForm() { return { id: idNuevo(), p: 0, uf: '', costado: '', aI: '', aF: '', pq: '', act: null, largo: '', ancho: '', alto: '', cant: '', desc: '', fac: '1', foto: '', gps: null, gpsMsg: 'Buscando ubicación…', msg: '', guardando: false }; }
+function nuevoForm() { return { id: idNuevo(), p: 0, uf: '', costado: '', aI: '', aF: '', pq: '', act: null, otra: false, on: '', ou: '', largo: '', ancho: '', alto: '', cant: '', desc: '', fac: '1', foto: '', gps: null, gpsMsg: 'Buscando ubicación…', msg: '', guardando: false }; }
 const PASOS = [['uf', '¿En qué UF?'], ['costado', '¿En qué costado?'], ['abs', '¿Entre qué abscisas?'], ['paquete', '¿Qué paquete de trabajo?'], ['act', '¿Qué actividad hiciste?'], ['med', 'Medidas'], ['foto', 'Foto y ubicación']];
 /* Abscisa en una sola celda: "12+340" o "12340" → K12+340 */
+const UNID = [['UN', 'Unidad (UND)'], ['ML', 'Metro lineal (m)'], ['M2', 'Metro cuadrado (m²)'], ['M3', 'Metro cúbico (m³)'], ['KG', 'Kilo (kg)'], ['GL', 'Global (GL)']];
 const abTxt = v => { let t = String(v == null ? '' : v).toUpperCase().replace(/[K\s]/g, ''); if (!t) return ''; let k, m; if (t.includes('+')) { [k, m] = t.split('+'); } else { m = t.slice(-3); k = t.slice(0, -3) || '0'; } if (!/^\d+$/.test(k) || !/^\d{1,3}$/.test(m || '')) return ''; return 'K' + k.padStart(2, '0') + '+' + m.padStart(3, '0'); };
 const nd = () => S.f && S.f.act ? (UND[S.f.act.u] || 0) : 0;
 function calc() {
@@ -282,13 +283,19 @@ function vPaso() {
     const pqs = paquetesDe(S.hito, f.uf);
     h = pqs.length ? pqs.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + p[1].length + ' actividades</small></button>').join('') : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>';
   } else if (k === 'act') {
-    const q = S.q.toLowerCase(), L = (paquetesDe(S.hito, f.uf)[f.pq] || ['', []])[1].filter(a => !q || (a[0] + ' ' + a[1]).toLowerCase().includes(q));
-    h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '">' +
-      L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
-      (L.length > 40 ? '<div class="peq mut" style="margin-top:6px">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</div>' : '') + (L.length ? '' : '<div class="peq mut" style="margin-top:8px">Sin resultados.</div>');
+    if (f.otra) {
+      h = '<label class="f" style="margin-top:0">Nombre de la actividad (no está en la lista)</label><input type="text" data-f="on" value="' + esc(f.on) + '" maxlength="120" placeholder="Ej: Demolición de lindero" autocapitalize="sentences">' +
+        '<label class="f">¿Cómo se mide?</label><div class="uch">' + UNID.map(u => '<button type="button" class="' + (f.ou === u[0] ? 'on' : '') + '" data-a="ou" data-v="' + u[0] + '">' + u[1] + '</button>').join('') + '</div>' +
+        '<button type="button" class="btn blk" style="margin-top:14px" data-a="usarOtra">✔ Usar esta actividad</button><button type="button" class="btn sec blk" style="margin-top:10px" data-a="lista">◀ Volver a la lista</button>';
+    } else {
+      const q = S.q.toLowerCase(), L = (paquetesDe(S.hito, f.uf)[f.pq] || ['', []])[1].filter(a => !q || (a[0] + ' ' + a[1]).toLowerCase().includes(q));
+      h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '"><button type="button" class="btn sec blk otro" data-a="otra">➕ No está en la lista: escribirla</button>' +
+        L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
+        (L.length > 40 ? '<div class="peq mut" style="margin-top:6px">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</div>' : '') + (L.length ? '' : '<div class="peq mut" style="margin-top:8px">No hay actividades con ese nombre. Puedes escribirla con el botón de arriba.</div>');
+    }
   } else if (k === 'med') {
     const n = nd(), K = calc(), u = f.act.u;
-    h = '<div class="sel" style="margin:0 0 12px">' + esc(f.act.d) + '<small>unidad ' + undTxt(u) + '</small></div>';
+    h = '<div class="sel" style="margin:0 0 12px">' + esc(f.act.d) + '<small>unidad ' + undTxt(u) + (f.act.nueva ? ' · actividad nueva' : '') + '</small></div>';
     if (n === 0) h += '<label class="f" style="margin-top:0">Cantidad (' + undTxt(u) + ')</label><input type="text" inputmode="decimal" data-f="cant" value="' + esc(f.cant) + '">';
     else { h += '<div class="fila">'; ['largo', 'ancho', 'alto'].slice(0, n).forEach((x, i) => { h += '<div><label class="f" style="margin-top:0">' + NDIM[i] + '</label><input type="text" inputmode="decimal" data-f="' + x + '" value="' + esc(f[x]) + '"></div>'; }); h += '</div>'; }
     h += '<div class="fila"><div><label class="f">Descuento</label><input type="text" inputmode="decimal" data-f="desc" value="' + esc(f.desc) + '" placeholder="0"></div><div><label class="f">Factor</label><input type="text" inputmode="decimal" data-f="fac" value="' + esc(f.fac) + '"></div></div>' +
@@ -351,7 +358,15 @@ function validarPaso() {
   if (k === 'foto' && !f.foto) return 'Falta la foto de la actividad.';
   return '';
 }
-function sig() { const m = validarPaso(); if (m) { S.f.msg = m; render(); window.scrollTo(0, 0); return; } ir(S.f.p + 1); }
+function usarOtra() {
+  const f = S.f, n = f.on.trim().replace(/\s+/g, ' ');
+  if (n.length < 4) { f.msg = 'Escribe qué actividad hiciste.'; render(); window.scrollTo(0, 0); return; }
+  if (!f.ou) { f.msg = 'Elige cómo se mide (unidad, metro lineal, m², m³…).'; render(); window.scrollTo(0, 0); return; }
+  const u = n.toUpperCase();
+  if (!f.act || f.act.c !== 'NUEVA' || f.act.d !== u || f.act.u !== f.ou) { f.largo = f.ancho = f.alto = f.cant = f.desc = ''; f.fac = '1'; }
+  f.act = { c: 'NUEVA', d: u, u: f.ou, nueva: true }; ir(5);
+}
+function sig() { if (PASOS[S.f.p][0] === 'act' && S.f.otra) { usarOtra(); return; } const m = validarPaso(); if (m) { S.f.msg = m; render(); window.scrollTo(0, 0); return; } ir(S.f.p + 1); }
 async function guardar() {
   const f = S.f, m = validarPaso();
   if (m) { f.msg = m; render(); window.scrollTo(0, 0); return; }
@@ -391,10 +406,14 @@ document.addEventListener('click', async ev => {
   if (a === 'nuevo') { S.f = nuevoForm(); S.q = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'atras') { if (S.f.p > 0) { ir(S.f.p - 1); return; } if ((!S.f.uf && !S.f.foto) || confirm('¿Descartar este registro?')) { S.f = null; render(); } return; }
   if (a === 'sig') { sig(); return; }
-  if (a === 'uf') { if (S.f.uf !== v) { S.f.pq = ''; S.f.act = null; } S.f.uf = v; ir(1); return; }
+  if (a === 'uf') { if (S.f.uf !== v) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.uf = v; ir(1); return; }
   if (a === 'costado') { S.f.costado = v; ir(2); return; }
-  if (a === 'pq') { if (String(S.f.pq) !== String(v)) S.f.act = null; S.f.pq = v; ir(4); return; }
-  if (a === 'act') { const p = paquetesDe(S.hito, S.f.uf)[S.f.pq], x = p[1].find(y => y[0] === v); if (!S.f.act || S.f.act.c !== x[0]) { S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; } S.f.act = { c: x[0], d: x[1], u: x[2] }; ir(5); return; }
+  if (a === 'pq') { if (String(S.f.pq) !== String(v)) { S.f.act = null; S.f.otra = false; } S.f.pq = v; ir(4); return; }
+  if (a === 'act') { S.f.otra = false; const p = paquetesDe(S.hito, S.f.uf)[S.f.pq], x = p[1].find(y => y[0] === v); if (!S.f.act || S.f.act.c !== x[0]) { S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; } S.f.act = { c: x[0], d: x[1], u: x[2] }; ir(5); return; }
+  if (a === 'otra') { S.f.otra = true; if (!S.f.on) S.f.on = S.q.trim(); S.f.msg = ''; render(); window.scrollTo(0, 0); return; }
+  if (a === 'lista') { S.f.otra = false; S.f.msg = ''; render(); return; }
+  if (a === 'ou') { S.f.ou = v; render(); return; }
+  if (a === 'usarOtra') { usarOtra(); return; }
   if (a === 'guardar') { guardar(); return; }
   if (a === 'sync') { sincronizar(); return; }
   if (a === 'anular') { if (!confirm('¿Anular este registro?')) return; S.cargando = true; render(); try { const r = await llamar({ accion: 'oe_eliminar', llave: S.ses.llave, id: v }); if (!r.ok) toast(r.mensaje || 'No se pudo anular'); } catch (e) { toast('Sin conexión: no se pudo anular.'); } pedirDia(); return; }
