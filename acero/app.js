@@ -1031,7 +1031,10 @@
     sacarRepetidos();
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador puede cargar un DLI.</div>';
     var h0 = '';
-    if (!S.estado.pedidos.some(function (p) { return /^H/.test(String(p.loadId)); }) && Api.remoto) h0 = '<div class="card"><b>Histórico de pedidos del proveedor</b><div class="peq mut" style="margin:4px 0 8px">28 pedidos de Paz del Río del control unificado (16 con remisión, 12 por llegar). Se cargan una sola vez.</div><button class="btn" data-a="histImp"' + (S.histBusy ? ' disabled' : '') + '>' + (S.histBusy ? 'Cargando…' : '⬆ Cargar histórico') + '</button></div>';
+    if (Api.remoto && !S.hist && !S.histPidio) { S.histPidio = true; fetch(BASE + 'historico-suministros.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (f) { S.hist = f; render(); }).catch(function () {}); }
+    var hFalta = S.hist ? S.hist.filter(function (x) { return !S.estado.pedidos.some(function (p) { return String(p.pedido) === String(x.pedido); }); }) : [];
+    if (hFalta.length && !S.cargas.length) h0 = '<div class="card"><b>Histórico de pedidos del proveedor</b><div class="peq mut" style="margin:4px 0 8px">Faltan ' + hFalta.length + ' líneas del control unificado (Paz del Río). Elija las cartillas (.dli) de la carpeta de despieces: la app las cruza sola con el Excel (empresa, fechas, pedido anterior) y registra las remisiones que ya llegaron.</div><label class="btn" for="hist-dir">📂 Elegir carpeta de despieces</label><input id="hist-dir" type="file" multiple webkitdirectory style="display:none"> <label class="btn sec" for="hist-file">Elegir archivos</label><input id="hist-file" type="file" multiple accept=".dli,.DLI" style="display:none"></div>';
+    if (S.histNota) h0 += '<div class="card aviso">' + S.histNota + '</div>';
     var h = h0 + (S.cargas.length ? '<div class="np"><label class="np-drop np-min" id="np-drop" for="dli-file"><span class="np-ico">➕</span><b>Agregar más archivos</b><span class="np-o">suelte o toque aquí</span></label><input id="dli-file" type="file" multiple accept=".dli,.pdf,.DLI,.PDF" style="display:none"></div>' : '<div class="np"><label class="np-drop" id="np-drop" for="dli-file"><span class="np-ico">📥</span><b>' + (window.matchMedia && matchMedia('(hover:none)').matches ? 'Toque aquí para elegir los archivos' : 'Suelte aquí los archivos del pedido') + '</b><span class="np-o">o toque para elegirlos</span>' +
       '<span class="np-fmt"><em>.dli</em><em>.pdf</em><em>varios a la vez</em></span><span class="np-btn">📂 Elegir archivos</span></label><input id="dli-file" type="file" multiple accept=".dli,.pdf,.DLI,.PDF" style="display:none">' +
       '<div class="np-pasos"><div><i>1</i><b>Elija el archivo</b><small>El DLI o el PDF de la cartilla. Puede subir varios.</small></div><div><i>2</i><b>Revise y corrija</b><small>Piezas, kilos y posiciones. Todo se puede editar.</small></div><div><i>3</i><b>Registre</b><small>Queda <u>por recibir</u>; el almacén sube cuando llega a obra.</small></div></div>' +
@@ -1268,6 +1271,49 @@
     }); }).catch(function () { c.err = 'No se pudo leer el PDF.'; }).then(render);
   }
 
+  // ---- Histórico: cruza cada cartilla (.dli) con la línea del Excel por nombre y deja los datos listos para guardar ----
+  function nrm(t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function histLineas(parsed) {
+    var b = nrm(parsed.archivo), mejor = '', L = [];
+    (S.hist || []).forEach(function (x) { var n = nrm(x.cartilla); if (n && b.indexOf(n) >= 0 && n.length > mejor.length) mejor = n; });
+    if (mejor) L = S.hist.filter(function (x) { return nrm(x.cartilla) === mejor; });
+    return L;
+  }
+  function histCartillas(files) {
+    var lista = Array.prototype.filter.call(files, function (f) { return /\.dli$/i.test(f.name) && !/plantilla/i.test(f.name); });
+    if (!S.hist) { toast('Espere un momento: se está leyendo el Excel del histórico'); return Promise.resolve(); }
+    if (!lista.length) { toast('No encontré archivos .dli en lo que eligió'); return Promise.resolve(); }
+    var antes = S.cargas.length;
+    return leerArchivos(lista).then(function () {
+      var nuevas = S.cargas.slice(antes), sin = [], usadas = {};
+      nuevas.forEach(function (c) {
+        var L = histLineas(c.parsed);
+        if (!L.length) { sin.push(c.parsed.archivo); c.nota = (c.nota ? c.nota + ' ' : '') + 'No encontré esta cartilla en el Excel: escriba el número de pedido a mano o quítela.'; return; }
+        var p0 = L[0]; if (usadas[p0.pedido]) { c.nota = 'Ya hay otro archivo para el pedido ' + p0.pedido + '. Revise.'; return; } usadas[p0.pedido] = 1;
+        c.pedido = p0.pedido; c.emp = p0.empresa || 'PAZ DEL RIO'; c.fsol = p0.fechaSolicitud || ''; c.fent = p0.fechaEntrega || ''; c.pa = p0.pedidoAnt || ''; c.hist = L; c.llegada = hoyISO();
+        if (!c.parsed.rows.length && p0.tipo === 'RECTO' && p0.desglose) { // cartilla sin posiciones legibles (tachones): barras de 12 m según los kilos del Excel
+          var KG = { '3/8': 0.56, '1/2': 0.994, '5/8': 1.552, '3/4': 2.235, '7/8': 3.042, '1': 3.973, '1-1/4': 6.404 }, rows = [];
+          Object.keys(p0.desglose).forEach(function (d) { var k = Number(p0.desglose[d]) || 0; if (!(k > 0) || !KG[d]) return; var n = Math.max(1, Math.round(k / (KG[d] * 12))); rows.push({ marca: 'L12', diametro: d, cantidad: n, largo: 12, peso: KG[d], kgUnit: Math.round(KG[d] * 12 * 1e5) / 1e5, kg: Math.round(n * KG[d] * 12 * 1000) / 1000, forma: 'Recta' }); });
+          c.parsed.rows = rows; c.parsed.totalPiezas = rows.reduce(function (a, r) { return a + r.cantidad; }, 0); c.parsed.totalKg = Math.round(rows.reduce(function (a, r) { return a + r.kg; }, 0) * 100) / 100; c.pedirPdf = false; c.parsed.errores = [];
+          c.nota = 'Este archivo no traía posiciones; las armé con los kilos del Excel (barras de 12 m).';
+        }
+      });
+      var ok = nuevas.filter(function (c) { return c.hist; }).length;
+      S.histNota = '✔ ' + ok + ' cartillas cruzadas con el Excel' + (sin.length ? ' · <b>sin cruzar:</b> ' + sin.map(esc).join(', ') : '') + '. Revise y pulse «Guardar» (las remisiones se registran solas al terminar).';
+      render();
+    });
+  }
+  /** Tras guardar las cartillas: registra las remisiones del Excel (kg por diámetro → piezas completas) */
+  function enviarHist() {
+    var L = S.histPend || []; S.histPend = [];
+    L = L.filter(function (x) { return x.remision && S.estado.pedidos.some(function (p) { return String(p.pedido) === String(x.pedido); }); });
+    if (!L.length) return Promise.resolve();
+    return Api.accion(S.ses, 'importarHistorico', { filas: L.map(function (x) { return { pedido: x.pedido, remision: x.remision, fechaEntrega: x.fechaEntrega, desglose: x.desglose }; }) }).then(function (r) {
+      if (r && r.ok) { S.histNota = '✔ Histórico: ' + esc(r.detalle) + (r.avisos && r.avisos.length ? '<div class="peq">' + r.avisos.map(esc).join('<br>') + '</div>' : '') + (r.errores && r.errores.length ? '<div class="error">' + r.errores.map(esc).join('<br>') + '</div>' : ''); toast('Remisiones registradas: ' + r.recibidas); }
+      else toast((r && r.error) || 'No se pudieron registrar las remisiones');
+      return cargarEstado();
+    }).catch(function () { toast('No se pudieron registrar las remisiones'); });
+  }
   function registrarCarga(i, lote) {
     var c = S.cargas[i]; if (!c) return Promise.resolve(false);
     var p = c.parsed;
@@ -1295,15 +1341,16 @@
       if (rep) c.err = 'Este DLI ya fue cargado (' + p.nombre + ', pedido ' + rep.pedido + '). No se puede guardar de nuevo, ni con otro número de pedido.';
     }
     if (c.err) { if (!lote) render(); return Promise.resolve(false); }
-    return Api.cargarDLI(S.ses, p, c.pedido, c.llegada, c.b64, Math.max(1, parseInt(c.nEst, 10) || 1), { empresa: c.emp == null ? 'PAZ DEL RIO' : c.emp, fechaSolicitud: c.fsol || '', fechaEntrega: c.fent || '' }).then(function (r) {
+    return Api.cargarDLI(S.ses, p, c.pedido, c.llegada, c.b64, Math.max(1, parseInt(c.nEst, 10) || 1), { empresa: c.emp == null ? 'PAZ DEL RIO' : c.emp, fechaSolicitud: c.fsol || '', fechaEntrega: c.fent || '', pedidoAnt: c.pa || '' }).then(function (r) {
       if (!r.ok && /ya est[aá] cargado/i.test(r.error || '')) { S.cargas.splice(S.cargas.indexOf(c), 1); S.avisoBaja = 'ℹ️ No se cargó «' + (p.archivo || p.nombre) + '»: ' + r.error; if (!lote) render(); return false; }
       if (!r.ok) { c.err = /sin conexi/i.test(r.error || '') ? 'Sin señal: este DLI NO se ha cargado todavía. Se queda aquí en pantalla; cuando tengas señal vuelve a pulsar Guardar.' : r.error; if (!lote) render(); return false; }
       S.cargas.splice(S.cargas.indexOf(c), 1);
+      if (c.hist) S.histPend = (S.histPend || []).concat(c.hist);
       if (lote) return p.nombre;
       S.cargaRes = { ok: [p.nombre], mal: 0 };
       if (!S.cargas.length) { S.cargaRes = null; toast('Pedido montado: ' + String(c.pedido).trim() + ' · ' + p.nombre + ' · queda por recibir'); S.tab = 'ped'; }
       else toast('Cargado ' + p.nombre + '. Faltan ' + S.cargas.length + ' por guardar.');
-      return cargarEstado().then(function () { return p.nombre; });
+      return cargarEstado().then(enviarHist).then(function () { return p.nombre; });
     });
   }
   function guardarTodos() {
@@ -1311,8 +1358,8 @@
     toast('Guardando…');
     return lista.reduce(function (pr, c) { return pr.then(function () { var i = S.cargas.indexOf(c); return i < 0 ? null : registrarCarga(i, true).then(function (n) { if (n) ok.push(n); }); }); }, Promise.resolve()).then(function () {
       S.cargaRes = { ok: ok, mal: S.cargas.length };
-      if (!S.cargas.length) { S.cargaRes = null; toast('✅ Se montaron los ' + ok.length + ' pedidos · quedan por recibir'); S.tab = 'ped'; }
-      return cargarEstado();
+      if (!S.cargas.length) { S.cargaRes = null; toast('✅ Se montaron los ' + ok.length + ' pedidos'); S.tab = 'ped'; }
+      return cargarEstado().then(enviarHist);
     });
   }
   function guardarEdPed(id) {
@@ -1584,7 +1631,6 @@
       case 'verOk': verOk(); break;
       case 'cerrarBal': if (confirm('Si sale ahora, lo que quedó sin usar no se registra. ¿Salir de todos modos?')) { S.sal.balElem = ''; S.sal.tipo = ''; render(); } break;
       case 'cnPaso': { var sv = String(v), ix = sv.lastIndexOf('|'), cp = [sv.slice(0, ix), sv.slice(ix + 1)], ck = cp[0].split(':'), kk2 = ck.slice(1).join(':'), est2 = ck[0] === 'cie' ? S.cie : S.ver, f2 = ck[0] === 'cie' ? null : filasPos(S.ver.elem).filter(function (z) { return z.k === kk2; })[0], cur = est2.vals[kk2] !== undefined ? Number(est2.vals[kk2]) : (f2 ? f2.sal_p : 0); est2.vals[kk2] = Math.max(0, Math.floor(cur) + (+cp[1])); S.ver.msg = ''; render(); break; }
-      case 'histImp': if (S.histBusy) break; S.histBusy = true; render(); fetch(BASE + 'historico-suministros.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (filas) { return Api.accion(S.ses, 'importarHistorico', { filas: filas }); }).then(function (r) { S.histBusy = false; if (r && r.ok) { toast('Histórico cargado: ' + r.detalle); S.tab = 'ped'; return cargarEstado(); } toast((r && r.error) || 'No se pudo cargar el histórico'); render(); }).catch(function () { S.histBusy = false; toast('No se pudo leer el histórico'); render(); }); break;
       case 'bitRef': S.bit.filas = null; S.bit.cargando = false; cargarBit(); break;
       case 'pagBit': S.bit.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
@@ -1652,6 +1698,7 @@
     if (t.getAttribute('data-f') === 'bit.acc') { S.bit.acc = t.value; S.bit.pag = 0; render(); return; }
     if (t.getAttribute('data-f') === 'ver.elem') { S.ver.elem = t.value; S.ver.vals = {}; S.ver.q = ''; S.ver.err = ''; S.ver.msg = ''; render(); return; }
     if (t.getAttribute('data-pdfpara') != null) { usarPdf(+t.getAttribute('data-pdfpara'), t.files[0]).then(function () { t.value = ''; }); return; }
+    if (t.id === 'hist-dir' || t.id === 'hist-file') { histCartillas(t.files).then(function () { t.value = ''; }); return; }
     if (t.id === 'dli-file') { leerArchivos(t.files).then(function () { t.value = ''; }); return; }
     var f = t.getAttribute('data-f');
     if (/^carga\.\d+\.nombre$/.test(t.getAttribute('data-i') || '')) { var cn = S.cargas[+t.getAttribute('data-i').split('.')[1]]; if (cn) { cn.parsed.nombre = String(t.value).trim() || cn.parsed.nombre; cn.err = ''; render(); } return; }
