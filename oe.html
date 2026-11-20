@@ -246,12 +246,12 @@ function descargarYWa(file, texto) {
 
 /* ---- Formulario: un paso por pantalla ---- */
 function idNuevo() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', d = new Date(); let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * a.length)]; return 'OE-' + String(d.getFullYear()).slice(2) + z2(d.getMonth() + 1) + z2(d.getDate()) + '-' + s; }
-function nuevoForm() { return { id: idNuevo(), p: 0, uf: '', costado: '', aI: '', aF: '', pq: '', act: null, otra: false, on: '', ou: '', largo: '', ancho: '', alto: '', cant: '', desc: '', fac: '1', foto: '', gps: null, gpsMsg: 'Buscando ubicación…', msg: '', guardando: false }; }
+function nuevoForm() { return { id: idNuevo(), p: 0, uf: '', costado: '', aI: '', aF: '', pq: '', act: null, otra: false, on: '', ou: '', ot: '', ond: '', largo: '', ancho: '', alto: '', cant: '', desc: '', fac: '1', foto: '', gps: null, gpsMsg: 'Buscando ubicación…', msg: '', guardando: false }; }
 const PASOS = [['uf', '¿En qué UF?'], ['costado', '¿En qué costado?'], ['abs', '¿Entre qué abscisas?'], ['paquete', '¿Qué paquete de trabajo?'], ['act', '¿Qué actividad hiciste?'], ['med', 'Medidas'], ['foto', 'Foto y ubicación']];
 /* Abscisa en una sola celda: "12+340" o "12340" → K12+340 */
 const UNID = [['UN', 'Unidad (UND)'], ['ML', 'Metro lineal (m)'], ['M2', 'Metro cuadrado (m²)'], ['M3', 'Metro cúbico (m³)'], ['KG', 'Kilo (kg)'], ['GL', 'Global (GL)']];
 const abTxt = v => { let t = String(v == null ? '' : v).toUpperCase().replace(/[K\s]/g, ''); if (!t) return ''; let k, m; if (t.includes('+')) { [k, m] = t.split('+'); } else { m = t.slice(-3); k = t.slice(0, -3) || '0'; } if (!/^\d+$/.test(k) || !/^\d{1,3}$/.test(m || '')) return ''; return 'K' + k.padStart(2, '0') + '+' + m.padStart(3, '0'); };
-const nd = () => S.f && S.f.act ? (UND[S.f.act.u] || 0) : 0;
+const nd = () => S.f && S.f.act ? (S.f.act.nd !== undefined ? S.f.act.nd : (UND[S.f.act.u] || 0)) : 0;
 function calc() {
   const f = S.f, n = nd(); let c;
   if (n === 0) c = num(f.cant); else { c = 1; [f.largo, f.ancho, f.alto].slice(0, n).forEach(v => { c *= num(v); }); }
@@ -285,13 +285,15 @@ function vPaso() {
   } else if (k === 'act') {
     if (f.otra) {
       h = '<label class="f" style="margin-top:0">Nombre de la actividad (no está en la lista)</label><input type="text" data-f="on" value="' + esc(f.on) + '" maxlength="120" placeholder="Ej: Demolición de lindero" autocapitalize="sentences">' +
-        '<label class="f">¿Cómo se mide?</label><div class="uch">' + UNID.map(u => '<button type="button" class="' + (f.ou === u[0] ? 'on' : '') + '" data-a="ou" data-v="' + u[0] + '">' + u[1] + '</button>').join('') + '</div>' +
+        '<label class="f">¿Cómo se mide?</label><div class="uch">' + UNID.concat([['OTRA', 'Otra unidad…']]).map(u => '<button type="button" class="' + (f.ou === u[0] ? 'on' : '') + '" data-a="ou" data-v="' + u[0] + '">' + u[1] + '</button>').join('') + '</div>' +
+        (f.ou === 'OTRA' ? '<label class="f">¿Cuál unidad? (ej: km, jornal, punto)</label><input type="text" data-f="ot" value="' + esc(f.ot) + '" maxlength="12" placeholder="Escribe la unidad"><label class="f">¿Cuántas medidas necesita?</label><div class="uch">' + [[0, 'Solo cantidad'], [1, '1 · Largo'], [2, '2 · Largo y ancho'], [3, '3 · Largo, ancho y alto']].map(m => '<button type="button" class="' + (f.ond === m[0] ? 'on' : '') + '" data-a="ond" data-v="' + m[0] + '">' + m[1] + '</button>').join('') + '</div><div class="peq mut" style="margin-top:6px">Descuento y factor siempre se piden.</div>' : '') +
         '<button type="button" class="btn blk" style="margin-top:14px" data-a="usarOtra">✔ Usar esta actividad</button><button type="button" class="btn sec blk" style="margin-top:10px" data-a="lista">◀ Volver a la lista</button>';
     } else {
       const q = S.q.toLowerCase(), L = (paquetesDe(S.hito, f.uf)[f.pq] || ['', []])[1].filter(a => !q || (a[0] + ' ' + a[1]).toLowerCase().includes(q));
-      h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '"><button type="button" class="btn sec blk otro" data-a="otra">➕ No está en la lista: escribirla</button>' +
+      h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '">' +
         L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
-        (L.length > 40 ? '<div class="peq mut" style="margin-top:6px">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</div>' : '') + (L.length ? '' : '<div class="peq mut" style="margin-top:8px">No hay actividades con ese nombre. Puedes escribirla con el botón de arriba.</div>');
+        (L.length > 40 ? '<div class="peq mut" style="margin-top:6px">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</div>' : '') +
+        (!L.length && q ? '<div class="peq mut" style="margin:10px 0 4px">No hay actividades con ese nombre.</div><button type="button" class="btn sec blk otro" data-a="otra">➕ No está en la lista: escribirla</button>' : '');
     }
   } else if (k === 'med') {
     const n = nd(), K = calc(), u = f.act.u;
@@ -360,11 +362,19 @@ function validarPaso() {
 }
 function usarOtra() {
   const f = S.f, n = f.on.trim().replace(/\s+/g, ' ');
-  if (n.length < 4) { f.msg = 'Escribe qué actividad hiciste.'; render(); window.scrollTo(0, 0); return; }
-  if (!f.ou) { f.msg = 'Elige cómo se mide (unidad, metro lineal, m², m³…).'; render(); window.scrollTo(0, 0); return; }
-  const u = n.toUpperCase();
-  if (!f.act || f.act.c !== 'NUEVA' || f.act.d !== u || f.act.u !== f.ou) { f.largo = f.ancho = f.alto = f.cant = f.desc = ''; f.fac = '1'; }
-  f.act = { c: 'NUEVA', d: u, u: f.ou, nueva: true }; ir(5);
+  const err = m => { f.msg = m; render(); window.scrollTo(0, 0); };
+  if (n.length < 4) return err('Escribe qué actividad hiciste.');
+  if (!f.ou) return err('Elige cómo se mide (unidad, metro lineal, m², m³…).');
+  let u = f.ou, dims;
+  if (u === 'OTRA') {
+    u = f.ot.trim().toUpperCase().slice(0, 12);
+    if (!u) return err('Escribe cuál es la unidad de medida.');
+    if (f.ond === '') return err('Elige cuántas medidas necesita (solo cantidad, 1, 2 o 3).');
+    dims = Number(f.ond);
+  } else dims = UND[u] || 0;
+  const nm = n.toUpperCase();
+  if (!f.act || f.act.c !== 'NUEVA' || f.act.d !== nm || f.act.u !== u || f.act.nd !== dims) { f.largo = f.ancho = f.alto = f.cant = f.desc = ''; f.fac = '1'; }
+  f.act = { c: 'NUEVA', d: nm, u: u, nd: dims, nueva: true }; ir(5);
 }
 function sig() { if (PASOS[S.f.p][0] === 'act' && S.f.otra) { usarOtra(); return; } const m = validarPaso(); if (m) { S.f.msg = m; render(); window.scrollTo(0, 0); return; } ir(S.f.p + 1); }
 async function guardar() {
@@ -413,6 +423,7 @@ document.addEventListener('click', async ev => {
   if (a === 'otra') { S.f.otra = true; if (!S.f.on) S.f.on = S.q.trim(); S.f.msg = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'lista') { S.f.otra = false; S.f.msg = ''; render(); return; }
   if (a === 'ou') { S.f.ou = v; render(); return; }
+  if (a === 'ond') { S.f.ond = Number(v); render(); return; }
   if (a === 'usarOtra') { usarOtra(); return; }
   if (a === 'guardar') { guardar(); return; }
   if (a === 'sync') { sincronizar(); return; }
