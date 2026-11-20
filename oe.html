@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0a7f2e">
@@ -14,88 +14,62 @@
 <meta name="apple-mobile-web-app-title" content="OE Topografía">
 <link rel="icon" href="icon-192.png">
 <title>OE Topografía</title>
+<link rel="stylesheet" href="acero/style.css">
 <style>
-:root{--ink:#14202b;--hv:#0a7f2e;--navy:#1f2d3d;--paper:#eef0f2;--line:#c9d0d6;--ok:#1f7a3d;--err:#b3261e;--mut:#51606d;--warn:#b36b00}
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:18px;padding-bottom:90px}
-header{position:sticky;top:0;z-index:5;background:var(--hv);color:#fff;padding:8px 14px;display:flex;align-items:center;gap:10px;border-bottom:4px solid var(--navy)}
-header .logo{height:38px;width:auto;background:#fff;border-radius:6px;padding:2px 4px}
-header h1{font-size:17px;margin:0;flex:1;line-height:1.15}header h1 small{display:block;font-weight:400;font-size:12px;color:#d7f0de}
-.ib{width:40px;height:40px;min-height:0;padding:0;margin:0;border-radius:10px;border:0;background:rgba(0,0,0,.28);color:#fff;font-size:18px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;width:40px}
-main{max-width:680px;margin:auto;padding:12px 14px}
-h2{font-size:20px;margin:4px 0 8px}
-.card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}
-label{font-size:15px;color:var(--mut);display:block;margin-bottom:3px;font-weight:600}
-input,select{width:100%;padding:13px;font-size:19px;border:1px solid #8794a0;border-radius:6px;background:#fff;color:var(--ink)}
-input:focus,select:focus,button:focus-visible{outline:3px solid var(--hv);outline-offset:1px}
-button{padding:14px;min-height:52px;font-size:18px;font-weight:700;border:0;border-radius:8px;background:var(--ink);color:#fff;width:100%;cursor:pointer}
-button.sec{background:#fff;color:var(--ink);border:2px solid var(--ink)}
-button.verde{background:var(--hv)}
-button.rojo{background:#fff;color:var(--err);border:2px solid var(--err)}
-button:disabled{opacity:.5}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.hito{position:relative;text-align:left;background:#fff;color:var(--ink);border:2px solid var(--line);border-left:8px solid var(--hv);padding:10px 12px;min-height:76px;line-height:1.2}
-.hito b{font-size:22px;display:block;color:var(--hv)}.hito span{font-size:15px;font-weight:600}
-.hito .n{position:absolute;right:8px;top:8px;background:var(--hv);color:#fff;border-radius:12px;min-width:26px;height:26px;line-height:26px;text-align:center;font-size:14px;padding:0 6px}
-.hito.vacio{border-left-color:var(--line)}.hito.vacio b{color:var(--mut)}.hito.vacio .n{display:none}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{width:auto;min-width:64px;padding:10px 14px;min-height:46px;background:#fff;color:var(--ink);border:2px solid var(--ink);font-weight:600}
-.chip.on{background:var(--ink);color:#fff}
-.paso{border-left:6px solid var(--hv)}
-.paso h3{font-size:19px;margin:0 0 8px}.paso h3 i{display:inline-block;background:var(--hv);color:#fff;border-radius:50%;width:28px;height:28px;line-height:28px;text-align:center;font-style:normal;font-size:15px;margin-right:6px}
-.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
-.ab{display:flex;align-items:center;gap:6px}.ab b{font-size:22px}
-.act{display:block;text-align:left;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:9px 10px;min-height:0;font-size:16px;font-weight:600;margin-top:6px}
-.act small{display:block;color:var(--mut);font-weight:400}
-.sel{background:#e8f5ec;border:2px solid var(--ok);border-radius:8px;padding:9px 11px;font-size:16px;font-weight:700;margin-top:8px}
-.tot{background:#e8f5ec;border:2px solid var(--ok);border-radius:8px;padding:10px 12px;font-size:20px;font-weight:800;margin-top:10px}
-.tot small{display:block;font-weight:400;color:var(--mut);font-size:14px}
-.reg{border-top:1px solid var(--line);padding:9px 0;font-size:16px}.reg:first-child{border-top:0}
-.reg b{display:block}.reg small{color:var(--mut)}
-.tag{font-size:12px;color:#fff;background:var(--mut);border-radius:4px;padding:2px 6px;margin-left:4px;font-weight:600}.tag.pend{background:var(--warn)}.tag.ok{background:var(--ok)}
-.aviso{padding:10px 12px;border-radius:6px;margin-bottom:10px;font-size:16px;border:1px solid var(--line);background:#fff}
-.aviso.err{border-color:var(--err);color:var(--err);font-weight:700;background:#fdecea}.aviso.ok{border-color:var(--ok);color:var(--ok)}
-.mal{border:3px solid var(--err)!important}
-#carga{position:fixed;left:50%;transform:translateX(-50%);top:62px;background:#1f2d3d;color:#fff;padding:8px 16px;border-radius:20px;font-size:15px;z-index:9;display:none}
-#barra{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 14px;display:flex;gap:10px;z-index:4}
-#barra button{flex:1;max-width:340px;margin:auto}
-img.prev{width:100%;max-height:260px;object-fit:contain;border-radius:6px;background:#000;margin-top:8px}
-.gps{font-size:16px}.gps a{color:var(--hv);font-weight:700}
-small.m{color:var(--mut)}
-@media(min-width:620px){.grid{grid-template-columns:1fr 1fr 1fr}}
+/* OE: mismo encabezado, tarjetas y barra inferior de Acero; un paso por pantalla */
+.top{background:#0a7f2e}.top .logo{width:auto;height:38px;border-radius:6px;background:#fff;padding:2px 4px}
+main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padding-bottom:110px}
+.preg{font-size:1.35rem;margin:6px 2px 12px;color:#0f172a}
+.hs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 14px}
+@media(min-width:620px){.hs{grid-template-columns:repeat(3,1fr)}}
+.hs .bg{min-height:104px;position:relative;padding:10px 8px}.hs .bg-i{font-size:1.9rem}.hs .bg b{font-size:1.02rem}
+.hs .bg .n{position:absolute;right:8px;top:8px;background:#0a7f2e;color:#fff;border-radius:12px;min-width:24px;height:24px;line-height:24px;text-align:center;font-size:.8rem;font-weight:800;padding:0 6px;font-style:normal}
+.btn.grande{min-height:64px;font-size:1.2rem;background:#0a7f2e;border-color:#065f1f;box-shadow:0 3px 0 #065f1f}
+.dia{display:flex;gap:8px;align-items:center}.dia input{text-align:center}.dia .btn{min-width:54px}
+.prog{height:8px;background:#dbe2ea;border-radius:8px;overflow:hidden}.prog i{display:block;height:100%;background:#0a7f2e;border-radius:8px}
+.resu{background:#e3f6ea;color:#14532d;border-radius:10px;padding:7px 11px;font-weight:700;font-size:.9rem;margin-bottom:10px}
+.opc{display:grid;gap:10px}.opc button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:14px;min-height:62px;font-size:1.2rem;font-weight:800;cursor:pointer}.opc button.on,.opc button:active{background:#0a7f2e;border-color:#0a7f2e;color:#fff}
+@media(min-width:420px){.opc:has(button:nth-child(4)){grid-template-columns:1fr 1fr}}
+.ab{display:flex;align-items:center;gap:6px}.ab b{font-size:1.4rem}.ab input{min-width:0;font-size:1.2rem}
+.fila{display:flex;gap:8px}.fila>*{flex:1;min-width:0}
+.act{display:block;width:100%;text-align:left;background:#f8fafc;color:#0f172a;border:2px solid #cbd5e1;border-radius:14px;padding:13px 14px;margin-top:8px;font-weight:700;cursor:pointer;font-size:1rem}.act small{display:block;color:#475569;font-weight:400}.act.on{border-color:#0a7f2e;background:#e3f6ea}
+.sel{background:#e3f6ea;border:2px solid #0a7f2e;border-radius:12px;padding:9px 11px;font-weight:700}.sel small{display:block;color:#475569;font-weight:400}
+.tot{background:#e3f6ea;border:2px solid #0a7f2e;border-radius:12px;padding:10px 12px;font-size:1.5rem;font-weight:800;margin-top:12px}.tot small{display:block;font-weight:400;color:#475569;font-size:.8rem}
+.reg{border-top:1px solid var(--line);padding:9px 0}.reg:first-child{border-top:0}.reg b{display:block}.reg .tt{color:#0a7f2e;display:inline}
+img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:#000;margin-top:10px}
+.lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
+.gpsl{margin-top:12px;font-size:.95rem}
+.sbar .sres{flex:1}.sbar .btn{white-space:nowrap}.btn.blk{box-sizing:border-box}
 </style>
 </head>
 <body>
-<header>
-  <img class="logo" src="logo_ccsn.png" alt="CCSN">
-  <h1>OE · Topografía<small id="quien"></small></h1>
-  <button class="ib" id="bAct" title="Actualizar" style="display:none">⟳</button>
-  <button class="ib" id="bSal" title="Salir" style="display:none">⏻</button>
-</header>
-<div id="carga">Actualizando datos…</div>
-<main id="app"></main>
-<div id="barra" style="display:none"></div>
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 <script>
+
 'use strict';
 const API = 'https://script.google.com/macros/s/AKfycbz6LjPHWbh_vLcYhwSvYFp8tMN737nX-hJUPiX6vOvLb_3tEAyH9zeCC_4pqNSPRz9O1w/exec';
-const LS = 'oe_ses_v1', LSC = 'oe_cache_v1';
+const LS = 'oe_ses_v1', LSC = 'oe_cache_v1', TITULO = 'OE · Topografía';
 const COSTADOS = ['ORIENTAL', 'OCCIDENTAL', 'NO APLICA'];
+const ICO = { '2.01': '🛣️', '2.02': '🚌', '2.03': '🛤️', '2.04': '🌳', '2.05': '🚲', '2.06': '🌉', '2.07': '🔄', '2.08': '🚧', '2.09': '🏢', '2.10': '🏗️', '2.11': '💧', '2.12': '⚡' };
 const $ = s => document.querySelector(s);
 const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-const hoyISO = () => { const d = new Date(), z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); };
-const sumDias = (f, n) => { const d = new Date(f + 'T12:00:00'); d.setDate(d.getDate() + n); const z = x => String(x).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); };
-const num = v => { const n = Number(String(v == null ? '' : v).trim().replace(',', '.')); return isFinite(n) && String(v).trim() !== '' ? n : NaN; };
+const z2 = n => String(n).padStart(2, '0');
+const hoyISO = () => { const d = new Date(); return d.getFullYear() + '-' + z2(d.getMonth() + 1) + '-' + z2(d.getDate()); };
+const sumDias = (f, n) => { const d = new Date(f + 'T12:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + z2(d.getMonth() + 1) + '-' + z2(d.getDate()); };
+const num = v => { const t = String(v == null ? '' : v).trim(); const n = Number(t.replace(',', '.')); return t !== '' && isFinite(n) ? n : NaN; };
 const r3 = x => Math.round(x * 1000) / 1000;
 const fmt = x => isNaN(x) ? '—' : r3(x).toLocaleString('es-CO', { maximumFractionDigits: 3 });
+const fechaTxt = f => f.split('-').reverse().join('/');
 
 /* Unidad → cuántas medidas se piden (largo, ancho, alto). Las demás piden una sola cantidad. */
 const UND = { 'M3': 3, 'M2': 2, 'ML': 1 };
 const NDIM = ['Largo (m)', 'Ancho (m)', 'Alto / espesor (m)'];
 const undTxt = u => ({ 'M3': 'm³', 'M2': 'm²', 'ML': 'm', 'UN': 'und', 'KG': 'kg', 'M3-KM': 'm³·km', 'TON-M': 'ton·m' }[u] || u);
 
-let S = { ses: lsGet(LS), cat: null, fecha: hoyISO(), vista: 'hitos', hito: '', srv: [], pend: [], f: null, busy: false, msg: '', msgT: 'ok', q: '' };
+let S = { ses: lsGet(LS), cat: null, tab: 'ini', fecha: hoyISO(), hito: '', srv: [], pend: [], f: null, busy: false, cargando: false, offline: false, loginErr: '', q: '' };
 
 /* ---------- Cola local (IndexedDB): los registros con foto esperan aquí hasta que haya señal ---------- */
 const DB = (() => {
@@ -109,8 +83,7 @@ async function llamar(d, ms) {
   const c = new AbortController(), t = setTimeout(() => c.abort(), ms || 45000);
   try { const r = await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: c.signal }); return await r.json(); } finally { clearTimeout(t); }
 }
-function aviso(t, tipo) { S.msg = t; S.msgT = tipo || 'ok'; }
-function cargando(on, txt) { const e = $('#carga'); e.style.display = on ? 'block' : 'none'; if (txt) e.textContent = txt; }
+function toast(m) { const t = $('#toast'); t.textContent = m; t.className = 'v'; clearTimeout(toast._t); toast._t = setTimeout(() => { t.className = ''; }, 3200); }
 
 /* ---------- Catálogo (hitos → paquetes → actividades) ---------- */
 async function cargarCat() {
@@ -118,31 +91,32 @@ async function cargarCat() {
   try { const r = await fetch('oe/catalogo.json'); S.cat = await r.json(); } catch (e) { S.cat = null; }
 }
 const paquetesDe = (h, uf) => (S.cat && S.cat.cat[h + '|' + uf]) || [];
+const nomHito = c => { const x = S.cat && S.cat.hitos.find(y => y[0] === c); return x ? x[1] : ''; };
 
-/* ---------- Registros del día ---------- */
+/* ---------- Datos del día: se abre al instante con lo guardado y se actualiza por detrás ---------- */
 async function pedirDia() {
   if (!S.ses) return;
   const c = lsGet(LSC);
   if (c && c.llave === S.ses.llave && c.f === S.fecha) S.srv = c.r;
-  cargando(true, 'Actualizando datos…');
+  S.pend = (await DB.todos().catch(() => [])).filter(x => x.llave === S.ses.llave);
+  S.cargando = true; render();
   try {
     const r = await llamar({ accion: 'oe_lista', llave: S.ses.llave, fecha: S.fecha });
+    S.offline = false;
     if (r && r.ok) { S.srv = r.registros; lsSet(LSC, { llave: S.ses.llave, f: S.fecha, r: r.registros }); }
-    else if (r && /Llave/.test(r.mensaje || '')) { salir(); aviso('Tu llave ya no es válida.', 'err'); }
-  } catch (e) { /* sin señal: se muestran los datos guardados */ }
-  cargando(false);
-  S.pend = (await DB.todos().catch(() => [])).filter(x => x.llave === S.ses.llave);
-  pintar();
+    else if (r && /Llave/.test(r.mensaje || '')) { salir(); S.loginErr = 'Tu llave ya no es válida.'; render(); return; }
+  } catch (e) { S.offline = true; }
+  S.cargando = false; render();
 }
 async function sincronizar() {
   if (!S.ses || S.busy || !navigator.onLine) return;
-  S.busy = true;
+  S.busy = true; render();
   try {
     const cola = (await DB.todos()).filter(x => x.llave === S.ses.llave);
     for (const x of cola) {
-      const { llave, ...reg } = x;
-      let r; try { r = await llamar({ accion: 'oe_guardar', llave: S.ses.llave, reg }, 60000); } catch (e) { break; }
-      if (r && (r.ok || r.codigo === 'PASADO' || /no válid/i.test(r.mensaje || ''))) await DB.quitar(x.id);
+      const { llave, error, ...reg } = x;
+      let r; try { r = await llamar({ accion: 'oe_guardar', llave: S.ses.llave, reg }, 60000); } catch (e) { S.offline = true; break; }
+      if (r && (r.ok || r.codigo === 'PASADO')) await DB.quitar(x.id);
       else if (r && !r.ok) { x.error = r.mensaje || 'Error'; await DB.poner(x); }
     }
   } finally { S.busy = false; }
@@ -153,97 +127,130 @@ const todosDia = () => {
   return S.srv.map(x => ({ ...x, _ok: true })).concat(S.pend.filter(x => x.fecha === S.fecha && !ids.has(x.id)).map(x => ({ ...x, foto: !!x.foto, _ok: false })));
 };
 
-/* ---------- Pantallas ---------- */
-function pintar() {
-  const y = window.scrollY, A = $('#app'), B = $('#barra');
-  $('#quien').textContent = S.ses ? S.ses.nombre : '';
-  $('#bAct').style.display = $('#bSal').style.display = S.ses ? '' : 'none';
-  B.style.display = 'none';
-  if (!S.ses) A.innerHTML = vLogin();
-  else if (S.vista === 'form') { A.innerHTML = vForm(); B.style.display = 'flex'; B.innerHTML = '<button class="sec" data-a="cancelar">Cancelar</button><button class="verde" data-a="guardar"' + (S.f.guardando ? ' disabled' : '') + '>' + (S.f.guardando ? 'Guardando…' : '💾 Guardar registro') + '</button>'; }
-  else if (S.vista === 'hito') A.innerHTML = vHito();
-  else A.innerHTML = vHitos();
-  window.scrollTo(0, y);
-}
-function msg() { return S.msg ? '<div class="aviso ' + (S.msgT === 'err' ? 'err' : 'ok') + '">' + esc(S.msg) + '</div>' : ''; }
+/* ---------- Vistas: simple, un paso por pantalla ---------- */
 function vLogin() {
-  return '<div class="card"><h2>Entrar</h2><p style="margin:0 0 10px;color:var(--mut)">Escribe tu llave de topógrafo.</p>' + msg() + '<input id="llave" type="password" autocomplete="off" placeholder="Llave" style="margin-bottom:10px"><button class="verde" data-a="entrar">Entrar</button></div>';
+  return '<div class="login"><div class="marca"><img src="logo_ccsn.png" alt="Consorcio Constructor Sabana Norte" style="width:auto;height:110px;border-radius:0"><h1>' + TITULO + '</h1></div>' +
+    '<form id="f-login" class="card"><label class="f" for="l-pin">Escribe tu llave</label>' +
+    '<input id="l-pin" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Escribe tu llave">' +
+    (S.loginErr ? '<div class="error">' + esc(S.loginErr) + '</div>' : '') +
+    '<div style="margin-top:16px"><button class="btn blk" type="submit"' + (S.entrando ? ' disabled' : '') + '>' + (S.entrando ? 'Entrando…' : 'Entrar') + '</button></div></form></div>';
 }
-function vHitos() {
-  const reg = todosDia(), por = {}; reg.forEach(x => por[x.hito] = (por[x.hito] || 0) + 1);
-  const hoy = hoyISO(), pen = S.pend.length;
-  let h = msg() + '<div class="card"><label>Día del parte</label><div class="row"><button class="sec" data-a="dia" data-v="-1" ' + (S.fecha <= sumDias(hoy, -3) ? 'disabled' : '') + '>◀</button><input type="date" id="fecha" value="' + S.fecha + '" min="' + sumDias(hoy, -3) + '" max="' + hoy + '" style="flex:3;text-align:center"><button class="sec" data-a="dia" data-v="1" ' + (S.fecha >= hoy ? 'disabled' : '') + '>▶</button></div></div>';
-  if (pen) h += '<div class="aviso" style="border-color:var(--warn);color:var(--warn)">⏳ ' + pen + ' registro(s) esperando señal para subirse. <button class="sec" style="margin-top:8px" data-a="sync">Subir ahora</button></div>';
-  h += '<h2>¿En qué hito trabajaste?</h2><div class="grid">';
-  (S.cat ? S.cat.hitos : []).forEach(x => { const n = por[x[0]] || 0; h += '<button class="hito' + (n ? '' : ' vacio') + '" data-a="hito" data-v="' + x[0] + '"><b>' + x[0] + '</b><span>' + esc(x[1]) + '</span><i class="n">' + n + '</i></button>'; });
+function vTop() {
+  return '<header class="top"><img class="logo" src="logo_ccsn.png" alt="CCSN"><div class="tit"><b>' + TITULO + '</b><span>' + esc(S.ses.nombre) + '</span></div>' +
+    '<button class="ibtn" data-a="refrescar" title="Actualizar">⟳</button><button class="ibtn" data-a="salir" title="Salir">⏻</button></header>';
+}
+function vBandas() {
+  let h = '';
+  const pen = S.pend.length;
+  if (S.offline) h += '<div class="banda warn">Sin conexión: se muestran los últimos datos guardados.</div>';
+  if (S.busy) h += '<div class="banda info"><span>Enviando registros…</span></div>';
+  else if (pen) h += '<div class="banda warn"><span>📴 <b>' + pen + (pen === 1 ? ' registro' : ' registros') + ' por enviar.</b> Se envían solos con señal.</span><button class="btn chico" data-a="sync">Enviar</button></div>';
+  if (S.cargando && !S.busy) h += '<div class="banda info"><span>Actualizando datos…</span></div>';
+  return h;
+}
+function vDia() {
+  const hoy = hoyISO();
+  return '<div class="dia"><button class="btn sec" data-a="dia" data-v="-1"' + (S.fecha <= sumDias(hoy, -3) ? ' disabled' : '') + '>◀</button><input type="date" id="fecha" value="' + S.fecha + '" min="' + sumDias(hoy, -3) + '" max="' + hoy + '"><button class="btn sec" data-a="dia" data-v="1"' + (S.fecha >= hoy ? ' disabled' : '') + '>▶</button></div>';
+}
+function vInicio() {
+  const reg = todosDia(), por = {}; reg.forEach(x => { por[x.hito] = (por[x.hito] || 0) + 1; });
+  let h = '<div class="card">' + vDia() + '</div><h2 class="preg">¿En qué hito trabajaste?</h2><div class="hs">';
+  (S.cat ? S.cat.hitos : []).forEach(x => { const n = por[x[0]] || 0; h += '<button type="button" class="bg" data-a="hito" data-v="' + x[0] + '"><span class="bg-i">' + (ICO[x[0]] || '📍') + '</span><b>' + esc(x[1]) + '</b><small>' + x[0] + (n ? ' · ' + n + (n === 1 ? ' registro' : ' registros') : '') + '</small>' + (n ? '<i class="n">' + n + '</i>' : '') + '</button>'; });
   h += '</div>';
-  if (!S.cat) h += '<div class="aviso err">No se pudo cargar el catálogo de actividades. Conéctate una vez para guardarlo.</div>';
-  return h + '<p style="text-align:center;color:var(--mut);font-size:14px;margin-top:16px">Hasta 12 reportes por día: uno por hito, con las actividades que ejecutaste en cada uno.</p>';
+  if (!S.cat) h += '<div class="error">No se pudo cargar el catálogo. Conéctate una vez para guardarlo.</div>';
+  return h + '<p class="peq mut cen">Un reporte por hito, con las actividades que ejecutaste.</p>';
 }
-function nomHito(c) { const x = S.cat && S.cat.hitos.find(y => y[0] === c); return x ? x[1] : ''; }
+function filaReg(x) {
+  return '<div class="reg"><b>' + esc(x.actividad) + '</b><span class="peq mut">' + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + '</span><div><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b> ' +
+    (x._ok ? '<span class="tag" style="background:#e6f6ee;color:#14532d">subido</span> <button class="btn chico sec" style="float:right" data-a="anular" data-v="' + esc(x.id) + '">Anular</button>' : '<span class="tag pend">por subir' + (x.error ? ' · ' + esc(x.error) : '') + '</span>') + '</div></div>';
+}
 function vHito() {
   const reg = todosDia().filter(x => x.hito === S.hito).sort((a, b) => String(a.creado || '~').localeCompare(String(b.creado || '~')));
-  let h = msg() + '<div class="row" style="margin-bottom:10px"><button class="sec" data-a="volver" style="flex:1">◀ Hitos</button></div><h2>' + esc(S.hito) + ' · ' + esc(nomHito(S.hito)) + ' <small class="m">' + S.fecha.split('-').reverse().join('/') + '</small></h2>';
-  h += '<div class="card">' + (reg.length ? reg.map(x => '<div class="reg"><b>' + esc(x.actividad) + '</b><small>' + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + '</small><br><b style="color:var(--hv)">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b> <small>' + (x.foto ? '📷 ' : '') + (x.lat !== '' && x.lat != null ? '📍 ' : '') + '</small>' + (x._ok ? '<span class="tag ok">subido</span>' : '<span class="tag pend">por subir' + (x.error ? ' · ' + esc(x.error) : '') + '</span>') + (x._ok ? ' <button class="rojo" style="width:auto;min-height:36px;padding:4px 10px;font-size:14px;float:right" data-a="anular" data-v="' + esc(x.id) + '">Anular</button>' : '') + '</div>').join('') : '<small class="m">Aún no hay registros en este hito.</small>') + '</div>';
-  return h + '<button class="verde" data-a="nuevo">➕ Nuevo registro en ' + esc(S.hito) + '</button>';
+  return '<button class="btn chico sec" data-a="volver" style="margin-bottom:10px">◀ Hitos</button><div class="card"><h2 style="margin:0">' + (ICO[S.hito] || '') + ' ' + esc(nomHito(S.hito)) + '</h2><span class="peq mut">' + S.hito + ' · ' + fechaTxt(S.fecha) + '</span></div>' +
+    '<button class="btn blk grande" data-a="nuevo">➕ Nuevo registro</button><div style="height:14px"></div>' +
+    (reg.length ? '<div class="card">' + reg.map(filaReg).join('') + '</div>' : '<p class="mut cen">Aún no hay registros en este hito.</p>');
 }
-function idNuevo() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', d = new Date(), z = n => String(n).padStart(2, '0'); let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * a.length)]; return 'OE-' + String(d.getFullYear()).slice(2) + z(d.getMonth() + 1) + z(d.getDate()) + '-' + s; }
-function nuevoForm() {
-  return { id: idNuevo(), uf: '', costado: '', kI: '', mI: '', kF: '', mF: '', pq: '', act: null, largo: '', ancho: '', alto: '', cant: '', desc: '', fac: '1', foto: '', gps: null, gpsMsg: 'Buscando ubicación…', obs: '', err: {}, guardando: false };
-}
+
+/* ---- Formulario: un paso por pantalla ---- */
+function idNuevo() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', d = new Date(); let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * a.length)]; return 'OE-' + String(d.getFullYear()).slice(2) + z2(d.getMonth() + 1) + z2(d.getDate()) + '-' + s; }
+function nuevoForm() { return { id: idNuevo(), p: 0, uf: '', costado: '', kI: '', mI: '', kF: '', mF: '', pq: '', act: null, largo: '', ancho: '', alto: '', cant: '', desc: '', fac: '1', foto: '', gps: null, gpsMsg: 'Buscando ubicación…', msg: '', guardando: false }; }
+const PASOS = [['uf', '¿En qué UF?'], ['costado', '¿En qué costado?'], ['abs', '¿Entre qué abscisas?'], ['paquete', '¿Qué paquete de trabajo?'], ['act', '¿Qué actividad hiciste?'], ['med', 'Medidas'], ['foto', 'Foto y ubicación']];
 const abTxt = (k, m) => (String(k).trim() === '' && String(m).trim() === '') ? '' : 'K' + String(k).trim().padStart(2, '0') + '+' + String(m).trim().padStart(3, '0');
-function nd() { return S.f.act ? (UND[S.f.act.u] || 0) : 0; }
+const nd = () => S.f && S.f.act ? (UND[S.f.act.u] || 0) : 0;
 function calc() {
   const f = S.f, n = nd(); let c;
   if (n === 0) c = num(f.cant); else { c = 1; [f.largo, f.ancho, f.alto].slice(0, n).forEach(v => { c *= num(v); }); }
   const d = isNaN(num(f.desc)) ? 0 : num(f.desc), fa = isNaN(num(f.fac)) ? 1 : num(f.fac);
   return { c: c, d: d, fa: fa, t: (c - d) * fa };
 }
-function chips(arr, sel, acc) { return '<div class="chips">' + arr.map(x => '<button class="chip' + (x === sel ? ' on' : '') + '" data-a="' + acc + '" data-v="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div>'; }
-function vForm() {
-  const f = S.f, e = f.err, n = nd(), K = calc(), u = f.act ? f.act.u : '';
-  let h = '<h2>' + esc(S.hito) + ' · ' + esc(nomHito(S.hito)) + '</h2>' + msg();
-  h += '<div class="card paso' + (e.uf ? ' mal' : '') + '"><h3><i>1</i>UF</h3>' + chips(S.cat.ufs, f.uf, 'uf') + '</div>';
-  h += '<div class="card paso' + (e.costado ? ' mal' : '') + '"><h3><i>2</i>Costado</h3>' + chips(COSTADOS, f.costado, 'costado') + '</div>';
-  h += '<div class="card paso"><h3><i>3</i>Abscisa de inicio y de fin</h3><label>Inicio</label><div class="ab"><b>K</b><input inputmode="numeric" data-f="kI" value="' + esc(f.kI) + '" placeholder="km" class="' + (e.ab ? 'mal' : '') + '"><b>+</b><input inputmode="numeric" data-f="mI" value="' + esc(f.mI) + '" placeholder="m" class="' + (e.ab ? 'mal' : '') + '"></div><label style="margin-top:8px">Fin</label><div class="ab"><b>K</b><input inputmode="numeric" data-f="kF" value="' + esc(f.kF) + '" placeholder="km" class="' + (e.ab ? 'mal' : '') + '"><b>+</b><input inputmode="numeric" data-f="mF" value="' + esc(f.mF) + '" placeholder="m" class="' + (e.ab ? 'mal' : '') + '"></div></div>';
-  // 4. actividad por dependencias: hito → paquete → actividad
-  const pqs = f.uf ? paquetesDe(S.hito, f.uf) : [];
-  h += '<div class="card paso' + (e.act ? ' mal' : '') + '"><h3><i>4</i>Actividad ejecutada</h3>';
-  if (!f.uf) h += '<small class="m">Elige primero la UF.</small>';
-  else if (!pqs.length) h += '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '.</div>';
-  else {
-    h += '<label>Paquete de trabajo</label><select data-f="pq"><option value="">Elige el paquete…</option>' + pqs.map((p, i) => '<option value="' + i + '"' + (String(f.pq) === String(i) ? ' selected' : '') + '>' + esc(p[0]) + ' (' + p[1].length + ')</option>').join('') + '</select>';
-    if (f.pq !== '' && pqs[f.pq] && !f.act) {
-      const q = S.q.toLowerCase(), L = pqs[f.pq][1].filter(a => !q || (a[0] + ' ' + a[1]).toLowerCase().includes(q));
-      h += '<label style="margin-top:10px">Actividad</label><input id="buscar" placeholder="Buscar por nombre o código…" value="' + esc(S.q) + '">';
-      h += L.slice(0, 40).map(a => '<button class="act" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + esc(a[0]) + ' · ' + undTxt(a[2]) + '</small></button>').join('') + (L.length > 40 ? '<small class="m">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</small>' : '') + (L.length ? '' : '<small class="m">Sin resultados.</small>');
-    }
-    if (f.act) h += '<div class="sel">✔ ' + esc(f.act.d) + '<br><small class="m">' + esc(f.act.c) + ' · unidad ' + undTxt(f.act.u) + '</small></div><button class="sec" style="margin-top:8px;min-height:42px" data-a="cambiarAct">Cambiar actividad</button>';
-  }
-  h += '</div>';
-  // 5. medidas: la unidad de la actividad decide qué campos se ven
-  if (f.act) {
-    h += '<div class="card paso' + (e.med ? ' mal' : '') + '"><h3><i>5</i>Medidas (' + undTxt(u) + ')</h3>';
-    if (n === 0) h += '<label>Cantidad (' + undTxt(u) + ')</label><input inputmode="decimal" data-f="cant" value="' + esc(f.cant) + '">';
-    else { h += '<div class="row">'; ['largo', 'ancho', 'alto'].slice(0, n).forEach((k, i) => { h += '<div><label>' + NDIM[i] + '</label><input inputmode="decimal" data-f="' + k + '" value="' + esc(f[k]) + '"></div>'; }); h += '</div>'; h += '<label style="margin-top:8px">Cantidad (' + undTxt(u) + ')</label><input readonly value="' + (isNaN(K.c) ? '' : fmt(K.c)) + '" style="background:#f1f3f5">'; }
-    h += '<div class="row" style="margin-top:8px"><div><label>Descuento (' + undTxt(u) + ')</label><input inputmode="decimal" data-f="desc" value="' + esc(f.desc) + '" placeholder="0"></div><div><label>Factor (veces / esponjamiento)</label><input inputmode="decimal" data-f="fac" value="' + esc(f.fac) + '"></div></div>';
-    h += '<div class="tot" id="tot">' + totHtml(K, u) + '</div></div>';
-  }
-  h += '<div class="card paso' + (e.foto ? ' mal' : '') + '"><h3><i>6</i>Foto de la actividad</h3><div class="row"><label class="chip" style="text-align:center;margin:0;color:var(--ink);font-size:17px;cursor:pointer">📷 Cámara<input type="file" accept="image/*" capture="environment" data-foto style="display:none"></label><label class="chip" style="text-align:center;margin:0;color:var(--ink);font-size:17px;cursor:pointer">🖼 Galería<input type="file" accept="image/*" data-foto style="display:none"></label></div>' + (f.foto ? '<img class="prev" src="' + f.foto + '" alt="Foto">' : '<small class="m">Falta la foto.</small>') + '</div>';
-  h += '<div class="card paso"><h3><i>7</i>Ubicación GPS</h3><div class="gps" id="gps">' + gpsHtml() + '</div><button class="sec" style="margin-top:8px;min-height:42px" data-a="gps">📍 Actualizar ubicación</button></div>';
-  h += '<div class="card"><label>Observación (opcional)</label><input data-f="obs" value="' + esc(f.obs) + '" maxlength="300"></div>';
-  return h;
-}
 const totHtml = (K, u) => (isNaN(K.t) ? '—' : fmt(K.t) + ' ' + undTxt(u)) + '<small>(' + (isNaN(K.c) ? '—' : fmt(K.c)) + ' − ' + fmt(K.d) + ') × ' + fmt(K.fa) + '</small>';
 function gpsHtml() {
   const g = S.f.gps;
-  return g ? '<b>' + g.lat.toFixed(6) + ', ' + g.lon.toFixed(6) + '</b> <small class="m">± ' + Math.round(g.prec) + ' m</small><br><a href="https://www.google.com/maps?q=' + g.lat + ',' + g.lon + '" target="_blank" rel="noopener">Ver en el mapa</a>' : '<small class="m">' + esc(S.f.gpsMsg) + '</small>';
+  return g ? '📍 <b>' + g.lat.toFixed(5) + ', ' + g.lon.toFixed(5) + '</b> <span class="peq mut">± ' + Math.round(g.prec) + ' m</span>' : '<span class="mut">📍 ' + esc(S.f.gpsMsg) + '</span>';
 }
+const grandes = (arr, sel, acc) => '<div class="opc">' + arr.map(x => '<button type="button" class="' + (x === sel ? 'on' : '') + '" data-a="' + acc + '" data-v="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div>';
+function resumen() {
+  const f = S.f, p = [];
+  if (f.uf) p.push(f.uf); if (f.costado) p.push(f.costado);
+  const a = abTxt(f.kI, f.mI), b = abTxt(f.kF, f.mF); if (f.p > 2 && a && b) p.push(a + ' → ' + b);
+  if (f.p > 3 && f.pq !== '') { const q = paquetesDe(S.hito, f.uf)[f.pq]; if (q) p.push(q[0]); }
+  return p.length ? '<div class="resu">' + p.map(esc).join(' · ') + '</div>' : '';
+}
+function vPaso() {
+  const f = S.f, k = PASOS[f.p][0];
+  let h = '';
+  if (k === 'uf') h = grandes(S.cat.ufs, f.uf, 'uf');
+  else if (k === 'costado') h = grandes(COSTADOS, f.costado, 'costado');
+  else if (k === 'abs') {
+    h = '<label class="f" style="margin-top:0">Inicio</label><div class="ab"><b>K</b><input type="text" inputmode="numeric" data-f="kI" value="' + esc(f.kI) + '" placeholder="km"><b>+</b><input type="text" inputmode="numeric" data-f="mI" value="' + esc(f.mI) + '" placeholder="metros"></div>' +
+      '<label class="f">Fin</label><div class="ab"><b>K</b><input type="text" inputmode="numeric" data-f="kF" value="' + esc(f.kF) + '" placeholder="km"><b>+</b><input type="text" inputmode="numeric" data-f="mF" value="' + esc(f.mF) + '" placeholder="metros"></div>';
+  } else if (k === 'paquete') {
+    const pqs = paquetesDe(S.hito, f.uf);
+    h = pqs.length ? pqs.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + p[1].length + ' actividades</small></button>').join('') : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>';
+  } else if (k === 'act') {
+    const q = S.q.toLowerCase(), L = (paquetesDe(S.hito, f.uf)[f.pq] || ['', []])[1].filter(a => !q || (a[0] + ' ' + a[1]).toLowerCase().includes(q));
+    h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '">' +
+      L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
+      (L.length > 40 ? '<div class="peq mut" style="margin-top:6px">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</div>' : '') + (L.length ? '' : '<div class="peq mut" style="margin-top:8px">Sin resultados.</div>');
+  } else if (k === 'med') {
+    const n = nd(), K = calc(), u = f.act.u;
+    h = '<div class="sel" style="margin:0 0 12px">' + esc(f.act.d) + '<small>unidad ' + undTxt(u) + '</small></div>';
+    if (n === 0) h += '<label class="f" style="margin-top:0">Cantidad (' + undTxt(u) + ')</label><input type="text" inputmode="decimal" data-f="cant" value="' + esc(f.cant) + '">';
+    else { h += '<div class="fila">'; ['largo', 'ancho', 'alto'].slice(0, n).forEach((x, i) => { h += '<div><label class="f" style="margin-top:0">' + NDIM[i] + '</label><input type="text" inputmode="decimal" data-f="' + x + '" value="' + esc(f[x]) + '"></div>'; }); h += '</div>'; }
+    h += '<div class="fila"><div><label class="f">Descuento</label><input type="text" inputmode="decimal" data-f="desc" value="' + esc(f.desc) + '" placeholder="0"></div><div><label class="f">Factor</label><input type="text" inputmode="decimal" data-f="fac" value="' + esc(f.fac) + '"></div></div>' +
+      '<div class="tot" id="tot">' + totHtml(K, u) + '</div><div class="peq mut" style="margin-top:6px">Total = (cantidad − descuento) × factor</div>';
+  } else if (k === 'foto') {
+    h = '<div class="fila"><label class="lb">📷 Cámara<input type="file" accept="image/*" capture="environment" data-foto style="display:none"></label><label class="lb">🖼 Galería<input type="file" accept="image/*" data-foto style="display:none"></label></div>' +
+      (f.foto ? '<img class="prev" src="' + f.foto + '" alt="Foto">' : '') + '<div id="gps" class="gpsl">' + gpsHtml() + '</div>';
+  }
+  return h;
+}
+function vForm() {
+  const f = S.f, n = PASOS.length, ult = f.p === n - 1;
+  let h = '<div class="prog"><i style="width:' + Math.round((f.p + 1) / n * 100) + '%"></i></div><div class="peq mut" style="margin:6px 2px">' + ICO[S.hito] + ' ' + esc(nomHito(S.hito)) + ' · paso ' + (f.p + 1) + ' de ' + n + '</div>' + resumen() +
+    '<div class="card"><h2 class="preg" style="margin-top:0">' + PASOS[f.p][1] + '</h2>' + (f.msg ? '<div class="error">' + esc(f.msg) + '</div>' : '') + vPaso() + '</div>';
+  return h;
+}
+function vSbar() {
+  const f = S.f, ult = f.p === PASOS.length - 1, auto = ['uf', 'costado', 'paquete', 'act'].includes(PASOS[f.p][0]);
+  return '<div class="sbar"><button type="button" class="btn sec cnl" data-a="atras">◀ ' + (f.p === 0 ? 'Cancelar' : 'Atrás') + '</button><div class="sres"></div>' +
+    (ult ? '<button type="button" class="btn sacar2" data-a="guardar"' + (f.guardando ? ' disabled' : '') + '>' + (f.guardando ? 'Guardando…' : '💾 Guardar') + '</button>' : (auto ? '' : '<button type="button" class="btn sacar2" data-a="sig">Siguiente ▶</button>')) + '</div>';
+}
+function render() {
+  const app = $('#app'), y = window.pageYOffset;
+  if (!S.ses) { app.innerHTML = vLogin(); return; }
+  const enForm = !!S.f;
+  app.innerHTML = '<div class="cab">' + vTop() + '</div>' + vBandas() + '<main class="oe' + (enForm ? ' conbar' : '') + '">' + (enForm ? vForm() : (S.hito ? vHito() : vInicio())) + '</main>' + (enForm ? vSbar() : '');
+  if (window.pageYOffset !== y) window.scrollTo(0, y);
+}
+
+/* ---------- GPS y foto ---------- */
 function tomarGps() {
   if (!S.f) return; const f = S.f; f.gps = null; f.gpsMsg = 'Buscando ubicación…'; const el = $('#gps'); if (el) el.innerHTML = gpsHtml();
-  if (!navigator.geolocation) { f.gpsMsg = 'Este equipo no tiene GPS.'; return; }
-  navigator.geolocation.getCurrentPosition(p => { if (S.f !== f) return; f.gps = { lat: p.coords.latitude, lon: p.coords.longitude, prec: p.coords.accuracy }; const e = $('#gps'); if (e) e.innerHTML = gpsHtml(); },
-    err => { if (S.f !== f) return; f.gpsMsg = err.code === 1 ? 'Permiso de ubicación negado: actívalo en el navegador.' : 'No se pudo obtener la ubicación. Intenta de nuevo al aire libre.'; const e = $('#gps'); if (e) e.innerHTML = gpsHtml(); }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 });
+  const fin = () => { const e = $('#gps'); if (e && S.f === f) e.innerHTML = gpsHtml(); };
+  if (!navigator.geolocation) { f.gpsMsg = 'Este equipo no tiene GPS.'; fin(); return; }
+  navigator.geolocation.getCurrentPosition(p => { f.gps = { lat: p.coords.latitude, lon: p.coords.longitude, prec: p.coords.accuracy }; fin(); },
+    err => { f.gpsMsg = err.code === 1 ? 'Permiso de ubicación negado: actívalo en el navegador.' : 'No se pudo obtener la ubicación. Intenta de nuevo al aire libre.'; fin(); }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 });
 }
 function reducirFoto(file) {
   return new Promise((ok, no) => {
@@ -254,75 +261,85 @@ function reducirFoto(file) {
 }
 
 /* ---------- Acciones ---------- */
-function salir() { lsSet(LS, null); lsSet(LSC, null); S.ses = null; S.vista = 'hitos'; pintar(); }
-function validarForm() {
-  const f = S.f, e = {}; f.err = e;
-  if (!f.uf) e.uf = 1; if (!f.costado) e.costado = 1;
-  if (!abTxt(f.kI, f.mI) || !abTxt(f.kF, f.mF) || [f.kI, f.mI, f.kF, f.mF].some(v => isNaN(num(v)))) e.ab = 1;
-  if (!f.act) e.act = 1;
-  else { const K = calc(); if (isNaN(K.c) || K.c <= 0 || K.d < 0 || K.d > K.c || !(K.fa > 0)) e.med = 1; }
-  if (!f.foto) e.foto = 1;
-  const m = []; if (e.uf) m.push('UF'); if (e.costado) m.push('costado'); if (e.ab) m.push('abscisas'); if (e.act) m.push('actividad'); if (e.med) m.push('medidas (cantidad > 0, descuento ≤ cantidad)'); if (e.foto) m.push('foto');
-  return m;
+function salir() { lsSet(LS, null); lsSet(LSC, null); S.ses = null; S.f = null; S.hito = ''; }
+function ir(p) { S.f.p = p; S.f.msg = ''; S.q = ''; render(); window.scrollTo(0, 0); if (PASOS[p][0] === 'foto' && !S.f.gps) tomarGps(); }
+function validarPaso() {
+  const f = S.f, k = PASOS[f.p][0];
+  if (k === 'uf' && !f.uf) return 'Elige la UF.';
+  if (k === 'costado' && !f.costado) return 'Elige el costado.';
+  if (k === 'abs') { if ([f.kI, f.mI, f.kF, f.mF].some(v => isNaN(num(v)))) return 'Escribe los km y metros de inicio y de fin (solo números).'; }
+  if (k === 'paquete' && f.pq === '') return 'Elige el paquete.';
+  if (k === 'act' && !f.act) return 'Elige la actividad.';
+  if (k === 'med') { const K = calc(); if (isNaN(K.c) || K.c <= 0) return 'Escribe las medidas (mayores que cero).'; if (K.d < 0 || K.d > K.c) return 'El descuento no puede ser mayor que la cantidad.'; if (!(K.fa > 0)) return 'El factor debe ser mayor que cero.'; }
+  if (k === 'foto' && !f.foto) return 'Falta la foto de la actividad.';
+  return '';
 }
+function sig() { const m = validarPaso(); if (m) { S.f.msg = m; render(); window.scrollTo(0, 0); return; } ir(S.f.p + 1); }
 async function guardar() {
-  const f = S.f, falta = validarForm();
-  if (falta.length) { aviso('Falta o revisa: ' + falta.join(', ') + '.', 'err'); pintar(); window.scrollTo(0, 0); return; }
+  const f = S.f, m = validarPaso();
+  if (m) { f.msg = m; render(); window.scrollTo(0, 0); return; }
   const K = calc(), n = nd();
   const reg = { id: f.id, fecha: S.fecha, hito: S.hito, uf: f.uf, costado: f.costado, abIni: abTxt(f.kI, f.mI), abFin: abTxt(f.kF, f.mF), paquete: paquetesDe(S.hito, f.uf)[f.pq][0], cc: f.act.c, actividad: f.act.d, und: f.act.u, nd: n,
     largo: n >= 1 ? num(f.largo) : '', ancho: n >= 2 ? num(f.ancho) : '', alto: n >= 3 ? num(f.alto) : '', cantidad: K.c, descuento: K.d, factor: K.fa, total: r3(K.t),
-    lat: f.gps ? f.gps.lat : '', lon: f.gps ? f.gps.lon : '', prec: f.gps ? f.gps.prec : '', foto: f.foto, obs: f.obs, llave: S.ses.llave, creado: new Date().toISOString().slice(0, 19).replace('T', ' ') };
-  f.guardando = true; pintar();
+    lat: f.gps ? f.gps.lat : '', lon: f.gps ? f.gps.lon : '', prec: f.gps ? f.gps.prec : '', foto: f.foto, obs: '', llave: S.ses.llave, creado: new Date().toISOString().slice(0, 19).replace('T', ' ') };
+  f.guardando = true; render();
   await DB.poner(reg);               // primero queda guardado en el equipo; luego sube en segundo plano
   S.pend = (await DB.todos()).filter(x => x.llave === S.ses.llave);
-  S.f = null; S.vista = 'hito'; aviso('Registro guardado. Se sube en segundo plano.', 'ok'); pintar();
+  S.f = null; toast('✔ Registro guardado'); render(); window.scrollTo(0, 0);
   sincronizar();
 }
+function cambioDia(n) { const hoy = hoyISO(); if (n && n <= hoy && n >= sumDias(hoy, -3)) { S.fecha = n; S.srv = []; render(); pedirDia(); } }
 
+document.addEventListener('submit', async ev => {
+  if (ev.target.id !== 'f-login') return; ev.preventDefault();
+  const k = $('#l-pin').value.trim(); if (!k || S.entrando) return;
+  S.entrando = true; S.loginErr = ''; render();
+  try {
+    const r = await llamar({ accion: 'validar', llave: k, app: 'oe' }, 30000);
+    if (r && r.ok) { S.ses = { llave: r.llave || k, nombre: r.nombre }; lsSet(LS, S.ses); S.entrando = false; await cargarCat(); render(); pedirDia(); return; }
+    S.loginErr = (r && r.mensaje) || 'Llave no válida';
+  } catch (e) { S.loginErr = 'Sin conexión: se necesita señal para entrar la primera vez.'; }
+  S.entrando = false; render();
+});
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-a]'); if (!b) return;
-  const a = b.dataset.a, v = b.dataset.v; S.msg = a === 'guardar' ? S.msg : '';
-  if (a === 'entrar') {
-    const k = $('#llave').value.trim(); if (!k) return;
-    cargando(true, 'Entrando…');
-    try { const r = await llamar({ accion: 'validar', llave: k, app: 'oe' }, 30000); if (r && r.ok) { S.ses = { llave: r.llave || k, nombre: r.nombre }; lsSet(LS, S.ses); await cargarCat(); cargando(false); pintar(); pedirDia(); return; } aviso((r && r.mensaje) || 'Llave no válida', 'err'); }
-    catch (e) { aviso('Sin conexión: se necesita señal para entrar la primera vez.', 'err'); }
-    cargando(false); pintar(); return;
-  }
-  if (a === 'dia') { const n = sumDias(S.fecha, Number(v)), hoy = hoyISO(); if (n <= hoy && n >= sumDias(hoy, -3)) { S.fecha = n; S.srv = []; pintar(); pedirDia(); } return; }
-  if (a === 'hito') { S.hito = v; S.vista = 'hito'; window.scrollTo(0, 0); pintar(); return; }
-  if (a === 'volver') { S.vista = 'hitos'; window.scrollTo(0, 0); pintar(); return; }
-  if (a === 'nuevo') { S.f = nuevoForm(); S.q = ''; S.vista = 'form'; window.scrollTo(0, 0); pintar(); tomarGps(); return; }
-  if (a === 'cancelar') { if (!S.f.act && !S.f.foto || confirm('¿Descartar este registro?')) { S.f = null; S.vista = 'hito'; pintar(); } return; }
-  if (a === 'uf') { S.f.uf = v; S.f.pq = ''; S.f.act = null; S.q = ''; S.f.err.uf = 0; pintar(); return; }
-  if (a === 'costado') { S.f.costado = v; S.f.err.costado = 0; pintar(); return; }
-  if (a === 'act') { const p = paquetesDe(S.hito, S.f.uf)[S.f.pq], x = p[1].find(y => y[0] === v); S.f.act = { c: x[0], d: x[1], u: x[2] }; S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; S.f.err.act = 0; pintar(); window.scrollBy(0, 0); return; }
-  if (a === 'cambiarAct') { S.f.act = null; S.q = ''; pintar(); return; }
-  if (a === 'gps') { tomarGps(); return; }
+  const a = b.dataset.a, v = b.dataset.v;
+  if (a === 'refrescar') { sincronizar(); if (!navigator.onLine) pedirDia(); return; }
+  if (a === 'salir') { if (!S.pend.length || confirm('Hay registros sin subir en este equipo. No se pierden, pero no se subirán hasta que entres de nuevo. ¿Salir?')) { salir(); render(); } return; }
+  if (a === 'dia') { cambioDia(sumDias(S.fecha, Number(v))); return; }
+  if (a === 'hito') { S.hito = v; render(); window.scrollTo(0, 0); return; }
+  if (a === 'volver') { S.hito = ''; render(); window.scrollTo(0, 0); return; }
+  if (a === 'nuevo') { S.f = nuevoForm(); S.q = ''; render(); window.scrollTo(0, 0); return; }
+  if (a === 'atras') { if (S.f.p > 0) { ir(S.f.p - 1); return; } if ((!S.f.uf && !S.f.foto) || confirm('¿Descartar este registro?')) { S.f = null; render(); } return; }
+  if (a === 'sig') { sig(); return; }
+  if (a === 'uf') { if (S.f.uf !== v) { S.f.pq = ''; S.f.act = null; } S.f.uf = v; ir(1); return; }
+  if (a === 'costado') { S.f.costado = v; ir(2); return; }
+  if (a === 'pq') { if (String(S.f.pq) !== String(v)) S.f.act = null; S.f.pq = v; ir(4); return; }
+  if (a === 'act') { const p = paquetesDe(S.hito, S.f.uf)[S.f.pq], x = p[1].find(y => y[0] === v); if (!S.f.act || S.f.act.c !== x[0]) { S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; } S.f.act = { c: x[0], d: x[1], u: x[2] }; ir(5); return; }
   if (a === 'guardar') { guardar(); return; }
   if (a === 'sync') { sincronizar(); return; }
-  if (a === 'anular') { if (!confirm('¿Anular este registro?')) return; cargando(true, 'Anulando…'); try { const r = await llamar({ accion: 'oe_eliminar', llave: S.ses.llave, id: v }); if (!r.ok) aviso(r.mensaje || 'No se pudo anular', 'err'); } catch (e) { aviso('Sin conexión: no se pudo anular.', 'err'); } cargando(false); pedirDia(); return; }
+  if (a === 'anular') { if (!confirm('¿Anular este registro?')) return; S.cargando = true; render(); try { const r = await llamar({ accion: 'oe_eliminar', llave: S.ses.llave, id: v }); if (!r.ok) toast(r.mensaje || 'No se pudo anular'); } catch (e) { toast('Sin conexión: no se pudo anular.'); } pedirDia(); return; }
 });
 document.addEventListener('input', ev => {
   const t = ev.target;
-  if (t.id === 'buscar') { S.q = t.value; const p = S.f && paquetesDe(S.hito, S.f.uf)[S.f.pq]; pintar(); const n = $('#buscar'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
+  if (t.id === 'buscar') { S.q = t.value; render(); const n = $('#buscar'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
   const k = t.dataset && t.dataset.f; if (!k || !S.f) return;
   S.f[k] = t.value;
-  if (k === 'pq') { S.f.act = null; S.q = ''; pintar(); return; }
-  if (['kI', 'mI', 'kF', 'mF'].includes(k)) S.f.err.ab = 0;
-  if (['largo', 'ancho', 'alto', 'cant', 'desc', 'fac'].includes(k)) { const e = $('#tot'); if (e) e.innerHTML = totHtml(calc(), S.f.act ? S.f.act.u : ''); S.f.err.med = 0; }
+  if (['largo', 'ancho', 'alto', 'cant', 'desc', 'fac'].includes(k)) { const e = $('#tot'); if (e) e.innerHTML = totHtml(calc(), S.f.act.u); }
 });
 document.addEventListener('change', async ev => {
   const t = ev.target;
-  if (t.id === 'fecha') { const hoy = hoyISO(); if (t.value && t.value <= hoy && t.value >= sumDias(hoy, -3)) { S.fecha = t.value; S.srv = []; pintar(); pedirDia(); } else { t.value = S.fecha; } return; }
-  if (t.dataset && t.dataset.foto !== undefined && t.files && t.files[0]) { try { S.f.foto = await reducirFoto(t.files[0]); S.f.err.foto = 0; } catch (e) { aviso('No se pudo leer la foto.', 'err'); } pintar(); }
+  if (t.id === 'fecha') { const hoy = hoyISO(); if (t.value && t.value <= hoy && t.value >= sumDias(hoy, -3)) cambioDia(t.value); else t.value = S.fecha; return; }
+  if (t.dataset && t.dataset.foto !== undefined && t.files && t.files[0]) { try { S.f.foto = await reducirFoto(t.files[0]); S.f.msg = ''; } catch (e) { toast('No se pudo leer la foto.'); } render(); }
 });
-$('#bAct').onclick = () => { if (S.ses) sincronizar(); };
-$('#bSal').onclick = () => { if (!S.pend.length || confirm('Hay registros sin subir en este equipo. Si sales no se pierden, pero no se subirán hasta que entres de nuevo. ¿Salir?')) salir(); };
 window.addEventListener('online', sincronizar);
 window.addEventListener('beforeunload', ev => { if (S.f && (S.f.act || S.f.foto)) { ev.preventDefault(); ev.returnValue = ''; } });
 
-(async () => { await cargarCat(); pintar(); if (S.ses) { S.pend = (await DB.todos().catch(() => [])).filter(x => x.llave === S.ses.llave); pintar(); sincronizar(); pedirDia(); } })();
+(async () => {
+  render();            // abre al instante: con sesión guardada muestra la pantalla de inmediato
+  await cargarCat(); render();
+  if (S.ses) { S.pend = (await DB.todos().catch(() => [])).filter(x => x.llave === S.ses.llave); render(); sincronizar(); pedirDia(); }
+})();
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {}
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
