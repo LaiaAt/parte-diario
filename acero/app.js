@@ -64,7 +64,7 @@
 
   // ---------- Vistas ----------
   function vLogin() {
-    return '<div class="login"><div class="marca"><img src="' + BASE + 'icons/icon-192.png" alt=""><h1>' + esc(CFG.TITULO) + '</h1>' +
+    return '<div class="login"><div class="marca"><img src="logo_ccsn.png" alt="Consorcio Constructor Sabana Norte"><h1>' + esc(CFG.TITULO) + '</h1>' +
       (Api.remoto ? '' : '<span class="insignia">Modo local de prueba</span>') + '</div>' +
       '<form id="f-login" class="card"><label class="f" for="l-pin">Escribe tu llave</label>' +
       '<input id="l-pin" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Escribe tu llave">' +
@@ -75,7 +75,7 @@
 
   function vTop() {
     if (EMB) return '';
-    return '<header class="top"><img class="logo" src="marca.png" alt=""><div class="tit"><b>' + esc(CFG.TITULO) + '</b><span>' +
+    return '<header class="top"><img class="logo" src="logo_ccsn.png" alt="CCSN"><div class="tit"><b>' + esc(CFG.TITULO) + '</b><span>' +
       esc(S.ses.nombre) + ' · ' + (esAdmin() ? 'Administrador' : 'Supervisor') + (Api.remoto ? '' : ' · modo local') + '</span></div>' +
       (MODO === 'dashboard' ? '<a class="ibtn" href="admin.html" title="Volver al Dashboard" style="text-decoration:none;display:flex;align-items:center;justify-content:center">⌂</a>' : '') + '<button class="ibtn" data-a="refrescar" title="Actualizar">⟳</button><button class="ibtn" data-a="salir" title="Salir">⏻</button></header>';
   }
@@ -94,8 +94,9 @@
   /** Menú en dos niveles: arriba los grupos, abajo (si el grupo tiene varias pantallas) sus opciones. */
   function gruposTabs() { // menú plano: el supervisor solo ve Inicio e Informe; el administrador, además, Pedidos, Panel y Regularización
     if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
-    var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: [['ini', 'Registrar'], ['dat', 'Datos']] }];
-    if (esAdmin()) { G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['pnew', 'Nuevo pedido'], ['ped', 'Pedidos creados'], ['pban', 'Pedidos anulados']] }); G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] }); }
+    var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: esAdmin() ? [['ini', 'Registrar'], ['dat', 'Datos']] : [['ini', 'Registrar']] }];
+    if (esAdmin()) G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['pnew', 'Nuevo pedido'], ['ped', 'Pedidos creados'], ['pban', 'Pedidos anulados']] });
+    G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] });
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
     return G;
   }
@@ -1030,7 +1031,7 @@
     if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver|panel|pnew|pban|dat)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return conPanel(AcReg.resumen()); }
     else {
       if (/^(reg|llego|armar|fin|salio|stock|mov|salida|hoy|inv|cargar|panel)$/.test(S.tab)) S.tab = 'ini';
-      if (!esAdmin() && /^(ped|pnew|pban|ver)$/.test(S.tab)) S.tab = 'ini';
+      if (!esAdmin() && /^(ped|pnew|pban|dat)$/.test(S.tab)) S.tab = 'ini';
       var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return conPanel(nv);
     }
     switch (S.tab) {

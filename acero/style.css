@@ -465,7 +465,7 @@ body.emb .tabs { display: none; }
 /* ===== Apps de Acero (usuario y administrador): misma línea que Dashboard, Parte diario y Transportes ===== */
 body:not(.emb) { background: #eef0f3; }
 body:not(.emb) .top { background: #0a7f2e; border-bottom: 4px solid #1f2d3d; padding-top: calc(8px + env(safe-area-inset-top)); padding-bottom: 8px; }
-body:not(.emb) .top .logo { width: auto; height: 34px; background: #fff; border-radius: 6px; padding: 2px 5px; }
+body:not(.emb) .top .logo { width: auto; height: 42px; background: #fff; border-radius: 6px; padding: 2px 5px; }
 body:not(.emb) .top .tit b { font-size: 1.1rem; }
 body:not(.emb) .top .ibtn { background: rgba(0,0,0,.28); border: 0; color: #fff; border-radius: 10px; }
 body:not(.emb) .tabs { background: #fff; border: 0; border-bottom: 1px solid #dde1e6; box-shadow: 0 2px 6px rgba(0,0,0,.06); display: flex; gap: 8px; padding: 8px 12px; overflow-x: auto; position: sticky; top: 0; z-index: 8; }
@@ -475,7 +475,7 @@ body:not(.emb) .tabs button em { font-style: normal; overflow: visible; max-widt
 body:not(.emb) .tabs button.on { background: #0a7f2e; color: #fff; border-color: #0a7f2e; font-weight: 700; box-shadow: none; }
 body:not(.emb) .cab { position: sticky; top: 0; z-index: 20; }
 body:not(.emb) .cab .tabs { position: static; }
-.login .marca img { width: auto; height: 70px; border-radius: 8px; }
+.login .marca img { width: auto; height: 110px; border-radius: 0; }
 .pie { color: #5b6672; }
 
 /* Filtro de pedido en Movimientos */
