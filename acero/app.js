@@ -9,7 +9,7 @@
     cargado: false, auto: false, ses: null, estado: { pedidos: [], entradas: [], salidas: [], armados: [] }, calc: null, tab: 'ini', offline: false, enviando: false, per: { k: 'todo', d: '', h: '' },
     ver: { elem: '', q: '', vals: {}, obs: '', msg: '', err: '', busy: false }, cie: { vals: {}, q: '', err: '', busy: false, si: false },
     sal: { destino: '', q: '', fdiam: '', items: [], grupo: '', n: 0, diam: '', elem: '', marca: '', pos: '', cant: 1, obs: '', fecha: '', msg: '', err: '', modo: 'pos', modoSel: '', eq: '', tipo: '', fase: '', pct: '', balElem: '' }, okSal: null, edPed: {}, cargaRes: null,
-    inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, inf: { d: '' },
+    inv: { vista: 'diametro', elem: '', diam: '' }, ped: { q: '', pag: 0 }, bit: { filas: null, total: 0, q: '', acc: '', pag: 0, cargando: false, err: '' }, inf: { d: '' },
     cargas: [], loginErr: '', loginNom: ''
   };
 
@@ -93,10 +93,11 @@
 
   /** Menú en dos niveles: arriba los grupos, abajo (si el grupo tiene varias pantallas) sus opciones. */
   function gruposTabs() { // menú plano: el supervisor solo ve Inicio e Informe; el administrador, además, Pedidos, Panel y Regularización
-    if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
+    if (EMB) return [['ini', '🏠', 'Resumen'], ['inv', '📦', 'Inventario'], ['mov', '🕒', 'Movimientos'], ['ped', '📋', 'Pedidos'], ['bit', '📝', 'Cambios'], ['inf', '📄', 'Informe']].map(function (t) { return { k: t[0], ico: t[1], t: t[2], hojas: [[t[0], t[2]]] }; });
     var G = [{ k: 'ini', ico: '🏠', t: 'Inicio', hojas: esAdmin() ? [['ini', 'Registrar'], ['dat', 'Datos']] : [['ini', 'Registrar']] }];
     if (esAdmin()) G.push({ k: 'con', ico: '📋', t: 'Pedidos', hojas: [['pnew', 'Nuevo pedido'], ['ped', 'Pedidos creados'], ['pban', 'Pedidos anulados']] });
     G.push({ k: 'ver', ico: '🧮', t: 'Ajustes', hojas: [['ver', 'Ajustes']] });
+    if (esAdmin()) G.push({ k: 'bit', ico: '📝', t: 'Cambios', hojas: [['bit', 'Control de cambios']] });
     G.push({ k: 'inf', ico: '📄', t: 'Informe', hojas: [['inf', 'Informe']] });
     return G;
   }
@@ -940,6 +941,40 @@
         (p.archivoId && Api.remoto ? '<div class="acc"><button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar ' + tipoArch(p) + '</button></div>' : '') + '</div>';
     }).join('');
   }
+  /** Control de cambios: quién hizo qué y cuándo en el inventario de Acero. Solo el administrador. */
+  function cargarBit() {
+    var b = S.bit; if (b.cargando || !Api.remoto) return; b.cargando = true; b.err = ''; render();
+    Api.accion(S.ses, 'bitacora').then(function (r) {
+      b.cargando = false;
+      if (r && r.ok) { b.filas = r.filas || []; b.total = r.total || 0; } else { b.err = (r && r.error) || 'No se pudo leer el control de cambios'; if (!b.filas) b.filas = []; }
+      render();
+    });
+  }
+  function vBitacora() {
+    if (!esAdmin()) return '<div class="card vacio">Solo el administrador ve el control de cambios.</div>';
+    var b = S.bit;
+    if (!Api.remoto) return '<div class="card vacio">El control de cambios necesita conexión con el servidor.</div>';
+    if (b.filas === null && !b.cargando) { setTimeout(cargarBit, 0); }
+    var L = b.filas || [], q = String(b.q || '').trim().toLowerCase(), accs = {};
+    L.forEach(function (x) { accs[x.accion] = 1; });
+    var F = L.filter(function (x) { return (!b.acc || x.accion === b.acc) && (!q || (x.usuario + ' ' + x.accion + ' ' + x.estructura + ' ' + x.detalle).toLowerCase().indexOf(q) >= 0); });
+    var PB = 25, pags = Math.max(1, Math.ceil(F.length / PB)); if (b.pag >= pags) b.pag = pags - 1; if (b.pag < 0) b.pag = 0;
+    var h = '<div class="hero"><small>Control de cambios</small><b>' + n0(F.length) + (F.length === 1 ? ' cambio' : ' cambios') + '</b><span>Quién hizo qué y cuándo en el inventario' + (b.total > L.length ? ' · se muestran los últimos ' + n0(L.length) : '') + '</span></div>' +
+      '<div class="card busca"><div class="row2"><input id="b-q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Buscar usuario, estructura o detalle" value="' + esc(b.q) + '" data-i="bit.q">' +
+      '<select id="b-acc" data-f="bit.acc"><option value="">Todas las acciones</option>' + Object.keys(accs).sort().map(function (a) { return '<option value="' + esc(a) + '"' + (a === b.acc ? ' selected' : '') + '>' + esc(a) + '</option>'; }).join('') + '</select>' +
+      '<button class="btn chico sec" data-a="bitRef"' + (b.cargando ? ' disabled' : '') + '>⟳ Actualizar</button></div></div>';
+    if (b.cargando) h += '<div class="cargando"><i class="spin"></i><b>Cargando datos…</b><span>Trayendo el control de cambios.</span></div>';
+    if (b.err) h += '<div class="error">' + esc(b.err) + '</div>';
+    if (b.filas === null) return h;
+    if (!b.cargando && !F.length) return h + '<div class="card vacio">' + (L.length ? 'Ningún cambio coincide con el filtro.' : 'Aún no hay cambios registrados. Desde ahora cada movimiento queda aquí.') + '</div>';
+    h += F.slice(b.pag * PB, b.pag * PB + PB).map(function (x) {
+      var f = String(x.fecha), hr = f.slice(11, 16);
+      return '<div class="pd"><div class="pd-h"><b>' + esc(x.accion) + (x.estructura ? ' · ' + esc(x.estructura) : '') + '</b><span>' + fechaDia(f) + ' ' + esc(hr) + '</span></div>' +
+        '<div class="pd-e">' + esc(x.detalle) + '</div><div class="pd-m"><span>👤 ' + esc(x.usuario) + ' · ' + esc(x.rol) + '</span></div></div>';
+    }).join('');
+    if (pags > 1) h += '<div class="pag"><button class="btn sec" data-a="pagBit" data-v="-1"' + (b.pag <= 0 ? ' disabled' : '') + '>← Anterior</button><span>Página ' + (b.pag + 1) + ' de ' + pags + '</span><button class="btn sec" data-a="pagBit" data-v="1"' + (b.pag >= pags - 1 ? ' disabled' : '') + '>Siguiente →</button></div>';
+    return h;
+  }
   function vPedidos() {
     if (!esAdmin()) return '<div class="card vacio">Solo el administrador ve los pedidos.</div>';
     var montar = '';
@@ -1031,7 +1066,7 @@
     if (EMB) { if (/^(reg|llego|armar|fin|salio|stock|salida|hoy|cargar|ver|panel|pnew|pban|dat)$/.test(S.tab)) S.tab = 'ini'; if (S.tab === 'ini') return conPanel(AcReg.resumen()); }
     else {
       if (/^(reg|llego|armar|fin|salio|stock|mov|salida|hoy|inv|cargar|panel)$/.test(S.tab)) S.tab = 'ini';
-      if (!esAdmin() && /^(ped|pnew|pban|dat)$/.test(S.tab)) S.tab = 'ini';
+      if (!esAdmin() && /^(ped|pnew|pban|dat|bit)$/.test(S.tab)) S.tab = 'ini';
       var nv = window.AcReg && AcReg.vista(S.tab); if (nv != null) return conPanel(nv);
     }
     switch (S.tab) {
@@ -1045,6 +1080,7 @@
       case 'dat': return conPanel(window.AcReg.vistaDatos());
       case 'pnew': return vCargar();
       case 'pban': return vAnulados();
+      case 'bit': return vBitacora();
       case 'inf': return vInforme();
       default: return MODO === 'salidas' ? vSalida() : vPanel();
     }
@@ -1498,6 +1534,8 @@
       case 'verOk': verOk(); break;
       case 'cerrarBal': if (confirm('Si sale ahora, lo que quedó sin usar no se registra. ¿Salir de todos modos?')) { S.sal.balElem = ''; S.sal.tipo = ''; render(); } break;
       case 'cnPaso': { var sv = String(v), ix = sv.lastIndexOf('|'), cp = [sv.slice(0, ix), sv.slice(ix + 1)], ck = cp[0].split(':'), kk2 = ck.slice(1).join(':'), est2 = ck[0] === 'cie' ? S.cie : S.ver, f2 = ck[0] === 'cie' ? null : filasPos(S.ver.elem).filter(function (z) { return z.k === kk2; })[0], cur = est2.vals[kk2] !== undefined ? Number(est2.vals[kk2]) : (f2 ? f2.sal_p : 0); est2.vals[kk2] = Math.max(0, Math.floor(cur) + (+cp[1])); S.ver.msg = ''; render(); break; }
+      case 'bitRef': S.bit.filas = null; S.bit.cargando = false; cargarBit(); break;
+      case 'pagBit': S.bit.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'pagPed': S.ped.pag += +v; render(); window.scrollTo(0, 0); break;
       case 'per': S.per.k = v; render(); break;
       case 'tab': if (v !== S.tab && sinGuardarTodo() && !confirm('Tiene datos sin guardar en esta pantalla. Si cambia de vista se pierden.\n\n¿Salir sin guardar?')) break; if (v !== S.tab && sinGuardarTodo()) descartarTodo(); if (window.AcReg) AcReg.reset(v); S.tab = v; (S.ult = S.ult || {})[grupoDe(v).k] = v; S.okSal = null; try { sessionStorage.setItem('ac_tab_' + MODO, v); } catch (e) { } render(); break;
@@ -1560,6 +1598,7 @@
     var t = ev.target;
     if (window.AcReg && (t.getAttribute('data-r') || t.getAttribute('data-rc') !== null) && AcReg.cambio(t)) return;
     if (t.getAttribute('data-cv')) { var pp = t.getAttribute('data-cv').split(':'), kk = pp.slice(1).join(':'), vv = Math.max(0, Math.floor(Number(t.value) || 0)); (pp[0] === 'cie' ? S.cie : S.ver).vals[kk] = vv; S.ver.msg = ''; render(); return; }
+    if (t.getAttribute('data-f') === 'bit.acc') { S.bit.acc = t.value; S.bit.pag = 0; render(); return; }
     if (t.getAttribute('data-f') === 'ver.elem') { S.ver.elem = t.value; S.ver.vals = {}; S.ver.q = ''; S.ver.err = ''; S.ver.msg = ''; render(); return; }
     if (t.getAttribute('data-pdfpara') != null) { usarPdf(+t.getAttribute('data-pdfpara'), t.files[0]).then(function () { t.value = ''; }); return; }
     if (t.id === 'dli-file') { leerArchivos(t.files).then(function () { t.value = ''; }); return; }
@@ -1606,6 +1645,7 @@
     if (i === 'sal.obs') S.sal.obs = t.value;
     else if (i === 'sal.eq') { S.sal.eq = t.value; S.focus = 's-eq'; render(); var e5 = $('s-eq'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }
     else if (i === 'sal.q') { S.sal.q = t.value; S.focus = 's-q'; render(); var e3 = $('s-q'); if (e3) { try { e3.setSelectionRange(e3.value.length, e3.value.length); } catch (x) { } } }
+    else if (i === 'bit.q') { S.bit.q = t.value; S.bit.pag = 0; S.focus = 'b-q'; render(); var e9 = $('b-q'); if (e9) { try { e9.setSelectionRange(e9.value.length, e9.value.length); } catch (x) { } } }
     else if (i === 'ped.q') { S.ped.q = t.value; S.ped.pag = 0; S.focus = 'p-q'; render(); var e5 = $('p-q'); if (e5) { try { e5.setSelectionRange(e5.value.length, e5.value.length); } catch (x) { } } }
     else if (i === 'cie.q' || i === 'ver.q') { (i === 'cie.q' ? S.cie : S.ver).q = t.value; S.focus = i.slice(0, 3) + '-q'; render(); var e7 = $(i.slice(0, 3) + '-q'); if (e7) { try { e7.setSelectionRange(e7.value.length, e7.value.length); } catch (x) { } } }
     else if (i === 'ver.obs') S.ver.obs = t.value;
@@ -1660,8 +1700,8 @@
   }
 
   // ---------- Inicio ----------
-  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(ini|panel|ped|inf|ver)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
-  if (!/^(ini|dat|panel|ped|pnew|pban|inf|ver)$/.test(S.tab)) S.tab = 'ini';
+  try { var tt0 = sessionStorage.getItem('ac_tab_' + MODO); if (/^(ini|panel|ped|inf|ver|bit)$/.test(tt0 || '')) S.tab = tt0; } catch (e) { }
+  if (!/^(ini|dat|panel|ped|pnew|pban|inf|ver|bit)$/.test(S.tab)) S.tab = 'ini';
   S.ses = Api.sesion();
   if (S.ses) { abrirGuardado(); render(); enviarCola().catch(function () { S.enviando = false; }).then(cargarEstado); }
   else {
