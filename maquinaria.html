@@ -205,11 +205,12 @@ async function api(d, ms) {
 }
 
 /* ---------- estado ---------- */
-let user = null, DATOS = { maquinas: [], estructura: [] }, REPS = [], COLA = [], sincronizando = false, GEN = 0;
+let user = null, DATOS = { maquinas: [], estructura: [], fija: '' }, REPS = [], COLA = [], sincronizando = false, GEN = 0;
 const guardarReps = () => { GEN++; return kv.set('reps_' + user.llave, REPS); };
 const guardarCola = () => kv.set('cola', COLA);
 const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
 const puedeEditar = r => r.fecha >= sumDias(hoy(), -3) || r.registrado === hoy();
+const maqTxt = c => { const m = (DATOS.maquinas || []).find(x => String(x.cod) === String(c)); return m ? m.cod + ' · ' + m.tipo : (c || ''); };
 const ALF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function nuevoId() { const a = new Uint8Array(5); crypto.getRandomValues(a); let s = ''; a.forEach(b => s += ALF[b % 32]); const id = 'MQ-' + hoy().slice(2).replace(/-/g, '') + '-' + s; return REPS.some(r => r.id === id) ? nuevoId() : id; }
 const normAlb = x => { let t = String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
@@ -235,7 +236,7 @@ async function ingresar() {
   } catch (e) { aviso('No se pudo conectar. Intenta de nuevo.', 'err'); }
 }
 async function aplicarServidor(r) {
-  DATOS = { maquinas: r.maquinas || DATOS.maquinas || [], estructura: r.estructura || DATOS.estructura || [] };
+  DATOS = { maquinas: r.maquinas || DATOS.maquinas || [], estructura: r.estructura || DATOS.estructura || [], fija: r.fija || '' };
   await kv.set('datos', DATOS);
   const pend = new Set(COLA.filter(o => o.llave === user.llave).map(o => o.rid));
   const locales = REPS.filter(x => pend.has(x.id));
@@ -293,7 +294,8 @@ function filaRep(r) {
   if (r.fecha === hoy() || r.registrado === hoy()) bs.appendChild(h('button', { class: 'rojo', onclick: () => borrar(r) }, '🗑 Borrar'));
   if (e.op) bs.appendChild(h('button', { class: 'link', onclick: () => descartar(e.op, r) }, 'Descartar cambio'));
   return h('div', { class: 'rep ' + e.t },
-    h('div', { class: 't' }, '🧾 N° ' + r.albaran + ' · ' + r.maquina),
+    h('div', { class: 't' }, '🧾 N° ' + r.albaran + ' · ' + maqTxt(r.maquina)),
+    h('div', { class: 's' }, (r.turno === 'NOCHE' ? '🌙 Turno noche' : '☀ Turno día')),
     h('div', { class: 's' }, 'Horómetro ' + nh(r.h_ini) + ' → ' + nh(r.h_fin) + ' · ' + nh(r.h_trab !== undefined ? r.h_trab : 0) + ' h trabajadas' + (r.h_parada ? ' · ' + nh(r.h_parada) + ' h paradas' : '')),
     h('div', { style: 'margin-bottom:8px;font-weight:700;color:' + (e.t === 'ok' ? 'var(--ok)' : e.t === 'mal' ? 'var(--err)' : '#b36b00') }, e.txt),
     r.fecha !== (r.registrado || r.fecha) && r.registrado ? h('div', { class: 's', style: 'color:#b36b00' }, '⚠ Creado el ' + fmtF(r.registrado) + ' para el día ' + fmtF(r.fecha)) : null,
@@ -356,7 +358,7 @@ async function verFotos(r) {
   V.style.cssText = 'position:fixed;inset:0;z-index:50;background:rgba(18,32,43,.96);overflow:auto;padding:12px;-webkit-overflow-scrolling:touch';
   const cerrar = () => { V.hidden = true; V.textContent = ''; document.body.style.overflow = ''; };
   const cuerpo = h('div', {}, h('p', { style: 'color:#fff;font-size:18px;text-align:center;margin-top:30px' }, 'Abriendo…'));
-  V.appendChild(h('div', { style: 'max-width:640px;margin:0 auto' }, h('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:#12202b;padding:8px 0;color:#fff;font-weight:700' }, h('span', {}, '📷 N° ' + r.albaran + ' · ' + r.maquina), h('button', { class: 'verde', style: 'width:auto;padding:8px 18px', onclick: cerrar }, '✕ Cerrar')), cuerpo));
+  V.appendChild(h('div', { style: 'max-width:640px;margin:0 auto' }, h('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:#12202b;padding:8px 0;color:#fff;font-weight:700' }, h('span', {}, '📷 N° ' + r.albaran + ' · ' + maqTxt(r.maquina)), h('button', { class: 'verde', style: 'width:auto;padding:8px 18px', onclick: cerrar }, '✕ Cerrar')), cuerpo));
   V.hidden = false; V.scrollTop = 0; document.body.style.overflow = 'hidden';
   const sec = [['ini', '⏱ Horómetro de inicio'], ['fin', '⏱ Horómetro final'], ['parte', '🧾 Parte diario']];
   cuerpo.textContent = '';
@@ -380,9 +382,9 @@ function abrirForm(rep, borrador) {
   aviso('');
   if (borrador && borrador.F) { F = borrador.F; PASO = borrador.paso || 1; }
   else if (rep) {
-    F = { id: rep.id, nuevo: !!rep.nuevo, editar: true, fecha: rep.fecha, maquina: rep.maquina, albaran: rep.albaran, h_ini: rep.h_ini === '' ? '' : String(rep.h_ini), h_fin: rep.h_fin === '' ? '' : String(rep.h_fin), modo: rep.modo === 'TOTAL' ? 'TOTAL' : 'HORARIO', det: (rep.det || []).map(x => ({ k: x.k || (x.parada ? 'X' : x.fuera ? 'F' : 'P'), cc: x.cc || '', a: x.a || '', g: x.g || '', h: String(x.h || ''), d: x.d || '', t: x.t || '', n: x.n || '' })), obs: rep.obs || '', fotos: { ini: [], fin: [], parte: [] }, tiene: { ini: rep.n_ini || 0, fin: rep.n_fin || 0, parte: rep.n_parte || 0 }, creado: rep.creado_ms || 0 };
+    F = { id: rep.id, nuevo: !!rep.nuevo, editar: true, fecha: rep.fecha, maquina: rep.maquina, turno: rep.turno === 'NOCHE' ? 'NOCHE' : 'DIA', albaran: rep.albaran, h_ini: rep.h_ini === '' ? '' : String(rep.h_ini), h_fin: rep.h_fin === '' ? '' : String(rep.h_fin), modo: rep.modo === 'TOTAL' ? 'TOTAL' : 'HORARIO', det: (rep.det || []).map(x => ({ k: x.k || (x.parada ? 'X' : x.fuera ? 'F' : 'P'), cc: x.cc || '', a: x.a || '', g: x.g || '', h: String(x.h || ''), d: x.d || '', t: x.t || '', n: x.n || '' })), obs: rep.obs || '', fotos: { ini: [], fin: [], parte: [] }, tiene: { ini: rep.n_ini || 0, fin: rep.n_fin || 0, parte: rep.n_parte || 0 }, creado: rep.creado_ms || 0 };
     PASO = 1;
-  } else { F = { id: nuevoId(), nuevo: true, editar: false, fecha: hoy(), maquina: '', albaran: '', h_ini: '', h_fin: '', modo: 'HORARIO', det: [filaVacia()], obs: '', fotos: { ini: [], fin: [], parte: [] }, tiene: { ini: 0, fin: 0, parte: 0 }, creado: Date.now() }; PASO = 1; }
+  } else { F = { id: nuevoId(), nuevo: true, editar: false, fecha: hoy(), maquina: DATOS.fija || '', turno: '', albaran: '', h_ini: '', h_fin: '', modo: 'HORARIO', det: [filaVacia()], obs: '', fotos: { ini: [], fin: [], parte: [] }, tiene: { ini: 0, fin: 0, parte: 0 }, creado: Date.now() }; PASO = 1; }
   // fotos ya guardadas en el teléfono (reportes sin enviar que se vuelven a abrir)
   if (rep) { ['ini', 'fin', 'parte'].forEach(async c => { const d = asArr(await kv.get('f_' + rep.id + '_' + c)); if (d.length && F && F.id === rep.id) { F.fotos[c] = d; if (!$('form').hidden) pasoN(PASO, true); } }); }
   pantalla('form'); pasoN(PASO, true);
@@ -409,12 +411,12 @@ function barraPasos(n, alSiguiente, textoSig) {
   B.hidden = false;
 }
 async function salirForm() {
-  if (F && (F.maquina || F.albaran || F.h_ini || F.fotos.ini.length || F.fotos.parte.length) && !confirm('¿Salir? Lo que llevas se guarda para que continúes después.')) return;
+  if (F && ((F.maquina && F.maquina !== DATOS.fija) || F.turno || F.albaran || F.h_ini || F.fotos.ini.length || F.fotos.parte.length) && !confirm('¿Salir? Lo que llevas se guarda para que continúes después.')) return;
   await kv.set('borrador_' + user.llave, F && !F.editar ? { F: F, paso: PASO } : null).catch(() => {}); if (F && F.editar) await kv.del('borrador_' + user.llave).catch(() => {});
   abrirInicio();
 }
 function malMsg(t) { const m = h('div', { class: 'msgerr', style: 'font-size:19px;margin:10px 0' }, '⚠ ' + t); return m; }
-function listaMaquinas() { return (DATOS.maquinas || []).map(m => m.n || m.tipo).filter(Boolean); }
+function listaMaquinas() { return (DATOS.maquinas || []).map(m => ({ t: m.cod + ' · ' + m.tipo, sub: m.empresa, cod: m.cod })); }
 function abrirLista(titulo, grupos, alElegir, libreTxt) {
   const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9980;display:flex;align-items:flex-end;justify-content:center' });
   const hoja = h('div', { style: 'background:#fff;width:min(100%,560px);max-height:88vh;border-radius:14px 14px 0 0;display:flex;flex-direction:column;padding:12px' });
@@ -449,16 +451,18 @@ function pasoN(n, arriba) {
   const err = t => { C.appendChild(malMsg(t)); window.scrollTo(0, document.body.scrollHeight); };
   if (n === 1) {
     C.appendChild(cabeza(1, '¿Con qué máquina trabajó?'));
-    const b = h('button', { class: 'sec', style: 'font-size:22px;padding:18px;text-align:left', onclick: () => abrirLista('Elige la máquina', [{ ops: listaMaquinas().map(t => ({ t: t })) }], o => { F.maquina = o.t; pasoN(1); }, 'Otra máquina (escribir)') }, F.maquina ? '🚜 ' + F.maquina : 'Toca aquí para elegir la máquina');
-    C.appendChild(b);
-    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, 'Fecha del reporte:'));
+    if (DATOS.fija && F.maquina === DATOS.fija) C.appendChild(h('div', { class: 'card', style: 'margin:0;font-size:22px;font-weight:800' }, '🚜 ' + maqTxt(F.maquina)));
+    else C.appendChild(h('button', { class: 'sec', style: 'font-size:22px;padding:18px;text-align:left', onclick: () => abrirLista('Elige la máquina', [{ ops: listaMaquinas() }], o => { F.maquina = o.cod; guardarBorrador(); pasoN(1); }) }, F.maquina ? '🚜 ' + maqTxt(F.maquina) : 'Toca aquí para elegir la máquina'));
+    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, 'Turno:'));
+    C.appendChild(h('div', { class: 'opc' }, h('button', { class: 'sec' + (F.turno === 'DIA' ? ' on' : ''), style: 'font-size:22px;padding:16px', onclick: () => { F.turno = 'DIA'; pasoN(1); } }, '☀ Día'), h('button', { class: 'sec' + (F.turno === 'NOCHE' ? ' on' : ''), style: 'font-size:22px;padding:16px', onclick: () => { F.turno = 'NOCHE'; pasoN(1); } }, '🌙 Noche')));
+    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, 'Fecha del parte (la del papel):'));
     const hoyF = F.fecha === hoy();
-    C.appendChild(h('div', { class: 'card', style: 'margin:0' }, h('div', { style: 'font-size:22px;font-weight:800' }, (hoyF ? 'Hoy · ' : '') + fmtF(F.fecha)), !hoyF ? h('div', { style: 'color:#b36b00;font-weight:700;margin-top:4px' }, '⚠ Estás creando un reporte de otro día. Solo se puede de los últimos 3 días.') : null,
+    C.appendChild(h('div', { class: 'card', style: 'margin:0' }, h('div', { style: 'font-size:22px;font-weight:800' }, (hoyF ? 'Hoy · ' : '') + fmtF(F.fecha)), !hoyF ? h('div', { style: 'color:#b36b00;font-weight:700;margin-top:4px' }, '⚠ Es un reporte de otro día. Solo se puede de los últimos 3 días.') : null,
       h('div', { style: 'margin-top:8px' }, h('button', { class: 'link', onclick: () => { const i = h('input', { type: 'date', min: sumDias(hoy(), -3), max: hoy(), value: F.fecha, style: 'margin-top:8px' }); i.onchange = () => { if (i.value && i.value <= hoy() && i.value >= sumDias(hoy(), -3)) { F.fecha = i.value; pasoN(1); } }; C.appendChild(i); i.focus(); } }, 'Cambiar la fecha'))));
-    barraPasos(1, () => { if (!F.maquina.trim()) { pasoN(1); err('Elige la máquina.'); return; } pasoN(2); });
+    barraPasos(1, () => { if (!String(F.maquina).trim()) { pasoN(1); err('Elige la máquina.'); return; } if (!F.turno) { pasoN(1); err('Elige el turno: día o noche.'); return; } pasoN(2); });
   } else if (n === 2) {
     C.appendChild(cabeza(2, '¿Cuál es el número del informe diario?'));
-    C.appendChild(h('p', { class: 'ayuda' }, 'Es el número en rojo que está arriba a la derecha del papel (el parte diario).'));
+    C.appendChild(h('p', { class: 'ayuda' }, 'Es el número en rojo que está arriba a la derecha del papel (el parte diario). No se puede repetir.'));
     const i = h('input', { class: 'gran', inputmode: 'numeric', autocomplete: 'off', value: F.albaran, placeholder: 'Ej: 9503' }); i.oninput = () => { F.albaran = i.value.trim(); guardarBorrador(); }; C.appendChild(i);
     barraPasos(2, () => {
       if (!F.albaran) { pasoN(2); err('Escribe el número del informe.'); return; }
@@ -468,10 +472,10 @@ function pasoN(n, arriba) {
     });
   } else if (n === 3 || n === 4) {
     const ini = n === 3, k = ini ? 'ini' : 'fin';
-    C.appendChild(cabeza(n, ini ? 'Horómetro del INICIO del día' : 'Horómetro del FINAL del día'));
+    C.appendChild(cabeza(n, ini ? 'Horómetro (o kilómetros) al INICIO' : 'Horómetro (o kilómetros) al FINAL'));
     C.appendChild(h('p', { class: 'ayuda' }, '1. Toma la foto del horómetro (el reloj de la máquina). 2. Escribe el número que se ve.'));
     C.appendChild(bloqueFoto(k, 1280, 0.7));
-    C.appendChild(h('label', { style: 'margin-top:14px', for: 'hor' }, 'Número del horómetro'));
+    C.appendChild(h('label', { style: 'margin-top:14px', for: 'hor' }, 'Número que marca (horómetro o kilometraje)'));
     const i = h('input', { id: 'hor', class: 'gran', inputmode: 'decimal', autocomplete: 'off', value: ini ? F.h_ini : F.h_fin, placeholder: 'Ej: 2376,5' }); i.oninput = () => { if (ini) F.h_ini = i.value.trim(); else F.h_fin = i.value.trim(); guardarBorrador(); }; C.appendChild(i);
     if (!ini) { const t = totales(); if (!isNaN(t.hh)) C.appendChild(h('div', { class: 'resumen' }, '⏱ La máquina trabajó ' + nh(t.hh) + ' horas según el horómetro.')); }
     barraPasos(n, () => {
@@ -523,6 +527,7 @@ function pasoN(n, arriba) {
         if (!x.a) { pasoN(6); err('Elige qué hizo en la actividad ' + (i + 1) + '.'); return; }
         if (isNaN(v) || v <= 0) { pasoN(6); err('Revisa las horas de «' + x.a + '».'); return; }
       }
+      { const ds = {}; F.det.forEach(x => { if (x.k !== 'X') ds[x.cc ? x.cc : 'F|' + x.a.toLowerCase()] = 1; }); if (Object.keys(ds).length > 6) { pasoN(6); err('Máximo 6 actividades distintas por reporte, como en el parte. Junta las que sean la misma.'); return; } }
       if (t2.falta < -0.001) { pasoN(6); err('Las horas trabajadas (' + nh(t2.trab) + ') superan las del horómetro (' + nh(t2.hh) + '). Corrige las horas.'); return; }
       if (t2.trab + t2.par > 24.001) { pasoN(6); err('Entre horas trabajadas y paradas suman más de 24 horas.'); return; }
       if (F.modo === 'HORARIO') { const iv = F.det.map(x => { const m = s => { const p = s.split(':'); return Number(p[0]) * 60 + Number(p[1]); }, a = m(x.d), b = m(x.t); return [a, b > a ? b : b + 1440, x.a]; }); for (let i = 0; i < iv.length; i++) for (let j = i + 1; j < iv.length; j++) if (iv[i][0] < iv[j][1] && iv[j][0] < iv[i][1]) { pasoN(6); err('Los horarios de «' + iv[i][2] + '» y «' + iv[j][2] + '» se cruzan.'); return; } }
@@ -532,7 +537,7 @@ function pasoN(n, arriba) {
     C.appendChild(cabeza(7, 'Revisa y envía'));
     const t = totales();
     const fila = (a, b) => h('div', { style: 'display:flex;justify-content:space-between;gap:10px;border-top:1px solid #dde1e6;padding:7px 0;font-size:18px' }, h('span', { style: 'color:#51606d' }, a), h('b', { style: 'text-align:right' }, b));
-    C.appendChild(h('div', { class: 'card' }, fila('Fecha', fmtF(F.fecha)), fila('Máquina', F.maquina), fila('N° del informe', F.albaran), fila('Horómetro', nh(num(F.h_ini)) + ' → ' + nh(num(F.h_fin)) + ' (' + nh(t.hh) + ' h)'), fila('Fotos', '⏱ 2 · 🧾 ' + Math.max(F.fotos.parte.length, F.tiene.parte)),
+    C.appendChild(h('div', { class: 'card' }, fila('Fecha del parte', fmtF(F.fecha)), fila('Turno', F.turno === 'NOCHE' ? '🌙 Noche' : '☀ Día'), fila('Máquina', maqTxt(F.maquina)), fila('N° del informe', F.albaran), fila('Horómetro', nh(num(F.h_ini)) + ' → ' + nh(num(F.h_fin)) + ' (' + nh(t.hh) + ' h)'), fila('Fotos', '⏱ 2 · 🧾 ' + Math.max(F.fotos.parte.length, F.tiene.parte)),
       h('div', { style: 'font-weight:800;margin:10px 0 4px;font-size:18px' }, 'Trabajo de la máquina'),
       F.det.map(x => h('div', { style: 'border-top:1px solid #dde1e6;padding:6px 0;font-size:17px' }, h('b', {}, (x.k === 'P' && x.cc ? x.cc + ' · ' : '') + x.a), ' — ' + nh(horaFila(x)) + ' h' + (F.modo === 'HORARIO' ? ' (' + x.d + ' a ' + x.t + ')' : '') + (x.k === 'X' ? ' · parada' : ''))),
       fila('Total trabajado', nh(t.trab) + ' h')));
@@ -559,7 +564,7 @@ function elegirActividad(i) {
     pasoN(6);
   }, 'No está en la lista (escribirla)');
 }
-const PARADAS = ['Almuerzo / descanso', 'Disponible (sin trabajo)', 'Varada (dañada)', 'Mantenimiento', 'Reparación', 'Traslado de la máquina', 'Lluvia'];
+const PARADAS = ['Espera (sin trabajo)', 'Varada (máquina dañada)', 'Varada del martillo', 'Lluvia', 'Otro motivo'];
 
 /* ---------- guardar y enviar ---------- */
 function envio(ico, tit, txt, barra, botones) {
@@ -568,7 +573,7 @@ function envio(ico, tit, txt, barra, botones) {
 }
 async function guardarReporte() {
   const t = totales();
-  const r = { id: F.id, fecha: F.fecha, llave: user.llave, usuario: user.nombre, maquina: F.maquina.trim(), albaran: F.albaran.toUpperCase().replace(/\s+/g, ''), h_ini: num(F.h_ini), h_fin: num(F.h_fin), h_hor: t.hh, h_trab: t.trab, h_parada: t.par, modo: F.modo,
+  const r = { id: F.id, fecha: F.fecha, llave: user.llave, usuario: user.nombre, maquina: String(F.maquina).trim(), turno: F.turno, albaran: F.albaran.toUpperCase().replace(/\s+/g, ''), h_ini: num(F.h_ini), h_fin: num(F.h_fin), h_hor: t.hh, h_trab: t.trab, h_parada: t.par, modo: F.modo,
     det: F.det.map(x => { const o = { k: x.k, cc: x.cc, a: x.a, g: x.g, h: horaFila(x), n: x.n }; if (F.modo === 'HORARIO') { o.d = x.d; o.t = x.t; } o.parada = x.k === 'X'; o.fuera = x.k === 'F'; return o; }),
     obs: F.obs.trim(), n_ini: Math.max(F.fotos.ini.length, F.tiene.ini), n_fin: Math.max(F.fotos.fin.length, F.tiene.fin), n_parte: Math.max(F.fotos.parte.length, F.tiene.parte), registrado: F.editar ? (REPS.find(x => x.id === F.id) || {}).registrado || hoy() : hoy(), creado_ms: F.creado || 0, alertas: '', nuevo: F.nuevo };
   envio('💾', 'Guardando…', 'No cierres la aplicación hasta que termine.', true);
@@ -604,7 +609,7 @@ async function sincronizar(manual, ui) {
       let r;
       if (op.t === 'g') {
         const rep = REPS.find(x => x.id === op.rid); if (!rep) { COLA = COLA.filter(o => o !== op); await guardarCola(); continue; }
-        const p = { id: rep.id, fecha: rep.fecha, maquina: rep.maquina, albaran: rep.albaran, h_ini: rep.h_ini, h_fin: rep.h_fin, modo: rep.modo, det: rep.det.map(x => ({ k: x.k, cc: x.cc, a: x.a, h: x.h, d: x.d, t: x.t, n: x.n })), obs: rep.obs };
+        const p = { id: rep.id, fecha: rep.fecha, maquina: rep.maquina, turno: rep.turno, albaran: rep.albaran, h_ini: rep.h_ini, h_fin: rep.h_fin, modo: rep.modo, det: rep.det.map(x => ({ k: x.k, cc: x.cc, a: x.a, h: x.h, d: x.d, t: x.t, n: x.n })), obs: rep.obs };
         for (const c of ['ini', 'fin', 'parte']) { const f = asArr(await kv.get('f_' + rep.id + '_' + c)); if (f.length) p['foto_' + c] = f; }
         try { r = await api({ accion: 'mq_guardar', llave: op.llave, rep: p, creado: op.creado || 0 }, 240000); } catch (e) { resultado = 'red'; break; }
       } else { try { r = await api({ accion: 'mq_eliminar', llave: op.llave, id: op.rid }, 60000); } catch (e) { resultado = 'red'; break; } }

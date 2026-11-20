@@ -1534,6 +1534,7 @@ const MQ_TABS = [['rep', '📋 Reportes'], ['res', '📊 Resumen'], ['maq', '⚙
 let MQ = null, MQTAB = selGet('mq', 'rep', v => v === 'rep' || v === 'res' || v === 'maq'), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
 const mqNorm = x => { let t = String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
 const mqSinTilde = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const mqLbl = r => r.maquina + (r.tipo ? ' · ' + r.tipo : '');
 const mqAl = r => String(r.alertas || '').split(';').map(x => x.trim()).filter(Boolean);
 const mqFuera = r => (r.det || []).some(x => x.fuera);
 const mqSin = r => Math.max(0, Math.round(((Number(r.h_hor) || 0) - (Number(r.h_trab) || 0)) * 100) / 100);
@@ -1558,26 +1559,31 @@ function vistaMqMaq(c) {
   const envia = async (req, ok) => {
     msg.style.color = '#51606d'; msg.textContent = 'Guardando…';
     try {
-      const r = await api(Object.assign({ accion: 'admin_tr_geo', llave: LLAVE }, req));
+      const r = await api(Object.assign({ accion: 'admin_mq_maq', llave: LLAVE }, req));
       if (!r.ok) { msg.style.color = '#b3261e'; msg.textContent = '⚠ ' + (r.mensaje || 'No se pudo guardar'); return; }
       MQ.maquinas = r.maquinas || []; const y = window.scrollY; pintarMq(); window.scrollTo(0, y);
       const m2 = $('mqMsg'); if (m2) { m2.style.color = '#1b7a3a'; m2.textContent = '✔ ' + ok; }
     } catch (e) { msg.style.color = '#b3261e'; msg.textContent = '⚠ Sin señal. Intenta de nuevo.'; }
   };
-  const th = t => h('th', { style: 'text-align:left;padding:6px' }, t), td = x => h('td', { style: 'padding:4px 6px;vertical-align:middle' }, x);
+  const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap' }, t), td = x => h('td', { style: 'padding:4px 6px;vertical-align:middle' }, x);
+  const inp = (v, w, ph) => h('input', { type: 'text', value: v || '', placeholder: ph || '', style: 'width:' + w + 'px;font-size:14px;padding:6px' });
   const fila = (x, nuevo) => {
-    const cod = h('input', { type: 'text', value: x.movil || '', placeholder: 'Código único', style: 'width:140px;font-size:16px;padding:8px;font-weight:700' });
-    const des = h('input', { type: 'text', value: x.tipo || '', placeholder: 'Descripción sencilla (ej. RETROEXCAVADORA CAT 420)', style: 'width:100%;min-width:260px;font-size:16px;padding:8px' });
-    const req = () => ({ tabla: 'maquina', op: 'guardar', movil: cod.value.trim(), movil_orig: nuevo ? '' : (x.movil || ''), tipo_orig: nuevo ? '' : (x.tipo || ''), tipo: des.value.trim() });
-    const guardar = () => { if (!cod.value.trim()) { cod.focus(); msg.style.color = '#b3261e'; msg.textContent = '⚠ Escribe el código de la máquina'; return; } if (!des.value.trim()) { des.focus(); msg.style.color = '#b3261e'; msg.textContent = '⚠ Escribe la descripción'; return; } envia(req(), nuevo ? 'Máquina agregada' : 'Máquina guardada'); };
-    const bs = h('div', { style: 'display:flex;gap:6px' }, h('button', { style: 'padding:8px 12px', onclick: guardar }, nuevo ? '➕ Agregar' : '💾 Guardar'));
-    if (!nuevo) bs.appendChild(h('button', { class: 'sec', style: 'padding:8px 12px', title: 'Retirar máquina', onclick: () => { if (confirm('¿Retirar la máquina ' + (x.movil || x.tipo) + '? Los reportes ya hechos conservan su nombre.')) envia({ tabla: 'maquina', op: 'eliminar', movil: x.movil || '', movil_orig: x.movil || '', tipo_orig: x.tipo || '' }, 'Máquina retirada'); } }, '🗑'));
-    des.onkeydown = cod.onkeydown = e => { if (e.key === 'Enter') guardar(); };
-    return h('tr', { style: nuevo ? 'background:#f1f8f1' : (x.pv || !x.movil ? 'background:#fff3cd' : '') }, td(cod), td(des), td(x.pv ? h('small', {}, '⚠ Escrita por un usuario: asígnale código') : (!x.movil ? h('small', {}, '⚠ Falta código') : '')), td(bs));
+    const tp = inp(x.tipo, 240, 'Tipo de máquina'), em = inp(x.empresa, 110, 'Empresa'), sd = inp(x.sd, 70, 'Stand-by'), hdl = inp(x.hdl, 140, 'L-V'), hds = inp(x.hds, 140, 'Sáb'), sn = inp(x.sn, 70, 'Stand-by'), hnl = inp(x.hnl, 140, 'L-V'), hns = inp(x.hns, 140, 'Sáb');
+    const req = op => ({ op: op, cod: x.cod, tipo: tp.value, empresa: em.value, sd: sd.value, hdl: hdl.value, hds: hds.value, sn: sn.value, hnl: hnl.value, hns: hns.value });
+    const ret = x.estado === 'RETIRADA';
+    const bs = h('div', { style: 'display:flex;gap:6px;white-space:nowrap' });
+    if (nuevo) bs.appendChild(h('button', { style: 'padding:8px 12px', onclick: () => { if (!tp.value.trim()) { tp.focus(); return; } if (!em.value.trim()) { em.focus(); return; } envia(req('crear'), 'Máquina creada con su código'); } }, '➕ Crear'));
+    else {
+      bs.appendChild(h('button', { style: 'padding:8px 12px', onclick: () => envia(req('editar'), 'Máquina ' + x.cod + ' guardada') }, '💾 Guardar'));
+      bs.appendChild(ret ? h('button', { class: 'sec', style: 'padding:8px 12px', onclick: () => envia({ op: 'reactivar', cod: x.cod }, 'Máquina ' + x.cod + ' reactivada') }, '♻ Reactivar')
+        : h('button', { class: 'sec', style: 'padding:8px 12px', onclick: () => { if (confirm('¿Retirar la máquina ' + x.cod + ' (' + x.tipo + ')? Su código queda reservado y no se vuelve a asignar.')) envia({ op: 'retirar', cod: x.cod }, 'Máquina ' + x.cod + ' retirada (código reservado)'); } }, '⏹ Retirar'));
+    }
+    return h('tr', { style: nuevo ? 'background:#f1f8f1' : (ret ? 'opacity:.55;background:#eee' : '') }, td(h('b', { style: 'font-size:18px' }, nuevo ? 'nuevo' : x.cod)), td(tp), td(em), td(sd), td(hdl), td(hds), td(sn), td(hnl), td(hns), td(ret ? h('small', {}, 'Retirada ' + (x.retiro || '')) : ''), td(bs));
   };
-  const tb = h('table', { style: 'border-collapse:collapse;width:100%' }, h('thead', {}, h('tr', {}, ['Código único', 'Descripción', '', ''].map(th))));
+  const tb = h('table', { style: 'border-collapse:collapse;width:100%' }, h('thead', {}, h('tr', {}, ['Código', 'Tipo de máquina', 'Empresa', 'Stand-by día', 'Día L-V', 'Día sáb', 'Stand-by noche', 'Noche L-V', 'Noche sáb', '', ''].map(th))));
   const body = h('tbody', {}, fila({}, true)); (MQ.maquinas || []).forEach(x => body.appendChild(fila(x, false))); tb.appendChild(body);
-  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Lista de máquinas (retroexcavadoras, pajaritas, buldócer, etc.). El código lo asignas tú y no se puede repetir. Esta lista es la que ven los usuarios al reportar. ' + (MQ.maquinas || []).length + ' máquina(s).'));
+  const n = (MQ.maquinas || []).filter(x => x.estado !== 'RETIRADA').length;
+  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Tabla global de máquinas del proyecto: ' + n + ' activa(s). El código se asigna solo (siguiente número) y nunca se vuelve a usar, aunque la máquina se retire. Los operadores solo ven las máquinas activas.'));
   c.appendChild(msg); c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tb));
 }
 function mqFiltrados() {
@@ -1588,7 +1594,7 @@ function mqFiltrados() {
     if (f.est === 'alerta' && !mqAl(r).length) return false;
     if (f.est === 'fuera' && !mqFuera(r)) return false;
     if (f.est === 'sin' && mqSin(r) < 0.05) return false;
-    if (q) { const alb = mqNorm(r.albaran); if (!(alb.indexOf(qa) >= 0 || mqSinTilde([r.maquina, r.usuario, r.obs, (r.det || []).map(x => x.cc + ' ' + x.a + ' ' + (x.n || '')).join(' ')].join(' ')).indexOf(q) >= 0)) return false; }
+    if (q) { const alb = mqNorm(r.albaran); if (!(alb.indexOf(qa) >= 0 || mqSinTilde([mqLbl(r), r.empresa, r.turno, r.usuario, r.obs, (r.det || []).map(x => x.cc + ' ' + x.a + ' ' + (x.n || '')).join(' ')].join(' ')).indexOf(q) >= 0)) return false; }
     return true;
   });
 }
@@ -1597,14 +1603,14 @@ function pintarMq() {
   if (MQTAB === 'maq') { vistaMqMaq(c); return; }
   const R = MQ.reportes;
   if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay reportes de maquinaria en estas fechas')); return; }
-  const maqs = Array.from(new Set(R.map(r => r.maquina))).sort(), usrs = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => nomDe(a).localeCompare(nomDe(b)));
+  const mm = {}; R.forEach(r => { mm[r.maquina] = mqLbl(r); }); const maqs = Object.keys(mm).sort((a, b) => (Number(a) - Number(b)) || a.localeCompare(b)), usrs = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => nomDe(a).localeCompare(nomDe(b)));
   const q = h('input', { type: 'search', placeholder: '🔎 Buscar por N° de albarán, máquina, usuario o actividad', value: MQF.q, style: 'font-size:17px;padding:10px;min-width:260px;flex:2' });
   let tq; q.oninput = () => { MQF.q = q.value; clearTimeout(tq); tq = setTimeout(() => { MQN = 40; pintarLista(); }, 250); };
   const sel = (k, op, def) => { const s = h('select', { onchange: () => { MQF[k] = s.value; MQN = 40; pintarLista(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = MQF[k]; return s; };
-  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, q, sel('maq', maqs.map(m => [m, m]), 'Todas las máquinas'), sel('usr', usrs.map(l => [l, nomDe(l)]), 'Todos los usuarios'), sel('est', [['alerta', '⚠ Con alertas'], ['fuera', '✏️ Con actividad fuera de estructura'], ['sin', '⏳ Horas sin repartir']], 'Todos'),
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, q, sel('maq', maqs.map(m => [m, mm[m]]), 'Todas las máquinas'), sel('usr', usrs.map(l => [l, nomDe(l)]), 'Todos los usuarios'), sel('est', [['alerta', '⚠ Con alertas'], ['fuera', '✏️ Con actividad fuera de estructura'], ['sin', '⏳ Horas sin repartir']], 'Todos'),
     h('button', { onclick: xlsxMq }, '⬇ Excel')));
   { const cnt = {}; R.forEach(r => { const k = mqNorm(r.albaran); (cnt[k] = cnt[k] || []).push(r); }); const dup = Object.keys(cnt).filter(k => k && cnt[k].length > 1);
-    if (dup.length) c.appendChild(h('div', { class: 'aviso err', style: 'margin-bottom:10px;font-weight:700' }, '🚨 Albaranes repetidos: ' + dup.map(k => cnt[k][0].albaran + ' (' + cnt[k].map(r => r.maquina + ' ' + fmtF(r.fecha) + ' ' + nomDe(r.llave)).join(' / ') + ')').join(' · '))); }
+    if (dup.length) c.appendChild(h('div', { class: 'aviso err', style: 'margin-bottom:10px;font-weight:700' }, '🚨 Albaranes repetidos: ' + dup.map(k => cnt[k][0].albaran + ' (' + cnt[k].map(r => mqLbl(r) + ' ' + fmtF(r.fecha) + ' ' + nomDe(r.llave)).join(' / ') + ')').join(' · '))); }
   const K = (t, v, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, h('b', {}, v), t);
   const T = R.reduce((a, r) => { a.h += r.h_hor; a.t += r.h_trab; a.p += r.h_parada; return a; }, { h: 0, t: 0, p: 0 });
   const nAl = R.filter(r => mqAl(r).length).length, nFu = R.filter(mqFuera).length;
@@ -1625,8 +1631,8 @@ function tarjetaMq(r) {
   const tag = (t, w) => h('span', { class: 'tag' + (w ? ' w' : ''), style: w ? 'color:#12202b' : '' }, t);
   const filas = (r.det || []).map(x => h('tr', {}, h('td', {}, x.parada ? '⏸ Parada' : x.fuera ? '✏️ Fuera de estructura' : '🏗 Productiva'), h('td', {}, x.cc || ''), h('td', { class: 'w' }, x.a + (x.n ? ' — ' + x.n : '')), h('td', {}, x.g || ''), h('td', {}, x.d ? x.d + ' → ' + x.t : ''), h('td', { style: 'text-align:right;font-weight:700' }, nf(x.h) + ' h')));
   return h('div', { class: 'tcard' + (al.length || sin >= 0.05 ? ' warn' : '') },
-    h('div', { class: 'big' }, '🧾 Albarán ' + r.albaran, h('span', { style: 'font-weight:400' }, '  ·  ' + r.maquina)),
-    h('div', { class: 'small', style: 'margin:2px 0 8px' }, fmtF(r.fecha) + ' · ' + nomDe(r.llave) + (r.registrado && r.registrado.slice(0, 10) !== r.fecha ? ' · registrado ' + r.registrado : '') + (r.modificado && r.modificado !== r.registrado ? ' · corregido ' + r.modificado : '')),
+    h('div', { class: 'big' }, '🧾 Albarán ' + r.albaran, h('span', { style: 'font-weight:400' }, '  ·  🚜 ' + mqLbl(r))),
+    h('div', { class: 'small', style: 'margin:2px 0 8px' }, fmtF(r.fecha) + ' · ' + (r.turno === 'NOCHE' ? '🌙 Noche' : '☀ Día') + (r.empresa ? ' · ' + r.empresa : '') + ' · ' + nomDe(r.llave) + (r.registrado && r.registrado.slice(0, 10) !== r.fecha ? ' · registrado ' + r.registrado : '') + (r.modificado && r.modificado !== r.registrado ? ' · corregido ' + r.modificado : '')),
     h('div', { class: 'kpis kpis2', style: 'margin-bottom:8px' },
       h('div', { class: 'kpi' }, h('b', { style: 'font-size:20px' }, String(r.h_ini).replace('.', ',') + ' → ' + String(r.h_fin).replace('.', ',')), 'Horómetro inicio → final'), h('div', { class: 'kpi' }, h('b', { style: 'font-size:20px' }, nf(r.h_hor) + ' h'), 'Según horómetro'),
       h('div', { class: 'kpi' }, h('b', { style: 'font-size:20px' }, nf(r.h_trab) + ' h'), 'Trabajadas (repartidas)'), h('div', { class: 'kpi' + (r.h_parada ? ' mal' : '') }, h('b', { style: 'font-size:20px' }, nf(r.h_parada) + ' h'), 'Paradas'),
@@ -1639,7 +1645,7 @@ function tarjetaMq(r) {
 async function verFotosMq(r) {
   const v = $('visor'); v.textContent = ''; v.style.overflow = 'auto'; v.style.justifyContent = 'flex-start';
   const cerrar = () => { v.hidden = true; v.style.overflow = ''; v.style.justifyContent = ''; };
-  v.appendChild(h('div', { class: 'row', style: 'width:min(96vw,900px);justify-content:space-between;align-items:center;color:#fff;position:sticky;top:0;background:rgba(0,0,0,.85);padding:6px 0;z-index:2' }, h('b', {}, '🧾 Albarán ' + r.albaran + ' · ' + r.maquina + ' · ' + fmtF(r.fecha)), h('button', { onclick: cerrar }, '✕ Cerrar')));
+  v.appendChild(h('div', { class: 'row', style: 'width:min(96vw,900px);justify-content:space-between;align-items:center;color:#fff;position:sticky;top:0;background:rgba(0,0,0,.85);padding:6px 0;z-index:2' }, h('b', {}, '🧾 Albarán ' + r.albaran + ' · ' + mqLbl(r) + ' · ' + fmtF(r.fecha)), h('button', { onclick: cerrar }, '✕ Cerrar')));
   const cuerpo = h('div', { style: 'width:min(96vw,900px)' }, h('div', { class: 'small' }, 'Abriendo fotos…')); v.appendChild(cuerpo); v.hidden = false;
   try {
     const x = await api({ accion: 'admin_mq_foto', llave: LLAVE, id: r.id });
@@ -1660,7 +1666,7 @@ function mqAgrupa(L, fk) {
 }
 function vistaMqRes(c) {
   const L = mqFiltrados();
-  const maq = {}; L.forEach(r => { const a = (maq[r.maquina] = maq[r.maquina] || { n: 0, h: 0, t: 0, p: 0 }); a.n++; a.h += r.h_hor; a.t += r.h_trab; a.p += r.h_parada; });
+  const maq = {}; L.forEach(r => { const a = (maq[mqLbl(r)] = maq[mqLbl(r)] || { n: 0, h: 0, t: 0, p: 0 }); a.n++; a.h += r.h_hor; a.t += r.h_trab; a.p += r.h_parada; });
   c.appendChild(tablaMq('🚜 Por máquina', ['Máquina', 'Reportes', 'Horas horómetro', 'Horas trabajadas', 'Horas paradas', '% repartido'], Object.keys(maq).sort().map(k => { const a = maq[k]; return [k, a.n, a.h, a.t, a.p, a.h ? Math.round(a.t / a.h * 100) + ' %' : '—']; })));
   const prod = mqAgrupa(L, (r, x) => x.k === 'P' ? { k: x.cc, v: x.a } : null);
   c.appendChild(tablaMq('🏗 Horas por centro de costo', ['Código', 'Actividad', 'Horas', 'Máquinas', 'Reportes'], prod.map(a => [a.k, a.v, a.h, Array.from(a.m).join(', '), a.rs.size])));
@@ -1671,14 +1677,29 @@ function vistaMqRes(c) {
 }
 function xlsxMq() {
   const L = mqFiltrados(); if (!L.length) { banner('No hay reportes para descargar', 'mal'); return; }
-  const cols = ['Fecha', 'N° albarán', 'Máquina', 'Usuario que registró', 'Horómetro inicio', 'Horómetro final', 'Horas horómetro', 'Horas trabajadas', 'Horas paradas', 'Horas sin repartir', 'Forma de registro', 'Alertas', 'Observaciones', 'Fotos inicio', 'Fotos final', 'Fotos parte', 'Registrado', 'Última modificación'];
-  const rows = L.map(r => [r.fecha, r.albaran, r.maquina, nomDe(r.llave), r.h_ini, r.h_fin, r.h_hor, r.h_trab, r.h_parada, mqSin(r), r.modo === 'HORARIO' ? 'Por horarios' : 'Por total de horas', mqAl(r).join('; '), r.obs || '', r.n_ini, r.n_fin, r.n_parte, r.registrado, r.modificado]);
-  const det = []; L.forEach(r => (r.det || []).forEach(x => det.push([r.fecha, r.albaran, r.maquina, nomDe(r.llave), x.parada ? 'Parada' : x.fuera ? 'Fuera de estructura' : 'Productiva', x.cc || '', x.a, x.g || '', x.d || '', x.t || '', Number(x.h) || 0, x.n || ''])));
-  const dm = {}; L.forEach(r => (r.det || []).forEach(x => { const k = r.maquina + '|' + (x.cc || '') + '|' + x.a; const a = (dm[k] = dm[k] || [r.maquina, x.parada ? 'Parada' : x.fuera ? 'Fuera de estructura' : 'Productiva', x.cc || '', x.a, 0, 0]); a[4] += Number(x.h) || 0; a[5]++; }));
-  const cons = Object.values(dm).map(a => [a[0], a[1], a[2], a[3], Math.round(a[4] * 100) / 100, a[5]]).sort((a, b) => a[0].localeCompare(b[0]) || b[4] - a[4]);
-  excelHoja('Reportes', cols, rows, 'Maquinaria_' + $('desde').value + '_' + $('hasta').value + '.xlsx', [
-    { nombre: 'Detalle de actividades', cols: ['Fecha', 'N° albarán', 'Máquina', 'Usuario que registró', 'Tipo', 'Centro de costo', 'Actividad', 'Grupo', 'Desde', 'Hasta', 'Horas', 'Detalle'], rows: det },
-    { nombre: 'Consolidado', cols: ['Máquina', 'Tipo', 'Centro de costo', 'Actividad', 'Horas', 'Veces'], rows: cons }]);
+  const mes = f => new Date(f + 'T12:00:00').toLocaleDateString('es-CO', { month: 'long' }).toUpperCase(), dia = f => new Date(f + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' }).toUpperCase();
+  const M = {}; (MQ.maquinas || []).forEach(m => { M[m.cod] = m; });
+  const PK = { 'espera': 'esp', 'varada (maquina danada)': 'var', 'otro motivo': 'otr', 'lluvia': 'llu', 'varada del martillo': 'mar' };
+  const cols = ['FECHA', 'MES', 'DIA', 'ALBARAN', 'MOVIL', 'TIPO DE MAQUINA', 'EMPRESA', 'TURNO', 'HR. I. MAQUINA', 'HR. F. MAQUINA', 'HOROMETRO / KILOMETRAJE'];
+  for (let i = 1; i <= 6; i++) cols.push('HRS (CC' + i + ')', 'C. COSTO ' + i);
+  cols.push('HR. ESPERA', 'HR. VARADA MAQUINA', 'HR. OTRO', 'HR. LLUVIA', 'COMPROBACION JORNADA', 'HR. VARADA MARTILLO', 'JORNADA CONTRATO', 'HORAS TOTALES DEL TURNO', 'OBSERVACIONES', 'USUARIO QUE REGISTRO', 'ALERTAS', 'REGISTRADO');
+  const rows = L.slice().sort((a, b) => a.fecha.localeCompare(b.fecha) || (Number(a.maquina) - Number(b.maquina))).map(r => {
+    const cc = {}, pa = { esp: 0, var: 0, otr: 0, llu: 0, mar: 0 };
+    (r.det || []).forEach(x => { const h = Number(x.h) || 0; if (x.parada) { const k = PK[mqSinTilde(x.a).replace(/\s*\(sin trabajo\)/, '')] || PK[mqSinTilde(x.a)] || 'otr'; pa[k] += h; } else { const k = x.cc ? x.cc : x.a; cc[k] = (cc[k] || 0) + h; } });
+    const ks = Object.keys(cc), q = M[r.maquina] || {}, dsem = new Date(r.fecha + 'T12:00:00').getDay();
+    const jorn = dsem === 0 ? 'DIA FESTIVO' : r.turno === 'NOCHE' ? (dsem === 6 ? q.hns : q.hnl) : (dsem === 6 ? q.hds : q.hdl);
+    const sumcc = ks.reduce((a, k) => a + cc[k], 0), r2 = x => Math.round(x * 100) / 100;
+    const row = [r.fecha, mes(r.fecha), dia(r.fecha), r.albaran, Number(r.maquina) || r.maquina, r.tipo || '', r.empresa || '', r.turno === 'NOCHE' ? 'NOCHE' : 'DIA', r.h_ini, r.h_fin, r.h_hor];
+    for (let i = 0; i < 6; i++) row.push(ks[i] !== undefined ? r2(cc[ks[i]]) : '', ks[i] !== undefined ? ks[i] : '');
+    row.push(pa.esp || '', pa.var || '', pa.otr || '', pa.llu || '', Math.abs(sumcc - r.h_hor) < 0.05 ? 'OK' : 'ERROR', pa.mar || '', jorn || '', r2(r.h_hor + pa.esp + pa.var + pa.otr + pa.llu), r.obs || '', nomDe(r.llave), mqAl(r).join('; '), r.registrado);
+    return row;
+  });
+  const det = []; L.forEach(r => (r.det || []).forEach(x => det.push([r.fecha, r.albaran, r.maquina, r.tipo || '', r.turno === 'NOCHE' ? 'NOCHE' : 'DIA', nomDe(r.llave), x.parada ? 'Parada' : x.fuera ? 'Fuera de estructura' : 'Productiva', x.cc || '', x.a, x.g || '', x.d || '', x.t || '', Number(x.h) || 0, x.n || ''])));
+  const dm = {}; L.forEach(r => (r.det || []).forEach(x => { const k = r.maquina + '|' + (x.cc || '') + '|' + x.a; const a = (dm[k] = dm[k] || [Number(r.maquina) || r.maquina, r.tipo || '', x.parada ? 'Parada' : x.fuera ? 'Fuera de estructura' : 'Productiva', x.cc || '', x.a, 0, 0]); a[5] += Number(x.h) || 0; a[6]++; }));
+  const cons = Object.values(dm).map(a => [a[0], a[1], a[2], a[3], a[4], Math.round(a[5] * 100) / 100, a[6]]).sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'es', { numeric: true }) || b[5] - a[5]);
+  excelHoja('PARTE DIARIO', cols, rows, 'Maquinaria_' + $('desde').value + '_' + $('hasta').value + '.xlsx', [
+    { nombre: 'Detalle de actividades', cols: ['Fecha', 'N° albarán', 'Móvil', 'Tipo de máquina', 'Turno', 'Usuario que registró', 'Tipo', 'Centro de costo', 'Actividad', 'Grupo', 'Desde', 'Hasta', 'Horas', 'Detalle'], rows: det },
+    { nombre: 'Consolidado', cols: ['Móvil', 'Tipo de máquina', 'Tipo', 'Centro de costo', 'Actividad', 'Horas', 'Veces'], rows: cons }]);
 }
 const esPd = m => m !== 'transportes' && m !== 'acero' && m !== 'maquinaria';
 function navegacion() {
