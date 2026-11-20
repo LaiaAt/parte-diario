@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="acero/style.css">
 <style>
 /* OE: mismo encabezado, tarjetas y barra inferior de Acero; un paso por pantalla */
-.top{background:#0a7f2e}.top .logo{width:auto;height:38px;border-radius:6px;background:#fff;padding:2px 4px}
+.top{background:#0a7f2e}.ibtn{display:inline-flex;align-items:center;justify-content:center}.top .logo{width:auto;height:38px;border-radius:6px;background:#fff;padding:2px 4px}
 main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padding-bottom:110px}
 .preg{font-size:1.35rem;margin:6px 2px 12px;color:#0f172a}
 .hs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 14px}
@@ -45,7 +45,7 @@ img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;backg
 <body>
 <div id="app"></div>
 <div id="toast" role="status" aria-live="polite"></div>
-<script src="acero/xlsx.js?v=281"></script>
+<script src="acero/xlsx.js?v=282"></script>
 <script>
 
 'use strict';
@@ -124,9 +124,11 @@ async function sincronizar() {
   } finally { S.busy = false; }
   await pedirDia(); if (S.tab === 'mis') pedirMis();
 }
+/* Hojas de cálculo guardan "2.10" como número 2.1: se vuelve a su código de dos decimales */
+const normH = h => { const t = String(h == null ? '' : h).trim(); return /^\d\.\d$/.test(t) ? t + '0' : t; };
 const regDe = f => {
   const base = f === S.fecha ? S.srv : (S.mis[f] || []), pf = S.pend.filter(x => x.fecha === f), pid = new Set(pf.map(x => x.id));
-  return base.filter(x => !pid.has(x.id)).map(x => ({ ...x, _ok: true })).concat(pf.map(x => ({ ...x, foto: !!x.foto, _ok: false })));
+  return base.filter(x => !pid.has(x.id)).map(x => ({ ...x, hito: normH(x.hito), _ok: true })).concat(pf.map(x => ({ ...x, foto: !!x.foto, _ok: false })));
 };
 const todosDia = () => regDe(S.fecha);
 const ultimosDias = () => [0, 1, 2, 3, 4, 5, 6, 7].map(n => sumDias(hoyISO(), -n));
@@ -154,7 +156,7 @@ function vLogin() {
 }
 function vTop() {
   return '<header class="top"><img class="logo" src="logo_ccsn.png" alt="CCSN"><div class="tit"><b>' + TITULO + '</b><span>' + esc(S.ses.nombre) + '</span></div>' +
-    '<button class="ibtn" data-a="refrescar" title="Actualizar">⟳</button><button class="ibtn" data-a="salir" title="Salir">⏻</button></header>';
+    '<button class="ibtn" data-a="refrescar" title="Actualizar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button><button class="ibtn" data-a="salir" title="Salir"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg></button></header>';
 }
 function vBandas() {
   let h = '';

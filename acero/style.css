@@ -21,7 +21,7 @@ button, input, select { font: inherit; }
 .top .tit { flex: 1; min-width: 0; }
 .top .tit b { display: block; font-size: 1rem; }
 .top .tit span { font-size: .78rem; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-.ibtn { background: rgba(255,255,255,.12); color: #fff; border: 0; border-radius: 10px; min-width: 40px; height: 40px; font-size: 1.05rem; cursor: pointer; }
+.ibtn { display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.12); color: #fff; border: 0; border-radius: 10px; min-width: 40px; height: 40px; font-size: 1.05rem; cursor: pointer; }
 .ibtn:active { background: rgba(255,255,255,.25); }
 .banda { padding: 8px 14px; font-size: .86rem; display: flex; gap: 8px; align-items: center; }
 .banda.warn { background: var(--warnbg); color: #7a5200; } .banda.bad { background: var(--badbg); color: #8a2323; } .banda.info { background: #e8f0fe; color: #1d3f8a; }

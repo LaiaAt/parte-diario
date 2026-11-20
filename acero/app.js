@@ -77,7 +77,7 @@
     if (EMB) return '';
     return '<header class="top"><img class="logo" src="logo_ccsn.png" alt="CCSN"><div class="tit"><b>' + esc(CFG.TITULO) + '</b><span>' +
       esc(S.ses.nombre) + ' · ' + (esAdmin() ? 'Administrador' : 'Supervisor') + (Api.remoto ? '' : ' · modo local') + '</span></div>' +
-      (MODO === 'dashboard' ? '<a class="ibtn" href="admin.html" title="Volver al Dashboard" style="text-decoration:none;display:flex;align-items:center;justify-content:center">⌂</a>' : '') + '<button class="ibtn" data-a="refrescar" title="Actualizar">⟳</button><button class="ibtn" data-a="salir" title="Salir">⏻</button></header>';
+      (MODO === 'dashboard' ? '<a class="ibtn" href="admin.html" title="Volver al Dashboard" style="text-decoration:none;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg></a>' : '') + '<button class="ibtn" data-a="refrescar" title="Actualizar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button><button class="ibtn" data-a="salir" title="Salir"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg></button></header>';
   }
 
   function vBandas() {
