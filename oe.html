@@ -38,7 +38,7 @@ main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padd
 .reg{border-top:1px solid var(--line);padding:9px 0}.reg:first-child{border-top:0}.reg b{display:block}.reg .tt{color:#0a7f2e;display:inline}
 img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:#000;margin-top:10px}
 .lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
-.dcard{padding:0;overflow:hidden}.dcard>*:not(.dh){margin-left:14px;margin-right:14px}.dcard>.btn.blk{width:calc(100% - 28px)}.dcard>.rt{margin-bottom:14px}.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:14px;font-size:1.05rem;color:#0f172a;text-align:left;cursor:pointer;margin-bottom:0}.dh b{flex:1}.dh i{font-style:normal;color:#0a7f2e;font-size:1.1rem}.dh.vac{cursor:default;opacity:.7}.dcard>.hh:first-of-type,.dcard>.btn+.hh{margin-top:12px}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.uch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.uch button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:12px;min-height:54px;font-weight:700;font-size:.98rem;cursor:pointer;padding:6px}.uch button.on{background:#0a7f2e;border-color:#0a7f2e;color:#fff}.otro{margin:10px 0 4px;min-height:48px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
+.dcard{padding:0;overflow:hidden}.dcard>*:not(.dh){margin-left:14px;margin-right:14px}.dcard>.btn.blk{width:calc(100% - 28px)}.dcard>.rt{margin-bottom:14px}.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:14px;font-size:1.05rem;color:#0f172a;text-align:left;cursor:pointer;margin-bottom:0}.dh b{flex:1}.dh i{font-style:normal;color:#0a7f2e;font-size:1.1rem}.dh.vac{cursor:default;opacity:.7}.dcard>.hh:first-of-type,.dcard>.btn+.hh{margin-top:12px}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}.rr .btn{min-height:34px;padding:4px 10px}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.uch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.uch button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:12px;min-height:54px;font-weight:700;font-size:.98rem;cursor:pointer;padding:6px}.uch button.on{background:#0a7f2e;border-color:#0a7f2e;color:#fff}.otro{margin:10px 0 4px;min-height:48px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
 .sbar .sres{display:none}.sbar{gap:12px}.sbar .btn,.sbar .btn.sacar2,.sbar .btn.cnl{flex:1 1 0;width:0;min-width:0;box-sizing:border-box;margin:0;padding:0 8px;min-height:56px;font-size:1.1rem}.sbar .btn{white-space:nowrap}.btn.blk{box-sizing:border-box}
 </style>
 </head>
@@ -125,11 +125,11 @@ async function sincronizar() {
   await pedirDia(); if (S.tab === 'mis') pedirMis();
 }
 const regDe = f => {
-  const base = f === S.fecha ? S.srv : (S.mis[f] || []), ids = new Set(base.map(x => x.id));
-  return base.map(x => ({ ...x, _ok: true })).concat(S.pend.filter(x => x.fecha === f && !ids.has(x.id)).map(x => ({ ...x, foto: !!x.foto, _ok: false })));
+  const base = f === S.fecha ? S.srv : (S.mis[f] || []), pf = S.pend.filter(x => x.fecha === f), pid = new Set(pf.map(x => x.id));
+  return base.filter(x => !pid.has(x.id)).map(x => ({ ...x, _ok: true })).concat(pf.map(x => ({ ...x, foto: !!x.foto, _ok: false })));
 };
 const todosDia = () => regDe(S.fecha);
-const ultimosDias = () => [0, 1, 2, 3].map(n => sumDias(hoyISO(), -n));
+const ultimosDias = () => [0, 1, 2, 3, 4, 5, 6, 7].map(n => sumDias(hoyISO(), -n));
 /* Mis reportes: últimos 4 días; se abre con lo guardado y se actualiza por detrás */
 async function pedirMis() {
   if (!S.ses) return;
@@ -167,7 +167,7 @@ function vBandas() {
 }
 function vDia() {
   const hoy = hoyISO();
-  return '<div class="dia"><button class="btn sec" data-a="dia" data-v="-1"' + (S.fecha <= sumDias(hoy, -3) ? ' disabled' : '') + '>◀</button><input type="date" id="fecha" value="' + S.fecha + '" min="' + sumDias(hoy, -3) + '" max="' + hoy + '"><button class="btn sec" data-a="dia" data-v="1"' + (S.fecha >= hoy ? ' disabled' : '') + '>▶</button></div>';
+  return '<div class="dia"><button class="btn sec" data-a="dia" data-v="-1"' + (S.fecha <= sumDias(hoy, -7) ? ' disabled' : '') + '>◀</button><input type="date" id="fecha" value="' + S.fecha + '" min="' + sumDias(hoy, -7) + '" max="' + hoy + '"><button class="btn sec" data-a="dia" data-v="1"' + (S.fecha >= hoy ? ' disabled' : '') + '>▶</button></div>';
 }
 function vInicio() {
   const reg = todosDia(), por = {}; reg.forEach(x => { por[x.hito] = (por[x.hito] || 0) + 1; });
@@ -202,7 +202,7 @@ function vMis() {
       let hit = '';
       reg.forEach(x => {
         if (x.hito !== hit) { hit = x.hito; h += '<div class="hh">' + (ICO[hit] || '') + ' ' + esc(nomHito(hit)) + '</div>'; }
-        h += '<div class="rl"><div><b>' + esc(x.actividad) + '</b><span class="peq mut">' + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + (x.cc === 'NUEVA' ? ' · actividad nueva' : '') + (x._ok ? '' : ' · ⏳ por subir') + '</span></div><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b></div>';
+        h += '<div class="rl"><div><b>' + esc(x.actividad) + '</b><span class="peq mut">' + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + (x.cc === 'NUEVA' ? ' · actividad nueva' : '') + (x._ok ? '' : ' · ⏳ por subir') + '</span></div><div class="rr"><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b><button type="button" class="btn chico sec" data-a="editar" data-v="' + esc(x.id) + '">✏️ Editar</button></div></div>';
       });
       h += '<div class="rt">Total: ' + totUnd(reg) + '</div>';
     }
@@ -297,7 +297,7 @@ function vPaso() {
       '<div class="tot" id="tot">' + totHtml(K, u) + '</div><div class="peq mut" style="margin-top:6px">Total = (cantidad − descuento) × factor</div>';
   } else if (k === 'foto') {
     h = '<div class="fila"><label class="lb">📷 Cámara<input type="file" accept="image/*" capture="environment" data-foto style="display:none"></label><label class="lb">🖼 Galería<input type="file" accept="image/*" data-foto style="display:none"></label></div>' +
-      (f.foto ? '<img class="prev" src="' + f.foto + '" alt="Foto">' : '') + '<div id="gps" class="gpsl">' + gpsHtml() + '</div>';
+      (f.foto ? '<img class="prev" src="' + f.foto + '" alt="Foto">' : (f.tieneFoto ? '<div class="sel" style="margin-top:10px">✔ Ya tiene foto guardada<small>Si quieres cambiarla, toma o elige otra.</small></div>' : '')) + '<div id="gps" class="gpsl">' + gpsHtml() + '</div>';
   }
   return h;
 }
@@ -350,9 +350,27 @@ function validarPaso() {
   if (k === 'paquete' && f.pq === '') return 'Elige el paquete.';
   if (k === 'act' && !f.act) return 'Elige la actividad.';
   if (k === 'med') { const K = calc(); if (isNaN(K.c) || K.c <= 0) return 'Escribe las medidas (mayores que cero).'; if (K.d < 0 || K.d > K.c) return 'El descuento no puede ser mayor que la cantidad.'; if (!(K.fa > 0)) return 'El factor debe ser mayor que cero.'; }
-  if (k === 'foto' && !f.foto) return 'Falta la foto de la actividad.';
+  if (k === 'foto' && !f.foto && !f.tieneFoto) return 'Falta la foto de la actividad.';
   return '';
 }
+function editar(id) {
+  let x = null; for (const d of ultimosDias()) { x = regDe(d).find(y => y.id === id); if (x) break; }
+  if (!x) return;
+  const s0 = v => (v === '' || v == null) ? '' : String(v);
+  const n = x.cc === 'NUEVA' ? [x.largo, x.ancho, x.alto].filter(v => v !== '' && v != null).length : (UND[x.und] || 0);
+  S.hito = x.hito;
+  const f = nuevoForm(); f.id = x.id; f.edit = true; f.fecha = x.fecha; f.uf = x.uf; f.costado = x.costado;
+  f.aI = String(x.abIni || '').replace(/\D/g, ''); f.aF = String(x.abFin || '').replace(/\D/g, '');
+  f.pq = (() => { const i = paquetesDe(x.hito, x.uf).findIndex(p => p[0] === x.paquete); return i >= 0 ? i : ''; })();
+  f.act = { c: x.cc, d: x.actividad, u: x.und, nd: n, nueva: x.cc === 'NUEVA' };
+  if (x.cc === 'NUEVA') { f.otra = true; f.on = x.actividad; f.ou = UNID.some(u => u[0] === x.und) ? x.und : 'OTRA'; f.ot = f.ou === 'OTRA' ? x.und : ''; f.ond = n; }
+  f.largo = s0(x.largo); f.ancho = s0(x.ancho); f.alto = s0(x.alto); f.cant = n === 0 ? s0(x.cantidad) : '';
+  f.desc = Number(x.descuento) ? s0(x.descuento) : ''; f.fac = s0(x.factor) || '1';
+  f.tieneFoto = !!x.foto; f.foto = '';
+  if (x.lat !== '' && x.lat != null) f.gps = { lat: Number(x.lat), lon: Number(x.lon), prec: Number(x.prec) || 0 };
+  S.f = f; S.q = ''; render(); window.scrollTo(0, 0);
+}
+function cerrarForm() { if (S.f && S.f.edit) S.hito = ''; S.f = null; }
 function usarOtra() {
   const f = S.f, n = f.on.trim().replace(/\s+/g, ' ');
   const err = m => { f.msg = m; render(); window.scrollTo(0, 0); };
@@ -374,16 +392,16 @@ async function guardar() {
   const f = S.f, m = validarPaso();
   if (m) { f.msg = m; render(); window.scrollTo(0, 0); return; }
   const K = calc(), n = nd();
-  const reg = { id: f.id, fecha: S.fecha, hito: S.hito, uf: f.uf, costado: f.costado, abIni: abTxt(f.aI), abFin: abTxt(f.aF), paquete: paquetesDe(S.hito, f.uf)[f.pq][0], cc: f.act.c, actividad: f.act.d, und: f.act.u, nd: n,
+  const reg = { id: f.id, fecha: f.fecha || S.fecha, hito: S.hito, uf: f.uf, costado: f.costado, abIni: abTxt(f.aI), abFin: abTxt(f.aF), paquete: paquetesDe(S.hito, f.uf)[f.pq][0], cc: f.act.c, actividad: f.act.d, und: f.act.u, nd: n,
     largo: n >= 1 ? num(f.largo) : '', ancho: n >= 2 ? num(f.ancho) : '', alto: n >= 3 ? num(f.alto) : '', cantidad: K.c, descuento: K.d, factor: K.fa, total: r3(K.t),
     lat: f.gps ? f.gps.lat : '', lon: f.gps ? f.gps.lon : '', prec: f.gps ? f.gps.prec : '', foto: f.foto, obs: '', llave: S.ses.llave, creado: new Date().toISOString().slice(0, 19).replace('T', ' ') };
   f.guardando = true; render();
   await DB.poner(reg);               // primero queda guardado en el equipo; luego sube en segundo plano
   S.pend = (await DB.todos()).filter(x => x.llave === S.ses.llave);
-  S.f = null; toast('✔ Registro guardado'); render(); window.scrollTo(0, 0);
+  const ed = f.edit; cerrarForm(); toast(ed ? '✔ Cambios guardados' : '✔ Registro guardado'); render(); window.scrollTo(0, 0);
   sincronizar();
 }
-function cambioDia(n) { const hoy = hoyISO(); if (n && n <= hoy && n >= sumDias(hoy, -3)) { S.fecha = n; S.srv = []; render(); pedirDia(); } }
+function cambioDia(n) { const hoy = hoyISO(); if (n && n <= hoy && n >= sumDias(hoy, -7)) { S.fecha = n; S.srv = []; render(); pedirDia(); } }
 
 document.addEventListener('submit', async ev => {
   if (ev.target.id !== 'f-login') return; ev.preventDefault();
@@ -401,6 +419,7 @@ document.addEventListener('click', async ev => {
   const a = b.dataset.a, v = b.dataset.v;
   if (a === 'tab') { S.tab = v; S.hito = ''; render(); window.scrollTo(0, 0); if (v === 'mis') pedirMis(); return; }
   if (a === 'excel') { descargarExcel(v); return; }
+  if (a === 'editar') { editar(v); return; }
   if (a === 'abrir') { S.abierto[v] = !S.abierto[v]; render(); return; }
   if (a === 'refrescar') { if (S.tab === 'mis') pedirMis(); sincronizar(); if (!navigator.onLine) pedirDia(); return; }
   if (a === 'salir') { if (!S.pend.length || confirm('Hay registros sin subir en este equipo. No se pierden, pero no se subirán hasta que entres de nuevo. ¿Salir?')) { salir(); render(); } return; }
@@ -408,7 +427,7 @@ document.addEventListener('click', async ev => {
   if (a === 'hito') { S.hito = v; render(); window.scrollTo(0, 0); return; }
   if (a === 'volver') { S.hito = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'nuevo') { S.f = nuevoForm(); S.q = ''; render(); window.scrollTo(0, 0); return; }
-  if (a === 'atras') { if (S.f.p > 0) { ir(S.f.p - 1); return; } if ((!S.f.uf && !S.f.foto) || confirm('¿Descartar este registro?')) { S.f = null; render(); } return; }
+  if (a === 'atras') { if (S.f.p > 0) { ir(S.f.p - 1); return; } if ((!S.f.uf && !S.f.foto) || confirm(S.f.edit ? '¿Descartar los cambios?' : '¿Descartar este registro?')) { cerrarForm(); render(); } return; }
   if (a === 'sig') { sig(); return; }
   if (a === 'uf') { if (S.f.uf !== v) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.uf = v; ir(1); return; }
   if (a === 'costado') { S.f.costado = v; ir(2); return; }
@@ -434,7 +453,7 @@ document.addEventListener('input', ev => {
 });
 document.addEventListener('change', async ev => {
   const t = ev.target;
-  if (t.id === 'fecha') { const hoy = hoyISO(); if (t.value && t.value <= hoy && t.value >= sumDias(hoy, -3)) cambioDia(t.value); else t.value = S.fecha; return; }
+  if (t.id === 'fecha') { const hoy = hoyISO(); if (t.value && t.value <= hoy && t.value >= sumDias(hoy, -7)) cambioDia(t.value); else t.value = S.fecha; return; }
   if (t.dataset && t.dataset.foto !== undefined && t.files && t.files[0]) { try { S.f.foto = await reducirFoto(t.files[0]); S.f.msg = ''; } catch (e) { toast('No se pudo leer la foto.'); } render(); }
 });
 window.addEventListener('online', sincronizar);
