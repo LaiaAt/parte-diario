@@ -155,7 +155,7 @@ function vDia() {
 function vInicio() {
   const reg = todosDia(), por = {}; reg.forEach(x => { por[x.hito] = (por[x.hito] || 0) + 1; });
   let h = '<div class="card">' + vDia() + '</div><h2 class="preg">¿En qué hito trabajaste?</h2><div class="hs">';
-  (S.cat ? S.cat.hitos : []).forEach(x => { const n = por[x[0]] || 0; h += '<button type="button" class="bg" data-a="hito" data-v="' + x[0] + '"><span class="bg-i">' + (ICO[x[0]] || '📍') + '</span><b>' + esc(x[1]) + '</b><small>' + x[0] + (n ? ' · ' + n + (n === 1 ? ' registro' : ' registros') : '') + '</small>' + (n ? '<i class="n">' + n + '</i>' : '') + '</button>'; });
+  (S.cat ? S.cat.hitos : []).forEach(x => { const n = por[x[0]] || 0; h += '<button type="button" class="bg" data-a="hito" data-v="' + x[0] + '"><span class="bg-i">' + (ICO[x[0]] || '📍') + '</span><b>' + esc(x[1]) + '</b><small>' + (n ? n + (n === 1 ? ' registro' : ' registros') : '&nbsp;') + '</small>' + (n ? '<i class="n">' + n + '</i>' : '') + '</button>'; });
   h += '</div>';
   if (!S.cat) h += '<div class="error">No se pudo cargar el catálogo. Conéctate una vez para guardarlo.</div>';
   return h + '<p class="peq mut cen">Un reporte por hito, con las actividades que ejecutaste.</p>';
@@ -166,7 +166,7 @@ function filaReg(x) {
 }
 function vHito() {
   const reg = todosDia().filter(x => x.hito === S.hito).sort((a, b) => String(a.creado || '~').localeCompare(String(b.creado || '~')));
-  return '<button class="btn chico sec" data-a="volver" style="margin-bottom:10px">◀ Hitos</button><div class="card"><h2 style="margin:0">' + (ICO[S.hito] || '') + ' ' + esc(nomHito(S.hito)) + '</h2><span class="peq mut">' + S.hito + ' · ' + fechaTxt(S.fecha) + '</span></div>' +
+  return '<button class="btn chico sec" data-a="volver" style="margin-bottom:10px">◀ Hitos</button><div class="card"><h2 style="margin:0">' + (ICO[S.hito] || '') + ' ' + esc(nomHito(S.hito)) + '</h2><span class="peq mut">' + fechaTxt(S.fecha) + '</span></div>' +
     '<button class="btn blk grande" data-a="nuevo">➕ Nuevo registro</button><div style="height:14px"></div>' +
     (reg.length ? '<div class="card">' + reg.map(filaReg).join('') + '</div>' : '<p class="mut cen">Aún no hay registros en este hito.</p>');
 }
