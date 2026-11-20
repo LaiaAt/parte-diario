@@ -360,7 +360,7 @@ async function verFotos(r) {
   const cuerpo = h('div', {}, h('p', { style: 'color:#fff;font-size:18px;text-align:center;margin-top:30px' }, 'Abriendo…'));
   V.appendChild(h('div', { style: 'max-width:640px;margin:0 auto' }, h('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:#12202b;padding:8px 0;color:#fff;font-weight:700' }, h('span', {}, '📷 N° ' + r.albaran + ' · ' + maqTxt(r.maquina)), h('button', { class: 'verde', style: 'width:auto;padding:8px 18px', onclick: cerrar }, '✕ Cerrar')), cuerpo));
   V.hidden = false; V.scrollTop = 0; document.body.style.overflow = 'hidden';
-  const sec = [['ini', '⏱ Horómetro de inicio'], ['fin', '⏱ Horómetro final'], ['parte', '🧾 Parte diario']];
+  const sec = [['ini', '⏱ Horómetro de inicio'], ['fin', '⏱ Horómetro final'], ['parte', '🧾 Registro (el papel)']];
   cuerpo.textContent = '';
   for (const [c, t] of sec) {
     cuerpo.appendChild(h('p', { style: 'color:#fff;font-weight:800;font-size:18px;margin:14px 0 4px' }, t));
@@ -455,14 +455,14 @@ function pasoN(n, arriba) {
     else C.appendChild(h('button', { class: 'sec', style: 'font-size:22px;padding:18px;text-align:left', onclick: () => abrirLista('Elige la máquina', [{ ops: listaMaquinas() }], o => { F.maquina = o.cod; guardarBorrador(); pasoN(1); }) }, F.maquina ? '🚜 ' + maqTxt(F.maquina) : 'Toca aquí para elegir la máquina'));
     C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, 'Turno:'));
     C.appendChild(h('div', { class: 'opc' }, h('button', { class: 'sec' + (F.turno === 'DIA' ? ' on' : ''), style: 'font-size:22px;padding:16px', onclick: () => { F.turno = 'DIA'; pasoN(1); } }, '☀ Día'), h('button', { class: 'sec' + (F.turno === 'NOCHE' ? ' on' : ''), style: 'font-size:22px;padding:16px', onclick: () => { F.turno = 'NOCHE'; pasoN(1); } }, '🌙 Noche')));
-    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, 'Fecha del parte (la del papel):'));
+    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, 'Fecha del registro (la del papel):'));
     const hoyF = F.fecha === hoy();
     C.appendChild(h('div', { class: 'card', style: 'margin:0' }, h('div', { style: 'font-size:22px;font-weight:800' }, (hoyF ? 'Hoy · ' : '') + fmtF(F.fecha)), !hoyF ? h('div', { style: 'color:#b36b00;font-weight:700;margin-top:4px' }, '⚠ Es un reporte de otro día. Solo se puede de los últimos 3 días.') : null,
       h('div', { style: 'margin-top:8px' }, h('button', { class: 'link', onclick: () => { const i = h('input', { type: 'date', min: sumDias(hoy(), -3), max: hoy(), value: F.fecha, style: 'margin-top:8px' }); i.onchange = () => { if (i.value && i.value <= hoy() && i.value >= sumDias(hoy(), -3)) { F.fecha = i.value; pasoN(1); } }; C.appendChild(i); i.focus(); } }, 'Cambiar la fecha'))));
     barraPasos(1, () => { if (!String(F.maquina).trim()) { pasoN(1); err('Elige la máquina.'); return; } if (!F.turno) { pasoN(1); err('Elige el turno: día o noche.'); return; } pasoN(2); });
   } else if (n === 2) {
     C.appendChild(cabeza(2, '¿Cuál es el número del informe diario?'));
-    C.appendChild(h('p', { class: 'ayuda' }, 'Es el número en rojo que está arriba a la derecha del papel (el parte diario). No se puede repetir.'));
+    C.appendChild(h('p', { class: 'ayuda' }, 'Es el número en rojo que está arriba a la derecha del papel (el registro). No se puede repetir.'));
     const i = h('input', { class: 'gran', inputmode: 'numeric', autocomplete: 'off', value: F.albaran, placeholder: 'Ej: 9503' }); i.oninput = () => { F.albaran = i.value.trim(); guardarBorrador(); }; C.appendChild(i);
     barraPasos(2, () => {
       if (!F.albaran) { pasoN(2); err('Escribe el número del informe.'); return; }
@@ -486,10 +486,10 @@ function pasoN(n, arriba) {
       pasoN(n + 1);
     });
   } else if (n === 5) {
-    C.appendChild(cabeza(5, 'Foto del parte diario (el papel)'));
+    C.appendChild(cabeza(5, 'Foto del registro (el papel)'));
     C.appendChild(h('p', { class: 'ayuda' }, 'Toma la foto de todo el papel, que se lean bien el número y lo escrito. Si el papel tiene varias hojas, puedes agregar más fotos.'));
     C.appendChild(bloqueFoto('parte', 1800, 0.72));
-    barraPasos(5, () => { if (!F.fotos.parte.length && !F.tiene.parte) { pasoN(5); err('Falta la foto del parte diario.'); return; } pasoN(6); });
+    barraPasos(5, () => { if (!F.fotos.parte.length && !F.tiene.parte) { pasoN(5); err('Falta la foto del registro.'); return; } pasoN(6); });
   } else if (n === 6) {
     C.appendChild(cabeza(6, '¿Qué hizo la máquina?'));
     const t = totales(), cont = h('div', { class: 'cont' });
@@ -527,7 +527,7 @@ function pasoN(n, arriba) {
         if (!x.a) { pasoN(6); err('Elige qué hizo en la actividad ' + (i + 1) + '.'); return; }
         if (isNaN(v) || v <= 0) { pasoN(6); err('Revisa las horas de «' + x.a + '».'); return; }
       }
-      { const ds = {}; F.det.forEach(x => { if (x.k !== 'X') ds[x.cc ? x.cc : 'F|' + x.a.toLowerCase()] = 1; }); if (Object.keys(ds).length > 6) { pasoN(6); err('Máximo 6 actividades distintas por reporte, como en el parte. Junta las que sean la misma.'); return; } }
+      { const ds = {}; F.det.forEach(x => { if (x.k !== 'X') ds[x.cc ? x.cc : 'F|' + x.a.toLowerCase()] = 1; }); if (Object.keys(ds).length > 6) { pasoN(6); err('Máximo 6 actividades distintas por reporte, como en el registro. Junta las que sean la misma.'); return; } }
       if (t2.falta < -0.001) { pasoN(6); err('Las horas trabajadas (' + nh(t2.trab) + ') superan las del horómetro (' + nh(t2.hh) + '). Corrige las horas.'); return; }
       if (t2.trab + t2.par > 24.001) { pasoN(6); err('Entre horas trabajadas y paradas suman más de 24 horas.'); return; }
       if (F.modo === 'HORARIO') { const iv = F.det.map(x => { const m = s => { const p = s.split(':'); return Number(p[0]) * 60 + Number(p[1]); }, a = m(x.d), b = m(x.t); return [a, b > a ? b : b + 1440, x.a]; }); for (let i = 0; i < iv.length; i++) for (let j = i + 1; j < iv.length; j++) if (iv[i][0] < iv[j][1] && iv[j][0] < iv[i][1]) { pasoN(6); err('Los horarios de «' + iv[i][2] + '» y «' + iv[j][2] + '» se cruzan.'); return; } }
@@ -537,7 +537,7 @@ function pasoN(n, arriba) {
     C.appendChild(cabeza(7, 'Revisa y envía'));
     const t = totales();
     const fila = (a, b) => h('div', { style: 'display:flex;justify-content:space-between;gap:10px;border-top:1px solid #dde1e6;padding:7px 0;font-size:18px' }, h('span', { style: 'color:#51606d' }, a), h('b', { style: 'text-align:right' }, b));
-    C.appendChild(h('div', { class: 'card' }, fila('Fecha del parte', fmtF(F.fecha)), fila('Turno', F.turno === 'NOCHE' ? '🌙 Noche' : '☀ Día'), fila('Máquina', maqTxt(F.maquina)), fila('N° del informe', F.albaran), fila('Horómetro', nh(num(F.h_ini)) + ' → ' + nh(num(F.h_fin)) + ' (' + nh(t.hh) + ' h)'), fila('Fotos', '⏱ 2 · 🧾 ' + Math.max(F.fotos.parte.length, F.tiene.parte)),
+    C.appendChild(h('div', { class: 'card' }, fila('Fecha del registro', fmtF(F.fecha)), fila('Turno', F.turno === 'NOCHE' ? '🌙 Noche' : '☀ Día'), fila('Máquina', maqTxt(F.maquina)), fila('N° del informe', F.albaran), fila('Horómetro', nh(num(F.h_ini)) + ' → ' + nh(num(F.h_fin)) + ' (' + nh(t.hh) + ' h)'), fila('Fotos', '⏱ 2 · 🧾 ' + Math.max(F.fotos.parte.length, F.tiene.parte)),
       h('div', { style: 'font-weight:800;margin:10px 0 4px;font-size:18px' }, 'Trabajo de la máquina'),
       F.det.map(x => h('div', { style: 'border-top:1px solid #dde1e6;padding:6px 0;font-size:17px' }, h('b', {}, (x.k === 'P' && x.cc ? x.cc + ' · ' : '') + x.a), ' — ' + nh(horaFila(x)) + ' h' + (F.modo === 'HORARIO' ? ' (' + x.d + ' a ' + x.t + ')' : '') + (x.k === 'X' ? ' · parada' : ''))),
       fila('Total trabajado', nh(t.trab) + ' h')));

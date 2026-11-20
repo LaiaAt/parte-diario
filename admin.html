@@ -1529,7 +1529,7 @@ window.addEventListener('message', e => {
   else if (e.data.t === 'acero-cargado') { if (ACWAIT) { const f = ACWAIT; ACWAIT = null; f(); } else if (ACINI) { ACINI = false; banner('✔ Datos actualizados', 'ok'); } }
   else if (e.data.t === 'acero-alto' && $('acFrame')) $('acFrame').style.height = Math.max(400, e.data.h) + 'px';
 });
-/* ----- Maquinaria: reportes de las máquinas (horómetro, parte diario, horas por actividad) ----- */
+/* ----- Maquinaria: reportes de las máquinas (horómetro, registro, horas por actividad) ----- */
 const MQ_TABS = [['rep', '📋 Reportes'], ['res', '📊 Resumen'], ['maq', '⚙ Máquinas']];
 let MQ = null, MQTAB = selGet('mq', 'rep', v => v === 'rep' || v === 'res' || v === 'maq'), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
 const mqNorm = x => { let t = String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
@@ -1640,7 +1640,7 @@ function tarjetaMq(r) {
     h('div', { class: 'tw', style: 'max-height:none;margin-bottom:8px' }, h('table', {}, h('thead', {}, h('tr', {}, ['Tipo', 'Centro de costo', 'Actividad', 'Grupo', 'Horario', 'Horas'].map(t => h('th', {}, t)))), h('tbody', {}, filas))),
     r.obs ? h('div', { style: 'margin:6px 0' }, '📝 ' + r.obs) : null,
     al.length ? h('div', { style: 'margin:6px 0;display:flex;gap:6px;flex-wrap:wrap' }, al.map(a => tag('⚠ ' + a, true))) : null,
-    h('div', { class: 'row', style: 'margin-top:8px' }, h('button', { onclick: () => verFotosMq(r) }, '📷 Ver fotos (' + r.n_ini + ' inicio · ' + r.n_fin + ' final · ' + r.n_parte + ' parte)')));
+    h('div', { class: 'row', style: 'margin-top:8px' }, h('button', { onclick: () => verFotosMq(r) }, '📷 Ver fotos (' + r.n_ini + ' inicio · ' + r.n_fin + ' final · ' + r.n_parte + ' registro)')));
 }
 async function verFotosMq(r) {
   const v = $('visor'); v.textContent = ''; v.style.overflow = 'auto'; v.style.justifyContent = 'flex-start';
@@ -1651,7 +1651,7 @@ async function verFotosMq(r) {
     const x = await api({ accion: 'admin_mq_foto', llave: LLAVE, id: r.id });
     cuerpo.textContent = '';
     if (!x.ok) { cuerpo.appendChild(h('div', { class: 'small' }, x.mensaje || 'No se pudieron abrir las fotos')); return; }
-    [['ini', '⏱ Horómetro de inicio (' + String(r.h_ini).replace('.', ',') + ')'], ['fin', '⏱ Horómetro final (' + String(r.h_fin).replace('.', ',') + ')'], ['parte', '🧾 Parte diario — albarán ' + r.albaran]].forEach(([k, t]) => {
+    [['ini', '⏱ Horómetro de inicio (' + String(r.h_ini).replace('.', ',') + ')'], ['fin', '⏱ Horómetro final (' + String(r.h_fin).replace('.', ',') + ')'], ['parte', '🧾 Registro — albarán ' + r.albaran]].forEach(([k, t]) => {
       cuerpo.appendChild(h('div', { style: 'color:#fff;font-weight:700;font-size:18px;margin:14px 0 4px' }, t));
       if (!(x[k] || []).length) cuerpo.appendChild(h('div', { class: 'small' }, 'Sin foto'));
       (x[k] || []).forEach((d, i) => cuerpo.appendChild(h('div', { style: 'margin-bottom:8px' }, h('img', { src: d, alt: t, style: 'max-width:100%;max-height:none;background:#fff' }), h('div', {}, h('button', { class: 'sec', onclick: () => fetch(d).then(b => b.blob()).then(b => bajar(b, 'Maquinaria_' + r.albaran + '_' + k + (i ? '_' + (i + 1) : '') + '.jpg')) }, '⬇ Descargar')))));
@@ -1697,7 +1697,7 @@ function xlsxMq() {
   const det = []; L.forEach(r => (r.det || []).forEach(x => det.push([r.fecha, r.albaran, r.maquina, r.tipo || '', r.turno === 'NOCHE' ? 'NOCHE' : 'DIA', nomDe(r.llave), x.parada ? 'Parada' : x.fuera ? 'Fuera de estructura' : 'Productiva', x.cc || '', x.a, x.g || '', x.d || '', x.t || '', Number(x.h) || 0, x.n || ''])));
   const dm = {}; L.forEach(r => (r.det || []).forEach(x => { const k = r.maquina + '|' + (x.cc || '') + '|' + x.a; const a = (dm[k] = dm[k] || [Number(r.maquina) || r.maquina, r.tipo || '', x.parada ? 'Parada' : x.fuera ? 'Fuera de estructura' : 'Productiva', x.cc || '', x.a, 0, 0]); a[5] += Number(x.h) || 0; a[6]++; }));
   const cons = Object.values(dm).map(a => [a[0], a[1], a[2], a[3], a[4], Math.round(a[5] * 100) / 100, a[6]]).sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'es', { numeric: true }) || b[5] - a[5]);
-  excelHoja('PARTE DIARIO', cols, rows, 'Maquinaria_' + $('desde').value + '_' + $('hasta').value + '.xlsx', [
+  excelHoja('REGISTRO', cols, rows, 'Maquinaria_' + $('desde').value + '_' + $('hasta').value + '.xlsx', [
     { nombre: 'Detalle de actividades', cols: ['Fecha', 'N° albarán', 'Móvil', 'Tipo de máquina', 'Turno', 'Usuario que registró', 'Tipo', 'Centro de costo', 'Actividad', 'Grupo', 'Desde', 'Hasta', 'Horas', 'Detalle'], rows: det },
     { nombre: 'Consolidado', cols: ['Móvil', 'Tipo de máquina', 'Tipo', 'Centro de costo', 'Actividad', 'Horas', 'Veces'], rows: cons }]);
 }
