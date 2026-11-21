@@ -585,20 +585,53 @@ function fotoMini(cod, cual, total) {
   }).catch(() => { box.textContent = 'No se pudo cargar'; });
   return box;
 }
-// caso bloqueado: el albarán que se intentó registrar al lado del que ya estaba guardado
-function cardBloq(x, revBloq) {
+// viajes frenados por albarán repetido que siguen sin resolver (los que ya se guardaron después no cuentan)
+function dupsPend() {
+  const g = new Set((TR.todos || TR.viajes || []).concat(TR.reportes_extra || []).map(v => v.cod));
+  return (TR.dup_bloqueados || []).filter(x => !g.has(x.cod) && !x.estado);
+}
+// caso duplicado: 1 = el albarán que se frenó, 2 = el que ya estaba guardado; el administrador decide con 3 botones
+function cardBloq(x) {
   const m = /albar[aá]n\s+(\S+)/i.exec(x.detalle || ''), nAlb = x.n_valera || (m ? m[1] : '—');
   const V = (TR.todos || TR.viajes || []).concat(TR.reportes_extra || []), ex = x.dup ? V.find(v => v.cod === x.dup) : null;
-  const col = (tit, sub, foto, color) => h('div', { style: 'background:#fff;color:#12202b;border-radius:8px;padding:6px;border:3px solid ' + color + ';min-width:0' },
-    h('div', { style: 'font-weight:800;font-size:13px;color:' + color }, tit), h('div', { style: 'font-size:12px;margin:2px 0 6px;line-height:1.3' }, sub), foto);
-  return h('div', { style: 'margin-top:10px;background:rgba(255,255,255,.12);border-radius:10px;padding:8px' },
-    h('div', { style: 'font-weight:800;font-size:16px' }, '🧾 Albarán N° ' + nAlb + ' · ' + (x.usuario || '—') + ' · ' + fmtTs(x.ts)),
-    h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px' },
-      col('🚫 EL QUE SE FRENÓ', x.placa + (x.fecha ? ' · ' + fmtF(x.fecha) : '') + (x.mov ? ' · ' + (x.mov === 'RECIBE' ? 'Recibe' : 'Entrega') : '') + ' · ' + (x.usuario || '—'), x.nr ? fotoMini(x.cod, 'recibo', x.nr) : h('div', { style: 'background:#eee;border-radius:8px;padding:10px;font-size:12px;color:#555' }, 'La foto aún está en el celular de ' + (x.usuario || 'quien registró') + '. Llega sola cuando abra la app con señal.'), '#b3261e'),
-      col('✅ EL QUE YA ESTÁ GUARDADO', ex ? ex.placa + ' · ' + fmtF(ex.fecha) + ' · ' + (ex.mov === 'RECIBE' ? 'Recibe' : 'Entrega') + ' · reporte ' + (repNum(ex) || '—') + ' · ' + (ex.usuario || '—') : sinVT(x.detalle), ex ? fotoMini(ex.cod, 'recibo', ex.nr || (ex.tiene_recibo ? 1 : 0)) : h('div', { style: 'font-size:12px;color:#555' }, 'No se encontró el viaje guardado.'), '#1b5e20')),
-    h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px' },
-      h('button', { class: 'sec sm', style: 'background:#fff', onclick: () => { ALB.q = nAlb; ALB.f = {}; TRTAB = 'albaran'; pintarTr(); buscarAlb(); window.scrollTo(0, 0); } }, '🔎 Ver todos los viajes con este N°'),
-      h('button', { class: 'sec sm', style: 'background:#fff', onclick: () => revBloq([x]) }, '✔ Ya lo revisé')));
+  const col = (tit, sub, foto, color) => h('div', { style: 'background:#fff;color:#12202b;border-radius:10px;padding:6px;border:3px solid ' + color + ';min-width:0' },
+    h('div', { style: 'font-weight:800;font-size:14px;color:' + color }, tit), h('div', { style: 'font-size:12px;margin:2px 0 6px;line-height:1.3' }, sub), foto);
+  const msg = h('div', { style: 'font-size:13px;margin-top:6px;font-weight:700' });
+  const caja = h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4;padding:10px' });
+  const hacer = async (acc, pregunta) => {
+    if (!confirm(pregunta)) return;
+    caja.querySelectorAll('button').forEach(b => { b.disabled = true; }); msg.style.color = '#12202b'; msg.textContent = 'Guardando…';
+    try {
+      const r = await api({ accion: 'admin_tr_bloq', llave: LLAVE, cod: x.cod, accion2: acc, dup: x.dup, placa: x.placa, fecha: x.fecha, usuario: x.usuario, n_valera: nAlb, desde: $('desde').value, hasta: $('hasta').value }, 90000);
+      if (!r.ok) { msg.style.color = '#b3261e'; msg.textContent = r.mensaje || 'No se pudo guardar'; caja.querySelectorAll('button').forEach(b => { b.disabled = false; }); return; }
+      x.estado = acc; msg.style.color = '#1b5e20'; msg.textContent = '✔ Listo';
+      await recargaTr();
+    } catch (e) { msg.style.color = '#b3261e'; msg.textContent = 'No se pudo conectar. Intenta de nuevo.'; caja.querySelectorAll('button').forEach(b => { b.disabled = false; }); }
+  };
+  const sinDatos = !x.datos, nota = sinDatos ? h('div', { style: 'font-size:12px;color:#6b4a00;background:#fff3cd;border-radius:8px;padding:6px 8px;margin-top:6px' }, 'Para conservar el 1 falta que lleguen sus datos desde el celular de ' + (x.usuario || 'quien lo registró') + ' (llegan solos cuando abra la app con señal).') : null;
+  const bt = (t, st, fn, off) => { const e = h('button', { style: 'flex:1 1 150px;padding:12px 8px;font-size:15px;font-weight:800;border-radius:10px;' + st, onclick: fn }, t); if (off) { e.disabled = true; e.style.opacity = '.45'; } return e; };
+  caja.append(...[
+    h('div', { style: 'font-weight:800;font-size:17px;color:#b3261e' }, '🧾 Albarán N° ' + nAlb),
+    h('div', { style: 'font-size:13px;color:#555;margin-bottom:6px' }, 'Lo intentó registrar ' + (x.usuario || '—') + ' el ' + fmtTs(x.ts)),
+    h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px' },
+      col('1 · EL QUE SE FRENÓ', x.placa + (x.fecha ? ' · ' + fmtF(x.fecha) : '') + (x.mov ? ' · ' + (x.mov === 'RECIBE' ? 'Recibe' : 'Entrega') : '') + ' · ' + (x.usuario || '—'), x.nr ? fotoMini(x.cod, 'recibo', x.nr) : h('div', { style: 'background:#eee;border-radius:8px;padding:10px;font-size:12px;color:#555' }, 'La foto aún está en el celular de ' + (x.usuario || 'quien registró') + '. Llega sola cuando abra la app con señal.'), '#b3261e'),
+      col('2 · EL QUE YA ESTÁ GUARDADO', ex ? ex.placa + ' · ' + fmtF(ex.fecha) + ' · ' + (ex.mov === 'RECIBE' ? 'Recibe' : 'Entrega') + ' · reporte ' + (repNum(ex) || '—') + ' · ' + (ex.usuario || '—') : sinVT(x.detalle), ex ? fotoMini(ex.cod, 'recibo', ex.nr || (ex.tiene_recibo ? 1 : 0)) : h('div', { style: 'font-size:12px;color:#555' }, 'No se encontró el viaje guardado.'), '#1b5e20')),
+    nota,
+    h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px' },
+      bt('1️⃣ Conservar el 1', 'background:#b3261e;color:#fff;border:0', () => hacer('uno', '¿Conservar el 1 (el que se frenó)?\n\nSe guarda el 1 y se ANULA el 2 (el que ya estaba guardado).'), sinDatos),
+      bt('2️⃣ Conservar el 2', 'background:#1b5e20;color:#fff;border:0', () => hacer('dos', '¿Conservar el 2 (el que ya estaba guardado)?\n\nEl 1 se descarta y desaparece del celular de ' + (x.usuario || 'quien lo registró') + '.')),
+      bt('➕ Conservar ambos', 'background:#fff;color:#12202b;border:2px solid #12202b', () => hacer('ambos', '¿Son viajes distintos?\n\nSe guardan los dos.'), sinDatos)),
+    msg].filter(Boolean));
+  return caja;
+}
+function vistaDups(c) {
+  const L = dupsPend();
+  c.appendChild(h('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px' },
+    h('button', { class: 'sec', onclick: () => { TRTAB = 'resumen'; pintarTr(); window.scrollTo(0, 0); } }, '← Volver'),
+    h('h3', { style: 'margin:0' }, '🚫 Viajes duplicados por resolver (' + L.length + ')')));
+  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Compara las dos fotos y elige: conservar el 1, conservar el 2 o conservar ambos si son viajes distintos.'));
+  if (!L.length) { c.appendChild(h('div', { class: 'trok' }, '✅ No hay viajes duplicados por resolver')); return; }
+  L.forEach(x => c.appendChild(cardBloq(x)));
 }
 function cardRepetido(x) {
   const caja = h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4' },
@@ -1507,16 +1540,15 @@ function pintarTr() {
     aviso(conAl.length, conAl.length === 1 ? 'viaje con alerta' : 'viajes con alertas', () => { TRFIL = 'alerta'; TRTAB = 'viajes'; pintarTr(); }),
     aviso(sinMat.length, sinMat.length === 1 ? 'viaje sin material transportado' : 'viajes sin material transportado', () => { TRSOSP = 'Sin material'; TRTAB = 'sosp'; selSet('tr', 'sosp'); pintarTr(); }),
     aviso(sinRec.length, 'sin albarán', () => { TRFIL = 'sinrec'; TRTAB = 'viajes'; pintarTr(); })].filter(Boolean));
-  const claveBq = x => 'Intento bloqueado|' + x.ts + '|' + x.placa + '|' + x.cod, dupA = sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev), guardados = new Set((TR.todos || TR.viajes || []).concat(TR.reportes_extra || []).map(v => v.cod)), blq = (TR.dup_bloqueados || []).filter(x => !guardados.has(x.cod) && !(TR.revisados || []).some(r => r.clave === claveBq(x))); // si el viaje ya se guardó después (reenviado o corregido), el intento bloqueado quedó resuelto y no se muestra
-  if (dupA.length || blq.length) {
-    const cj = h('div', { class: 'alertaDup' }, h('div', { class: 'alertaDupT' }, dupA.length ? '🚨 HAY ' + dupA.length + (dupA.length === 1 ? ' ALBARÁN REPETIDO' : ' ALBARANES REPETIDOS') : '🚫 SE BLOQUEARON INTENTOS DE REPETIR UN ALBARÁN'));
+  const claveBq = x => 'Intento bloqueado|' + x.ts + '|' + x.placa + '|' + x.cod, dupA = sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev), guardados = new Set((TR.todos || TR.viajes || []).concat(TR.reportes_extra || []).map(v => v.cod)), blq = dupsPend(); // si el viaje ya se guardó después (reenviado o corregido), el intento bloqueado quedó resuelto y no se muestra
+  if (blq.length) top.appendChild(h('button', { class: 'alertaDup', style: 'display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;cursor:pointer;border:0', onclick: () => { TRTAB = 'dups'; pintarTr(); window.scrollTo(0, 0); } },
+    h('span', { class: 'alertaDupT', style: 'margin:0' }, '🚫 Hay ' + blq.length + (blq.length === 1 ? ' viaje duplicado' : ' viajes duplicados') + ' por resolver'), h('span', { style: 'background:#fff;color:#b3261e;border-radius:10px;padding:8px 12px;font-weight:800;white-space:nowrap' }, 'Ver todos ›')));
+  if (dupA.length) {
+    const cj = h('div', { class: 'alertaDup' }, h('div', { class: 'alertaDupT' }, '🚨 HAY ' + dupA.length + (dupA.length === 1 ? ' ALBARÁN REPETIDO' : ' ALBARANES REPETIDOS')));
     if (dupA.length) {
       cj.appendChild(h('div', {}, 'Revisados todos tus registros (no solo este rango): ' + dupA.slice(0, 6).map(x => 'N° ' + x.vs[0].n_valera + ' (' + x.vs.length + ' viajes)').join(' · ') + (dupA.length > 6 ? ' …' : '')));
       cj.appendChild(h('button', { class: 'alertaDupB', onclick: () => { TRSOSP = 'Albarán repetido'; TRTAB = 'sosp'; selSet('tr', 'sosp'); pintarTr(); } }, 'Revisar ahora'));
     }
-    blq.slice(0, 5).forEach(x => cj.appendChild(cardBloq(x, revBloq)));
-    if (blq.length > 5) cj.appendChild(h('div', { style: 'margin-top:4px;font-size:13px' }, '…y ' + (blq.length - 5) + ' intentos más (ver el control de cambios).'));
-    if (blq.length) cj.appendChild(h('button', { class: 'alertaDupB', style: 'margin-top:8px', onclick: () => revBloq(blq) }, '✔ Marcar los ' + blq.length + ' como revisados'));
     top.appendChild(cj);
   }
   const mp = (TR.maquinas || []).filter(x => x.pv);
@@ -1531,7 +1563,7 @@ function pintarTr() {
   if (!pend.length && !conAl.length && !sinRec.length && !dp.length && !mp.length && !dupA.length && !blq.length) top.appendChild(h('div', { class: 'trok' }, '✅ Todo en orden'));
   navTr();
   const c = $('trBody'); c.textContent = '';
-  ({ viajes: vistaViajes, albaran: vistaAlb, sosp: vistaSosp, resumen: vistaRes, mapa: vistaMapa, volquetas: vistaVol, geo: vistaGeo, planillas: vistaPlan })[TRTAB](c);
+  ({ dups: vistaDups, viajes: vistaViajes, albaran: vistaAlb, sosp: vistaSosp, resumen: vistaRes, mapa: vistaMapa, volquetas: vistaVol, geo: vistaGeo, planillas: vistaPlan })[TRTAB](c);
 }
 function chips(opts, val, fn) {
   return h('div', { class: 'chips' }, opts.map(([k, t]) => h('button', { class: 'chip' + (val === k ? ' on' : ''), onclick: () => fn(k) }, t)));

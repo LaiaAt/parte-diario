@@ -247,6 +247,10 @@ async function aplicarServidor(r) {
   DATOS = { volquetas: r.volquetas || [], catalogos: r.catalogos || DATOS.catalogos, planillas: r.planillas || [], sitios: r.sitios || DATOS.sitios || [], ufs: r.ufs || DATOS.ufs || [], dist: r.dist || DATOS.dist || [], maquinas: r.maquinas || DATOS.maquinas || [] };
   aplicarSitios();
   await guardarDatos();
+  const srv = new Set((r.viajes || []).map(v => v.cod)), desc = new Set(r.descartados || []);
+  for (const c of desc) if (COLA.some(o => o.cod === c && o.t === 'g' && o.error)) await quitarDescartado(c);
+  const hechos = COLA.filter(o => o.t === 'g' && o.error && srv.has(o.cod)); // el administrador ya lo guardó desde el Dashboard
+  if (hechos.length) { const cs = new Set(hechos.map(o => o.cod)), conFoto = new Set(hechos.filter(o => o.fotoBloq).map(o => o.cod)); COLA = COLA.filter(o => !(cs.has(o.cod) && (o.t === 'g' || conFoto.has(o.cod)))); COLA.forEach(o => { if (cs.has(o.cod)) delete o.error; }); await guardarCola(); }
   const pend = new Set(COLA.filter(o => o.llave === user.llave).map(o => o.cod));
   const locales = VIAJES.filter(v => pend.has(v.cod));
   const nuevos = (r.viajes || []).filter(v => !pend.has(v.cod)).map(v => Object.assign(v, { llave: user.llave }));
@@ -384,11 +388,16 @@ async function reenviarOp(op) {
   if (diaActual) abrirDia(diaActual); else if (enPend) abrirPend(); else pintarInicio();
 }
 // sube a la oficina las fotos del viaje que no se aceptó por albarán repetido (no cuenta como viaje: es para que el administrador compare los dos albaranes)
+// el administrador decidió que este viaje era el mismo que ya estaba registrado: se quita del celular
+async function quitarDescartado(cod) {
+  COLA = COLA.filter(o => o.cod !== cod); VIAJES = VIAJES.filter(v => v.cod !== cod);
+  await kv.del('f_' + cod + '_c'); await kv.del('f_' + cod + '_r'); await guardarCola(); await guardarViajes();
+}
 async function subirBloq(op) {
   if (op.fotoBloq) return;
   try {
     const v = op.viaje || {}, rec = asArr(await kv.get('f_' + op.cod + '_r')), car = asArr(await kv.get('f_' + op.cod + '_c'));
-    const r = await api({ accion: 'tr_bloq_foto', llave: op.llave, viaje: { cod: op.cod, placa: v.placa, fecha: v.fecha, n_valera: v.n_valera, valera_de: v.valera_de, mov: v.mov, material: v.material, origen: v.origen, destino: v.destino, vol_albaran: v.vol_albaran }, recibo: rec, carga: car });
+    const r = await api({ accion: 'tr_bloq_foto', llave: op.llave, viaje: Object.assign({}, v, { cod: op.cod, nuevo: undefined, llave: undefined, bloqueado: undefined, recibo_local: undefined, ed: op.ed }), recibo: rec, carga: car });
     if (r && r.ok) { op.fotoBloq = true; await guardarCola(); }
   } catch (e) {}
 }
@@ -956,6 +965,7 @@ async function sincronizar() {
         delete viaje.nuevo; delete viaje.llave;
         r = await api({ accion: 'tr_guardar', llave: op.llave, viaje: viaje });
         if (!r.ok && r.codigo === 'DUP') { await renombrar(op, nuevoCod()); continue; }
+        if (!r.ok && r.codigo === 'DESCARTADO') { await quitarDescartado(op.cod); aviso('ℹ️ ' + r.mensaje, ''); continue; }
         if (!r.ok && r.codigo === 'ALB_DUP') { const vb = VIAJES.find(x => x.cod === op.cod); if (vb) { vb.bloqueado = true; await guardarViajes(); } await subirBloq(op); }
       } else if (op.t === 'r') {
         const gp = COLA.find(o => o.t === 'g' && o.cod === op.cod); if (gp) { if (!gp.error) otraVez = true; continue; } // la foto del recibo espera a que el viaje quede guardado
