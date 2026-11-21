@@ -1603,7 +1603,7 @@ const mqNPend = () => (MQ && MQ.pend_foto ? MQ.pend_foto.length : 0);
 let MQ = null, MQTAB = selGet('mq', 'rep', v => MQ_TABS.some(x => x[0] === v)), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
 const mqNorm = x => { let t = String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
 const mqSinTilde = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-const mqLbl = r => r.maquina + (r.tipo ? ' · ' + r.tipo : '');
+const mqLbl = r => (r.vis || r.maquina) + (r.tipo ? ' · ' + r.tipo : '');
 const mqAl = r => String(r.alertas || '').split(';').map(x => x.trim()).filter(Boolean);
 const mqFuera = r => (r.det || []).some(x => x.fuera);
 const mqSin = r => Math.max(0, Math.round(((Number(r.h_hor) || 0) - (Number(r.h_trab) || 0)) * 100) / 100);
@@ -1637,8 +1637,8 @@ function vistaMqMaq(c) {
   const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap' }, t), td = x => h('td', { style: 'padding:4px 6px;vertical-align:middle' }, x);
   const inp = (v, w, ph) => h('input', { type: 'text', value: v || '', placeholder: ph || '', style: 'width:' + w + 'px;font-size:14px;padding:6px' });
   const fila = (x, nuevo) => {
-    const tp = inp(x.tipo, 240, 'Tipo de máquina'), em = inp(x.empresa, 110, 'Empresa'), sd = inp(x.sd, 70, 'Stand-by'), hdl = inp(x.hdl, 140, 'L-V'), hds = inp(x.hds, 140, 'Sáb'), sn = inp(x.sn, 70, 'Stand-by'), hnl = inp(x.hnl, 140, 'L-V'), hns = inp(x.hns, 140, 'Sáb');
-    const req = op => ({ op: op, cod: x.cod, tipo: tp.value, empresa: em.value, sd: sd.value, hdl: hdl.value, hds: hds.value, sn: sn.value, hnl: hnl.value, hns: hns.value });
+    const vi = inp(nuevo ? '' : (x.vis || x.cod), 80, nuevo ? 'Auto' : 'Código'), tp = inp(x.tipo, 240, 'Tipo de máquina'), em = inp(x.empresa, 110, 'Empresa'), sd = inp(x.sd, 70, 'Stand-by'), hdl = inp(x.hdl, 140, 'L-V'), hds = inp(x.hds, 140, 'Sáb'), sn = inp(x.sn, 70, 'Stand-by'), hnl = inp(x.hnl, 140, 'L-V'), hns = inp(x.hns, 140, 'Sáb');
+    const req = op => ({ op: op, cod: x.cod, vis: vi.value, tipo: tp.value, empresa: em.value, sd: sd.value, hdl: hdl.value, hds: hds.value, sn: sn.value, hnl: hnl.value, hns: hns.value });
     const ret = x.estado === 'RETIRADA';
     const bs = h('div', { style: 'display:flex;gap:6px;white-space:nowrap' });
     if (nuevo) bs.appendChild(h('button', { style: 'padding:8px 12px', onclick: () => { if (!tp.value.trim()) { tp.focus(); return; } if (!em.value.trim()) { em.focus(); return; } envia(req('crear'), 'Máquina creada con su código'); } }, '➕ Crear'));
@@ -1647,13 +1647,49 @@ function vistaMqMaq(c) {
       bs.appendChild(ret ? h('button', { class: 'sec', style: 'padding:8px 12px', onclick: () => envia({ op: 'reactivar', cod: x.cod }, 'Máquina ' + x.cod + ' reactivada') }, '♻ Reactivar')
         : h('button', { class: 'sec', style: 'padding:8px 12px', onclick: () => { if (confirm('¿Retirar la máquina ' + x.cod + ' (' + x.tipo + ')? Su código queda reservado y no se vuelve a asignar.')) envia({ op: 'retirar', cod: x.cod }, 'Máquina ' + x.cod + ' retirada (código reservado)'); } }, '⏹ Retirar'));
     }
-    return h('tr', { style: nuevo ? 'background:#f1f8f1' : (ret ? 'opacity:.55;background:#eee' : '') }, td(h('b', { style: 'font-size:18px' }, nuevo ? 'nuevo' : x.cod)), td(tp), td(em), td(sd), td(hdl), td(hds), td(sn), td(hnl), td(hns), td(ret ? h('small', {}, 'Retirada ' + (x.retiro || '')) : ''), td(bs));
+    return h('tr', { style: nuevo ? 'background:#f1f8f1' : (ret ? 'opacity:.55;background:#eee' : '') }, td(vi), td(h('small', {}, nuevo ? 'nuevo' : x.cod)), td(tp), td(em), td(sd), td(hdl), td(hds), td(sn), td(hnl), td(hns), td(ret ? h('small', {}, 'Retirada ' + (x.retiro || '')) : ''), td(bs));
   };
-  const tb = h('table', { style: 'border-collapse:collapse;width:100%' }, h('thead', {}, h('tr', {}, ['Código', 'Tipo de máquina', 'Empresa', 'Stand-by día', 'Día L-V', 'Día sáb', 'Stand-by noche', 'Noche L-V', 'Noche sáb', '', ''].map(th))));
+  const tb = h('table', { style: 'border-collapse:collapse;width:100%' }, h('thead', {}, h('tr', {}, ['Código', 'ID fijo', 'Tipo de máquina', 'Empresa', 'Stand-by día', 'Día L-V', 'Día sáb', 'Stand-by noche', 'Noche L-V', 'Noche sáb', '', ''].map(th))));
   const body = h('tbody', {}, fila({}, true)); (MQ.maquinas || []).forEach(x => body.appendChild(fila(x, false))); tb.appendChild(body);
   const n = (MQ.maquinas || []).filter(x => x.estado !== 'RETIRADA').length;
-  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Tabla global de máquinas del proyecto: ' + n + ' activa(s). El código se asigna solo (siguiente número) y nunca se vuelve a usar, aunque la máquina se retire. Los operadores solo ven las máquinas activas.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Tabla global de máquinas: ' + n + ' activa(s). El ID fijo nunca cambia ni se reutiliza; el CÓDIGO sí se puede cambiar (ej. 1 → 1AST) y todo el historial de albaranes se conserva. Los operadores solo ven las máquinas activas.'));
+  c.insertBefore(h('h3', { style: 'margin:16px 0 6px' }, '⚙ Máquinas del proyecto'), c.firstChild); c.insertBefore(vistaMqAsig(), c.firstChild);
   c.appendChild(msg); c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tb));
+}
+// Asignación operador → máquina (con fecha desde e historial)
+function vistaMqAsig() {
+  const box = h('div', { class: 'card', style: 'margin:0 0 10px' }), msg = h('div', { style: 'font-weight:700;min-height:20px;margin:4px 0' });
+  const OPS = MQ.operadores || [], AS = MQ.asignaciones || [], MAQ = (MQ.maquinas || []).filter(m => m.estado !== 'RETIRADA'), hoyS = MQ.hoy || new Date().toISOString().slice(0, 10);
+  const vis = c => { const m = (MQ.maquinas || []).find(x => x.cod === c); return m ? (m.vis || m.cod) + ' · ' + m.tipo : c; };
+  const actual = l => AS.filter(a => a.llave.toUpperCase() === l.toUpperCase() && a.desde <= hoyS && (!a.hasta || a.hasta >= hoyS)).sort((a, b) => b.desde.localeCompare(a.desde))[0];
+  const envia = async (req, ok) => {
+    msg.style.color = '#51606d'; msg.textContent = 'Guardando…';
+    try { const r = await api(Object.assign({ accion: 'admin_mq_asig', llave: LLAVE }, req));
+      if (!r.ok) { msg.style.color = '#b3261e'; msg.textContent = '⚠ ' + (r.mensaje || 'No se pudo guardar'); return; }
+      MQ.asignaciones = r.asignaciones; MQ.operadores = r.operadores; const y = window.scrollY; pintarMq(); window.scrollTo(0, y); banner('✔ ' + ok, 'ok');
+    } catch (e) { msg.style.color = '#b3261e'; msg.textContent = '⚠ Sin señal. Intenta de nuevo.'; } };
+  box.appendChild(h('h3', { style: 'margin:0 0 4px' }, '👷 Operadores y máquina asignada'));
+  box.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'El operador se crea en AppSheet con su NOMBRE y el módulo MAQUINARIA. Aquí le asignas la máquina desde una fecha; al cambiarla, la anterior se cierra sola y queda en el historial.'));
+  if (!OPS.length) box.appendChild(h('div', { class: 'aviso err' }, 'Aún no hay operadores: en AppSheet marca MAQUINARIA en el usuario del operador.'));
+  const tb = h('tbody', {});
+  OPS.forEach(o => {
+    const a = actual(o.llave);
+    const sel = h('select', { style: 'font-size:15px;padding:6px;min-width:220px' }, h('option', { value: '' }, '— Elegir máquina —'), MAQ.map(m => h('option', { value: m.cod }, (m.vis || m.cod) + ' · ' + m.tipo)));
+    sel.value = a ? a.maq : '';
+    const fd = h('input', { type: 'date', value: hoyS, style: 'font-size:15px;padding:6px' });
+    tb.appendChild(h('tr', { style: o.estado !== 'ACTIVO' ? 'opacity:.55' : '' },
+      h('td', { style: 'padding:6px' }, h('b', {}, o.nombre), h('div', { class: 'small' }, o.llave + (o.estado !== 'ACTIVO' ? ' · ' + o.estado : ''))),
+      h('td', { style: 'padding:6px' }, a ? h('span', {}, '🚜 ' + vis(a.maq), h('div', { class: 'small' }, 'desde ' + fmtF(a.desde))) : h('span', { style: 'color:#b3261e;font-weight:700' }, 'Sin máquina')),
+      h('td', { style: 'padding:6px' }, sel), h('td', { style: 'padding:6px' }, fd),
+      h('td', { style: 'padding:6px;white-space:nowrap' }, h('button', { style: 'padding:8px 12px;background:#0a7a32;color:#fff;border:0', onclick: () => { if (!sel.value) { sel.focus(); return; } envia({ op: 'asignar', op_llave: o.llave, maquina: sel.value, desde: fd.value }, o.nombre + ' asignado a ' + vis(sel.value)); } }, '✔ Asignar'),
+        a ? h('button', { class: 'sec', style: 'padding:8px 12px;margin-left:6px', onclick: () => { if (confirm('¿Dejar a ' + o.nombre + ' sin máquina desde ' + fmtF(fd.value) + '?')) envia({ op: 'quitar', op_llave: o.llave, desde: fd.value }, o.nombre + ' quedó sin máquina'); } }, 'Quitar') : null)));
+  });
+  if (OPS.length) box.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, h('table', { style: 'width:100%;border-collapse:collapse' }, h('thead', {}, h('tr', {}, ['Operador', 'Máquina hoy', 'Cambiar a', 'Desde', ''].map(t => h('th', { style: 'text-align:left;padding:6px' }, t)))), tb)));
+  box.appendChild(msg);
+  const hist = AS.slice().sort((a, b) => b.desde.localeCompare(a.desde) || b.ts.localeCompare(a.ts));
+  if (hist.length) box.appendChild(h('div', { style: 'margin-top:8px' }, h('b', {}, '📜 Historial de asignaciones'), h('div', { class: 'tw', style: 'max-height:260px' }, h('table', { style: 'width:100%' }, h('thead', {}, h('tr', {}, ['Operador', 'Máquina', 'Desde', 'Hasta', 'Asignó'].map(t => h('th', {}, t)))),
+    h('tbody', {}, hist.map(a => h('tr', {}, h('td', {}, a.operador || a.llave), h('td', {}, vis(a.maq)), h('td', {}, fmtF(a.desde)), h('td', {}, a.hasta ? fmtF(a.hasta) : 'hoy'), h('td', {}, a.por))))))));
+  return box;
 }
 function mqFiltrados() {
   const f = MQF, q = mqSinTilde(f.q.trim()), qa = mqNorm(f.q);

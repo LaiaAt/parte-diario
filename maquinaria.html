@@ -212,7 +212,7 @@ const guardarReps = () => { GEN++; return kv.set('reps_' + user.llave, REPS); };
 const guardarCola = () => kv.set('cola', COLA);
 const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
 const puedeEditar = r => r.fecha >= sumDias(hoy(), -3) || r.registrado === hoy();
-const maqTxt = c => { const m = (DATOS.maquinas || []).find(x => String(x.cod) === String(c)); return m ? m.cod + ' · ' + m.tipo : (c || ''); };
+const maqTxt = c => { const m = (DATOS.maquinas || []).find(x => String(x.cod) === String(c)); return m ? (m.vis || m.cod) + ' · ' + m.tipo : (c || ''); };
 const ALF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function nuevoId() { const a = new Uint8Array(5); crypto.getRandomValues(a); let s = ''; a.forEach(b => s += ALF[b % 32]); const id = 'MQ-' + hoy().slice(2).replace(/-/g, '') + '-' + s; return REPS.some(r => r.id === id) ? nuevoId() : id; }
 const normAlb = x => { let t = String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
@@ -274,7 +274,7 @@ function estadoRep(r) {
 }
 function pintarInicio() {
   const B = $('inicio'); B.textContent = '';
-  B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()))));
+  B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()) + ' · ' + (DATOS.fija ? '🚜 Tu máquina: ' + maqTxt(DATOS.fija) : '⚠ Sin máquina asignada'))));
   const gr = h('div', { class: 'gr', style: 'margin-bottom:14px' }, h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO ALBARÁN'));
   B.appendChild(gr);
   kv.get('borrador_' + user.llave).then(b => { if (b && b.F && $('inicio') && !$('inicio').hidden) gr.appendChild(h('div', { class: 'card', style: 'border:3px solid #b36b00;margin:0' }, h('b', {}, '📝 Dejaste un albarán a medias'), h('div', { class: 'bs', style: 'margin-top:8px' }, h('button', { class: 'verde', onclick: () => abrirForm(null, b) }, '▶ Continuar'), h('button', { class: 'rojo', onclick: async () => { if (confirm('¿Borrar el albarán que dejaste a medias?')) { await kv.del('borrador_' + user.llave); pintarInicio(); } } }, '🗑 Borrar')))); });
@@ -418,7 +418,7 @@ async function salirForm() {
   abrirInicio();
 }
 function malMsg(t) { const m = h('div', { class: 'msgerr', style: 'font-size:19px;margin:10px 0' }, '⚠ ' + t); return m; }
-function listaMaquinas() { return (DATOS.maquinas || []).map(m => ({ t: m.cod + ' · ' + m.tipo, sub: m.empresa, cod: m.cod })); }
+function listaMaquinas() { return (DATOS.maquinas || []).map(m => ({ t: (m.vis || m.cod) + ' · ' + m.tipo, sub: m.empresa, cod: m.cod })); }
 function abrirLista(titulo, grupos, alElegir, libreTxt) {
   const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9980;display:flex;align-items:flex-end;justify-content:center' });
   const hoja = h('div', { style: 'background:#fff;width:min(100%,560px);max-height:88vh;border-radius:14px 14px 0 0;display:flex;flex-direction:column;padding:12px' });
@@ -452,10 +452,17 @@ function pasoN(n, arriba) {
   const C = $('form'); const y = window.scrollY; C.textContent = '';
   const err = t => { C.appendChild(malMsg(t)); window.scrollTo(0, document.body.scrollHeight); };
   if (n === 1) {
-    if (DATOS.fija) F.maquina = DATOS.fija;
-    C.appendChild(cabeza(1, DATOS.fija ? 'Fecha y turno del albarán' : '¿Con qué máquina trabajó?'));
-    if (DATOS.fija) C.appendChild(h('div', { class: 'card', style: 'margin:0 0 10px;font-size:21px;font-weight:800;border-left:6px solid #0a7a32' }, '🚜 ' + maqTxt(F.maquina)));
-    else C.appendChild(h('button', { class: 'sec', style: 'font-size:22px;padding:18px;text-align:left', onclick: () => abrirLista('Elige la máquina', [{ ops: listaMaquinas() }], o => { F.maquina = o.cod; guardarBorrador(); pasoN(1); }) }, F.maquina ? '🚜 ' + maqTxt(F.maquina) : 'Toca aquí para elegir la máquina'));
+    if (DATOS.fija && !F.maquina) F.maquina = DATOS.fija;
+    const otra = () => abrirLista('¿En qué máquina trabajaste?', [{ ops: listaMaquinas() }], o => { F.maquina = o.cod; guardarBorrador(); pasoN(1); });
+    C.appendChild(cabeza(1, 'Fecha y turno del albarán'));
+    if (DATOS.fija) {
+      const mia = String(F.maquina) === String(DATOS.fija);
+      C.appendChild(h('div', { class: 'card', style: 'margin:0 0 6px;font-size:21px;font-weight:800;border-left:6px solid ' + (mia ? '#0a7a32' : '#b36b00') }, '🚜 ' + maqTxt(F.maquina), !mia ? h('div', { style: 'font-size:15px;color:#8a4b00;margin-top:4px' }, '⚠ No es tu máquina asignada (' + maqTxt(DATOS.fija) + '). La oficina lo revisará.') : null));
+      C.appendChild(h('div', {}, mia ? h('button', { class: 'link', onclick: otra }, 'Hoy estoy en otra máquina') : h('button', { class: 'link', onclick: () => { F.maquina = DATOS.fija; guardarBorrador(); pasoN(1); } }, '↩ Volver a mi máquina asignada')));
+    } else {
+      C.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700' }, '⚠ No tienes máquina asignada. Pide a la oficina que te asigne una. Mientras tanto, elige en cuál trabajaste.'));
+      C.appendChild(h('button', { class: 'sec', style: 'font-size:21px;padding:16px;text-align:left', onclick: otra }, F.maquina ? '🚜 ' + maqTxt(F.maquina) : 'Toca aquí para elegir la máquina'));
+    }
     C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:12px' }, '¿De qué día es el albarán?'));
     const DS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
     C.appendChild(h('div', { class: 'dias' }, [0, 1, 2, 3].map(k => { const f = sumDias(hoy(), -k), d = new Date(f + 'T12:00:00'), t = k === 0 ? 'Hoy' : k === 1 ? 'Ayer' : DS[d.getDay()].replace(/^./, c => c.toUpperCase());
