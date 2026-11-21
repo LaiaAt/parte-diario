@@ -826,7 +826,8 @@ async function guardarViaje() {
     }
     const normA = x => { let t = String(x || '').toUpperCase().replace(/\s+/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
     const nv = normA(g('n_valera'));
-    const rep = VIAJES.find(x => x.cod !== editandoCod && normA(x.n_valera) === nv && (x.valera_de || '') === ($('valera_de').value || ''));
+    const movN = $('mov').value === 'RECIBE' ? 'RECIBE' : 'ENTREGA'; // un albarán que se RECIBE y otro que se ENTREGA son documentos distintos: no es repetido
+    const rep = VIAJES.find(x => x.cod !== editandoCod && normA(x.n_valera) === nv && (x.valera_de || '') === ($('valera_de').value || '') && (x.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA') === movN);
     if (rep) { alert('🚫 El albarán N° ' + g('n_valera').toUpperCase() + ' ya fue registrado (' + rep.placa + ', ' + rep.fecha + ').\n\nNo se puede registrar dos veces. Revisa el número del albarán.'); $('n_valera').focus(); return; }
   }
   const rec = $('mov').value === 'RECIBE';

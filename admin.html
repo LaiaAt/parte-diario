@@ -495,7 +495,7 @@ function verFotoTr(cod, cual, total, i) {
   api({ accion: 'admin_tr_foto', llave: LLAVE, cod: cod, cual: cual, i: i }).then(r => {
     if (!document.body.contains(ov)) return;
     if (!r.ok) { info.textContent = r.mensaje || 'No se pudo abrir la foto'; return; }
-    img.src = r.data; info.textContent = (cual === 'recibo' ? 'Albarán / recibo' : 'Volqueta cargada') + ' · ' + cod + (total > 1 ? ' · ' + (i + 1) + ' de ' + total : '');
+    img.src = r.data; info.textContent = (cual === 'recibo' ? 'Albarán / recibo' : 'Volqueta cargada') + ' · ' + sinVT(cod) + (total > 1 ? ' · ' + (i + 1) + ' de ' + total : '');
     const b = $('trVisorBaja'); b.hidden = false; b.onclick = () => { const a = h('a', { href: r.data, download: cod + '_' + cual + '_' + (i + 1) + '.jpg' }); document.body.appendChild(a); a.click(); a.remove(); };
   }).catch(() => { info.textContent = 'No se pudo conectar.'; });
 }
