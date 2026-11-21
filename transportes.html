@@ -326,9 +326,6 @@ function pintarInicio() {
     ultimoViaje() ? h('button', { class: 'sec', onclick: () => abrirForm(null, ultimoViaje()) }, '🔁 Repetir el último viaje (' + ultimoViaje().placa + ')') : null));
   // recibos pendientes de ayer
   B.appendChild(h('h3', { style: 'margin-top:14px' }, 'Viajes de hoy' + (hoyC.length ? ' · ' + hoyC.length + ' · ' + r2(vol) + ' m³' : '')));
-  if (hoyV.length) B.appendChild(leyendaSem());
-  const nNum = hoyV.filter(v => !v.bloqueado && !v.rechazado).length;
-  if (nNum) B.appendChild(h('div', { style: 'background:#fff3cd;border:2px solid #12202b;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-weight:700;font-size:15px' }, '🧾 ' + nNum + ' registros · tus albaranes de papel: del 1 al ' + nNum));
   if (!hoyV.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay viajes hoy. Toca el botón verde para empezar.'));
   hoyV.slice().reverse().forEach(v => B.appendChild(filaViaje(v)));
   if (hoyV.length) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:14px', onclick: () => planilla(hoy()) }, '📄 Planilla de hoy'));
