@@ -1047,6 +1047,9 @@ function cabViaje(v) {
     h('div', { style: 'margin:6px 0 4px' }, chip(vol, 'background:#e3f2e5;color:#1b5e20'), p !== null ? chip(p + ' %', p < 70 ? 'background:#fde7b0;color:#6b4a00' : '') : null, chip(v.mov === 'RECIBE' ? '📥 Recibe' : '📤 Entrega'), chip(v.material || '—')),
     h('div', { style: 'font-size:15px;margin:4px 0;line-height:1.5' }, fila('📍 Origen: ', oriV(v)), fila('🏁 Destino: ', desV(v))),
     h('div', { class: 'small' }, fmtF(v.fecha) + ' ' + (v.hora_salida || '')),
+    (String(v.usuario || '').toUpperCase().replace('Ó', 'O') === 'HISTORICO' || String(v.llave || '').toUpperCase() === 'HISTORICO')
+      ? h('div', { class: 'small', style: 'color:#6b4a00;font-weight:700' }, '📦 Regularización histórica (cargue masivo)')
+      : h('div', { class: 'small', style: 'color:#37474f' }, '👤 Registró: ', h('b', {}, v.usuario || '—')),
     (limpiaEd(v), v.editado) ? h('div', { class: 'small', style: 'color:#607d8b' }, '✏️ ' + v.editado) : null);
 }
 function cardViaje(v) {
