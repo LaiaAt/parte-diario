@@ -1024,7 +1024,7 @@ function viajesTr() {
     && (!q || [v.cod, v.placa, v.conductor, v.empresa, v.material, v.origen, v.destino, v.alertas, v.usuario, v.n_valera, ufTxt(v)].join(' ').toUpperCase().indexOf(q) >= 0));
 }
 // N° de reporte del viaje = su número dentro del parte del día (por fecha de reporte y usuario); el que asignó la app, o el orden de registro
-const sinVT = t => String(t == null ? '' : t).replace(/VT-\d{6}-[A-Z0-9]{5}/g, m => { const v = ((typeof TR !== 'undefined' && TR && (TR.todos || TR.viajes)) || []).find(x => x.cod === m); const n = v && repNum(v); return n ? 'reporte ' + n : 'otro reporte'; });
+const sinVT = t => String(t == null ? '' : t).replace(/VT-\d{6}-[A-Z0-9]{5}/g, m => { const v = ((typeof TR !== 'undefined' && TR && (TR.todos || TR.viajes)) || []).find(x => x.cod === m); const n = v && repNum(v); return n ? 'reporte ' + n : 'otro reporte'; }).replace(/el vale (reporte|otro reporte)/g, (m0, r) => r === 'reporte' ? 'el reporte' : 'otro reporte');
 const rotulo = v => v.placa + ' · albarán ' + (v.n_valera || '—') + ' · reporte ' + (repNum(v) || '—');
 function repNum(v) {
   if (Number(v.consec) > 0) return Number(v.consec);
@@ -1488,7 +1488,7 @@ function pintarTr() {
       cj.appendChild(h('div', {}, 'Revisados todos tus registros (no solo este rango): ' + dupA.slice(0, 6).map(x => 'N° ' + x.vs[0].n_valera + ' (' + x.vs.length + ' viajes)').join(' · ') + (dupA.length > 6 ? ' …' : '')));
       cj.appendChild(h('button', { class: 'alertaDupB', onclick: () => { TRSOSP = 'Albarán repetido'; TRTAB = 'sosp'; selSet('tr', 'sosp'); pintarTr(); } }, 'Revisar ahora'));
     }
-    blq.slice(0, 5).forEach(x => cj.appendChild(h('div', { style: 'margin-top:6px;font-size:14px' }, '🚫 Bloqueado ' + fmtTs(x.ts) + ' · ' + (x.usuario || '—') + ' · ' + x.placa + ' — ' + sinVT(x.detalle), h('button', { class: 'sec sm', style: 'margin-left:8px;background:#fff', onclick: () => revBloq([x]) }, '✔ Ya lo revisé'))));
+    blq.slice(0, 5).forEach(x => cj.appendChild(h('div', { style: 'margin-top:6px;font-size:14px' }, '🚫 Bloqueado ' + fmtTs(x.ts) + ' · ' + (x.usuario || '—') + ' · ' + x.placa + ' — ' + sinVT(x.detalle), h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px' }, h('button', { class: 'sec sm', style: 'background:#fff', onclick: () => { const m = /albar[aá]n\s+(\S+)/i.exec(x.detalle || ''); ALB.q = m ? m[1] : x.placa; ALB.f = {}; TRTAB = 'albaran'; pintarTr(); buscarAlb(); window.scrollTo(0, 0); } }, '🔎 Ver los albaranes del caso'), h('button', { class: 'sec sm', style: 'background:#fff', onclick: () => revBloq([x]) }, '✔ Ya lo revisé')))));
     if (blq.length > 5) cj.appendChild(h('div', { style: 'margin-top:4px;font-size:13px' }, '…y ' + (blq.length - 5) + ' intentos más (ver el control de cambios).'));
     if (blq.length) cj.appendChild(h('button', { class: 'alertaDupB', style: 'margin-top:8px', onclick: () => revBloq(blq) }, '✔ Marcar los ' + blq.length + ' como revisados'));
     top.appendChild(cj);
