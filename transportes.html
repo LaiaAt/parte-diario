@@ -83,6 +83,19 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
 .viaje .bs{display:flex;gap:8px;flex-wrap:wrap}
 .viaje .bs>*{flex:1;min-width:110px}
 .viaje .bs button{padding:12px 10px;font-size:17px;min-height:48px}
+.viaje.v2{padding:10px 12px}
+.v2 .h1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.v2 .nn{background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;font-weight:800;font-size:16px}
+.v2 .pl{font-size:22px;font-weight:800;letter-spacing:.5px}
+.v2 .chips{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.v2 .chips .tag{margin:0;font-size:12px;padding:3px 8px;border-radius:999px;font-weight:700}
+.v2 .h2{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:6px}
+.v2 .alb{font-size:19px;font-weight:800;color:#12202b}.v2 .m3{font-size:20px;font-weight:800;color:var(--hv);white-space:nowrap}
+.v2 .h3{font-size:14px;color:var(--mut);margin:2px 0 8px;line-height:1.35}
+.v2 .avm{background:#fdecea;color:#8a1c14;border-radius:8px;padding:6px 10px;margin:-2px 0 8px;font-weight:700;font-size:14px}
+.v2 .acts{display:flex;gap:6px}
+.v2 .acts>span{display:contents}
+.v2 .acts button{flex:1 1 0;min-width:0;margin:0;display:block;text-align:center;white-space:pre-line;line-height:1.25;font-size:13px;font-weight:700;padding:6px 2px;min-height:56px;border-radius:10px}.v2 .acts button::first-line{font-size:22px;line-height:1.15}
+.v2 .acts .mas3{flex:0 0 46px;font-size:24px;padding:0}
 .hecho{font-size:64px;text-align:center;margin:0}
 .gr{display:flex;flex-direction:column;gap:10px}
 [hidden]{display:none!important}
@@ -333,10 +346,10 @@ function filaViaje(v, solo) {
   const pend = COLA.some(o => o.cod === v.cod && !o.error);
   const falta = !v.tiene_recibo && puedeRecibo(v);
   const mas = h('div', { class: 'bs', hidden: true, style: 'margin-top:8px' });
-  const bs = h('div', { class: 'bs fila1' });
-  if (falta && !v.tiene_recibo) bs.appendChild(selectorFotos({ camara: '📷 Foto del recibo', galeria: '🖼 Desde galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) }));
-  if (v.tiene_recibo) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🧾 Albarán'));
-  if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🚛 Volqueta'));
+  const bs = h('div', { class: 'acts' });
+  if (falta && !v.tiene_recibo) bs.appendChild(selectorFotos({ camara: '📷\nRecibo', galeria: '🖼\nGalería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) }));
+  if (v.tiene_recibo) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'recibo') }, '🧾\nAlbarán'));
+  if (v.tiene_carga) bs.appendChild(h('button', { class: 'sec', onclick: () => verFoto(v, 'carga') }, '🚛\nVolqueta'));
   if (puedeEditar(v)) {
     mas.appendChild(h('button', { class: 'sec', onclick: () => abrirForm(v) }, '✏️ Corregir')); if (v.fecha === hoy() || v.registrado === hoy()) mas.appendChild(h('button', { class: 'rojo', onclick: () => eliminar(v) }, '🗑 Borrar viaje'));
     const bm = h('button', { class: 'sec mas3', onclick: () => { mas.hidden = !mas.hidden; bm.textContent = mas.hidden ? '⋯' : '▲'; } }, '⋯');
@@ -346,12 +359,13 @@ function filaViaje(v, solo) {
     h('div', { class: 't' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;margin-right:6px' }, 'N° ' + consecDe(v)), v.placa),
     v.n_valera ? h('div', { style: 'font-size:20px;font-weight:800;margin:4px 0 8px' }, '🧾 Albarán N° ' + v.n_valera) : null,
     h('div', { class: 'dosbtn' }, selectorFotos({ camara: '📷 Foto del albarán', galeria: '🖼 Galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) })));
-  return h('div', { class: 'viaje' + (falta ? ' falta' : '') },
-    h('div', { class: 't' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;margin-right:6px' }, 'N° ' + consecDe(v)), v.placa, ' · ', v.material || '(sin material)'),
-    !String(v.material || '').trim() && v.estado !== 'ANULADO' ? h('div', { style: 'background:#fdecea;color:#8a1c14;border-radius:8px;padding:8px 10px;margin:4px 0;font-weight:700' }, '⚠ No se colocó el material transportado' + (puedeEditar(v) ? '. Toca ✏️ Corregir y elígelo.' : '. Avísale al administrador.')) : null,
-    v.n_valera ? h('div', { style: 'font-size:18px;font-weight:800;margin:2px 0' }, '🧾 Albarán N° ' + v.n_valera) : null,
-    h('div', { class: 's' }, r2(volV(v)) + ' m³ · ' + (v.mov === 'RECIBE' ? '📥 ' : '') + oriV(v) + ' → ' + desV(v) + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
-    h('div', { style: 'margin-bottom:8px' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), !String(v.material || '').trim() && v.estado !== 'ANULADO' ? h('span', { class: 'tag pend', style: 'background:#b3261e;color:#fff' }, '⚠ Falta el material') : null, pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null),
+  const sinMat = !String(v.material || '').trim() && v.estado !== 'ANULADO';
+  return h('div', { class: 'viaje v2' + (falta ? ' falta' : '') },
+    h('div', { class: 'h1' }, h('span', { class: 'nn' }, 'N° ' + consecDe(v)), h('span', { class: 'pl' }, v.placa),
+      h('span', { class: 'chips' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null, sinMat ? h('span', { class: 'tag pend', style: 'background:#b3261e' }, '⚠ Falta material') : null)),
+    h('div', { class: 'h2' }, h('span', { class: 'alb' }, v.n_valera ? '🧾 Albarán ' + v.n_valera : 'Sin N° de albarán'), h('span', { class: 'm3' }, r2(volV(v)) + ' m³')),
+    h('div', { class: 'h3' }, (v.mov === 'RECIBE' ? '📥 ' : '') + (v.material || '(sin material)') + ' · ' + oriV(v) + ' → ' + desV(v) + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
+    sinMat ? h('div', { class: 'avm' }, puedeEditar(v) ? 'Toca ⋯ y luego ✏️ Corregir para elegir el material.' : 'Avísale al administrador.') : null,
     bs, mas,
     alertasCampo(v.alertas) ? h('small', { style: 'color:#b36b00;display:block;margin-top:6px' }, '⚠ ' + alertasCampo(v.alertas)) : null,
     op ? h('div', { style: 'color:#b3261e;margin-top:6px;font-size:14px' }, '⚠ No se pudo enviar: ' + op.error,
