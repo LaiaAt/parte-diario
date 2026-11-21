@@ -378,10 +378,19 @@ function icoReenviar() { const d = document.createElement('span'); d.style.cssTe
 async function reenviarOp(op) {
   const v = VIAJES.find(x => x.cod === op.cod);
   if (v) { if (v.bloqueado) { v.consec = siguienteConsec(repDe(v), v.usuario); v.bloqueado = false; if (op.viaje) op.viaje.consec = v.consec; } await guardarViajes(); }
-  delete op.error; await guardarCola();
+  delete op.error; COLA.forEach(o => { if (o.t === 'r' && o.cod === op.cod) delete o.error; }); await guardarCola();
   if (!navigator.onLine) aviso('Sin señal: se enviará cuando haya internet.');
   sincronizar();
   if (diaActual) abrirDia(diaActual); else if (enPend) abrirPend(); else pintarInicio();
+}
+// sube a la oficina las fotos del viaje que no se aceptó por albarán repetido (no cuenta como viaje: es para que el administrador compare los dos albaranes)
+async function subirBloq(op) {
+  if (op.fotoBloq) return;
+  try {
+    const v = op.viaje || {}, rec = asArr(await kv.get('f_' + op.cod + '_r')), car = asArr(await kv.get('f_' + op.cod + '_c'));
+    const r = await api({ accion: 'tr_bloq_foto', llave: op.llave, viaje: { cod: op.cod, placa: v.placa, fecha: v.fecha, n_valera: v.n_valera, valera_de: v.valera_de, mov: v.mov, material: v.material, origen: v.origen, destino: v.destino, vol_albaran: v.vol_albaran }, recibo: rec, carga: car });
+    if (r && r.ok) { op.fotoBloq = true; await guardarCola(); }
+  } catch (e) {}
 }
 async function quitarOp(op) { COLA = COLA.filter(o => o !== op); await guardarCola(); if (op.t === 'g' && op.viaje && op.viaje.nuevo) { VIAJES = VIAJES.filter(v => v.cod !== op.cod); await guardarViajes(); } volver(); }
 
@@ -932,7 +941,9 @@ async function sincronizar() {
   if (sincronizando) { otraVez = true; return; }
   // los viajes que la oficina rechazó por albarán repetido se reenvían SOLOS una vez (sin que el usuario toque cada uno); si siguen repetidos, quedan con su botón Reenviar
   let reint = false; COLA.forEach(o => { if (o.error && !o.auto && /ya fue registrado|dos veces/i.test(o.error)) { o.auto = true; delete o.error; reint = true; const vb = VIAJES.find(x => x.cod === o.cod); if (vb && vb.bloqueado) { vb.consec = siguienteConsec(repDe(vb), vb.usuario); vb.bloqueado = false; if (o.viaje) o.viaje.consec = vb.consec; } } });
+  COLA.forEach(o => { if (o.t === 'r' && o.error && !o.auto && /no encontrado/i.test(o.error)) { o.auto = true; delete o.error; reint = true; } });
   if (reint) { await guardarCola(); await guardarViajes(); }
+  if (navigator.onLine) for (const o of COLA.filter(o => o.t === 'g' && o.error && !o.fotoBloq && /ya fue registrado|dos veces/i.test(o.error))) await subirBloq(o);
   if (!COLA.some(o => !o.error) || !navigator.onLine) return;
   sincronizando = true;
   try {
@@ -945,8 +956,9 @@ async function sincronizar() {
         delete viaje.nuevo; delete viaje.llave;
         r = await api({ accion: 'tr_guardar', llave: op.llave, viaje: viaje });
         if (!r.ok && r.codigo === 'DUP') { await renombrar(op, nuevoCod()); continue; }
-        if (!r.ok && r.codigo === 'ALB_DUP') { const vb = VIAJES.find(x => x.cod === op.cod); if (vb) { vb.bloqueado = true; await guardarViajes(); } }
+        if (!r.ok && r.codigo === 'ALB_DUP') { const vb = VIAJES.find(x => x.cod === op.cod); if (vb) { vb.bloqueado = true; await guardarViajes(); } await subirBloq(op); }
       } else if (op.t === 'r') {
+        const gp = COLA.find(o => o.t === 'g' && o.cod === op.cod); if (gp) { if (!gp.error) otraVez = true; continue; } // la foto del recibo espera a que el viaje quede guardado
         const foto = await kv.get('f_' + op.cod + '_r');
         if (!asArr(foto).length) { COLA = COLA.filter(o => o !== op); await guardarCola(); continue; }
         r = await api({ accion: 'tr_recibo', llave: op.llave, cod: op.cod, foto: foto });
