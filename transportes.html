@@ -363,7 +363,7 @@ function icoReenviar() { const d = document.createElement('span'); d.style.cssTe
 // vuelve a enviar un viaje que la oficina rechazó (por ejemplo, un albarán repetido ya corregido); recibe un número de reporte nuevo
 async function reenviarOp(op) {
   const v = VIAJES.find(x => x.cod === op.cod);
-  if (v) { v.consec = siguienteConsec(repDe(v), v.usuario); v.bloqueado = false; if (op.viaje) op.viaje.consec = v.consec; await guardarViajes(); }
+  if (v) { if (v.bloqueado) { v.consec = siguienteConsec(repDe(v), v.usuario); v.bloqueado = false; if (op.viaje) op.viaje.consec = v.consec; } await guardarViajes(); }
   delete op.error; await guardarCola();
   if (!navigator.onLine) aviso('Sin señal: se enviará cuando haya internet.');
   sincronizar();
@@ -916,6 +916,9 @@ async function renombrar(op, nuevo) {
 }
 async function sincronizar() {
   if (sincronizando) { otraVez = true; return; }
+  // los viajes que la oficina rechazó por albarán repetido se reenvían SOLOS una vez (sin que el usuario toque cada uno); si siguen repetidos, quedan con su botón Reenviar
+  let reint = false; COLA.forEach(o => { if (o.error && !o.auto && /ya fue registrado|dos veces/i.test(o.error)) { o.auto = true; delete o.error; reint = true; } });
+  if (reint) await guardarCola();
   if (!COLA.some(o => !o.error) || !navigator.onLine) return;
   sincronizando = true;
   try {
