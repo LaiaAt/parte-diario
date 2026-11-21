@@ -302,6 +302,7 @@ header>span{gap:6px!important;min-width:0}
   <div id="trTop"></div><div id="trTabs" class="trtabs"></div><div id="trBody"></div>
 </div>
 <div class="card" id="mqCard" data-m="maquinaria" hidden><h2>🚜 Maquinaria</h2><div id="mqBody"></div></div>
+<div class="card" id="oeCard" data-m="oe" hidden><h2>📐 Obra ejecutada (OE)</h2><div id="oeBody"></div></div>
 <div id="detalle" hidden></div>
 <div id="visor" hidden></div>
 </main></div>
@@ -342,7 +343,7 @@ async function api(d, ms) {
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
   finally { clearTimeout(t); if (av) av.fin(); }
 }
-function salir() { CDB.del('admin'); CDB.del('admin_tr'); CDB.del('admin_mq'); TR = null; MQ = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; { const ar = $('arbolAdm'); if (ar) { ar.textContent = ''; ar.hidden = true; } } $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('nav2').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; try { $('llave').setAttribute('autocomplete', 'off'); } catch (e) {}
+function salir() { CDB.del('admin'); CDB.del('admin_tr'); CDB.del('admin_mq'); CDB.del('admin_oe'); TR = null; MQ = null; OE = null; IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); FT = []; try { localStorage.removeItem('adm'); sessionStorage.removeItem('adm'); } catch (e) {} LLAVE = ''; D = null; { const ar = $('arbolAdm'); if (ar) { ar.textContent = ''; ar.hidden = true; } } $('salirTop').hidden = true; $('panel').hidden = true; $('nav').hidden = true; $('nav2').hidden = true; $('login').hidden = false; $('quien').textContent = ''; $('llave').value = ''; try { $('llave').setAttribute('autocomplete', 'off'); } catch (e) {}
   document.querySelectorAll('[data-m]').forEach(x => { x.hidden = true; }); ['trTop', 'trTabs', 'trBody'].forEach(i => { const e = $(i); if (e) e.textContent = ''; });
   const af = $('acFrame'); if (af) af.remove(); ACINI = false; const bn = $('bannerCarga'); if (bn) bn.hidden = true; ['nav', 'nav2', 'nav3', 'nav4'].forEach(i => { const e = $(i); if (e) { e.textContent = ''; e.hidden = true; } }); $('detalle').hidden = true; $('visor').hidden = true; }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
@@ -423,15 +424,17 @@ function pintarArbol() {
   const a = $('arbolAdm'); if (!a) return;
   a.textContent = '';
   if (typeof D === 'undefined' || !D || !D.usuarios || $('panel').hidden) { a.hidden = true; return; }
-  const gt = MOD === 'transportes', ga = MOD === 'acero', gm = MOD === 'maquinaria';
+  const gt = MOD === 'transportes', ga = MOD === 'acero', gm = MOD === 'maquinaria', go = MOD === 'oe';
   let nDupTr = 0; try { nDupTr = TR && TR.viajes ? sospechosos().filter(x => (x.tipo === 'Albarán repetido' || x.tipo === 'Sin foto de albarán' || x.tipo === 'Sin m³ de albarán') && !x.rev).length : 0; } catch (e) {}
   const irGrupo = g => { const b = document.querySelector('#nav button[data-g="' + g + '"]'); if (b) b.click(); };
   const irSub = (nav, i, mod) => { if (MOD !== mod) modulo(mod); if (MOD !== mod) return; const b = $(nav).children[i]; if (b) b.click(); };
   const G = [
-    { g: 'p', ico: '📅', t: 'Parte diario', on: !gt && !ga && !gm, hojas: MODS.filter(x => x[0] !== 'transportes').map(x => [x[1], MOD === x[0], () => modulo(x[0])]) },
+    { g: 'p', ico: '📅', t: 'Parte diario', on: !gt && !ga && !gm && !go, hojas: MODS.filter(x => x[0] !== 'transportes').map(x => [x[1], MOD === x[0], () => modulo(x[0])]) },
     { g: 't', ico: '🚛', t: 'Transportes', on: gt, hojas: TR_TABS.map((x, i) => [x[1] + (x[0] === 'sosp' && nDupTr ? '  🚨 ' + nDupTr : ''), gt && TRTAB === x[0], () => irSub('nav3', i, 'transportes')]) }
   ];
   if (D.acero) G.push({ g: 'a', ico: '🔩', t: 'Acero', on: ga, hojas: AC_TABS.map((x, i) => [x[1], ga && ACTAB === x[0], () => irSub('nav4', i, 'acero')]) });
+  G.push({ g: 'm', ico: '🚜', t: 'Maquinaria', on: gm, hojas: MQ_TABS.map((x, i) => [x[1], gm && MQTAB === x[0], () => irSub('nav4', i, 'maquinaria')]) });
+  G.push({ g: 'o', ico: '📐', t: 'OE', on: go, hojas: OE_TABS.map((x, i) => [x[1], go && OETAB === x[0], () => irSub('nav4', i, 'oe')]) });
   G.forEach(x => {
     a.appendChild(h('button', { class: 'ar-g' + (x.on ? ' on' : ''), onclick: () => { if (!x.on) irGrupo(x.g); } }, h('span', {}, x.ico), h('em', {}, x.t)));
     if (x.on) a.appendChild(h('div', { class: 'ar-h' }, x.hojas.map(t => h('button', { class: 'ar-s' + (t[1] ? ' on' : ''), onclick: t[2] }, t[0]))));
@@ -443,15 +446,16 @@ function modulo(m) {
   if (m === 'acero' && !(D && D.acero)) m = 'resumen';
   MOD = m; selSet('mod', m);
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
-  const gt = m === 'transportes', ga = m === 'acero', gm = m === 'maquinaria', grp = gt ? 't' : ga ? 'a' : gm ? 'm' : 'p';
+  const gt = m === 'transportes', ga = m === 'acero', gm = m === 'maquinaria', go = m === 'oe', grp = gt ? 't' : ga ? 'a' : gm ? 'm' : go ? 'o' : 'p';
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g === grp));
-  $('nav2').hidden = gt || ga || gm; $('nav3').hidden = !gt; $('nav4').hidden = !(ga || gm); if (!gt) $('cPer').hidden = false; if (gt) navTr(); if (ga) navAc(); if (gm) navMq();
+  $('nav2').hidden = gt || ga || gm || go; $('nav3').hidden = !gt; $('nav4').hidden = !(ga || gm || go); if (!gt) $('cPer').hidden = false; if (gt) navTr(); if (ga) navAc(); if (gm) navMq(); if (go) navOe();
   { medirHeader(); const t = (headerH() + $('nav').offsetHeight) + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav4').style.top = t; $('nav4').style.marginTop = '0'; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
   window.scrollTo(0, 0); pintarArbol();
   if (m === 'transportes' && !TR) cargarTr();
   if (m === 'acero') abrirAcero();
   if (m === 'maquinaria' && !MQ) cargarMq();
+  if (m === 'oe' && !OE) cargarOe();
 }
 let TRP = null, TRVM = 'alb', TR = null, TRTAB = selGet('tr', 'resumen', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
 async function cargarTr() {
@@ -1764,13 +1768,101 @@ function xlsxMq() {
     { nombre: 'Detalle de actividades', cols: ['Fecha', 'N° albarán', 'Móvil', 'Tipo de máquina', 'Turno', 'Usuario que registró', 'Tipo', 'Centro de costo', 'Actividad', 'Grupo', 'Desde', 'Hasta', 'Horas', 'Detalle'], rows: det },
     { nombre: 'Consolidado', cols: ['Móvil', 'Tipo de máquina', 'Tipo', 'Centro de costo', 'Actividad', 'Horas', 'Veces'], rows: cons }]);
 }
-const esPd = m => m !== 'transportes' && m !== 'acero' && m !== 'maquinaria';
+const esPd = m => m !== 'transportes' && m !== 'acero' && m !== 'maquinaria' && m !== 'oe';
 function navegacion() {
   const n = $('nav'); n.hidden = false; if (n.firstChild) { modulo(MOD); return; }
   const n2 = $('nav2'); let ultP = 'resumen';
-  [['p', '📅 Parte diario', () => modulo(esPd(MOD) ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (esPd(MOD)) ultP = MOD; modulo('transportes'); }], D.acero ? ['a', '🔩 Acero', () => { if (esPd(MOD)) ultP = MOD; modulo('acero'); }] : null].filter(Boolean).forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
+  [['p', '📅 Parte diario', () => modulo(esPd(MOD) ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (esPd(MOD)) ultP = MOD; modulo('transportes'); }], D.acero ? ['a', '🔩 Acero', () => { if (esPd(MOD)) ultP = MOD; modulo('acero'); }] : null, ['m', '🚜 Maquinaria', () => { if (esPd(MOD)) ultP = MOD; modulo('maquinaria'); }], ['o', '📐 OE', () => { if (esPd(MOD)) ultP = MOD; modulo('oe'); }]].filter(Boolean).forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
   MODS.filter(x => x[0] !== 'transportes').forEach(x => { const b = h('button', { onclick: () => modulo(x[0]) }, x[1]); b.dataset.mod = x[0]; n2.appendChild(b); });
   modulo(MOD);
+}
+/* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
+const OE_TABS = [['kpi', '📊 Resumen'], ['reg', '📋 Registros'], ['hito', '🏗️ Por hito y actividad']];
+let OE = null, OETAB = selGet('oe', 'kpi', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', q: '' }, OEN = 60;
+const oeNum = x => { const n = Number(String(x == null ? '' : x).replace(',', '.')); return isFinite(n) ? n : 0; };
+const oeR = n => Math.round(n * 100) / 100;
+const oeFmt = n => oeR(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
+const oeHitoTxt = k => k ? k + ' ' + (((OE && OE.hitos) || {})[k] || '') : '';
+const oeAbs = r => (r.abIni || '') + (r.abFin ? ' → ' + r.abFin : '');
+function navOe() {
+  const tb = $('nav4'); tb.textContent = '';
+  OE_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: OETAB === k ? 'on' : '', onclick: () => { OETAB = k; selSet('oe', k); navOe(); if (OE) pintarOe(); else cargarOe(); } }, t)));
+  pintarArbol();
+}
+async function cargarOe() {
+  let desdeCopia = false;
+  if (!OE) { const c = await CDB.get('admin_oe'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === $('desde').value && c.hh === $('hasta').value) { OE = c.r; desdeCopia = true; pintarOe(); avisoDatos('Actualizando OE… (datos de ' + horaTxt(c.t) + ')'); } }
+  if (!desdeCopia) { $('oeBody').textContent = ''; banner('Cargando datos de OE…'); }
+  try {
+    const r = await api({ accion: 'admin_oe', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
+    if (!r.ok) { if (!desdeCopia) $('oeBody').textContent = r.mensaje || 'No se pudo cargar'; finBanner(false); return; }
+    CDB.set('admin_oe', { llave: LLAVE, t: Date.now(), r: r, d: $('desde').value, hh: $('hasta').value });
+    const y = window.scrollY; OE = r; pintarOe(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
+  } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · OE guardada'); else $('oeBody').textContent = 'No se pudo conectar.'; finBanner(false); }
+}
+function oeFiltrados() {
+  const q = mqSinTilde(OEF.q);
+  return (OE.registros || []).filter(r => (!OEF.top || r.llave === OEF.top) && (!OEF.hito || r.hito === OEF.hito) &&
+    (!q || mqSinTilde([r.actividad, r.topografo, r.uf, r.costado, r.paquete, r.cc, r.abIni, r.abFin, r.obs].join(' ')).indexOf(q) >= 0));
+}
+function oeGrupos(L, fk) { const o = {}; L.forEach(r => { const k = fk(r); const a = (o[k.join('|')] = o[k.join('|')] || { k: k, n: 0, t: 0 }); a.n++; a.t += oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad); }); return Object.keys(o).sort().map(x => o[x]); }
+function oeTablas(L) {
+  return {
+    hito: { nombre: 'Por hito', cols: ['Hito', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [oeHitoTxt(r.hito), r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
+    act: { nombre: 'Por actividad', cols: ['Hito', 'Paquete', 'Actividad', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [oeHitoTxt(r.hito), r.paquete || '', r.actividad || '', r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
+    top: { nombre: 'Por topógrafo', cols: ['Topógrafo', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [r.topografo || nomDe(r.llave), r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
+    dia: { nombre: 'Por día', cols: ['Fecha', 'Registros', 'Topógrafos'], rows: Object.keys(L.reduce((o, r) => { (o[r.fecha] = o[r.fecha] || []).push(r); return o; }, {})).sort().map(f => { const x = L.filter(r => r.fecha === f); return [fmtF(f), x.length, new Set(x.map(r => r.llave)).size]; }) }
+  };
+}
+function xlsxOe() {
+  const L = oeFiltrados(); if (!L.length) { avisoDatos('No hay registros con este filtro'); return; }
+  if (!window.XLSX) { avisoDatos('El Excel aún está cargando, intenta de nuevo'); return; }
+  const cols = ['Fecha', 'Topógrafo', 'Hito', 'UF', 'Costado', 'Abscisa inicial', 'Abscisa final', 'Paquete', 'C. costos', 'Actividad', 'Und', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Factor', 'Total', 'Latitud', 'Longitud', 'Observaciones'];
+  const rows = L.slice().sort((a, b) => (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.factor, r.total, r.lat, r.lon, r.obs]);
+  const T = oeTablas(L);
+  excelHoja('Registros OE', cols, rows, 'OE_' + $('desde').value + '_a_' + $('hasta').value + '.xlsx', [T.hito, T.act, T.top, T.dia].map(x => ({ nombre: x.nombre, cols: x.cols, rows: x.rows })));
+}
+function verFotoOe(r) {
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px', onclick: () => ov.remove() }, h('div', { style: 'color:#fff' }, 'Cargando foto…'));
+  document.body.appendChild(ov);
+  api({ accion: 'admin_oe_foto', llave: LLAVE, id: r.id }).then(x => {
+    ov.textContent = '';
+    if (!x.ok) { ov.appendChild(h('div', { style: 'color:#fff' }, x.mensaje || 'No se pudo cargar')); return; }
+    x.datas.forEach(d => ov.appendChild(h('img', { src: d, style: 'max-width:96vw;max-height:70vh;border-radius:6px' })));
+    ov.appendChild(h('div', { style: 'color:#fff' }, 'Toca para cerrar'));
+  }).catch(() => { ov.textContent = 'Sin señal'; });
+}
+function pintarOe() {
+  const c = $('oeBody'); if (!OE) return; c.textContent = '';
+  const R = OE.registros || [];
+  if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay registros de OE en estas fechas')); return; }
+  const tops = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => (nomDe(a) || '').localeCompare(nomDe(b) || '')), hitos = Array.from(new Set(R.map(r => r.hito).filter(Boolean))).sort();
+  const sel = (k, op, def) => { const s = h('select', { onchange: () => { OEF[k] = s.value; OEN = 60; pintarOe(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = OEF[k]; return s; };
+  const q = h('input', { type: 'search', placeholder: '🔎 Buscar actividad, UF, costado, paquete…', value: OEF.q, style: 'font-size:17px;padding:10px;min-width:220px;flex:2' });
+  let tq; q.oninput = () => { OEF.q = q.value; clearTimeout(tq); tq = setTimeout(() => { OEN = 60; const y = window.scrollY; pintarOe(); const n = $('oeBody').querySelector('input[type=search]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } window.scrollTo(0, y); }, 300); };
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, q, sel('top', tops.map(l => [l, nomDe(l)]), 'Todos los topógrafos'), sel('hito', hitos.map(k => [k, oeHitoTxt(k)]), 'Todos los hitos'), h('button', { onclick: xlsxOe }, '⬇ Excel')));
+  const L = oeFiltrados();
+  if (!L.length) { c.appendChild(h('div', { class: 'trok' }, 'Ningún registro coincide con el filtro')); return; }
+  const T = oeTablas(L);
+  if (OETAB === 'kpi') {
+    const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
+    const und = {}; L.forEach(r => { const u = r.und || '—'; und[u] = (und[u] || 0) + oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad); });
+    c.appendChild(h('div', { class: 'kpis' }, K('Registros', L.length), K('Topógrafos', new Set(L.map(r => r.llave)).size), K('Días con OE', new Set(L.map(r => r.fecha)).size), K('Hitos', new Set(L.map(r => r.hito)).size), K('Actividades', new Set(L.map(r => r.actividad)).size)));
+    c.appendChild(h('div', { class: 'kpis' }, Object.keys(und).sort().map(u => K('Total en ' + u, oeFmt(und[u])))));
+    c.appendChild(tablaMq('📐 Por hito', T.hito.cols, T.hito.rows));
+    c.appendChild(tablaMq('📅 Por día', T.dia.cols, T.dia.rows));
+    c.appendChild(tablaMq('👷 Por topógrafo', T.top.cols, T.top.rows));
+    return;
+  }
+  if (OETAB === 'hito') { c.appendChild(tablaMq('🏗️ Por hito, paquete y actividad', T.act.cols, T.act.rows)); return; }
+  const vis = L.slice(0, OEN);
+  const th = ['Fecha', 'Topógrafo', 'Hito', 'UF · Costado', 'Abscisas', 'Actividad', 'Und', 'Total', ''];
+  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, L.length + ' registros' + (L.length > vis.length ? ' · se muestran ' + vis.length + ', el Excel trae todos' : '')));
+  c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, th.map(t => h('th', {}, t)))), h('tbody', {}, vis.map(r => h('tr', {},
+    h('td', {}, fmtF(r.fecha)), h('td', {}, r.topografo || nomDe(r.llave)), h('td', {}, oeHitoTxt(r.hito)), h('td', {}, [r.uf, r.costado].filter(Boolean).join(' · ')), h('td', {}, oeAbs(r)), h('td', {}, r.actividad || ''), h('td', {}, r.und || ''),
+    h('td', { style: 'text-align:right;font-weight:700' }, oeFmt(oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad))),
+    h('td', {}, r.foto ? h('button', { class: 'sec sm', onclick: () => verFotoOe(r) }, '📷') : null)))))));
+  if (L.length > vis.length) c.appendChild(h('button', { class: 'sec', style: 'margin-top:8px', onclick: () => { OEN += 60; const y = window.scrollY; pintarOe(); window.scrollTo(0, y); } }, 'Ver más'));
 }
 function llaves() { return D.usuarios.map(u => u.llave); }
 // En el Dashboard solo se ven nombres de usuario; la llave (clave de acceso) no se muestra
@@ -2283,10 +2375,11 @@ $('act').onclick = async () => {
     if (MOD === 'transportes' && $('trBody')) $('trBody').textContent = '';
     while (CARGANDO) await new Promise(r => setTimeout(r, 150)); // si ya había una carga en curso, espera y pide la del rango nuevo
     let esperaAc = null; if (MOD === 'acero') esperaAc = new Promise(r => { ACWAIT = r; setTimeout(r, 20000); });
-    TR = null; MQ = null; const ok = await cargar(false);
+    TR = null; MQ = null; OE = null; const ok = await cargar(false);
     if (esperaAc) await esperaAc;
     if (MOD === 'transportes') await cargarTr();
     if (MOD === 'maquinaria') await cargarMq();
+    if (MOD === 'oe') await cargarOe();
     if (Date.now() - t0 < 700) await new Promise(r => setTimeout(r, 700 - (Date.now() - t0)));
     if (mi === RECARGA) banner(ok === false ? 'No se pudo actualizar' : '✔ Datos actualizados', ok === false ? 'mal' : 'ok');
   } catch (e) { if (mi === RECARGA) banner('No se pudo cargar. Revisa tu conexión.', 'mal'); }
@@ -2341,7 +2434,7 @@ function conservar(fn) {
     return r;
   };
 }
-pintar = conservar(pintar); pintarTr = conservar(pintarTr); navTr = conservar(navTr); navAc = conservar(navAc); modulo = conservar(modulo);
+pintar = conservar(pintar); pintarTr = conservar(pintarTr); navTr = conservar(navTr); navAc = conservar(navAc); modulo = conservar(modulo); pintarOe = conservar(pintarOe); navOe = conservar(navOe);
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script>if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hab || rec) return; rec = true; /* versión nueva: nunca se recarga mientras se está usando; se aplica sola cuando la pestaña queda en segundo plano o al volver a abrir */ if (document.hidden) location.reload(); else document.addEventListener('visibilitychange', () => { if (document.hidden) location.reload(); }); }); navigator.serviceWorker.register('sw.js').then(reg => { const buscar = () => { try { reg.update(); } catch (e) {} }; setInterval(buscar, 1800000); document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar(); }); window.addEventListener('focus', buscar); }).catch(() => {}); }
