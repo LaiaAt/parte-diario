@@ -336,7 +336,7 @@ function tomarGps() {
 function reducirFoto(file) {
   return new Promise((ok, no) => {
     const url = URL.createObjectURL(file), im = new Image();
-    im.onload = () => { const m = 1280, k = Math.min(1, m / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.72)); };
+    im.onload = () => { const m = 1280, k = Math.min(1, m / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.6)); };
     im.onerror = () => { URL.revokeObjectURL(url); no(new Error('foto')); }; im.src = url;
   });
 }

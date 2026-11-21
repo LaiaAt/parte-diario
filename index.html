@@ -687,7 +687,7 @@ function comprimir(file) {
       const cv = document.createElement('canvas'); cv.width = w; cv.height = hh;
       cv.getContext('2d').drawImage(img, 0, 0, w, hh);
       URL.revokeObjectURL(url);
-      res({ data: cv.toDataURL('image/jpeg', 0.65), w: w, h: hh });
+      res({ data: cv.toDataURL('image/jpeg', 0.6), w: w, h: hh });
     };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('foto')); };
     img.src = url;

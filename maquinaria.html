@@ -130,6 +130,7 @@ input.gran{font-size:30px;font-weight:800;text-align:center;padding:16px}
 .rep.falta{border-left-color:#b36b00}.rep.mal{border-left-color:var(--err)}
 .rep .t{font-size:21px;font-weight:800}.rep .s{font-size:16px;color:var(--mut);margin:2px 0 8px}
 .rep .bs button{padding:12px 8px;font-size:17px;min-height:48px}
+.dias{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.dias button{display:flex;flex-direction:column;align-items:center;padding:10px 2px;min-height:0;gap:2px}.dias button b{font-size:18px}.dias button span{font-size:15px;font-weight:600}.dias button.on span{color:#fff}
 </style>
 </head>
 <body>
@@ -138,7 +139,7 @@ input.gran{font-size:30px;font-weight:800;text-align:center;padding:16px}
   <div id="aviso" class="aviso" hidden></div>
   <div id="cargando" hidden role="alert" aria-live="assertive"><div class="caja"><div class="rueda"></div><b id="cargTxt">Cargando datos…</b><small>Espera un momento</small></div></div>
   <div id="bgpill" hidden role="status"><span class="rueda"></span><span>Actualizando datos…</span></div>
-  <div id="envio" hidden role="alert" aria-live="assertive"><div class="caja"><div id="envIco" style="font-size:54px">📤</div><b id="envTit">Enviando el reporte…</b><div class="pb" id="envPb"><i></i></div><div id="envTxt" style="font-size:17px;color:#51606d">No cierres la aplicación hasta que termine.</div><div id="envBt" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div></div></div>
+  <div id="envio" hidden role="alert" aria-live="assertive"><div class="caja"><div id="envIco" style="font-size:54px">📤</div><b id="envTit">Enviando el albarán…</b><div class="pb" id="envPb"><i></i></div><div id="envTxt" style="font-size:17px;color:#51606d">No cierres la aplicación hasta que termine.</div><div id="envBt" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div></div></div>
   <section id="login" class="card" hidden>
     <img class="marca" src="logo.png" alt="Consorcio Constructor Sabana Norte">
     <label for="llave" style="font-size:20px;color:var(--ink)">🔑 Escribe tu llave</label>
@@ -229,7 +230,7 @@ async function ingresar() {
   aviso('Entrando…');
   try {
     const r = await api({ accion: 'validar', llave: l, app: 'maquinaria' }, 30000);
-    if (!r.ok) { aviso(r.admin ? 'Las llaves de administrador no crean reportes. Usa el dashboard.' : (r.mensaje || 'Llave no válida'), 'err'); return; }
+    if (!r.ok) { aviso(r.admin ? 'Las llaves de administrador no crean albaranes. Usa el dashboard.' : (r.mensaje || 'Llave no válida'), 'err'); return; }
     user = { llave: r.llave, nombre: r.nombre }; ULT_REF = 0;
     await kv.set('user', user); await cargarLocal();
     aviso(''); abrirInicio(); sincronizar();
@@ -257,7 +258,7 @@ async function refrescar(forzar) {
   } catch (e) {}
 }
 async function cerrarSesion(msg) {
-  if (!msg && COLA.length && !confirm('Hay ' + COLA.length + ' reporte(s) sin enviar. Se enviarán cuando haya señal. ¿Cerrar sesión?')) return;
+  if (!msg && COLA.length && !confirm('Hay ' + COLA.length + ' albarán(es) sin enviar. Se enviarán cuando haya señal. ¿Cerrar sesión?')) return;
   await kv.del('user'); user = null; REPS = [];
   $('llave').value = ''; pantalla('login'); aviso(msg || '', msg ? 'err' : '');
 }
@@ -273,14 +274,14 @@ function estadoRep(r) {
 function pintarInicio() {
   const B = $('inicio'); B.textContent = '';
   B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()))));
-  const gr = h('div', { class: 'gr', style: 'margin-bottom:14px' }, h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO REPORTE'));
+  const gr = h('div', { class: 'gr', style: 'margin-bottom:14px' }, h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO ALBARÁN'));
   B.appendChild(gr);
-  kv.get('borrador_' + user.llave).then(b => { if (b && b.F && $('inicio') && !$('inicio').hidden) gr.appendChild(h('div', { class: 'card', style: 'border:3px solid #b36b00;margin:0' }, h('b', {}, '📝 Dejaste un reporte a medias'), h('div', { class: 'bs', style: 'margin-top:8px' }, h('button', { class: 'verde', onclick: () => abrirForm(null, b) }, '▶ Continuar'), h('button', { class: 'rojo', onclick: async () => { if (confirm('¿Borrar el reporte que dejaste a medias?')) { await kv.del('borrador_' + user.llave); pintarInicio(); } } }, '🗑 Borrar')))); });
+  kv.get('borrador_' + user.llave).then(b => { if (b && b.F && $('inicio') && !$('inicio').hidden) gr.appendChild(h('div', { class: 'card', style: 'border:3px solid #b36b00;margin:0' }, h('b', {}, '📝 Dejaste un albarán a medias'), h('div', { class: 'bs', style: 'margin-top:8px' }, h('button', { class: 'verde', onclick: () => abrirForm(null, b) }, '▶ Continuar'), h('button', { class: 'rojo', onclick: async () => { if (confirm('¿Borrar el albarán que dejaste a medias?')) { await kv.del('borrador_' + user.llave); pintarInicio(); } } }, '🗑 Borrar')))); });
   const pend = COLA.filter(o => !o.error && o.llave === user.llave).length;
-  if (pend) B.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700' }, '⏳ ' + pend + ' reporte(s) sin enviar. Se envían solos cuando hay señal.', h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => sincronizar(true) }, '🔄 Enviar ahora'))));
+  if (pend) B.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700' }, '⏳ ' + pend + ' albarán(es) sin enviar. Se envían solos cuando hay señal.', h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => sincronizar(true) }, '🔄 Enviar ahora'))));
   const dias = {}; REPS.forEach(r => (dias[r.fecha] = dias[r.fecha] || []).push(r));
   const ks = Object.keys(dias).sort().reverse();
-  if (!ks.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay reportes. Toca el botón verde para empezar.'));
+  if (!ks.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay albaranes. Toca el botón verde para empezar.'));
   ks.forEach(f => {
     B.appendChild(h('h3', { style: 'margin:14px 0 6px' }, (f === hoy() ? 'Hoy · ' : '') + fmtF(f)));
     dias[f].sort((a, b) => String(b.registrado).localeCompare(String(a.registrado))).forEach(r => B.appendChild(filaRep(r)));
@@ -296,14 +297,14 @@ function filaRep(r) {
   return h('div', { class: 'rep ' + e.t },
     h('div', { class: 't' }, '🧾 N° ' + r.albaran + ' · ' + maqTxt(r.maquina)),
     h('div', { class: 's' }, (r.turno === 'NOCHE' ? '🌙 Turno noche' : '☀ Turno día')),
-    h('div', { class: 's' }, 'Horómetro ' + nh(r.h_ini) + ' → ' + nh(r.h_fin) + ' · ' + nh(r.h_trab !== undefined ? r.h_trab : 0) + ' h trabajadas' + (r.h_parada ? ' · ' + nh(r.h_parada) + ' h paradas' : '')),
+    h('div', { class: 's' }, 'Horómetro ' + nh(r.h_ini) + ' → ' + nh(r.h_fin) + ' · ' + nh(r.h_trab !== undefined ? r.h_trab : 0) + ' h trabajadas' + (r.h_parada ? ' · ' + nh(r.h_parada) + ' h no productivas' : '')),
     h('div', { style: 'margin-bottom:8px;font-weight:700;color:' + (e.t === 'ok' ? 'var(--ok)' : e.t === 'mal' ? 'var(--err)' : '#b36b00') }, e.txt),
     r.fecha !== (r.registrado || r.fecha) && r.registrado ? h('div', { class: 's', style: 'color:#b36b00' }, '⚠ Creado el ' + fmtF(r.registrado) + ' para el día ' + fmtF(r.fecha)) : null,
     bs);
 }
 async function descartar(op, r) { COLA = COLA.filter(o => o !== op); await guardarCola(); if (r.nuevo) { REPS = REPS.filter(x => x.id !== r.id); await guardarReps(); } refrescar(true); pintarInicio(); }
 async function borrar(r) {
-  if (!confirm('¿Borrar este reporte (N° ' + r.albaran + ')? No se puede deshacer.')) return;
+  if (!confirm('¿Borrar este albarán (N° ' + r.albaran + ')? No se puede deshacer.')) return;
   COLA = COLA.filter(o => o.rid !== r.id);
   if (!r.nuevo) COLA.push({ id: Date.now() + Math.random(), t: 'e', llave: user.llave, rid: r.id });
   REPS = REPS.filter(x => x.id !== r.id);
@@ -360,7 +361,7 @@ async function verFotos(r) {
   const cuerpo = h('div', {}, h('p', { style: 'color:#fff;font-size:18px;text-align:center;margin-top:30px' }, 'Abriendo…'));
   V.appendChild(h('div', { style: 'max-width:640px;margin:0 auto' }, h('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:#12202b;padding:8px 0;color:#fff;font-weight:700' }, h('span', {}, '📷 N° ' + r.albaran + ' · ' + maqTxt(r.maquina)), h('button', { class: 'verde', style: 'width:auto;padding:8px 18px', onclick: cerrar }, '✕ Cerrar')), cuerpo));
   V.hidden = false; V.scrollTop = 0; document.body.style.overflow = 'hidden';
-  const sec = [['ini', '⏱ Horómetro de inicio'], ['fin', '⏱ Horómetro final'], ['parte', '🧾 Registro (el papel)']];
+  const sec = [['ini', '⏱ Horómetro de inicio'], ['fin', '⏱ Horómetro final'], ['parte', '🧾 Albarán (el papel)']];
   cuerpo.textContent = '';
   for (const [c, t] of sec) {
     cuerpo.appendChild(h('p', { style: 'color:#fff;font-weight:800;font-size:18px;margin:14px 0 4px' }, t));
@@ -376,11 +377,11 @@ async function verFotos(r) {
 
 /* ---------- formulario por pasos ---------- */
 let F = null, PASO = 1;
-const PASOS = 7;
+const PASOS = 6;
 function filaVacia(k) { return { k: k || 'P', cc: '', a: '', g: '', h: '', d: '', t: '', n: '' }; }
 function abrirForm(rep, borrador) {
   aviso('');
-  if (borrador && borrador.F) { F = borrador.F; PASO = borrador.paso || 1; }
+  if (borrador && borrador.F) { F = borrador.F; PASO = Math.min(borrador.paso || 1, PASOS); }
   else if (rep) {
     F = { id: rep.id, nuevo: !!rep.nuevo, editar: true, fecha: rep.fecha, maquina: rep.maquina, turno: rep.turno === 'NOCHE' ? 'NOCHE' : 'DIA', albaran: rep.albaran, h_ini: rep.h_ini === '' ? '' : String(rep.h_ini), h_fin: rep.h_fin === '' ? '' : String(rep.h_fin), modo: rep.modo === 'TOTAL' ? 'TOTAL' : 'HORARIO', det: (rep.det || []).map(x => ({ k: x.k || (x.parada ? 'X' : x.fuera ? 'F' : 'P'), cc: x.cc || '', a: x.a || '', g: x.g || '', h: String(x.h || ''), d: x.d || '', t: x.t || '', n: x.n || '' })), obs: rep.obs || '', fotos: { ini: [], fin: [], parte: [] }, tiene: { ini: rep.n_ini || 0, fin: rep.n_fin || 0, parte: rep.n_parte || 0 }, creado: rep.creado_ms || 0 };
     PASO = 1;
@@ -450,31 +451,35 @@ function pasoN(n, arriba) {
   const C = $('form'); const y = window.scrollY; C.textContent = '';
   const err = t => { C.appendChild(malMsg(t)); window.scrollTo(0, document.body.scrollHeight); };
   if (n === 1) {
-    C.appendChild(cabeza(1, '¿Con qué máquina trabajó?'));
-    if (DATOS.fija && F.maquina === DATOS.fija) C.appendChild(h('div', { class: 'card', style: 'margin:0;font-size:22px;font-weight:800' }, '🚜 ' + maqTxt(F.maquina)));
+    if (DATOS.fija) F.maquina = DATOS.fija;
+    C.appendChild(cabeza(1, DATOS.fija ? 'Fecha y turno del albarán' : '¿Con qué máquina trabajó?'));
+    if (DATOS.fija) C.appendChild(h('div', { class: 'card', style: 'margin:0 0 10px;font-size:21px;font-weight:800;border-left:6px solid #0a7a32' }, '🚜 ' + maqTxt(F.maquina)));
     else C.appendChild(h('button', { class: 'sec', style: 'font-size:22px;padding:18px;text-align:left', onclick: () => abrirLista('Elige la máquina', [{ ops: listaMaquinas() }], o => { F.maquina = o.cod; guardarBorrador(); pasoN(1); }) }, F.maquina ? '🚜 ' + maqTxt(F.maquina) : 'Toca aquí para elegir la máquina'));
-    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, 'Turno:'));
+    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:12px' }, '¿De qué día es el albarán?'));
+    const DS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    C.appendChild(h('div', { class: 'dias' }, [0, 1, 2, 3].map(k => { const f = sumDias(hoy(), -k), d = new Date(f + 'T12:00:00'), t = k === 0 ? 'Hoy' : k === 1 ? 'Ayer' : DS[d.getDay()].replace(/^./, c => c.toUpperCase());
+      return h('button', { class: 'sec' + (F.fecha === f ? ' on' : ''), onclick: () => { F.fecha = f; pasoN(1); } }, h('b', {}, t), h('span', {}, f.slice(8) + '/' + f.slice(5, 7))); })));
+    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:12px' }, 'Turno:'));
     C.appendChild(h('div', { class: 'opc' }, h('button', { class: 'sec' + (F.turno === 'DIA' ? ' on' : ''), style: 'font-size:22px;padding:16px', onclick: () => { F.turno = 'DIA'; pasoN(1); } }, '☀ Día'), h('button', { class: 'sec' + (F.turno === 'NOCHE' ? ' on' : ''), style: 'font-size:22px;padding:16px', onclick: () => { F.turno = 'NOCHE'; pasoN(1); } }, '🌙 Noche')));
-    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, 'Fecha del registro (la del papel):'));
-    const hoyF = F.fecha === hoy();
-    C.appendChild(h('div', { class: 'card', style: 'margin:0' }, h('div', { style: 'font-size:22px;font-weight:800' }, (hoyF ? 'Hoy · ' : '') + fmtF(F.fecha)), !hoyF ? h('div', { style: 'color:#b36b00;font-weight:700;margin-top:4px' }, '⚠ Es un reporte de otro día. Solo se puede de los últimos 3 días.') : null,
-      h('div', { style: 'margin-top:8px' }, h('button', { class: 'link', onclick: () => { const i = h('input', { type: 'date', min: sumDias(hoy(), -3), max: hoy(), value: F.fecha, style: 'margin-top:8px' }); i.onchange = () => { if (i.value && i.value <= hoy() && i.value >= sumDias(hoy(), -3)) { F.fecha = i.value; pasoN(1); } }; C.appendChild(i); i.focus(); } }, 'Cambiar la fecha'))));
     barraPasos(1, () => { if (!String(F.maquina).trim()) { pasoN(1); err('Elige la máquina.'); return; } if (!F.turno) { pasoN(1); err('Elige el turno: día o noche.'); return; } pasoN(2); });
   } else if (n === 2) {
-    C.appendChild(cabeza(2, '¿Cuál es el número del informe diario?'));
-    C.appendChild(h('p', { class: 'ayuda' }, 'Es el número en rojo que está arriba a la derecha del papel (el registro). No se puede repetir.'));
+    C.appendChild(cabeza(2, '¿Cuál es el número del albarán?'));
+    C.appendChild(h('p', { class: 'ayuda' }, 'Es el número en rojo que está arriba a la derecha del papel. No se puede repetir.'));
     const i = h('input', { class: 'gran', inputmode: 'numeric', autocomplete: 'off', value: F.albaran, placeholder: 'Ej: 9503' }); i.oninput = () => { F.albaran = i.value.trim(); guardarBorrador(); }; C.appendChild(i);
+    C.appendChild(h('p', { class: 'ayuda', style: 'margin-top:14px' }, '📷 Foto del albarán (obligatoria): todo el papel, que se lean el número y lo escrito. Si tiene varias hojas, agrega más fotos.'));
+    C.appendChild(bloqueFoto('parte', 1280, 0.62));
     barraPasos(2, () => {
-      if (!F.albaran) { pasoN(2); err('Escribe el número del informe.'); return; }
-      const rep = REPS.find(x => x.id !== F.id && normAlb(x.albaran) === normAlb(F.albaran));
-      if (rep) { pasoN(2); err('Ese número ya fue registrado (' + rep.maquina + ', ' + fmtF(rep.fecha) + '). Revisa el número del papel.'); return; }
+      if (!F.albaran) { pasoN(2); err('Escribe el número del albarán.'); return; }
+      if (!F.fotos.parte.length && !F.tiene.parte) { pasoN(2); err('Falta la foto del albarán. Es obligatoria.'); return; }
+      const rep = REPS.find(x => x.id !== F.id && normAlb(x.albaran) === normAlb(F.albaran) && String(x.maquina) === String(F.maquina));
+      if (rep) { pasoN(2); err('Esta máquina ya registró el albarán ' + rep.albaran + ' (' + fmtF(rep.fecha) + '). Revisa el número del papel.'); return; }
       pasoN(3);
     });
   } else if (n === 3 || n === 4) {
     const ini = n === 3, k = ini ? 'ini' : 'fin';
     C.appendChild(cabeza(n, ini ? 'Horómetro (o kilómetros) al INICIO' : 'Horómetro (o kilómetros) al FINAL'));
     C.appendChild(h('p', { class: 'ayuda' }, '1. Toma la foto del horómetro (el reloj de la máquina). 2. Escribe el número que se ve.'));
-    C.appendChild(bloqueFoto(k, 1280, 0.7));
+    C.appendChild(bloqueFoto(k, 800, 0.6));
     C.appendChild(h('label', { style: 'margin-top:14px', for: 'hor' }, 'Número que marca (horómetro o kilometraje)'));
     const i = h('input', { id: 'hor', class: 'gran', inputmode: 'decimal', autocomplete: 'off', value: ini ? F.h_ini : F.h_fin, placeholder: 'Ej: 2376,5' }); i.oninput = () => { if (ini) F.h_ini = i.value.trim(); else F.h_fin = i.value.trim(); guardarBorrador(); }; C.appendChild(i);
     if (!ini) { const t = totales(); if (!isNaN(t.hh)) C.appendChild(h('div', { class: 'resumen' }, '⏱ La máquina trabajó ' + nh(t.hh) + ' horas según el horómetro.')); }
@@ -486,16 +491,11 @@ function pasoN(n, arriba) {
       pasoN(n + 1);
     });
   } else if (n === 5) {
-    C.appendChild(cabeza(5, 'Foto del registro (el papel)'));
-    C.appendChild(h('p', { class: 'ayuda' }, 'Toma la foto de todo el papel, que se lean bien el número y lo escrito. Si el papel tiene varias hojas, puedes agregar más fotos.'));
-    C.appendChild(bloqueFoto('parte', 1800, 0.72));
-    barraPasos(5, () => { if (!F.fotos.parte.length && !F.tiene.parte) { pasoN(5); err('Falta la foto del registro.'); return; } pasoN(6); });
-  } else if (n === 6) {
-    C.appendChild(cabeza(6, '¿Qué hizo la máquina?'));
+    C.appendChild(cabeza(5, '¿Qué hizo la máquina?'));
     const t = totales(), cont = h('div', { class: 'cont' });
     const pintaCont = () => { const t2 = totales(); cont.className = 'cont ' + (t2.falta < -0.001 ? 'mal' : (Math.abs(t2.falta) < 0.001 ? 'bien' : '')); cont.textContent = ''; cont.appendChild(h('div', {}, '⏱ ' + nh(t2.hh) + ' h del horómetro · puesto: ' + nh(t2.trab) + ' h')); cont.appendChild(h('div', {}, t2.falta < -0.001 ? '⚠ te pasaste ' + nh(-t2.falta) + ' h' : t2.falta > 0.001 ? 'Te faltan ' + nh(t2.falta) + ' h por repartir' : '✔ Horas completas')); if (t2.par) cont.appendChild(h('div', { style: 'font-size:16px;font-weight:600' }, 'Paradas (no cuentan en el horómetro): ' + nh(t2.par) + ' h')); };
     pintaCont(); C.appendChild(cont);
-    C.appendChild(h('p', { class: 'ayuda' }, 'Reparte las horas del horómetro entre los trabajos que hizo. Si estuvo parada, agrégalo aparte.'));
+    C.appendChild(h('p', { class: 'ayuda' }, 'Reparte las horas entre los trabajos (centros de costo). Las horas que NO trabajó (varada, reparación, sin combustible, lluvia…) agrégalas como horas no productivas.'));
     C.appendChild(h('div', { class: 'opc', style: 'margin-bottom:12px' },
       h('button', { class: 'sec' + (F.modo === 'HORARIO' ? ' on' : ''), onclick: () => cambiarModo('HORARIO') }, '⏰ Pongo hora de inicio y fin'),
       h('button', { class: 'sec' + (F.modo === 'TOTAL' ? ' on' : ''), onclick: () => cambiarModo('TOTAL') }, '🔢 Pongo el total de horas')));
@@ -515,62 +515,67 @@ function pasoN(n, arriba) {
         card.appendChild(h('div', { style: 'margin-top:6px' }, h('label', {}, 'Cuántas horas'), hi));
       }
       pintaHr(); card.appendChild(hr);
-      const nt = h('input', { placeholder: 'Detalle (si quieres): ej. K4+500', value: x.n, style: 'font-size:17px;padding:10px;margin-top:4px' }); nt.oninput = () => { x.n = nt.value; guardarBorrador(); }; card.appendChild(nt);
-      if (F.det.length > 1) card.appendChild(h('div', { style: 'text-align:right;margin-top:6px' }, h('button', { class: 'link', style: 'color:#b3261e', onclick: () => { F.det.splice(i, 1); pasoN(6); } }, '🗑 Quitar esta actividad')));
+      const nt = h('input', { placeholder: esOtro(x) ? '✍ Escribe por qué no trabajó (obligatorio)' : 'Detalle (si quieres): ej. K4+500', value: x.n, style: 'font-size:17px;padding:10px;margin-top:4px' }); nt.oninput = () => { x.n = nt.value; guardarBorrador(); }; card.appendChild(nt);
+      if (F.det.length > 1) card.appendChild(h('div', { style: 'text-align:right;margin-top:6px' }, h('button', { class: 'link', style: 'color:#b3261e', onclick: () => { F.det.splice(i, 1); pasoN(5); } }, '🗑 Quitar esta actividad')));
       C.appendChild(card);
     });
-    C.appendChild(h('button', { class: 'sec', style: 'margin:4px 0 8px', onclick: () => { F.det.push(filaVacia()); pasoN(6); setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50); } }, '➕ Agregar otra actividad'));
-    barraPasos(6, () => {
+    C.appendChild(h('button', { class: 'sec', style: 'margin:4px 0 8px', onclick: () => { F.det.push(filaVacia()); pasoN(5); setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50); } }, '➕ Agregar otra actividad'));
+    barraPasos(5, () => {
       const t2 = totales();
       for (let i = 0; i < F.det.length; i++) {
         const x = F.det[i], v = horaFila(x);
-        if (!x.a) { pasoN(6); err('Elige qué hizo en la actividad ' + (i + 1) + '.'); return; }
-        if (isNaN(v) || v <= 0) { pasoN(6); err('Revisa las horas de «' + x.a + '».'); return; }
+        if (!x.a) { pasoN(5); err('Elige qué hizo en la actividad ' + (i + 1) + '.'); return; }
+        if (isNaN(v) || v <= 0) { pasoN(5); err('Revisa las horas de «' + x.a + '».'); return; }
+        if (esOtro(x) && !String(x.n || '').trim()) { pasoN(5); err('En «Otro motivo» escribe por qué la máquina no trabajó.'); return; }
       }
-      { const ds = {}; F.det.forEach(x => { if (x.k !== 'X') ds[x.cc ? x.cc : 'F|' + x.a.toLowerCase()] = 1; }); if (Object.keys(ds).length > 6) { pasoN(6); err('Máximo 6 actividades distintas por reporte, como en el registro. Junta las que sean la misma.'); return; } }
-      if (t2.falta < -0.001) { pasoN(6); err('Las horas trabajadas (' + nh(t2.trab) + ') superan las del horómetro (' + nh(t2.hh) + '). Corrige las horas.'); return; }
-      if (t2.trab + t2.par > 24.001) { pasoN(6); err('Entre horas trabajadas y paradas suman más de 24 horas.'); return; }
-      if (F.modo === 'HORARIO') { const iv = F.det.map(x => { const m = s => { const p = s.split(':'); return Number(p[0]) * 60 + Number(p[1]); }, a = m(x.d), b = m(x.t); return [a, b > a ? b : b + 1440, x.a]; }); for (let i = 0; i < iv.length; i++) for (let j = i + 1; j < iv.length; j++) if (iv[i][0] < iv[j][1] && iv[j][0] < iv[i][1]) { pasoN(6); err('Los horarios de «' + iv[i][2] + '» y «' + iv[j][2] + '» se cruzan.'); return; } }
-      pasoN(7);
+      { const ds = {}; F.det.forEach(x => { if (x.k !== 'X') ds[x.cc ? x.cc : 'F|' + x.a.toLowerCase()] = 1; }); if (Object.keys(ds).length > 6) { pasoN(5); err('Máximo 6 actividades distintas por albarán, como en el papel. Junta las que sean la misma.'); return; } }
+      if (t2.falta < -0.001) { pasoN(5); err('Las horas trabajadas (' + nh(t2.trab) + ') superan las del horómetro (' + nh(t2.hh) + '). Corrige las horas.'); return; }
+      if (t2.trab + t2.par > 24.001) { pasoN(5); err('Entre horas trabajadas y no productivas suman más de 24 horas.'); return; }
+      if (F.modo === 'HORARIO') { const iv = F.det.map(x => { const m = s => { const p = s.split(':'); return Number(p[0]) * 60 + Number(p[1]); }, a = m(x.d), b = m(x.t); return [a, b > a ? b : b + 1440, x.a]; }); for (let i = 0; i < iv.length; i++) for (let j = i + 1; j < iv.length; j++) if (iv[i][0] < iv[j][1] && iv[j][0] < iv[i][1]) { pasoN(5); err('Los horarios de «' + iv[i][2] + '» y «' + iv[j][2] + '» se cruzan.'); return; } }
+      pasoN(6);
     });
   } else {
-    C.appendChild(cabeza(7, 'Revisa y envía'));
+    C.appendChild(cabeza(6, 'Revisa y envía'));
     const t = totales();
     const fila = (a, b) => h('div', { style: 'display:flex;justify-content:space-between;gap:10px;border-top:1px solid #dde1e6;padding:7px 0;font-size:18px' }, h('span', { style: 'color:#51606d' }, a), h('b', { style: 'text-align:right' }, b));
-    C.appendChild(h('div', { class: 'card' }, fila('Fecha del registro', fmtF(F.fecha)), fila('Turno', F.turno === 'NOCHE' ? '🌙 Noche' : '☀ Día'), fila('Máquina', maqTxt(F.maquina)), fila('N° del informe', F.albaran), fila('Horómetro', nh(num(F.h_ini)) + ' → ' + nh(num(F.h_fin)) + ' (' + nh(t.hh) + ' h)'), fila('Fotos', '⏱ 2 · 🧾 ' + Math.max(F.fotos.parte.length, F.tiene.parte)),
+    C.appendChild(h('div', { class: 'card' }, fila('Fecha del albarán', fmtF(F.fecha)), fila('Turno', F.turno === 'NOCHE' ? '🌙 Noche' : '☀ Día'), fila('Máquina', maqTxt(F.maquina)), fila('N° del albarán', F.albaran), fila('Horómetro', nh(num(F.h_ini)) + ' → ' + nh(num(F.h_fin)) + ' (' + nh(t.hh) + ' h)'), fila('Fotos', '⏱ 2 · 🧾 ' + Math.max(F.fotos.parte.length, F.tiene.parte)),
       h('div', { style: 'font-weight:800;margin:10px 0 4px;font-size:18px' }, 'Trabajo de la máquina'),
-      F.det.map(x => h('div', { style: 'border-top:1px solid #dde1e6;padding:6px 0;font-size:17px' }, h('b', {}, (x.k === 'P' && x.cc ? x.cc + ' · ' : '') + x.a), ' — ' + nh(horaFila(x)) + ' h' + (F.modo === 'HORARIO' ? ' (' + x.d + ' a ' + x.t + ')' : '') + (x.k === 'X' ? ' · parada' : ''))),
+      F.det.map(x => h('div', { style: 'border-top:1px solid #dde1e6;padding:6px 0;font-size:17px' }, h('b', {}, (x.k === 'P' && x.cc ? x.cc + ' · ' : '') + x.a), ' — ' + nh(horaFila(x)) + ' h' + (F.modo === 'HORARIO' ? ' (' + x.d + ' a ' + x.t + ')' : '') + (x.k === 'X' ? ' · no productiva' + (x.n ? ' (' + x.n + ')' : '') : ''))),
       fila('Total trabajado', nh(t.trab) + ' h')));
     C.appendChild(h('label', { for: 'obs' }, 'Observaciones (si quieres)'));
     const o = h('input', { id: 'obs', value: F.obs, placeholder: 'Ej: horómetro dañado' }); o.oninput = () => { F.obs = o.value; guardarBorrador(); }; C.appendChild(o);
-    barraPasos(7, guardarReporte, '✔ ENVIAR REPORTE');
+    barraPasos(6, guardarReporte, '✔ ENVIAR ALBARÁN');
   }
   window.scrollTo(0, arriba ? 0 : y);
 }
 function cambiarModo(m) {
   if (F.modo === m) return;
   if (F.det.some(x => x.a || x.h || x.d || x.t) && !confirm('Se borrarán las horas que ya escribiste (las actividades se quedan). ¿Cambiar?')) return;
-  F.modo = m; F.det.forEach(x => { x.h = ''; x.d = ''; x.t = ''; }); pasoN(6);
+  F.modo = m; F.det.forEach(x => { x.h = ''; x.d = ''; x.t = ''; }); pasoN(5);
 }
 function elegirActividad(i) {
   const est = DATOS.estructura || [], gr = {};
   est.forEach(e => { (gr[e.g || 'Otros'] = gr[e.g || 'Otros'] || []).push({ t: (e.cod ? e.cod + ' · ' : '') + e.a, sub: '', k: 'P', cc: e.cod, a: e.a, g: e.g }); });
   const grupos = Object.keys(gr).map(g => ({ titulo: '🏗 ' + g, ops: gr[g] }));
-  grupos.push({ titulo: '⏸ La máquina estuvo parada (no es trabajo)', ops: PARADAS.map(p => ({ t: p, k: 'X', a: p })) });
+  grupos.push({ titulo: '⏸ Horas NO productivas (la máquina no trabajó)', ops: PARADAS.map(p => ({ t: p, k: 'X', a: p })) });
   abrirLista('¿Qué hizo la máquina?', grupos, o => {
     const x = F.det[i];
     if (o.libre) { if (!o.t) { const v = prompt('Escribe la actividad que hizo (no está en la lista):'); if (!v || !v.trim()) return; o.t = v.trim(); } x.k = 'F'; x.cc = ''; x.a = o.t.slice(0, 80); x.g = ''; }
     else { x.k = o.k; x.cc = o.cc || ''; x.a = o.a; x.g = o.g || ''; }
-    pasoN(6);
+    pasoN(5);
   }, 'No está en la lista (escribirla)');
 }
-const PARADAS = ['Espera (sin trabajo)', 'Varada (máquina dañada)', 'Varada del martillo', 'Lluvia', 'Otro motivo'];
+const PARADAS = ['Espera (sin frente de trabajo)', 'Varada (daño mecánico)', 'Reparación o mantenimiento', 'Sin combustible', 'Sin operador', 'Esperando volquetas', 'Lluvia', 'Varada del martillo', 'Restricción de obra (PMT, comunidad, permisos)', 'Otro motivo (escribir por qué)'];
+const esOtro = x => x.k === 'X' && /^Otro motivo/i.test(x.a || '');
 
 /* ---------- guardar y enviar ---------- */
 function envio(ico, tit, txt, barra, botones) {
   $('envio').hidden = false; $('envIco').textContent = ico; $('envTit').textContent = tit; $('envTxt').textContent = txt || ''; $('envPb').hidden = !barra;
   const b = $('envBt'); b.textContent = ''; (botones || []).forEach(x => b.appendChild(h('button', { class: x[2] || '', onclick: x[1] }, x[0])));
+  clearTimeout(envioT);
+  if (barra) envioT = setTimeout(() => { if (!$('envio').hidden && $('envPb') && !$('envPb').hidden) { $('envTxt').textContent = 'Guardado en el teléfono ✔ · Está tardando (poca señal). Puedes seguir: se envía solo en segundo plano.'; const bt = $('envBt'); bt.textContent = ''; bt.appendChild(h('button', { class: 'verde', onclick: () => { $('envio').hidden = true; abrirInicio(); } }, '🏠 Seguir usando la app')); } }, 8000);
 }
+let envioT = null;
 async function guardarReporte() {
   const t = totales();
   const r = { id: F.id, fecha: F.fecha, llave: user.llave, usuario: user.nombre, maquina: String(F.maquina).trim(), turno: F.turno, albaran: F.albaran.toUpperCase().replace(/\s+/g, ''), h_ini: num(F.h_ini), h_fin: num(F.h_fin), h_hor: t.hh, h_trab: t.trab, h_parada: t.par, modo: F.modo,
@@ -589,14 +594,14 @@ async function guardarReporte() {
 }
 async function enviarYMostrar(r) {
   if (!navigator.onLine) return finEnvio(r, 'red');
-  envio('📤', 'Enviando el reporte…', 'Guardado en el teléfono ✔  ·  Enviando a la oficina… No cierres la aplicación.', true);
+  envio('📤', 'Enviando el albarán…', 'Guardado en el teléfono ✔  ·  Enviando a la oficina… No cierres la aplicación.', true);
   const res = await sincronizar(true, true);
   finEnvio(r, res);
 }
 function finEnvio(r, res) {
   const volver = ['🏠 Ir al inicio', () => { $('envio').hidden = true; abrirInicio(); }, 'verde'];
-  if (res === 'ok' || (res && res.ok)) envio('✅', '¡Reporte enviado!', 'Ya llegó a la oficina. Guarda el papel junto con el reporte.', false, [volver, ['➕ Otro reporte', () => { $('envio').hidden = true; abrirForm(null); }, 'sec']]);
-  else if (res && res.error) envio('⚠️', 'La oficina no aceptó el reporte', res.error, false, [['✏️ Corregir el reporte', () => { $('envio').hidden = true; const x = REPS.find(y => y.id === r.id); if (x) abrirForm(x); else abrirInicio(); }, 'verde'], ['Ir al inicio', () => { $('envio').hidden = true; abrirInicio(); }, 'sec']]);
+  if (res === 'ok' || (res && res.ok)) envio('✅', '¡Albarán enviado!', 'Ya llegó a la oficina. Guarda el papel del albarán.', false, [volver, ['➕ Otro albarán', () => { $('envio').hidden = true; abrirForm(null); }, 'sec']]);
+  else if (res && res.error) envio('⚠️', 'La oficina no aceptó el albarán', res.error, false, [['✏️ Corregir el albarán', () => { $('envio').hidden = true; const x = REPS.find(y => y.id === r.id); if (x) abrirForm(x); else abrirInicio(); }, 'verde'], ['Ir al inicio', () => { $('envio').hidden = true; abrirInicio(); }, 'sec']]);
   else envio('💾', 'Guardado en el teléfono', 'NO ha llegado a la oficina todavía. Se enviará solo cuando haya señal. No borres la aplicación.', false, [volver, ['🔄 Intentar enviar otra vez', () => enviarYMostrar(r), 'sec']]);
 }
 async function sincronizar(manual, ui) {
