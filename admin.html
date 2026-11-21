@@ -1481,7 +1481,7 @@ function pintarTr() {
     aviso(conAl.length, conAl.length === 1 ? 'viaje con alerta' : 'viajes con alertas', () => { TRFIL = 'alerta'; TRTAB = 'viajes'; pintarTr(); }),
     aviso(sinMat.length, sinMat.length === 1 ? 'viaje sin material transportado' : 'viajes sin material transportado', () => { TRSOSP = 'Sin material'; TRTAB = 'sosp'; selSet('tr', 'sosp'); pintarTr(); }),
     aviso(sinRec.length, 'sin albarán', () => { TRFIL = 'sinrec'; TRTAB = 'viajes'; pintarTr(); })].filter(Boolean));
-  const claveBq = x => 'Intento bloqueado|' + x.ts + '|' + x.placa + '|' + x.cod, dupA = sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev), blq = (TR.dup_bloqueados || []).filter(x => !(TR.revisados || []).some(r => r.clave === claveBq(x)));
+  const claveBq = x => 'Intento bloqueado|' + x.ts + '|' + x.placa + '|' + x.cod, dupA = sospechosos().filter(x => x.tipo === 'Albarán repetido' && !x.rev), guardados = new Set((TR.todos || TR.viajes || []).concat(TR.reportes_extra || []).map(v => v.cod)), blq = (TR.dup_bloqueados || []).filter(x => !guardados.has(x.cod) && !(TR.revisados || []).some(r => r.clave === claveBq(x))); // si el viaje ya se guardó después (reenviado o corregido), el intento bloqueado quedó resuelto y no se muestra
   if (dupA.length || blq.length) {
     const cj = h('div', { class: 'alertaDup' }, h('div', { class: 'alertaDupT' }, dupA.length ? '🚨 HAY ' + dupA.length + (dupA.length === 1 ? ' ALBARÁN REPETIDO' : ' ALBARANES REPETIDOS') : '🚫 SE BLOQUEARON INTENTOS DE REPETIR UN ALBARÁN'));
     if (dupA.length) {
