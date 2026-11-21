@@ -515,7 +515,7 @@ function pasoN(n, arriba) {
         card.appendChild(h('div', { style: 'margin-top:6px' }, h('label', {}, 'Cuántas horas'), hi));
       }
       pintaHr(); card.appendChild(hr);
-      const nt = h('input', { placeholder: esOtro(x) ? '✍ Escribe por qué no trabajó (obligatorio)' : 'Detalle (si quieres): ej. K4+500', value: x.n, style: 'font-size:17px;padding:10px;margin-top:4px' }); nt.oninput = () => { x.n = nt.value; guardarBorrador(); }; card.appendChild(nt);
+      const nt = h('input', { placeholder: esOtro(x) ? '✍ Escribe por qué no trabajó (obligatorio)' : 'Detalle. Ej: abscisa K4+500', value: x.n, style: 'font-size:17px;padding:10px;margin-top:4px' }); nt.oninput = () => { x.n = nt.value; guardarBorrador(); }; card.appendChild(nt);
       if (F.det.length > 1) card.appendChild(h('div', { style: 'text-align:right;margin-top:6px' }, h('button', { class: 'link', style: 'color:#b3261e', onclick: () => { F.det.splice(i, 1); pasoN(5); } }, '🗑 Quitar esta actividad')));
       C.appendChild(card);
     });
@@ -542,7 +542,7 @@ function pasoN(n, arriba) {
       h('div', { style: 'font-weight:800;margin:10px 0 4px;font-size:18px' }, 'Trabajo de la máquina'),
       F.det.map(x => h('div', { style: 'border-top:1px solid #dde1e6;padding:6px 0;font-size:17px' }, h('b', {}, (x.k === 'P' && x.cc ? x.cc + ' · ' : '') + x.a), ' — ' + nh(horaFila(x)) + ' h' + (F.modo === 'HORARIO' ? ' (' + x.d + ' a ' + x.t + ')' : '') + (x.k === 'X' ? ' · no productiva' + (x.n ? ' (' + x.n + ')' : '') : ''))),
       fila('Total trabajado', nh(t.trab) + ' h')));
-    C.appendChild(h('label', { for: 'obs' }, 'Observaciones (si quieres)'));
+    C.appendChild(h('label', { for: 'obs' }, 'Observaciones'));
     const o = h('input', { id: 'obs', value: F.obs, placeholder: 'Ej: horómetro dañado' }); o.oninput = () => { F.obs = o.value; guardarBorrador(); }; C.appendChild(o);
     barraPasos(6, guardarReporte, '✔ ENVIAR ALBARÁN');
   }
