@@ -813,3 +813,10 @@ details.mv-d[open] th { color: #cbd5e1; }
 /* lo no elegido se ve más apagado: así el contraste es claro */
 .fch .fc:not(.on), .chips .btn.sec:not(.on), .dch button:not(.on), .mom-q button:not(.on) { background: #fff; color: #334155; border: 2px solid #94a3b8; }
 .bg.sel { background: #e3f6ea !important; border-color: #0a7f2e !important; box-shadow: 0 0 0 4px rgba(10,127,46,.35) !important; }
+
+/* Lo que siempre interesa son los kilos: cifra grande = kg, piezas en pequeño */
+.cl i, .tl i { font-size: .8rem; }
+.kp strong { font-size: .95rem; font-weight: 600; color: #5b6672; }
+.kp strong em { font-size: .9em; }
+@media (max-width: 520px) { .kp strong { font-size: .75rem; } }
+.mv-m b { font-weight: 800; }

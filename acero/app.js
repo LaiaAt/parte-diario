@@ -130,17 +130,18 @@
     if (g.hojas.length > 1) h += '<nav class="subtabs">' + g.hojas.map(function (t) { return '<button class="' + (S.tab === t[0] ? 'on' : '') + '" data-a="tab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</nav>';
     return h;
   }
+  function kg0(n) { return Number(Math.round(Number(n || 0))).toLocaleString('es-CO'); }
   function pz(n) { return n0(n) + (n === 1 ? ' pieza' : ' piezas'); }
   /** Tres cajas grandes: Libre / Armado / Salió. */
   function celdas(x, salioX) {
     var o = salioX || { p: x.out_p, kg: x.out_kg };
-    return '<div class="ec-n"><div class="cl lib"><small>✅ Libre</small><b>' + n0(x.lib_p) + '</b><i>' + kg(x.lib_kg) + ' kg</i></div>' +
-      '<div class="cl arm"><small>🔧 Armado</small><b>' + n0(x.arm_p) + '</b><i>' + kg(x.arm_kg) + ' kg</i></div>' +
-      '<div class="cl out"><small>🚚 Salió</small><b>' + n0(o.p) + '</b><i>' + kg(o.kg) + ' kg</i></div></div>';
+    return '<div class="ec-n"><div class="cl lib"><small>✅ Libre</small><b>' + kg0(x.lib_kg) + '</b><i>kg · ' + n0(x.lib_p) + ' pzs</i></div>' +
+      '<div class="cl arm"><small>🔧 Armado</small><b>' + kg0(x.arm_kg) + '</b><i>kg · ' + n0(x.arm_p) + ' pzs</i></div>' +
+      '<div class="cl out"><small>🚚 Salió</small><b>' + kg0(o.kg) + '</b><i>kg · ' + n0(o.p) + ' pzs</i></div></div>';
   }
   function apilada(x) {
-    var t = x.in_p || 1, f = function (n) { return Math.max(0, Math.min(100, 100 * n / t)).toFixed(1) + '%'; };
-    return '<div class="stk"><i class="lib" style="width:' + f(x.lib_p) + '"></i><i class="arm" style="width:' + f(x.arm_p) + '"></i><i class="out" style="width:' + f(x.out_p) + '"></i></div>';
+    var t = x.in_kg || 1, f = function (n) { return Math.max(0, Math.min(100, 100 * n / t)).toFixed(1) + '%'; };
+    return '<div class="stk"><i class="lib" style="width:' + f(x.lib_kg) + '"></i><i class="arm" style="width:' + f(x.arm_kg) + '"></i><i class="out" style="width:' + f(x.out_kg) + '"></i></div>';
   }
   function estCard(titulo, sub, x) {
     return '<div class="ec"><div class="ec-h"><b>' + titulo + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>' + apilada(x) + celdas(x) + '</div>';
@@ -178,19 +179,19 @@
     if (m.t === 'E') {
       var p = m.p;
       return '<div class="mv ent"><div class="mv-i">📥</div><div class="mv-c"><div class="mv-t">Llegó acero · pedido ' + esc(p.pedido) + '</div><div class="mv-s">' + esc(p.estructura) + '</div>' +
-        '<div class="mv-m"><span>' + pz(p.piezas) + '</span><span>' + kg(p.kg) + ' kg</span><span>' + esc(p.usuario) + ' · ' + fechaDia(p.fecha) + '</span></div></div>' +
+        '<div class="mv-m"><span><b>' + kg(p.kg) + ' kg</b></span><span>' + pz(p.piezas) + '</span><span>' + esc(p.usuario) + ' · ' + fechaDia(p.fecha) + '</span></div></div>' +
         (conAcciones && esAdmin() ? '<button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '">Dar de baja</button>' : '') + '</div>';
     }
     var g = m.g, g0 = g[0], arm = tp(g0) === 'ARMADO', activas = g.filter(function (x) { return x.estado !== 'ANULADA'; }), anG = !activas.length, uso = anG ? g : activas;
     var nP = 0, nK = 0, els = [];
     uso.forEach(function (x) { nP += x.cantidad; nK += x.kg; if (els.indexOf(x.elemento) < 0) els.push(x.elemento); });
-    var tit = g0.modo === 'PCT' ? (arm ? 'Armado del ' : 'Salida del ') + fmtPct(g0.pct) + ' %' : (arm ? (nP === 1 ? 'Se armó ' : 'Se armaron ') : (nP === 1 ? 'Salió ' : 'Salieron ')) + pz(nP);
+    var tit = g0.modo === 'PCT' ? (arm ? 'Armado del ' : 'Salida del ') + fmtPct(g0.pct) + ' %' : (arm ? 'Se armó ' : 'Salió ') + kg(nK) + ' kg';
     var pend = g.some(function (x) { return x.pendiente; });
-    var det = '<details class="mv-d"><summary>Ver las ' + g.length + (g.length === 1 ? ' posición' : ' posiciones') + '</summary><table><thead><tr><th>Posición</th><th>Varilla</th><th class="n">Piezas</th><th class="n">Kg</th></tr></thead><tbody>' +
-      g.map(function (x) { return '<tr' + (x.estado === 'ANULADA' && !anG ? ' class="anu"' : '') + '><td><b>' + esc(posTxt(x.elemento, x.marca) || '—') + '</b></td><td>' + esc(C.diamLabel(x.diametro)) + '</td><td class="n">' + n0(x.cantidad) + '</td><td class="n">' + kg(x.kg) + '</td></tr>'; }).join('') + '</tbody></table></details>';
+    var det = '<details class="mv-d"><summary>Ver las ' + g.length + (g.length === 1 ? ' posición' : ' posiciones') + '</summary><table><thead><tr><th>Posición</th><th>Varilla</th><th class="n">Kg</th><th class="n">Piezas</th></tr></thead><tbody>' +
+      g.map(function (x) { return '<tr' + (x.estado === 'ANULADA' && !anG ? ' class="anu"' : '') + '><td><b>' + esc(posTxt(x.elemento, x.marca) || '—') + '</b></td><td>' + esc(C.diamLabel(x.diametro)) + '</td><td class="n"><b>' + kg(x.kg) + '</b></td><td class="n">' + n0(x.cantidad) + '</td></tr>'; }).join('') + '</tbody></table></details>';
     return '<div class="mv ' + (arm ? 'arm' : 'out') + (anG ? ' anul' : '') + '"><div class="mv-i">' + (arm ? '🔧' : '🚚') + '</div><div class="mv-c"><div class="mv-t">' + tit +
       (anG ? '<span class="chp anu">Anulada</span>' : '') + (pend ? '<span class="chp pen">Sin enviar</span>' : '') + '</div><div class="mv-s">' + els.map(esc).join(' · ') + '</div>' +
-      '<div class="mv-m"><span>' + kg(nK) + ' kg</span>' + (g0.modo !== 'PCT' && g0.fase ? '<span>Fase: ' + esc(g0.fase) + '</span>' : '') + (g0.destino ? '<span>Para: ' + esc(g0.destino) + '</span>' : '') + '<span>' + esc(g0.usuario) + ' · ' + fecha(g0.fecha) + '</span>' + (g0.obs ? '<span>' + esc(g0.obs) + '</span>' : '') + '</div>' + det + '</div>' +
+      '<div class="mv-m"><span><b>' + kg(nK) + ' kg</b></span><span>' + pz(nP) + '</span>' + (g0.modo !== 'PCT' && g0.fase ? '<span>Fase: ' + esc(g0.fase) + '</span>' : '') + (g0.destino ? '<span>Para: ' + esc(g0.destino) + '</span>' : '') + '<span>' + esc(g0.usuario) + ' · ' + fecha(g0.fecha) + '</span>' + (g0.obs ? '<span>' + esc(g0.obs) + '</span>' : '') + '</div>' + det + '</div>' +
       (conAcciones && !anG && g.every(function (x) { return !x.pendiente; }) && (esAdmin() || (esPropio(g0) && esHoy(g0.fecha))) ? '<button class="btn chico sec" data-a="anularSalida" data-v="' + esc(activas.map(function (x) { return x.id; }).join(',')) + '">' + (esAdmin() ? 'Anular' : '↩ Deshacer') + '</button>' : '') + '</div>';
   }
   // ---- gráficos del panel (SVG/CSS, sin librerías) ----
@@ -254,7 +255,7 @@
       '<svg viewBox="0 0 ' + W + ' ' + H + '" class="tr" role="img" aria-label="Kilos por día">' + h + '</svg></div>';
   }
   function kpiPer(tit, cls, x) {
-    return '<div class="kp ' + cls + '"><small>' + tit + '</small><b>' + n0(x.p) + '<em> pzs</em></b><strong>' + kg(x.kg) + '<em> kg</em></strong></div>';
+    return '<div class="kp ' + cls + '"><small>' + tit + '</small><b>' + kg0(x.kg) + '<em> kg</em></b><strong>' + n0(x.p) + '<em> pzs</em></strong></div>';
   }
   // Lo que el administrador necesita ver primero: cómo va cada estructura y si se ha contado
   function vAvance() {
@@ -263,10 +264,10 @@
     var difs = 0, hace30 = isoDe(new Date(Date.now() - 30 * 86400000));
     (S.estado.verificaciones || []).forEach(function (v) { if (String(v.fecha).slice(0, 10) >= hace30 && Number(v.dif)) difs++; });
     var filas = es.map(function (e) {
-      var x = S.calc.porElem[e], a = pctDe(e, 'ARMADO'), o = pctDe(e, 'SALIDA'), u = ultimaVer(e), d = u ? diasDesde(u) : null, sem = d === null || d > 30 ? '🔴' : d > 20 ? '🟡' : '🟢';
+      var x = S.calc.porElem[e], a = pctKgDe(e, 'ARMADO'), o = pctKgDe(e, 'SALIDA'), u = ultimaVer(e), d = u ? diasDesde(u) : null, sem = d === null || d > 30 ? '🔴' : d > 20 ? '🟡' : '🟢';
       var br = function (cl, v) { return '<div class="av-r"><span>' + (cl === 'arm' ? 'Armado' : 'Salió') + '</span><div class="av-b2"><i class="' + cl + '" style="width:' + Math.min(100, v) + '%"></i></div><b>' + fmtPct(v) + ' %</b></div>'; };
       return '<div class="av-e"><div class="av-h"><b>' + esc(e) + '</b><span title="Conteo">' + sem + ' ' + (u ? 'contada hace ' + d + ' d' : 'nunca contada') + '</span></div>' + br('arm', a) + br('out', o) +
-        '<small class="mut">Llegaron ' + kg(x.in_kg) + ' kg · en la playa ' + kg(x.sal_kg) + ' kg</small></div>';
+        '<small class="mut">Llegaron <b>' + kg(x.in_kg) + ' kg</b> · en la playa <b>' + kg(x.sal_kg) + ' kg</b> · avance medido en kilos</small></div>';
     }).join('');
     return '<div class="card gr"><h3>Avance por estructura</h3>' + filas +
       '<p class="peq mut" style="margin:6px 0 0">🟢 contada hace menos de 20 días · 🟡 20 a 30 días · 🔴 más de 30 días o nunca.' + (difs ? ' <b>' + difs + ' diferencia(s)</b> en los conteos del último mes.' : '') + '</p></div>';
@@ -275,7 +276,7 @@
     if (!S.estado.entradas.length && !(S.estado.cartilla || []).length) return sinInventario();
     var c = S.calc, t = c.tot, ag = aggPeriodo();
     var diams = Object.keys(c.porDiam).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); });
-    var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + n0(t.sal_p) + '<em> piezas</em></b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>';
+    var h = '<div class="hero"><small>Hoy en la playa de hierros hay</small><b>' + kg0(t.sal_kg) + '<em> kg</em></b><span>' + pz(t.sal_p) + '</span>' + apilada(t) + '</div>';
     h += vFiltro();
     h += '<h2 class="sec-t">Movimiento del período <small>' + textoPeriodo() + '</small></h2><div class="kp3">' + kpiPer('Llegó', 'lib', ag.lle) + kpiPer('Armado', 'arm', ag.arm) + kpiPer('Salió', 'out', ag.out) + '</div>';
     h += graficoDias(ag);
@@ -336,6 +337,12 @@
     var tot = (S.calc && S.calc.porElem[e] || {}).in_p || 0; if (!tot) return 0;
     var hecho = S.estado.salidas.reduce(function (t, x) { return t + (x.elemento === e && x.estado !== 'ANULADA' && !esAjuste(x) && tp(x) === tipo ? (+x.cantidad || 0) : 0); }, 0);
     return Math.min(100, Math.round(10000 * hecho / tot) / 100);
+  }
+  // Avance en kilos (lo que se muestra en el panel): kg armados / salidos sobre los kg que llegaron
+  function pctKgDe(e, tipo) {
+    var tot = (S.calc && S.calc.porElem[e] || {}).in_kg || 0; if (!tot) return 0;
+    var hecho = S.estado.salidas.reduce(function (t, x) { return t + (x.elemento === e && x.estado !== 'ANULADA' && !esAjuste(x) && tp(x) === tipo ? (+x.kg || 0) : 0); }, 0);
+    return Math.min(100, Math.round(1000 * hecho / tot) / 10);
   }
   function fasesSug(e) {
     var L = fasesDe(e).slice(0, 6);
@@ -589,7 +596,7 @@
     if (s.err) h += '<div class="error">' + esc(s.err) + '</div>';
     var tp2 = 0, tk = 0; s.items.forEach(function (it) { tp2 += it.cant; tk += it.kg; });
     h += '<div class="sb-esp"></div><div class="sbar"><div class="sres">' + (s.items.length
-      ? '<b>' + pz(tp2) + '</b><small>' + kg(tk) + ' kg</small>'
+      ? '<b>' + kg(tk) + ' kg</b><small>' + pz(tp2) + '</small>'
       : '<span class="mut">Aún no hay piezas</span>') + '</div>' +
       '<button type="button" class="btn sec cnl" data-a="cancelar">Cancelar</button><button type="button" class="btn sacar2" data-a="registrarSalida"' + (s.items.length ? '' : ' disabled') + '>' + (arm ? '🔧 Guardar armado' : '🚚 Guardar salida') + '</button></div>';
     return h + '</div>';
@@ -639,10 +646,10 @@
       tarjetas = filas.slice(0, 200).map(function (f) { return estCard('Posición ' + esc(f.m), esc(C.diamLabel(f.d)) + (f.largo ? ' · ' + f.largo.toFixed(2) + ' m' : '') + (v.elem ? '' : ' · ' + esc(f.e)), f.x); });
       if (filas.length > 200) tarjetas.push('<p class="peq mut">Se muestran 200 de ' + filas.length + '. Use los filtros para ver el resto.</p>');
     }
-    return '<div class="hero"><small>En la playa de hierros hay</small><b>' + pz(t.sal_p) + '</b><span>' + kg(t.sal_kg) + ' kg</span>' + apilada(t) + '</div>' +
-      '<div class="tri"><div class="tl lib"><div class="tl-i">✅</div><b>' + n0(t.lib_p) + '</b><strong>Libre</strong><i>' + kg(t.lib_kg) + ' kg</i></div>' +
-      '<div class="tl arm"><div class="tl-i">🔧</div><b>' + n0(t.arm_p) + '</b><strong>Armado</strong><i>' + kg(t.arm_kg) + ' kg</i></div>' +
-      '<div class="tl out"><div class="tl-i">🚚</div><b>' + n0(t.out_p) + '</b><strong>Salió</strong><i>' + kg(t.out_kg) + ' kg</i></div></div>' +
+    return '<div class="hero"><small>En la playa de hierros hay</small><b>' + kg0(t.sal_kg) + '<em> kg</em></b><span>' + pz(t.sal_p) + '</span>' + apilada(t) + '</div>' +
+      '<div class="tri"><div class="tl lib"><div class="tl-i">✅</div><b>' + kg0(t.lib_kg) + '</b><strong>Libre</strong><i>kg · ' + n0(t.lib_p) + ' pzs</i></div>' +
+      '<div class="tl arm"><div class="tl-i">🔧</div><b>' + kg0(t.arm_kg) + '</b><strong>Armado</strong><i>kg · ' + n0(t.arm_p) + ' pzs</i></div>' +
+      '<div class="tl out"><div class="tl-i">🚚</div><b>' + kg0(t.out_kg) + '</b><strong>Salió</strong><i>kg · ' + n0(t.out_p) + ' pzs</i></div></div>' +
       '<div class="card"><div class="seg">' + [['diametro', 'Por varilla'], ['elemento', 'Por estructura'], ['marca', 'Por posición']].map(function (o) { return '<button class="' + (v.vista === o[0] ? 'on' : '') + '" data-a="invVista" data-v="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>' +
       '<div class="row2"><select data-f="inv.elem" style="flex:1;min-width:150px"><option value="">Todas las estructuras</option>' + elems.map(function (e) { return '<option value="' + esc(e) + '"' + (e === v.elem ? ' selected' : '') + '>' + esc(e) + '</option>'; }).join('') + '</select>' +
       '<select data-f="inv.diam" style="flex:1;min-width:130px"><option value="">Todas las varillas</option>' + diams.map(function (d) { return '<option value="' + esc(d) + '"' + (d === v.diam ? ' selected' : '') + '>' + esc(C.diamLabel(d)) + '</option>'; }).join('') + '</select></div></div>' +
@@ -802,21 +809,21 @@
     // 1) almacén al iniciar
     function tabla4(titulo, primera, claves, mapa) {
       var W4 = [165, 52, 70, 52, 70, 52, 62];
-      function cab4() { var x = M, T = [primera, 'Libre pzs', 'Libre kg', 'Armado pzs', 'Armado kg', 'Total pzs', 'Total kg']; T.forEach(function (t, i) { celda(x, W4[i], 16, [{ t: t, b: true, size: 7 }], { fill: CLARO, al: i ? 'c' : 'l', size: 7 }); x += W4[i]; }); y += 16; }
+      function cab4() { var x = M, T = [primera, 'Libre kg', 'Libre pzs', 'Armado kg', 'Armado pzs', 'Total kg', 'Total pzs']; T.forEach(function (t, i) { celda(x, W4[i], 16, [{ t: t, b: true, size: 7 }], { fill: CLARO, al: i ? 'c' : 'l', size: 7 }); x += W4[i]; }); y += 16; }
       if (y + 17 + 16 + 20 > FIN) pagina();
       banda(titulo); cab4();
       var T0 = { lib_p: 0, lib_kg: 0, arm_p: 0, arm_kg: 0, sal_p: 0, sal_kg: 0 };
       claves.forEach(function (k) {
         var q = mapa[k], ln = P.partir(k === '__' ? '' : (primera === '#Varilla' ? C.diamLabel(k) : k), W4[0] - 6, 8, false), h = Math.max(16, ln.length * 10.5 + 6);
         if (y + h > FIN) { pagina(); cab4(); }
-        var vals = [q.lib_p, q.lib_kg, q.arm_p, q.arm_kg, q.sal_p, q.sal_kg], x = M;
+        var vals = [q.lib_kg, q.lib_p, q.arm_kg, q.arm_p, q.sal_kg, q.sal_p], x = M;
         celda(x, W4[0], h, ln.map(function (t) { return { t: t, size: 8 }; }), { size: 8 }); x += W4[0];
-        vals.forEach(function (v, i) { celda(x, W4[i + 1], h, [{ t: i % 2 ? kg(v) : n0(v), size: 8, b: i >= 4 }], { al: 'r', size: 8 }); x += W4[i + 1]; });
+        vals.forEach(function (v, i) { celda(x, W4[i + 1], h, [{ t: i % 2 ? n0(v) : kg(v), size: 8, b: i >= 4 }], { al: 'r', size: 8 }); x += W4[i + 1]; });
         y += h; Object.keys(T0).forEach(function (f) { T0[f] += q[f] || 0; });
       });
       if (y + 16 > FIN) { pagina(); cab4(); }
       var x2 = M; celda(x2, W4[0], 16, [{ t: 'TOTAL', b: true }], { fill: CLARO }); x2 += W4[0];
-      [T0.lib_p, T0.lib_kg, T0.arm_p, T0.arm_kg, T0.sal_p, T0.sal_kg].forEach(function (v, i) { celda(x2, W4[i + 1], 16, [{ t: i % 2 ? kg(v) : n0(v), b: true, size: 8 }], { fill: CLARO, al: 'r' }); x2 += W4[i + 1]; });
+      [T0.lib_kg, T0.lib_p, T0.arm_kg, T0.arm_p, T0.sal_kg, T0.sal_p].forEach(function (v, i) { celda(x2, W4[i + 1], 16, [{ t: i % 2 ? n0(v) : kg(v), b: true, size: 8 }], { fill: CLARO, al: 'r' }); x2 += W4[i + 1]; });
       y += 16 + 10;
     }
     var F0 = D.ini0, k0 = Object.keys(F0.porDiam).filter(function (k) { return F0.porDiam[k].sal_p > 0; }).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); });
@@ -824,7 +831,7 @@
     else { banda('1 · ACERO EN EL ALMACÉN AL INICIAR EL DÍA'); P.rect(M, y, AN, 18, null, [0, 0, 0]); P.texto(M + 6, y + 12, 'No había acero en el almacén al iniciar el día.', 8.5); y += 28; }
     y += 8;
     // 2) y 3) tablas con filas que se ajustan
-    var CW = [50, 208, 42, 36, 42, 65, 80], CT = ['Estado', 'Estructura', '#Varilla', 'Cant.', '% piezas', 'Kg', 'Responsable'];
+    var CW = [50, 208, 42, 65, 36, 42, 80], CT = ['Estado', 'Estructura', '#Varilla', 'Kg', 'Cant.', '% piezas', 'Responsable'];
     function cabecera() { var x = M; CT.forEach(function (t, i) { celda(x, CW[i], 16, [{ t: t, b: true, size: 7.5 }], { fill: CLARO, al: i === 1 || i === 6 ? 'l' : 'c', size: 7.5 }); x += CW[i]; }); y += 16; }
     function tabla(titulo, bloques, vacio) {
       if (y + 17 + 16 + 24 > FIN) pagina();
@@ -844,14 +851,14 @@
           var h = Math.max(alto(L1), alto(Lr), alto(Le, 8));
           if (y + h > FIN) { pagina(); cabecera(); }
           var x = M;
-          [[Le, 'c'], [L1, 'l'], [[{ t: numVar(r.d), b: true }], 'c'], [[{ t: n0(r.p) }], 'c'], [[{ t: r.nopc ? '' : fmtPct(r.pc) + '%' }], 'c'], [[{ t: kg(r.kg) }], 'r'], [Lr, 'l']].forEach(function (c, i) { celda(x, CW[i], h, c[0], { al: c[1] }); x += CW[i]; });
+          [[Le, 'c'], [L1, 'l'], [[{ t: numVar(r.d), b: true }], 'c'], [[{ t: kg(r.kg), b: true }], 'r'], [[{ t: n0(r.p) }], 'c'], [[{ t: r.nopc ? '' : fmtPct(r.pc) + '%' }], 'c'], [Lr, 'l']].forEach(function (c, i) { celda(x, CW[i], h, c[0], { al: c[1] }); x += CW[i]; });
           y += h; tp_ += r.p; tk += r.kg;
         });
         if (y + 16 > FIN) { pagina(); cabecera(); }
         celda(M, CW[0] + CW[1] + CW[2], 16, [{ t: bl.total || 'TOTAL', b: true }], { fill: CLARO });
-        celda(M + CW[0] + CW[1] + CW[2], CW[3], 16, [{ t: n0(tp_), b: true }], { fill: CLARO, al: 'c' });
-        celda(M + CW[0] + CW[1] + CW[2] + CW[3], CW[4], 16, [], { fill: CLARO });
-        celda(M + AN - CW[5] - CW[6], CW[5], 16, [{ t: kg(tk), b: true }], { fill: CLARO, al: 'r' });
+        celda(M + CW[0] + CW[1] + CW[2], CW[3], 16, [{ t: kg(tk), b: true }], { fill: CLARO, al: 'r' });
+        celda(M + CW[0] + CW[1] + CW[2] + CW[3], CW[4], 16, [{ t: n0(tp_), b: true }], { fill: CLARO, al: 'c' });
+        celda(M + AN - CW[5] - CW[6], CW[5], 16, [], { fill: CLARO });
         celda(M + AN - CW[6], CW[6], 16, [], { fill: CLARO });
         y += 16;
       });
@@ -862,7 +869,7 @@
     // observaciones
     var Mx = D.M, obs = [];
     var sP = D.salG.reduce(function (a, r) { return a + r.p; }, 0), sK = D.salG.reduce(function (a, r) { return a + r.kg; }, 0), T0 = D.ini0.tot, T1 = D.fin.tot;
-    obs.push('Balance del almacén: iniciaron ' + n0(T0.sal_p) + ' piezas (' + kg(T0.sal_kg) + ' kg) + ingresaron ' + n0(D.hoyEnt.p) + ' (' + kg(D.hoyEnt.kg) + ' kg) - salieron ' + n0(sP) + ' (' + kg(sK) + ' kg) = cierran ' + n0(T1.sal_p) + ' piezas (' + kg(T1.sal_kg) + ' kg).');
+    obs.push('Balance del almacén: iniciaron ' + kg(T0.sal_kg) + ' kg (' + n0(T0.sal_p) + ' piezas) + ingresaron ' + kg(D.hoyEnt.kg) + ' kg (' + n0(D.hoyEnt.p) + ') - salieron ' + kg(sK) + ' kg (' + n0(sP) + ') = cierran ' + kg(T1.sal_kg) + ' kg (' + n0(T1.sal_p) + ' piezas).');
     if (D.armP) obs.push('Se armaron ' + kg(D.kgArm) + ' kg (' + n0(D.armP) + ' piezas). De ellos, ' + kg(Mx.aSale.kg) + ' kg (' + n0(Mx.aSale.p) + ' piezas) salieron del almacén y ' + kg(Math.max(0, D.kgArm - Mx.aSale.kg)) + ' kg (' + n0(D.armP - Mx.aSale.p) + ' piezas) siguen en el almacén como acero armado.');
     if (Mx.aPrev.p) obs.push('Además salieron ' + kg(Mx.aPrev.kg) + ' kg (' + n0(Mx.aPrev.p) + ' piezas) de acero armado en días anteriores.');
     if (Mx.dir.p) obs.push('Salieron directo, sin armar: ' + kg(Mx.dir.kg) + ' kg (' + n0(Mx.dir.p) + ' piezas).');
@@ -948,7 +955,7 @@
     if (!L.length) return h + '<div class="card vacio">No hay pedidos anulados.</div>';
     return h + L.map(function (p) {
       return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>Anulado ' + fechaDia(p.fechaBaja) + '</span></div><div class="pd-e">' + esc(p.estructura) + '</div>' +
-        '<div class="pd-m"><span><b>' + n0(p.piezas) + '</b> piezas</span><span><b>' + kg(p.kg) + '</b> kg</span><span>por ' + esc(p.usuarioBaja || '') + '</span></div>' +
+        '<div class="pd-m"><span><b>' + kg(p.kg) + '</b> kg</span><span>' + n0(p.piezas) + ' piezas</span><span>por ' + esc(p.usuarioBaja || '') + '</span></div>' +
         (p.archivoId && Api.remoto ? '<div class="acc"><button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar ' + tipoArch(p) + '</button></div>' : '') + '</div>';
     }).join('');
   }
@@ -1004,7 +1011,7 @@
     h += vis.map(function (p) {
       var x = S.calc.porElem[p.estructura] || { lib_p: 0, arm_p: 0, out_p: 0 };
       return '<div class="pd"><div class="pd-h"><b>Pedido ' + esc(p.pedido) + '</b><span>' + fechaDia(p.fecha) + '</span></div><div class="pd-e">' + esc(p.estructura) + (p.descripcion && String(p.descripcion).trim().toLowerCase() !== String(p.estructura).trim().toLowerCase() ? '<em>' + esc(p.descripcion) + '</em>' : '') + '</div>' +
-        '<div class="pd-m"><span><b>' + n0(p.piezas) + '</b> piezas</span><span><b>' + kg(p.kg) + '</b> kg</span><span>' + esc(p.usuario) + '</span></div>' + datosPed(p) +
+        '<div class="pd-m"><span><b>' + kg(p.kg) + '</b> kg</span><span>' + n0(p.piezas) + ' piezas</span><span>' + esc(p.usuario) + '</span></div>' + datosPed(p) +
         '<div class="acc tres3"><button class="btn chico sec" data-a="edPed" data-v="' + esc(p.loadId) + '" style="margin-top:8px">✏️ Corregir</button> <button class="btn chico sec" data-a="dli" data-v="' + esc(p.loadId) + '" style="margin-top:8px">⬇ Descargar ' + tipoArch(p) + '</button> <button class="btn chico sec" data-a="anularCarga" data-v="' + esc(p.loadId) + '" style="margin-top:8px">🗑 Borrar</button></div>' +
         (S.edPed[p.loadId] ? (function (e) { return '<div class="edp"><div class="fgrid"><div class="fld"><label>Número de pedido</label><input type="text" value="' + esc(e.pedido) + '" data-i="edp.' + esc(p.loadId) + '.pedido"></div>' + (recibo(p.loadId) ? '' : '<div class="fld"><label>Fecha en que llegó</label><input type="date" max="' + hoyISO() + '" value="' + esc(e.f) + '" data-i="edp.' + esc(p.loadId) + '.f"></div>') + '<div class="fld"><label>Empresa</label><input type="text" maxlength="40" value="' + esc(e.emp) + '" data-i="edp.' + esc(p.loadId) + '.emp"></div><div class="fld"><label>Fecha de solicitud</label><input type="date" value="' + esc(e.fs) + '" data-i="edp.' + esc(p.loadId) + '.fs"></div><div class="fld"><label>Fecha de entrega programada</label><input type="date" value="' + esc(e.fe) + '" data-i="edp.' + esc(p.loadId) + '.fe"></div><div class="fld"><label>Pedido anterior (si lo anularon y les dieron otro número)</label><input type="text" maxlength="40" value="' + esc(e.pa) + '" data-i="edp.' + esc(p.loadId) + '.pa"></div></div>' +
           (STOCKS.indexOf(p.estructura) < 0 ? '<div class="fld"><label>¿Para cuántas estructuras es la cartilla?</label><input type="text" inputmode="numeric" value="' + esc(e.n) + '" data-i="edp.' + esc(p.loadId) + '.n"></div>' : '') +
@@ -1044,14 +1051,14 @@
     S.cargas.forEach(function (c, i) {
       var p = c.parsed, por = resumenDiam(p), ya = S.estado.pedidos.filter(function (x) { var b = function (t) { return String(t || '').replace(/\.(dli|pdf)$/i, '').trim().toLowerCase(); }; return (c.dest === 'est' && x.estructura === p.nombre) || (p.archivo && b(x.archivo) === b(p.archivo)); });
       h += '<div class="card"><h3>' + esc(p.nombre) + (p.descripcion && String(p.descripcion).trim().toLowerCase() !== String(p.nombre).trim().toLowerCase() ? '<span class="tag">' + esc(p.descripcion) + '</span>' : '') + '</h3>' +
-        '<div class="peq mut">' + esc(p.archivo) + ' · ' + p.rows.length + ' filas · ' + n0(p.totalPiezas) + ' piezas · ' + kg(p.totalKg) + ' kg</div>';
+        '<div class="peq mut">' + esc(p.archivo) + ' · ' + p.rows.length + ' filas · ' + kg(p.totalKg) + ' kg · ' + n0(p.totalPiezas) + ' piezas</div>';
       if (c.nota) h += '<div class="aviso">ℹ️ ' + esc(c.nota) + '</div>';
       if (p.avisos.length === 1) h += '<div class="aviso">⚠ ' + esc(p.avisos[0]) + '</div>';
       else if (p.avisos.length) h += '<details class="aviso mv-d" data-det="a' + i + '"' + (S.det['a' + i] ? ' open' : '') + '><summary><b>⚠ ' + p.avisos.length + ' avisos del archivo</b> (toque para verlos)</summary>' + p.avisos.map(function (a) { return '<div style="margin-top:4px">' + esc(a) + '</div>'; }).join('') + '</details>';
       if (c.pedirPdf) h += '<div class="error"><b>No pude leer este DLI con seguridad.</b> Para no equivocarnos, seleccione el <b>PDF de la cartilla</b> (el listado, sin -General ni -Resumen).<div style="margin-top:8px"><label class="btn" for="pdf-' + i + '">Elegir el PDF de la cartilla</label><input id="pdf-' + i + '" data-pdfpara="' + i + '" type="file" accept=".pdf,application/pdf" style="display:none"></div></div>';
       if (ya.length) h += '<div class="error"><b>🚫 Este DLI ya fue cargado</b> (pedido ' + ya.map(function (x) { return esc(x.pedido); }).join(', ') + '). No se puede guardar de nuevo, ni con otro número de pedido.</div>';
-      h += '<details><summary>Ver kilos por varilla</summary><div class="tw"><table><thead><tr><th>Diámetro</th><th class="n">Piezas</th><th class="n">Kg</th></tr></thead><tbody>' +
-        Object.keys(por).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); }).map(function (d) { return '<tr><td>' + esc(C.diamLabel(d)) + '</td><td class="n">' + n0(por[d].p) + '</td><td class="n">' + kg(por[d].kg) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
+      h += '<details><summary>Ver kilos por varilla</summary><div class="tw"><table><thead><tr><th>Diámetro</th><th class="n">Kg</th><th class="n">Piezas</th></tr></thead><tbody>' +
+        Object.keys(por).sort(function (a, b) { return C.diamOrder(a) - C.diamOrder(b); }).map(function (d) { return '<tr><td>' + esc(C.diamLabel(d)) + '</td><td class="n"><b>' + kg(por[d].kg) + '</b></td><td class="n">' + n0(por[d].p) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
       var pend = [];
       if (pend.length) {
         h += '<div class="aviso"><b>Falta el largo de ' + pend.length + ' marca(s).</b> Escríbalo para poder registrar:</div><div class="tw"><table><tbody>' +

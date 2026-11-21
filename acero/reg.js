@@ -115,7 +115,7 @@
     var h = '';
     STK.forEach(function (s) {
       var P = posiciones(s).filter(function (p) { return p.lib > 0; }); if (!P.length) return;
-      h += '<div class="card"><h3>' + (s === 'ACERO RECTO' ? '📏 ' : '➰ ') + NOM[s] + '</h3>' + P.map(function (p) { return '<div class="fila"><div>' + posTxt(p) + '</div><div><b>' + pz(p.lib) + '</b> · ' + K(p.lib * p.kgU) + '</div></div>'; }).join('') + '</div>';
+      h += '<div class="card"><h3>' + (s === 'ACERO RECTO' ? '📏 ' : '➰ ') + NOM[s] + '</h3>' + P.map(function (p) { return '<div class="fila"><div>' + posTxt(p) + '</div><div><b>' + K(p.lib * p.kgU) + '</b> · ' + pz(p.lib) + '</div></div>'; }).join('') + '</div>';
     });
     return h;
   }
@@ -123,12 +123,12 @@
     var S = X.S, L = [], G = {}, orden = [];
     S.estado.pedidos.forEach(function (p) {
       if (SIS.test(String(p.pedido))) return;
-      if (X.recibo(p.loadId)) { L.push({ f: p.fecha, h: mv('', '📄', 'Pedido montado en oficina', p.estructura, ['Pedido ' + esc(p.pedido), pz(p.piezas) + ' · ' + K(p.kg), esc(p.usuario || '') + ' · ' + X.fecha(p.fecha)]) }); return; }
+      if (X.recibo(p.loadId)) { L.push({ f: p.fecha, h: mv('', '📄', 'Pedido montado en oficina', p.estructura, ['Pedido ' + esc(p.pedido), K(p.kg) + ' · ' + pz(p.piezas), esc(p.usuario || '') + ' · ' + X.fecha(p.fecha)]) }); return; }
       L.push({ f: p.fecha, h: X.vMov({ t: 'E', f: p.fecha, p: p }, true) });
     });
     var RG = {}, ro = [];
     (S.estado.recepciones || []).forEach(function (e) { var k = String(e.id).replace(/-\d+$/, ''); if (!RG[k]) { RG[k] = []; ro.push(k); } RG[k].push(e); });
-    ro.forEach(function (k) { var g = RG[k], tp = 0, tk = 0; g.forEach(function (e) { tp += e.cantidad; tk += e.kg; }); L.push({ f: g[0].fecha, h: mv('ent', '📥', 'Llegó acero a la obra', g[0].estructura, ['Pedido ' + esc(g[0].pedido), pz(tp) + ' · ' + K(tk), esc(g[0].usuario || '') + ' · ' + X.fecha(g[0].fecha)]) }); });
+    ro.forEach(function (k) { var g = RG[k], tp = 0, tk = 0; g.forEach(function (e) { tp += e.cantidad; tk += e.kg; }); L.push({ f: g[0].fecha, h: mv('ent', '📥', 'Llegó acero a la obra', g[0].estructura, ['Pedido ' + esc(g[0].pedido), K(tk) + ' · ' + pz(tp), esc(g[0].usuario || '') + ' · ' + X.fecha(g[0].fecha)]) }); });
     (S.estado.armados || []).forEach(function (a) { if (a.estado === 'TERMINADO') L.push({ f: a.fin, h: mv('fin', '🏁', 'Se cerró el armado', a.elemento, [esc(a.sobrante || 'Sin sobrante'), esc(a.usuarioFin || '') + ' · ' + X.fecha(a.fin)]) }); });
     S.estado.salidas.forEach(function (s) { var k = String(s.id).replace(/-\d+$/, '').replace(/-[SA]$/, ''); if (!G[k]) { G[k] = []; orden.push(k); } G[k].push(s); });
     orden.forEach(function (k) { var g = G[k]; if (OBS_SIS.test(String(g[0].obs || '')) || /^Armado de /.test(String(g[0].obs || ''))) return; L.push({ f: g[0].fecha, h: X.vMov({ t: 'S', f: g[0].fecha, s: g[0], g: g }, true) }); });
@@ -233,7 +233,7 @@
     if (w.p === 'lsf') return vLlegoStock();
     return '';
   }
-  function kdTxt(k) { return pz(k.p) + ' · ' + K(k.kg) + (k.exceso ? ' · ⚠ más de lo que faltaba' : (k.sobra > 0.05 ? ' · sobran ' + K(k.sobra) + ' (menos de una pieza)' : '')); }
+  function kdTxt(k) { return K(k.kg) + ' · ' + pz(k.p) + (k.exceso ? ' · ⚠ más de lo que faltaba' : (k.sobra > 0.05 ? ' · sobran ' + K(k.sobra) + ' (menos de una pieza)' : '')); }
   /** Reparte los kilos escritos por diámetro entre las posiciones pendientes de ese diámetro (piezas completas, en orden). */
   function repartoKg() {
     var w = W(); w.vals = {}; w.kd = {};
@@ -280,8 +280,8 @@
       '<button type="button" class="btn blk gr" data-a="wLadd">➕ Agregar a la lista</button>';
     if (w.rows.length) {
       var tk = 0, tp = 0; w.rows.forEach(function (x) { tk += x.k; tp += x.c; });
-      h += '</div><div class="card wz"><h3 style="margin:0 0 6px">🧾 Lo que llegó</h3>' + w.rows.map(function (x, i) { return '<div class="fila"><div><b>' + pz(x.c) + '</b> de ' + esc(X.C.diamLabel(x.d)) + ' · ' + String(x.l).replace('.', ',') + ' m<div class="peq mut">' + K(x.k) + (x.man ? ' según remisión (calculado: ' + K(x.calc) + ')' : '') + '</div></div><button type="button" class="btn chico sec" data-a="wLdel" data-v="' + i + '">✕ Quitar</button></div>'; }).join('') +
-        '<div class="resu">Total: <b>' + pz(tp) + '</b> · <b>' + K(tk) + '</b> al <b>' + NOM[w.stock] + '</b></div>' + foto(true) +
+      h += '</div><div class="card wz"><h3 style="margin:0 0 6px">🧾 Lo que llegó</h3>' + w.rows.map(function (x, i) { return '<div class="fila"><div><b>' + K(x.k) + '</b> de ' + esc(X.C.diamLabel(x.d)) + ' · ' + String(x.l).replace('.', ',') + ' m<div class="peq mut">' + pz(x.c) + (x.man ? ' · según remisión (calculado: ' + K(x.calc) + ')' : '') + '</div></div><button type="button" class="btn chico sec" data-a="wLdel" data-v="' + i + '">✕ Quitar</button></div>'; }).join('') +
+        '<div class="resu">Total: <b>' + K(tk) + '</b> · ' + pz(tp) + ' al <b>' + NOM[w.stock] + '</b></div>' + foto(true) +
         '<div class="fld" style="margin-top:10px"><label>Número de la remisión (opcional)</label><input type="text" inputmode="numeric" placeholder="Ej. 45210" value="' + esc(w.pedido) + '" data-r="pedido"></div>' +
         guardarBtn('wLsok', '✅ Confirmar que llegó');
     }
@@ -344,7 +344,7 @@
       var desc = w.modo === 'pos' ? 'por posiciones' : (e.un > 1 ? (w.u || 1) + ' de ' + e.un + ' · ' : '') + (w.modo === 'pct' ? w.pct + ' %' : 'completa');
       h = cab('Revisa y guarda', 'Armado de ' + esc(e.n) + ' · ' + desc);
       if (!it.L.length) h += '<div class="rec bad">No hay acero libre para este avance.</div>';
-      h += it.L.map(function (x) { return '<div class="fila"><div>' + posTxt(x.p) + '</div><div><b>' + pz(x.q) + '</b> · ' + K(x.q * x.p.kgU) + '</div></div>'; }).join('');
+      h += it.L.map(function (x) { return '<div class="fila"><div>' + posTxt(x.p) + '</div><div><b>' + K(x.q * x.p.kgU) + '</b> · ' + pz(x.q) + '</div></div>'; }).join('');
       if (it.falta.length) h += '<div class="rec warn">⚠️ No hay acero suficiente para todo. Se guarda solo lo que hay en el almacén.</div>';
       return h + '<div class="resu">Quedan armados <b>' + K(tk) + '</b></div>' + (it.L.length ? guardarBtn('wAok', '✅ Guardar el armado') : '') + pie();
     }
