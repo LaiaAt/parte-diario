@@ -153,6 +153,7 @@ input.gran{font-size:30px;font-weight:800;text-align:center;padding:16px}
 </main>
 <div id="barra" hidden></div>
 <script>
+function jpg1MB(cv, q) { var d = cv.toDataURL('image/jpeg', q); while (d.length > 1250000 && q > 0.35) { q -= 0.1; d = cv.toDataURL('image/jpeg', q); } if (d.length > 1250000) { var c2 = document.createElement('canvas'); c2.width = Math.round(cv.width * 0.7); c2.height = Math.round(cv.height * 0.7); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height); return jpg1MB(c2, 0.6); } return d; } // toda foto queda < 1 MB
 'use strict';
 const API = 'https://script.google.com/macros/s/AKfycbz6LjPHWbh_vLcYhwSvYFp8tMN737nX-hJUPiX6vOvLb_3tEAyH9zeCC_4pqNSPRz9O1w/exec';
 const $ = id => document.getElementById(id);
@@ -320,7 +321,7 @@ function comprimir(file, max, cal) {
       const k = Math.min(1, (max || 1280) / Math.max(img.naturalWidth, img.naturalHeight));
       const w = Math.round(img.naturalWidth * k), hh = Math.round(img.naturalHeight * k);
       const cv = document.createElement('canvas'); cv.width = w; cv.height = hh; cv.getContext('2d').drawImage(img, 0, 0, w, hh);
-      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg', cal || 0.65));
+      URL.revokeObjectURL(url); res(jpg1MB(cv, cal || 0.65));
     };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('foto')); };
     img.src = url;

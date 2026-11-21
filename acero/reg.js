@@ -1,3 +1,4 @@
+function jpg1MB(cv, q) { var d = cv.toDataURL('image/jpeg', q); while (d.length > 1250000 && q > 0.35) { q -= 0.1; d = cv.toDataURL('image/jpeg', q); } if (d.length > 1250000) { var c2 = document.createElement('canvas'); c2.width = Math.round(cv.width * 0.7); c2.height = Math.round(cv.height * 0.7); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height); return jpg1MB(c2, 0.6); } return d; } // toda foto queda < 1 MB
 /* Acero — pantallas de obra (rediseño): INICIO con tres botones y rutas guiadas, una pregunta por pantalla.
  *   📥 LLEGÓ  → ¿para qué? (estructura / stock) → ¿cuál? → ¿todo o una parte? → ¿cuándo? → listo
  *   🔧 ARMAR  → ¿qué estructura? → avance (unidades · completo / % / posiciones) · usar stock · cerrar y contar sobrante
@@ -551,7 +552,7 @@
     var fin = function (b64, nombre) { if (!w.files) w.files = []; if (w.files.length >= 10) { fallo('Máximo 10 fotos por llegada.'); return; } w.files.push({ nombre: nombre, b64: b64 }); w.err = ''; X.render(); };
     if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) { var fr = new FileReader(); fr.onload = function () { fin(String(fr.result).split(',')[1], f.name); }; fr.readAsDataURL(f); return; }
     var img = new Image(), fr2 = new FileReader(); // se lee como data: (la política de seguridad de la página no permite blob:)
-    img.onload = function () { var m = 1280, k = Math.min(1, m / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); fin(cv.toDataURL('image/jpeg', 0.6).split(',')[1], String(f.name || 'remision').replace(/\.\w+$/, '') + '.jpg'); };
+    img.onload = function () { var m = 1280, k = Math.min(1, m / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); fin(jpg1MB(cv, 0.6).split(',')[1], String(f.name || 'remision').replace(/\.\w+$/, '') + '.jpg'); };
     img.onerror = function () { fallo('No se pudo leer la foto. Intenta con otra.'); };
     fr2.onload = function () { img.src = String(fr2.result); }; fr2.onerror = function () { fallo('No se pudo leer la foto. Intenta con otra.'); }; fr2.readAsDataURL(f);
   }

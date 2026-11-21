@@ -128,6 +128,7 @@ button.env{background:#f59e0b;color:#1b1b1b;border:2px solid #b45309;font-weight
 <script src="comun.js"></script>
 <script src="pdf.js"></script>
 <script>
+function jpg1MB(cv, q) { var d = cv.toDataURL('image/jpeg', q); while (d.length > 1250000 && q > 0.35) { q -= 0.1; d = cv.toDataURL('image/jpeg', q); } if (d.length > 1250000) { var c2 = document.createElement('canvas'); c2.width = Math.round(cv.width * 0.7); c2.height = Math.round(cv.height * 0.7); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height); return jpg1MB(c2, 0.6); } return d; } // toda foto queda < 1 MB
 'use strict';
 const API = 'https://script.google.com/macros/s/AKfycbz6LjPHWbh_vLcYhwSvYFp8tMN737nX-hJUPiX6vOvLb_3tEAyH9zeCC_4pqNSPRz9O1w/exec';
 const MAXACT = 6, MAXFOTOS = 15;
@@ -687,7 +688,7 @@ function comprimir(file) {
       const cv = document.createElement('canvas'); cv.width = w; cv.height = hh;
       cv.getContext('2d').drawImage(img, 0, 0, w, hh);
       URL.revokeObjectURL(url);
-      res({ data: cv.toDataURL('image/jpeg', 0.6), w: w, h: hh });
+      res({ data: jpg1MB(cv, 0.6), w: w, h: hh });
     };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('foto')); };
     img.src = url;

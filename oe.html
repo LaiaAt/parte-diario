@@ -47,6 +47,7 @@ img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;backg
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="acero/xlsx.js?v=284"></script>
 <script>
+function jpg1MB(cv, q) { var d = cv.toDataURL('image/jpeg', q); while (d.length > 1250000 && q > 0.35) { q -= 0.1; d = cv.toDataURL('image/jpeg', q); } if (d.length > 1250000) { var c2 = document.createElement('canvas'); c2.width = Math.round(cv.width * 0.7); c2.height = Math.round(cv.height * 0.7); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height); return jpg1MB(c2, 0.6); } return d; } // toda foto queda < 1 MB
 
 'use strict';
 const API = 'https://script.google.com/macros/s/AKfycbz6LjPHWbh_vLcYhwSvYFp8tMN737nX-hJUPiX6vOvLb_3tEAyH9zeCC_4pqNSPRz9O1w/exec';
@@ -336,7 +337,7 @@ function tomarGps() {
 function reducirFoto(file) {
   return new Promise((ok, no) => {
     const url = URL.createObjectURL(file), im = new Image();
-    im.onload = () => { const m = 1280, k = Math.min(1, m / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.6)); };
+    im.onload = () => { const m = 1280, k = Math.min(1, m / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(jpg1MB(c, 0.6)); };
     im.onerror = () => { URL.revokeObjectURL(url); no(new Error('foto')); }; im.src = url;
   });
 }
