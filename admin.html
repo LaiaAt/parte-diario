@@ -433,7 +433,7 @@ function pintarArbol() {
     { g: 't', ico: '🚛', t: 'Transportes', on: gt, hojas: TR_TABS.map((x, i) => [x[1] + (x[0] === 'sosp' && nDupTr ? '  🚨 ' + nDupTr : ''), gt && TRTAB === x[0], () => irSub('nav3', i, 'transportes')]) }
   ];
   if (D.acero) G.push({ g: 'a', ico: '🔩', t: 'Acero', on: ga, hojas: AC_TABS.map((x, i) => [x[1], ga && ACTAB === x[0], () => irSub('nav4', i, 'acero')]) });
-  G.push({ g: 'm', ico: '🚜', t: 'Maquinaria', on: gm, hojas: MQ_TABS.map((x, i) => [x[1], gm && MQTAB === x[0], () => irSub('nav4', i, 'maquinaria')]) });
+  G.push({ g: 'm', ico: '🚜', t: 'Maquinaria', on: gm, hojas: MQ_TABS.map((x, i) => [x[1] + (x[0] === 'pend' && mqNPend() ? '  📷 ' + mqNPend() : ''), gm && MQTAB === x[0], () => irSub('nav4', i, 'maquinaria')]) });
   G.push({ g: 'o', ico: '📐', t: 'OE', on: go, hojas: OE_TABS.map((x, i) => [x[1], go && OETAB === x[0], () => irSub('nav4', i, 'oe')]) });
   G.forEach(x => {
     a.appendChild(h('button', { class: 'ar-g' + (x.on ? ' on' : ''), onclick: () => { if (!x.on) irGrupo(x.g); } }, h('span', {}, x.ico), h('em', {}, x.t)));
@@ -1597,8 +1597,9 @@ window.addEventListener('message', e => {
   else if (e.data.t === 'acero-alto' && $('acFrame')) $('acFrame').style.height = Math.max(400, e.data.h) + 'px';
 });
 /* ----- Maquinaria: reportes de las máquinas (horómetro, registro, horas por actividad) ----- */
-const MQ_TABS = [['rep', '📋 Albaranes'], ['res', '📊 Resumen'], ['maq', '⚙ Máquinas']];
-let MQ = null, MQTAB = selGet('mq', 'rep', v => v === 'rep' || v === 'res' || v === 'maq'), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
+const MQ_TABS = [['rep', '📋 Albaranes'], ['res', '📊 Resumen'], ['pend', '🚨 Pendientes'], ['maq', '⚙ Máquinas']];
+const mqNPend = () => (MQ && MQ.pend_foto ? MQ.pend_foto.length : 0);
+let MQ = null, MQTAB = selGet('mq', 'rep', v => MQ_TABS.some(x => x[0] === v)), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
 const mqNorm = x => { let t = String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
 const mqSinTilde = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const mqLbl = r => r.maquina + (r.tipo ? ' · ' + r.tipo : '');
@@ -1607,7 +1608,7 @@ const mqFuera = r => (r.det || []).some(x => x.fuera);
 const mqSin = r => Math.max(0, Math.round(((Number(r.h_hor) || 0) - (Number(r.h_trab) || 0)) * 100) / 100);
 function navMq() {
   const tb = $('nav4'); tb.textContent = '';
-  MQ_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: MQTAB === k ? 'on' : '', onclick: () => { MQTAB = k; selSet('mq', k); navMq(); if (MQ) pintarMq(); else cargarMq(); } }, t)));
+  MQ_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: MQTAB === k ? 'on' : '', onclick: () => { MQTAB = k; selSet('mq', k); navMq(); if (MQ) pintarMq(); else cargarMq(); } }, t, k === 'pend' && mqNPend() ? h('span', { class: 'tabBadge' }, '📷 ' + mqNPend()) : null)));
   pintarArbol();
 }
 async function cargarMq() {
@@ -1669,6 +1670,7 @@ function mqFiltrados() {
 function pintarMq() {
   const c = $('mqBody'); if (!MQ) return; c.textContent = '';
   if (MQTAB === 'maq') { vistaMqMaq(c); return; }
+  if (MQTAB === 'pend') { vistaMqPend(c); return; }
   const R = MQ.reportes;
   if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay albaranes de maquinaria en estas fechas')); return; }
   const mm = {}; R.forEach(r => { mm[r.maquina] = mqLbl(r); }); const maqs = Object.keys(mm).sort((a, b) => (Number(a) - Number(b)) || a.localeCompare(b)), usrs = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => nomDe(a).localeCompare(nomDe(b)));
@@ -1712,19 +1714,34 @@ function tarjetaMq(r) {
       !r.n_parte ? h('span', { class: 'tag', style: 'background:#b3261e;color:#fff;font-weight:800' }, '📷 Falta foto del albarán (obligatoria)') : null,
       !r.n_parte ? subirFotoAlbMq(r) : null));
 }
+function vistaMqPend(c) {
+  const P = MQ.pend_foto || [];
+  if (!P.length) { c.appendChild(h('div', { class: 'trok' }, '✔ No hay pendientes: todos los albaranes tienen su foto.')); return; }
+  const nHis = P.filter(r => r.llave === 'HISTORICO').length;
+  c.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700;margin-bottom:10px' }, '📷 Faltan ' + P.length + ' fotos de albarán' + (nHis ? ' (' + nHis + ' del registro histórico del Excel)' : '') + '. La foto del albarán es obligatoria: súbelas una a una con el botón verde. Las fotos del horómetro de esos registros ya no se pueden tomar y no se piden.'));
+  const lista = h('div', {}); c.appendChild(lista);
+  let n = 60;
+  const pinta = () => { lista.textContent = ''; P.slice(0, n).forEach(r => lista.appendChild(h('div', { class: 'tcard', style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px' },
+      h('div', { style: 'flex:1;min-width:220px' }, h('b', { style: 'font-size:18px' }, '🧾 Albarán ' + r.albaran + ' · 🚜 ' + mqLbl(r)),
+        h('div', { class: 'small' }, fmtF(r.fecha) + ' · ' + (r.turno === 'NOCHE' ? '🌙 Noche' : '☀ Día') + ' · ' + nf(r.h_trab) + ' h trabajadas · ' + nf(r.h_parada) + ' h no productivas' + (r.llave === 'HISTORICO' ? ' · Histórico (Excel)' : ' · ' + nomDe(r.llave)))),
+      subirFotoAlbMq(r))));
+    if (P.length > n) lista.appendChild(h('button', { class: 'sec', onclick: () => { n += 60; pinta(); } }, 'Mostrar más (' + (P.length - n) + ')')); };
+  pinta();
+}
 function subirFotoAlbMq(r) {
   const inp = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true });
-  const bt = h('button', { class: 'verde', onclick: () => inp.click() }, '⬆ Subir foto del albarán');
+  const bt = h('button', { style: 'background:#0a7a32;color:#fff;border:0;font-weight:800', onclick: () => inp.click() }, '📷 Subir foto del albarán');
   inp.onchange = async () => {
     const fs = Array.from(inp.files || []).slice(0, 4); inp.value = ''; if (!fs.length) return;
     bt.disabled = true; bt.textContent = 'Subiendo…';
     try {
       const datas = []; for (const f of fs) datas.push(await comprimirMq(f));
       const x = await api({ accion: 'admin_mq_foto_alb', llave: LLAVE, id: r.id, fotos: datas });
-      if (!x.ok) { bt.disabled = false; bt.textContent = '⬆ Subir foto del albarán'; banner(x.mensaje || 'No se pudo subir', 'mal'); return; }
+      if (!x.ok) { bt.disabled = false; bt.textContent = '📷 Subir foto del albarán'; banner(x.mensaje || 'No se pudo subir', 'mal'); return; }
       const i = MQ.reportes.findIndex(y => y.id === r.id); if (i >= 0) MQ.reportes[i] = Object.assign({}, MQ.reportes[i], x.rep);
+      if (MQ.pend_foto) MQ.pend_foto = MQ.pend_foto.filter(y => y.id !== r.id); navMq();
       banner('✔ Foto del albarán ' + r.albaran + ' guardada', 'ok'); const y = window.scrollY; pintarMq(); window.scrollTo(0, y);
-    } catch (e) { bt.disabled = false; bt.textContent = '⬆ Subir foto del albarán'; banner('Sin señal: no se pudo subir', 'mal'); }
+    } catch (e) { bt.disabled = false; bt.textContent = '📷 Subir foto del albarán'; banner('Sin señal: no se pudo subir', 'mal'); }
   };
   return h('span', {}, bt, inp);
 }
