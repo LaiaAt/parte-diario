@@ -319,7 +319,6 @@ function pintarInicio() {
   B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()))));
   const nLleg = hoyC.filter(v => v.mov === 'RECIBE').length, nSal = hoyC.length - nLleg;
   avisosOficina(B);
-  const tile = (ico, n, t, col) => h('div', { style: 'flex:1;background:#fff;border:2px solid ' + col + ';border-radius:8px;text-align:center;padding:10px 4px' }, h('div', { style: 'font-size:30px;font-weight:800;color:' + col }, ico + ' ' + n), h('div', { style: 'font-size:16px;font-weight:700;color:#12202b' }, t));
   B.appendChild(h('div', { style: 'display:flex;gap:8px;margin-bottom:12px' }, tile('📥', nLleg, 'Llegaron a la obra', '#0d3b66'), tile('📤', nSal, 'Salieron de la obra', '#1b5e20')));
   B.appendChild(h('div', { class: 'gr', style: 'margin-bottom:14px' },
     h('button', { class: 'grande', onclick: () => abrirForm(null) }, '➕ NUEVO VIAJE'),
@@ -336,6 +335,11 @@ function pintarInicio() {
   if (VIAJES.some(v => v.fecha !== hoy())) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:6px', onclick: abrirAnteriores }, '📅 Días anteriores'));
 }
 
+const tile = (ico, n, t, col) => h('div', { style: 'flex:1;background:#fff;border:2px solid ' + col + ';border-radius:8px;text-align:center;padding:10px 4px' }, h('div', { style: 'font-size:30px;font-weight:800;color:' + col }, ico + ' ' + n), h('div', { style: 'font-size:16px;font-weight:700;color:#12202b' }, t));
+function resumenDia(vs) {
+  const c = vs.filter(cuenta), nE = c.filter(v => v.mov === 'RECIBE').length, nS = c.length - nE;
+  return h('div', { style: 'display:flex;gap:8px;margin-bottom:12px' }, tile('📥', nE, 'Entraron', '#0d3b66'), tile('📤', nS, 'Salieron', '#1b5e20'), tile('🚛', c.length, 'Total viajes', '#12202b'));
+}
 function abrirAnteriores() {
   diaActual = null; enPend = false; aviso('');
   const A = $('anteriores'); A.textContent = '';
@@ -362,6 +366,7 @@ function abrirDia(f) {
     h('h3', { style: 'margin:6px 0 0' }, fmtF(f) + (f === hoy() ? ' (hoy)' : '')),
     h('small', {}, VIAJES.some(v => repDe(v) === f && !v.tiene_recibo) ? 'Este día ya cerró. Aún puedes subir la foto del recibo.' : 'Este día ya cerró.'),
     h('button', { class: 'verde', onclick: () => planilla(f) }, '📄 Planilla del día')));
+  if (vs.length) D.appendChild(resumenDia(vs));
   if (!vs.length) D.appendChild(h('div', { class: 'card' }, 'No hay viajes este día.'));
   vs.slice().reverse().forEach(v => D.appendChild(filaViaje(v)));
   pantalla('dia');
