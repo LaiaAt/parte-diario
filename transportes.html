@@ -84,6 +84,10 @@ details.mas summary{font-size:19px;font-weight:700;cursor:pointer;padding:6px 0}
 .viaje .bs>*{flex:1;min-width:110px}
 .viaje .bs button{padding:12px 10px;font-size:17px;min-height:48px}
 .viaje.v2{padding:10px 12px}
+.viaje.s-verde{border-left-color:#1b8a3a}.viaje.s-naranja{border-left-color:#e67700;background:#fff8ef}.viaje.s-rojo{border-left-color:#b3261e;background:#fff3f2}.viaje.s-rojo .m3,.viaje.s-rojo .alb{text-decoration:line-through;color:#8a8a8a}.viaje.s-gris{border-left-color:#8a97a6}
+.tag.sem{color:#fff}.tag.sem.s-verde{background:#1b8a3a}.tag.sem.s-naranja{background:#e67700}.tag.sem.s-rojo{background:#b3261e}.tag.sem.s-gris{background:#8a97a6}
+.semd{border-radius:8px;padding:6px 10px;margin:4px 0 8px;font-size:14px;font-weight:600}.semd.s-naranja{background:#ffe8cc;color:#7a3e00}.semd.s-rojo{background:#fdecea;color:#8a1c14}
+.avof{border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:15px;font-weight:600;display:flex;gap:10px;align-items:flex-start}.avof.verde{background:#e3f4e8;border:2px solid #1b8a3a;color:#0f4d22}.avof.rojo{background:#fdecea;border:2px solid #b3261e;color:#8a1c14}.avof button{flex:0 0 auto;width:auto;padding:6px 12px;font-size:14px;margin:0}
 .v2 .h1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .v2 .nn{background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;font-weight:800;font-size:16px}
 .v2 .pl{font-size:22px;font-weight:800;letter-spacing:.5px}
@@ -206,8 +210,21 @@ let GEN = 0;
 const guardarViajes = () => { GEN++; return kv.set('viajes_' + user.llave, VIAJES); };
 const guardarCola = () => kv.set('cola', COLA);
 const guardarDatos = () => kv.set('datos', DATOS);
-const puedeEditar = v => v.fecha >= sumDias(hoy(), -2) || v.registrado === hoy(); // hoy y los 2 días anteriores
-const puedeRecibo = v => v.tiene_recibo ? hoy() <= sumDias(v.fecha, 1) : true; // sin foto: se puede completar en cualquier fecha
+const fuera = v => !!v.rechazado || v.estado === 'ANULADO'; // rechazado por la oficina: no suma ni se edita
+const cuenta = v => !fuera(v) && !v.bloqueado && !v.revision; // solo los viajes en VERDE (o sin enviar) suman en conteos, m³ y planillas
+const puedeEditar = v => !fuera(v) && (v.fecha >= sumDias(hoy(), -2) || v.registrado === hoy()); // hoy y los 2 días anteriores
+const puedeRecibo = v => fuera(v) ? false : v.tiene_recibo ? hoy() <= sumDias(v.fecha, 1) : true; // sin foto: se puede completar en cualquier fecha
+// semáforo de cada reporte: verde = OK · naranja = en revisión de la oficina · rojo = rechazado por la oficina · gris = aún sin enviar
+function semaforo(v) {
+  const op = COLA.find(o => o.cod === v.cod && o.error);
+  if (fuera(v)) return { c: 'rojo', t: '🔴 Rechazado', d: v.rechazado || ('La oficina anuló este viaje' + (v.motivo_anulado ? ': ' + v.motivo_anulado : '') + '.') + ' No suma.' };
+  if (v.bloqueado || (op && /ya fue registrado|dos veces/i.test(op.error))) return { c: 'naranja', t: '🟠 En revisión', d: 'El albarán N° ' + (v.n_valera || '—') + ' ya lo había registrado otra persona. La oficina decide cuál queda. Mientras tanto no suma.' };
+  if (v.revision) return { c: 'naranja', t: '🟠 En revisión', d: v.revision + ' Mientras tanto no suma.' };
+  if (op) return { c: 'rojo', t: '🔴 No aceptado', d: 'La oficina no aceptó el envío: ' + op.error };
+  if (v.nuevo || COLA.some(o => o.cod === v.cod)) return { c: 'gris', t: '⚪ Sin enviar', d: '' };
+  return { c: 'verde', t: '🟢 OK', d: '' };
+}
+const leyendaSem = () => h('div', { style: 'font-size:13px;color:#5b6b78;margin:-4px 0 8px;display:flex;gap:10px;flex-wrap:wrap' }, h('span', {}, '🟢 OK'), h('span', {}, '🟠 En revisión oficina'), h('span', {}, '🔴 Rechazado'), h('span', {}, '⚪ Sin enviar'));
 
 const ALF = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function nuevoCod() {
@@ -223,7 +240,7 @@ async function cargarLocal() {
   const d = await kv.get('datos'); if (d) DATOS = d;
   aplicarSitios();
   VIAJES = (await kv.get('viajes_' + user.llave)) || [];
-  COLA = (await kv.get('cola')) || [];
+  COLA = (await kv.get('cola')) || []; AVISOS = (await kv.get('avisos')) || [];
   { const lim = sumDias(hoy(), -15), pend = new Set(COLA.map(o => o.cod)); VIAJES = VIAJES.filter(v => repDe(v) >= lim || v.fecha >= lim || !v.tiene_recibo || pend.has(v.cod)); } // el celular guarda hoy y los 15 días anteriores
 }
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {} // despierta el servidor mientras se escribe la llave
@@ -248,11 +265,12 @@ async function aplicarServidor(r) {
   aplicarSitios();
   await guardarDatos();
   const srv = new Set((r.viajes || []).map(v => v.cod)), desc = new Set(r.descartados || []);
-  for (const c of desc) if (COLA.some(o => o.cod === c && o.t === 'g' && o.error)) await quitarDescartado(c);
+  for (const c of desc) if (VIAJES.some(v => v.cod === c && !v.rechazado)) await quitarDescartado(c);
+  AVISOS = r.avisos || []; await kv.set('avisos', AVISOS);
   const hechos = COLA.filter(o => o.t === 'g' && o.error && srv.has(o.cod)); // el administrador ya lo guardó desde el Dashboard
   if (hechos.length) { const cs = new Set(hechos.map(o => o.cod)), conFoto = new Set(hechos.filter(o => o.fotoBloq).map(o => o.cod)); COLA = COLA.filter(o => !(cs.has(o.cod) && (o.t === 'g' || conFoto.has(o.cod)))); COLA.forEach(o => { if (cs.has(o.cod)) delete o.error; }); await guardarCola(); }
   const pend = new Set(COLA.filter(o => o.llave === user.llave).map(o => o.cod));
-  const locales = VIAJES.filter(v => pend.has(v.cod));
+  const locales = VIAJES.filter(v => pend.has(v.cod) || (v.rechazado && !srv.has(v.cod)));
   const nuevos = (r.viajes || []).filter(v => !pend.has(v.cod)).map(v => Object.assign(v, { llave: user.llave }));
   VIAJES = nuevos.concat(locales);
   await guardarViajes();
@@ -282,7 +300,7 @@ let enPend = false;
 function volver() { if (enPend) abrirPend(); else if (diaActual) abrirDia(diaActual); else abrirInicio(); }
 function abrirInicio() { diaActual = null; enPend = false; aviso(''); pintarInicio(); pantalla('inicio'); refrescar(); }
 function ultimoViaje() { return VIAJES.slice().sort((a, b) => (b.fecha + (b.hora_salida || '') + b.cod).localeCompare(a.fecha + (a.hora_salida || '') + a.cod))[0]; }
-const listaPend = () => VIAJES.filter(v => v.fecha < hoy() && !v.tiene_recibo && puedeRecibo(v)).sort((a, b) => a.fecha.localeCompare(b.fecha) || consecDe(a) - consecDe(b));
+const listaPend = () => VIAJES.filter(v => cuenta(v) && v.fecha < hoy() && !v.tiene_recibo && puedeRecibo(v)).sort((a, b) => a.fecha.localeCompare(b.fecha) || consecDe(a) - consecDe(b));
 function abrirPend() {
   diaActual = null; enPend = true; aviso('');
   const P = $('pendientes'); P.textContent = '';
@@ -297,9 +315,10 @@ function abrirPend() {
 function pintarInicio() {
   const B = $('inicio'); B.textContent = '';
   const hoyV = VIAJES.filter(v => repDe(v) === hoy()).sort((a, b) => consecDe(a) - consecDe(b) || a.cod.localeCompare(b.cod));
-  const vol = hoyV.reduce((s, v) => s + volV(v), 0);
+  const hoyC = hoyV.filter(cuenta), vol = hoyC.reduce((s, v) => s + volV(v), 0);
   B.appendChild(h('div', { style: 'margin:0 0 12px' }, h('div', { style: 'font-size:24px;font-weight:800' }, '👋 Hola, ' + user.nombre), h('small', {}, fmtF(hoy()))));
-  const nLleg = hoyV.filter(v => v.mov === 'RECIBE').length, nSal = hoyV.length - nLleg;
+  const nLleg = hoyC.filter(v => v.mov === 'RECIBE').length, nSal = hoyC.length - nLleg;
+  avisosOficina(B);
   const tile = (ico, n, t, col) => h('div', { style: 'flex:1;background:#fff;border:2px solid ' + col + ';border-radius:8px;text-align:center;padding:10px 4px' }, h('div', { style: 'font-size:30px;font-weight:800;color:' + col }, ico + ' ' + n), h('div', { style: 'font-size:16px;font-weight:700;color:#12202b' }, t));
   B.appendChild(h('div', { style: 'display:flex;gap:8px;margin-bottom:12px' }, tile('📥', nLleg, 'Llegaron a la obra', '#0d3b66'), tile('📤', nSal, 'Salieron de la obra', '#1b5e20')));
   B.appendChild(h('div', { class: 'gr', style: 'margin-bottom:14px' },
@@ -307,8 +326,10 @@ function pintarInicio() {
     listaPend().length ? h('button', { style: 'background:#b00000;color:#fff;border:0;font-size:20px;font-weight:800', onclick: abrirPend }, '⚠️ PENDIENTES (' + listaPend().length + ')') : null,
     ultimoViaje() ? h('button', { class: 'sec', onclick: () => abrirForm(null, ultimoViaje()) }, '🔁 Repetir el último viaje (' + ultimoViaje().placa + ')') : null));
   // recibos pendientes de ayer
-  B.appendChild(h('h3', { style: 'margin-top:14px' }, 'Viajes de hoy' + (hoyV.length ? ' · ' + hoyV.length + ' · ' + r2(vol) + ' m³' : '')));
-  if (hoyV.length) B.appendChild(h('div', { style: 'background:#fff3cd;border:2px solid #12202b;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-weight:700' }, '🧾 Registros en la app: ' + hoyV.length + '. Al final del día debes tener ' + hoyV.length + ' albaranes de papel, numerados del 1 al ' + hoyV.length + '.'));
+  B.appendChild(h('h3', { style: 'margin-top:14px' }, 'Viajes de hoy' + (hoyC.length ? ' · ' + hoyC.length + ' · ' + r2(vol) + ' m³' : '')));
+  if (hoyV.length) B.appendChild(leyendaSem());
+  const nNum = hoyV.filter(v => !v.bloqueado && !v.rechazado).length;
+  if (nNum) B.appendChild(h('div', { style: 'background:#fff3cd;border:2px solid #12202b;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-weight:700' }, '🧾 Registros en la app: ' + nNum + '. Al final del día debes tener ' + nNum + ' albaranes de papel, numerados del 1 al ' + nNum + '.'));
   if (!hoyV.length) B.appendChild(h('div', { class: 'card' }, 'Aún no hay viajes hoy. Toca el botón verde para empezar.'));
   hoyV.slice().reverse().forEach(v => B.appendChild(filaViaje(v)));
   if (hoyV.length) B.appendChild(h('button', { class: 'sec', style: 'margin-bottom:14px', onclick: () => planilla(hoy()) }, '📄 Planilla de hoy'));
@@ -363,16 +384,17 @@ function filaViaje(v, solo) {
     h('div', { class: 't' }, h('span', { style: 'background:#12202b;color:#fff;border-radius:6px;padding:1px 8px;margin-right:6px' }, 'N° ' + consecDe(v)), v.placa),
     v.n_valera ? h('div', { style: 'font-size:20px;font-weight:800;margin:4px 0 8px' }, '🧾 Albarán N° ' + v.n_valera) : null,
     h('div', { class: 'dosbtn' }, selectorFotos({ camara: '📷 Foto del albarán', galeria: '🖼 Galería', clase: 'verde', alAgregar: f => fotoRecibo(v, f) })));
-  const sinMat = !String(v.material || '').trim() && v.estado !== 'ANULADO';
-  return h('div', { class: 'viaje v2' + (falta ? ' falta' : '') },
+  const sinMat = !String(v.material || '').trim() && v.estado !== 'ANULADO', sm = semaforo(v);
+  return h('div', { class: 'viaje v2 s-' + sm.c },
     h('div', { class: 'h1' }, h('span', { class: 'nn' }, 'N° ' + consecDe(v)), h('span', { class: 'pl' }, v.placa),
-      h('span', { class: 'chips' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null, sinMat ? h('span', { class: 'tag pend', style: 'background:#b3261e' }, '⚠ Falta material') : null)),
+      h('span', { class: 'chips' }, h('span', { class: 'tag sem s-' + sm.c }, sm.t), fuera(v) ? null : v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'),  sinMat ? h('span', { class: 'tag pend', style: 'background:#b3261e' }, '⚠ Falta material') : null)),
     h('div', { class: 'h2' }, h('span', { class: 'alb' }, v.n_valera ? '🧾 Albarán ' + v.n_valera : 'Sin N° de albarán'), h('span', { class: 'm3' }, r2(volV(v)) + ' m³')),
     h('div', { class: 'h3' }, (v.mov === 'RECIBE' ? '📥 ' : '') + (v.material || '(sin material)') + ' · ' + oriV(v) + ' → ' + desV(v) + (v.hora_salida ? ' · ' + v.hora_salida : '') + (v.turno === 'NOCHE' ? ' · 🌙' : '')),
-    sinMat ? h('div', { class: 'avm' }, puedeEditar(v) ? 'Toca ⋯ y luego ✏️ Corregir para elegir el material.' : 'Avísale al administrador.') : null,
+    sm.d ? h('div', { class: 'semd s-' + sm.c }, sm.d) : null,
+    sinMat && !fuera(v) ? h('div', { class: 'avm' }, puedeEditar(v) ? 'Toca ⋯ y luego ✏️ Corregir para elegir el material.' : 'Avísale al administrador.') : null,
     bs, mas,
     alertasCampo(v.alertas) ? h('small', { style: 'color:#b36b00;display:block;margin-top:6px' }, '⚠ ' + alertasCampo(v.alertas)) : null,
-    op ? h('div', { style: 'color:#b3261e;margin-top:6px;font-size:14px' }, '⚠ No se pudo enviar: ' + op.error,
+    op ? h('div', { style: 'color:#b3261e;margin-top:6px;font-size:14px' }, sm.c === 'naranja' ? '' : '⚠ ' + op.error,
       h('div', { style: 'display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap' },
         h('button', { class: 'reenv', onclick: () => reenviarOp(op) }, icoReenviar(), ' Reenviar'),
         h('button', { class: 'link', onclick: () => quitarOp(op) }, 'Descartar cambio'))) : null);
@@ -390,8 +412,15 @@ async function reenviarOp(op) {
 // sube a la oficina las fotos del viaje que no se aceptó por albarán repetido (no cuenta como viaje: es para que el administrador compare los dos albaranes)
 // el administrador decidió que este viaje era el mismo que ya estaba registrado: se quita del celular
 async function quitarDescartado(cod) {
-  COLA = COLA.filter(o => o.cod !== cod); VIAJES = VIAJES.filter(v => v.cod !== cod);
+  COLA = COLA.filter(o => o.cod !== cod);
+  const v = VIAJES.find(x => x.cod === cod); if (v) { v.bloqueado = false; v.nuevo = false; v.rechazado = 'La oficina revisó el albarán N° ' + (v.n_valera || '—') + ': era el mismo viaje que ya estaba registrado. Este no se guardó y no suma.'; }
   await kv.del('f_' + cod + '_c'); await kv.del('f_' + cod + '_r'); await guardarCola(); await guardarViajes();
+}
+// avisos de la oficina (cómo se resolvió cada caso): se muestran arriba en el inicio hasta que el usuario toque "Entendido"
+let AVISOS = [];
+function avisosOficina(B) {
+  AVISOS.forEach(a => B.appendChild(h('div', { class: 'avof ' + (a.color === 'rojo' ? 'rojo' : 'verde') }, h('span', { style: 'flex:1' }, (a.color === 'rojo' ? '🔴 ' : '🟢 ') + '📣 ' + a.msg),
+    h('button', { class: 'sec', onclick: async () => { AVISOS = AVISOS.filter(x => x.id !== a.id); await kv.set('avisos', AVISOS); pintarInicio(); try { await api({ accion: 'tr_aviso_leido', llave: user.llave, ids: [a.id] }); } catch (e) {} } }, 'Entendido'))));
 }
 async function subirBloq(op) {
   if (op.fotoBloq) return;
@@ -474,9 +503,9 @@ const volV = v => (num(v.vol_albaran) > 0 ? num(v.vol_albaran) : (num(v.cant) ||
 // N° consecutivo del viaje en el día (el que se escribe en el albarán de papel). Los viajes viejos sin número se numeran por orden de registro.
 // El parte de cada día se arma por la FECHA DE REPORTE (la del día en que salió el viaje): si el administrador corrige la fecha, el viaje sigue en su parte original y no mueve la numeración de ningún día.
 const repDe = v => v.fecha_reporte || v.fecha;
-const delDia = (fecha, nombre) => VIAJES.filter(x => !x.bloqueado && repDe(x) === fecha && (!nombre || x.usuario === nombre));
+const delDia = (fecha, nombre) => VIAJES.filter(x => !x.bloqueado && !x.rechazado && repDe(x) === fecha && (!nombre || x.usuario === nombre));
 function consecDe(v) {
-  if (v.bloqueado) return '—';
+  if (v.bloqueado || v.rechazado) return '—';
   if (Number(v.consec) > 0) return Number(v.consec);
   const L = delDia(v.fecha, v.usuario).filter(x => !(Number(x.consec) > 0)).sort((a, b) => String(a.creado || a.registrado || '').localeCompare(String(b.creado || b.registrado || '')) || String(a.hora_salida || '').localeCompare(String(b.hora_salida || '')));
   return Math.max(1, L.findIndex(x => x.cod === v.cod) + 1);
@@ -926,7 +955,7 @@ async function compartirVale(v) {
   catch (e) { console.error(e); aviso('No se pudo crear el PDF del vale.', 'err'); }
 }
 async function planilla(f) {
-  const vs = VIAJES.filter(v => repDe(v) === f);
+  const vs = VIAJES.filter(v => repDe(v) === f && cuenta(v));
   if (!vs.length) { aviso('Ese día no tiene viajes.', 'err'); return; }
   aviso('Generando planilla…');
   try {

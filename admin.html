@@ -1546,6 +1546,7 @@ function pintarTr() {
   if (dupA.length) {
     const cj = h('div', { class: 'alertaDup' }, h('div', { class: 'alertaDupT' }, '🚨 HAY ' + dupA.length + (dupA.length === 1 ? ' ALBARÁN REPETIDO' : ' ALBARANES REPETIDOS')));
     if (dupA.length) {
+      if ((TR.en_revision || []).length) cj.appendChild(h('div', { style: 'font-weight:800;margin-bottom:4px' }, '🟠 ' + TR.en_revision.length + (TR.en_revision.length === 1 ? ' viaje de este periodo está' : ' viajes de este periodo están') + ' en revisión: NO suman en viajes ni m³ hasta que decidas.'));
       cj.appendChild(h('div', {}, 'Revisados todos tus registros (no solo este rango): ' + dupA.slice(0, 6).map(x => 'N° ' + x.vs[0].n_valera + ' (' + x.vs.length + ' viajes)').join(' · ') + (dupA.length > 6 ? ' …' : '')));
       cj.appendChild(h('button', { class: 'alertaDupB', onclick: () => { TRSOSP = 'Albarán repetido'; TRTAB = 'sosp'; selSet('tr', 'sosp'); pintarTr(); } }, 'Revisar ahora'));
     }
