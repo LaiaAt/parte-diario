@@ -508,7 +508,7 @@ const claveSosp = (tipo, vs) => tipo + '|' + vs.map(v => v.cod).sort().join(',')
 const revCods = () => { if (!TR._rs) { TR._rs = new Set(); (TR.revisados || []).forEach(r => r.cods.forEach(c => TR._rs.add(c))); } return TR._rs; };
 const EDRX = /^Corregido por el administrador/;
 function limpiaEd(v) { if (!v || !v.alertas) return v; const L = String(v.alertas).split('; '), e = L.find(a => EDRX.test(a)); if (e) { v.editado = e.replace('Corregido por el administrador', 'Editado por'); v.alertas = L.filter(a => !EDRX.test(a)).join('; '); } return v; }
-const alV = v => (limpiaEd(v), v.alertas && !revCods().has(v.cod)) ? v.alertas : '';
+const alV = v => (limpiaEd(v), v.alertas && !revCods().has(v.cod)) ? sinVT(v.alertas) : '';
 function avisoMem(placa, siga) {
   const fondo = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px' });
   const cierra = () => fondo.remove();
@@ -545,7 +545,7 @@ function sospechosos() {
   V.forEach(v => {
     if (/Material no corresponde|NO autorizado/.test(v.alertas)) add('Material / destino', v.alertas.split('; ').filter(a => /Material no corresponde|NO autorizado/.test(a)).join('; '), [v]);
     if (/Placa (nueva|parecida)/.test(v.alertas)) add('Placa dudosa', v.placa + ': ' + v.alertas.split('; ').filter(a => /Placa/.test(a)).join('; '), [v]);
-    if (!String(v.material || '').trim() && v.estado !== 'ANULADO') add('Sin material', v.placa + ' · ' + v.cod + ' (' + fmtF(v.fecha) + ') · no se colocó el material transportado · registró ' + (v.creado_por || v.usuario || '—'), [v]);
+    if (!String(v.material || '').trim() && v.estado !== 'ANULADO') add('Sin material', v.placa + ' · reporte ' + (repNum(v) || '—') + ' (' + fmtF(v.fecha) + ') · no se colocó el material transportado · registró ' + (v.creado_por || v.usuario || '—'), [v]);
     if (!TR.sin_albaran && !v.tiene_recibo && v.estado !== 'ANULADO') add('Sin foto de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '') + ' · ' + oriV(v) + ' → ' + desV(v) + ' · registró ' + (v.creado_por || v.usuario || '—'), [v]);
   });
   (TR.sin_vol || []).forEach(v => add('Sin m³ de albarán', v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha) + ' · ' + oriV(v) + ' → ' + desV(v) + ' · falta el volumen del albarán', [v]));
@@ -566,7 +566,7 @@ function formAnular(v, pan) {
     try { const r = await api({ accion: 'admin_tr_anular', llave: LLAVE, cod: v.cod, motivo: mot.value.trim() }); if (!r.ok) { msg.textContent = r.mensaje || 'No se pudo anular'; ok.disabled = false; return; } await recargaTr(); }
     catch (e) { msg.textContent = 'No se pudo conectar. Intenta de nuevo.'; ok.disabled = false; }
   } }, 'Sí, anular este viaje');
-  pan.appendChild(h('div', { style: 'border:2px solid #b3261e;border-radius:8px;padding:10px;background:#fff5f4;margin-top:8px' }, h('b', {}, '🚫 Anular viaje ' + v.cod),
+  pan.appendChild(h('div', { style: 'border:2px solid #b3261e;border-radius:8px;padding:10px;background:#fff5f4;margin-top:8px' }, h('b', {}, '🚫 Anular viaje ' + rotulo(v)),
     h('div', { class: 'small', style: 'margin:6px 0' }, 'Deja de contar en viajes, m³ y reportes. Se conserva con sus fotos y el motivo, y se puede restaurar.'), mot,
     h('div', { class: 'acc', style: 'margin-top:8px' }, ok, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cancelar')), msg));
 }
@@ -582,7 +582,7 @@ function cardRepetido(x) {
     const pan = h('div', {});
     caja.appendChild(h('div', { style: 'background:#fff;border:1px solid #e0b4b0;border-radius:8px;padding:8px;margin-top:8px' },
       h('div', { class: 'big' }, v.placa + ' · ' + fmtF(v.fecha) + ' ' + (v.hora_salida || '')),
-      h('div', { class: 'small' }, (v.conductor || '—') + ' · ' + (v.empresa || '') + ' · ' + (v.material || '—') + ' · ' + nf(v.vol_albaran) + ' m³ albarán · registró ' + v.usuario + ' · ' + v.cod),
+      h('div', { class: 'small' }, (v.conductor || '—') + ' · ' + (v.empresa || '') + ' · ' + (v.material || '—') + ' · ' + nf(v.vol_albaran) + ' m³ albarán · registró ' + v.usuario),
       h('div', { style: 'margin-top:4px' }, botonesFoto(v)),
       h('div', { class: 'acc', style: 'margin-top:6px' }, h('button', { class: 'sec', onclick: () => formEditAlb(v, 0, pan) }, '✏️ Editar número'), h('button', { class: 'sec', style: 'color:#b3261e;border-color:#b3261e', onclick: () => formAnular(v, pan) }, '🚫 Anular este viaje')), pan));
   });
@@ -595,7 +595,7 @@ function vistaSosp(c) {
   c.appendChild(chips([['', 'Pendientes (' + S.length + ')']].concat(tipos.map(t => [t, t + ' (' + S.filter(x => x.tipo === t).length + ')'])).concat([['__rev', '✔ Revisados (' + R.length + ')'], ['__anu', '🚫 Anulados (' + (TR.anulados || []).length + ')']]), TRSOSP, k => { TRSOSP = k; pintarTr(); }));
   if (TRSOSP === '__anu') {
     (TR.anulados || []).forEach(v => c.appendChild(h('div', { class: 'tcard', style: 'border-left:6px solid #b3261e;background:#faf3f2' }, h('div', { class: 'big' }, '🚫 ' + v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha)),
-      h('div', { class: 'small' }, v.cod + ' · ' + (v.material || '—') + ' · registró ' + v.usuario), h('div', { class: 'small' }, v.anulado ? 'Anulado por ' + v.anulado.por + ' · ' + fmtTs(v.anulado.ts) + ' · Motivo: ' + v.anulado.motivo : ''),
+      h('div', { class: 'small' }, rotulo(v) + ' · ' + (v.material || '—') + ' · registró ' + v.usuario), h('div', { class: 'small' }, v.anulado ? 'Anulado por ' + v.anulado.por + ' · ' + fmtTs(v.anulado.ts) + ' · Motivo: ' + v.anulado.motivo : ''),
       h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: async () => { const r = await api({ accion: 'admin_tr_anular', llave: LLAVE, cod: v.cod, restaurar: true }); if (!r.ok) { alert(r.mensaje || 'No se pudo restaurar'); return; } await recargaTr(); } }, '↩ Restaurar viaje')))));
     if (!(TR.anulados || []).length) c.appendChild(h('div', { class: 'small' }, 'No hay viajes anulados en estas fechas.'));
     return;
@@ -612,7 +612,7 @@ function vistaSosp(c) {
     if (x.tipo === 'Albarán repetido') { c.appendChild(cardRepetido(x)); return; }
     if (x.tipo === 'Sin foto de albarán') {
       const v = x.vs[0], pan = h('div', {});
-      c.appendChild(h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4' }, h('div', { class: 'big', style: 'color:#b3261e' }, '📄 Sin foto de albarán'), h('div', {}, x.msg), h('div', { class: 'small' }, v.cod),
+      c.appendChild(h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4' }, h('div', { class: 'big', style: 'color:#b3261e' }, '📄 Sin foto de albarán'), h('div', {}, x.msg), h('div', { class: 'small' }, rotulo(v)),
         h('div', { class: 'acc', style: 'margin-top:8px' }, h('button', { onclick: () => formEditAlb(v, 0, pan) }, '📷 Agregar foto / revisar'), h('button', { class: 'sec', onclick: () => marcarRev(x, 'revisar') }, '✔ Ya lo revisé')), pan));
       return;
     }
@@ -620,7 +620,7 @@ function vistaSosp(c) {
     cb.onchange = () => { cb.disabled = true; marcarRev(x, 'revisar'); };
     c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '⚠️ ' + x.tipo), h('div', {}, x.msg),
       h('label', { style: 'display:flex;gap:10px;align-items:center;margin:10px 0;font-weight:700;font-size:17px;cursor:pointer' }, cb, 'Ya lo revisé (quitar de alertas)'),
-      h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: () => { ALB.q = x.vs[0].n_valera || x.vs[0].cod; TRTAB = 'albaran'; pintarTr(); buscarAlb(); } }, '🔎 Ver albarán'))));
+      h('div', { class: 'acc' }, h('button', { class: 'sec', onclick: () => { ALB.q = x.vs[0].n_valera || x.vs[0].placa; TRTAB = 'albaran'; pintarTr(); buscarAlb(); } }, '🔎 Ver albarán'))));
   });
   if (!L.length) c.appendChild(h('div', { class: 'trok' }, '✅ Sin alertas en estas fechas'));
   if (L.length > 120) c.appendChild(h('div', { class: 'small' }, 'Se muestran 120 de ' + L.length));
@@ -706,7 +706,7 @@ function formEditAlb(v, i, pan) {
   const campos = [['fecha', 'Fecha del albarán'], ['n_valera', 'N° de valera / albarán'], ['placa', 'Placa'], ['empresa', 'Empresa'], ['conductor', 'Conductor'], ['material', 'Material'], ['origen', 'Origen'], ['destino', 'Destino'],
     ['uf', 'UF'], ['km', 'Km'], ['vol_albaran', 'm³ del albarán'], ['hora_salida', 'Hora de salida'], ['hora_llegada', 'Hora de llegada'], ['obs', 'Observaciones']];
   const el = {}, msg = h('div', { class: 'small', style: 'color:#b3261e;margin-top:6px' });
-  const caja = h('div', { style: 'border:2px solid #12202b;border-radius:8px;padding:10px;background:#fffdf3' }, h('b', {}, '✏️ Editar viaje ' + v.cod));
+  const caja = h('div', { style: 'border:2px solid #12202b;border-radius:8px;padding:10px;background:#fffdf3' }, h('b', {}, '✏️ Editar viaje ' + rotulo(v)));
   caja.appendChild(h('div', { class: 'small', style: 'margin-top:4px' }, 'Parte de origen: ' + fmtF(v.fecha_reporte || v.fecha) + ' · si cambias la fecha, el viaje conserva su parte y su N° de origen: no cambia la numeración de ningún día.'));
   caja.appendChild(fotosEdit(v, pan));
   // Listas desplegables iguales a las de la app de Transportes (con «Otro» para escribir)
@@ -764,9 +764,9 @@ async function histAlb(v, pan) {
     const r = await api({ accion: 'admin_tr_bitacora', llave: LLAVE, cod: v.cod });
     pan.textContent = '';
     if (!r.ok) { pan.textContent = r.mensaje || 'No se pudo cargar'; return; }
-    const caja = h('div', { style: 'border:1px solid #bbb;border-radius:8px;padding:8px;background:#fafafa' }, h('b', {}, '🕘 Historial de ' + v.cod));
+    const caja = h('div', { style: 'border:1px solid #bbb;border-radius:8px;padding:8px;background:#fafafa' }, h('b', {}, '🕘 Historial de ' + rotulo(v)));
     if (!r.filas.length) caja.appendChild(h('div', { class: 'small' }, 'Sin movimientos registrados.'));
-    r.filas.forEach(x => caja.appendChild(h('div', { class: 'small', style: 'margin-top:6px;border-top:1px solid #ddd;padding-top:4px' }, h('b', {}, x.accion), ' · ' + fmtTs(x.ts) + ' · ' + (x.usuario || x.llave), h('div', {}, x.detalle))));
+    r.filas.forEach(x => caja.appendChild(h('div', { class: 'small', style: 'margin-top:6px;border-top:1px solid #ddd;padding-top:4px' }, h('b', {}, x.accion), ' · ' + fmtTs(x.ts) + ' · ' + (x.usuario || x.llave), h('div', {}, sinVT(x.detalle)))));
     caja.appendChild(h('div', { class: 'acc', style: 'margin-top:6px' }, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cerrar')));
     pan.appendChild(caja);
   } catch (e) { pan.textContent = 'No se pudo conectar.'; }
@@ -778,7 +778,7 @@ async function xlsxBusqueda() {
     if (!rr.ok) throw new Error('x'); const r = { viajes: rr.viajes }; if (!r.viajes.length) return;
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Búsqueda');
-    const C = [['Fecha', 11, v => v.fecha], ['Hora', 7, v => v.hora_salida || ''], ['Vale', 17, v => v.cod], ['N° albarán', 11, v => v.n_valera || ''], ['Placa', 9, v => v.placa], ['Empresa', 18, v => v.empresa || ''], ['Conductor', 18, v => v.conductor || ''], ['Usuario que registró', 20, v => v.creado_por || v.usuario || ''], ['Material', 20, v => v.material || ''], ['Movimiento', 11, v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['Origen', 22, v => oriV(v)], ['Destino', 22, v => desV(v)], ['m³ albarán', 11, v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Foto albarán', 12, v => v.estado || ''], ['Alertas', 32, v => alV(v) || '']];
+    const C = [['Fecha', 11, v => v.fecha], ['Hora', 7, v => v.hora_salida || ''], ['Reporte', 9, v => repNum(v) || ''], ['N° albarán', 11, v => v.n_valera || ''], ['Placa', 9, v => v.placa], ['Empresa', 18, v => v.empresa || ''], ['Conductor', 18, v => v.conductor || ''], ['Usuario que registró', 20, v => v.creado_por || v.usuario || ''], ['Material', 20, v => v.material || ''], ['Movimiento', 11, v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['Origen', 22, v => oriV(v)], ['Destino', 22, v => desV(v)], ['m³ albarán', 11, v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Foto albarán', 12, v => v.estado || ''], ['Alertas', 32, v => alV(v) || '']];
     ws.columns = C.map(c => ({ header: c[0], width: c[1] }));
     r.viajes.forEach(v => ws.addRow(C.map(c => { try { return c[2](v); } catch (e) { return ''; } })));
     const hr = ws.getRow(1); hr.font = { bold: true, color: { argb: 'FFFFFFFF' } }; hr.eachCell(ce => { ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B5E20' } }; });
@@ -1024,6 +1024,8 @@ function viajesTr() {
     && (!q || [v.cod, v.placa, v.conductor, v.empresa, v.material, v.origen, v.destino, v.alertas, v.usuario, v.n_valera, ufTxt(v)].join(' ').toUpperCase().indexOf(q) >= 0));
 }
 // N° de reporte del viaje = su número dentro del parte del día (por fecha de reporte y usuario); el que asignó la app, o el orden de registro
+const sinVT = t => String(t == null ? '' : t).replace(/VT-\d{6}-[A-Z0-9]{5}/g, m => { const v = ((typeof TR !== 'undefined' && TR && (TR.todos || TR.viajes)) || []).find(x => x.cod === m); const n = v && repNum(v); return n ? 'reporte ' + n : 'otro reporte'; });
+const rotulo = v => v.placa + ' · albarán ' + (v.n_valera || '—') + ' · reporte ' + (repNum(v) || '—');
 function repNum(v) {
   if (Number(v.consec) > 0) return Number(v.consec);
   if (!TR._rep) {
@@ -1083,7 +1085,7 @@ function vistaViajes(c) {
   }
   pintaLista();
 }
-const COLS_TR = ['Fecha', 'Hora salida', 'Vale', 'Valera', 'Placa', 'Empresa', 'Conductor', 'Usuario que registró', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
+const COLS_TR = ['Fecha', 'Hora salida', 'Reporte', 'Valera', 'Placa', 'Empresa', 'Conductor', 'Usuario que registró', 'Material', 'UF', 'Origen', 'Destino', 'Km', '% carga', 'm3 confirmado', 'Estado', 'Alertas', 'Movimiento', 'm3 albarán', 'Máquina que cargó'];
 // Tabla consolidada (Fecha × Usuario que registró × Material) para los Excel de Transportes
 const COLS_CONS = ['Fecha', 'Usuario que registró', 'Material', 'Viajes', 'm³ albarán', 'm³ confirmado', 'Diferencia m³'];
 function consolidadoTr(L) {
@@ -1093,7 +1095,7 @@ function consolidadoTr(L) {
   const t = rows.reduce((z, r) => [z[0] + r[3], z[1] + r[4], z[2] + r[5], z[3] + r[6]], [0, 0, 0, 0]);
   return { rows, total: ['TOTAL', '', '', t[0], r2(t[1]), r2(t[2]), r2(t[3])] };
 }
-const filaTr = v => [v.fecha, v.hora_salida, v.cod, v.n_valera, v.placa, v.empresa, v.conductor, v.creado_por || v.usuario || '', v.material, ufTxt(v), oriV(v), desV(v), v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
+const filaTr = v => [v.fecha, v.hora_salida, repNum(v) || '', v.n_valera, v.placa, v.empresa, v.conductor, v.creado_por || v.usuario || '', v.material, ufTxt(v), oriV(v), desV(v), v.km, pctV(v) === null ? '' : pctV(v), v.cant, v.estado, v.alertas, v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA', v.vol_albaran === undefined ? '' : v.vol_albaran, v.maquina || ''];
 function csvTr() {
   const cols = COLS_TR.concat(['Ubicación origen', 'Tipo de volqueta', 'Vol. nominal volqueta (m³)', 'Vol. comprobado CCSN (m³)', 'Memoria de cálculo', 'Sitio (disposición/proveedor)', 'Sitio latitud', 'Sitio longitud', 'Sitio radio (m)', 'Sitio recibe']);
   const VQ = {}; (TR.volquetas || []).forEach(x => { VQ[String(x.placa).toUpperCase()] = x; });
@@ -1126,7 +1128,7 @@ async function zipAlbaranes() {
   btn.disabled = true;
   try {
     if (!window.JSZip) await new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; sc.onload = ok; sc.onerror = () => no(new Error('jszip')); document.head.appendChild(sc); });
-    const nombre = (v, i, n) => (v.fecha + '_' + v.placa + '_alb-' + String(v.n_valera || v.cod).replace(/[^A-Za-z0-9-]/g, '') + (n > 1 ? '_' + (i + 1) : '')).replace(/\s+/g, '') + '.jpg';
+    const nombre = (v, i, n) => (v.fecha + '_' + v.placa + '_alb-' + String(v.n_valera || 'sin-albaran').replace(/[^A-Za-z0-9-]/g, '') + (n > 1 ? '_' + (i + 1) : '')).replace(/\s+/g, '') + '.jpg';
     let falló = 0;
     for (let p = 0; p < partes; p++) {
       const zip = new JSZip(), lote = F.slice(p * PARTE, (p + 1) * PARTE), usados = {}; let k = 0;
@@ -1164,7 +1166,7 @@ async function xlsxTr() {
     const VERDE = 'FF1B5E20', GRIS = 'FFF1F8F1', BORDE = { style: 'thin', color: { argb: 'FFB0BEC5' } }, B4 = { top: BORDE, left: BORDE, bottom: BORDE, right: BORDE };
     // [encabezado, ancho, tipo, valor(v)]
     const C = [
-      ['Fecha', 11, 'f', v => v.fecha], ['Hora', 7, 't', v => v.hora_salida || ''], ['Vale', 17, 't', v => v.cod], ['Valera', 9, 't', v => v.n_valera || ''], ['Placa', 9, 't', v => v.placa],
+      ['Fecha', 11, 'f', v => v.fecha], ['Hora', 7, 't', v => v.hora_salida || ''], ['Reporte', 9, 't', v => repNum(v) || ''], ['Valera', 9, 't', v => v.n_valera || ''], ['Placa', 9, 't', v => v.placa],
       ['Empresa', 18, 't', v => v.empresa || ''], ['Conductor', 18, 't', v => v.conductor || ''], ['Usuario que registró', 20, 't', v => v.creado_por || v.usuario || ''], ['Material', 20, 't', v => v.material || ''], ['Máquina que cargó', 26, 't', v => v.maquina || ''],
       ['Movimiento', 11, 't', v => v.mov === 'RECIBE' ? 'RECIBE' : 'ENTREGA'], ['UF', 8, 't', v => ufTxt(v)], ['Origen', 22, 't', v => oriV(v)], ['Destino', 22, 't', v => desV(v)], ['Km', 7, 'n', v => v.km === '' ? '' : Number(v.km)],
       ['m³ albarán', 11, 'n', v => Number(v.vol_albaran) > 0 ? Number(v.vol_albaran) : ''], ['m³ confirmado', 12, 'n', v => Number(v.cant) > 0 ? Number(v.cant) : ''], ['Diferencia m³', 11, 'n', v => Number(v.vol_albaran) > 0 && Number(v.cant) > 0 ? Math.round((Number(v.vol_albaran) - Number(v.cant)) * 100) / 100 : ''],
@@ -1242,7 +1244,7 @@ async function planillasRango(desde, hasta, llave, msg) {
     function Comp(o) { if (!comp) comp = new J(o); else comp.addPage(); return comp; }
     dias.forEach(d => {
       const vs = V.filter(v => REP(v) === d), nom = Array.from(new Set(vs.map(v => v.creado_por || v.usuario).filter(Boolean))).join(' / ');
-      const sale = vs.filter(v => v.fecha !== d).map(v => v.placa + ' alb. ' + (v.n_valera || v.cod) + ' → ' + fmtF(v.fecha)), entra = llegan.filter(v => v.fecha === d).map(v => v.placa + ' alb. ' + (v.n_valera || v.cod) + ' (parte del ' + fmtF(v.fecha_reporte) + ')');
+      const sale = vs.filter(v => v.fecha !== d).map(v => v.placa + ' alb. ' + (v.n_valera || 'sin albarán') + ' → ' + fmtF(v.fecha)), entra = llegan.filter(v => v.fecha === d).map(v => v.placa + ' alb. ' + (v.n_valera || 'sin albarán') + ' (parte del ' + fmtF(v.fecha_reporte) + ')');
       const nota = (sale.length ? 'REASIGNADOS A OTRA FECHA (siguen en este parte): ' + sale.join('; ') + '. ' : '') + (entra.length ? 'REASIGNADOS A ESTA FECHA (no cambian este parte): ' + entra.join('; ') + '.' : '');
       window.PDT.generarPlanilla(d, vs, { nombre: nom, nota: nota }, Comp, LOGO_PL);
     });
@@ -1279,14 +1281,14 @@ async function xlsxCambios() {
     const VERDE = 'FF1B5E20', BORDE = { style: 'thin', color: { argb: 'FFB0BEC5' } }, B4 = { top: BORDE, left: BORDE, bottom: BORDE, right: BORDE };
     const COL = { CREADO: 'FF2E7D32', MODIFICADO: 'FFEF6C00', ELIMINADO: 'FFC62828', 'FOTO ALBARÁN': 'FF0277BD', 'AJUSTE ADMIN': 'FF6A1B9A', 'MODIFICADO (ADMIN)': 'FFEF6C00', 'ANULADO (ADMIN)': 'FFC62828', 'RESTAURADO (ADMIN)': 'FF2E7D32', 'REVISADO (ADMIN)': 'FF2E7D32', 'REVISIÓN QUITADA': 'FFEF6C00', 'ALBARÁN REPETIDO (BLOQUEADO)': 'FFC62828', 'ELIMINADO (ADMIN)': 'FFC62828', VALIDADA: 'FF00838F' };
     const ws = wb.addWorksheet('Control de cambios', { views: [{ state: 'frozen', ySplit: 4 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
-    const H = [['Fecha y hora', 17], ['Vale / elemento', 30], ['Acción', 15], ['Usuario', 22], ['Placa', 10], ['Fecha del viaje', 13], ['Detalle (antes → después)', 90]];
+    const H = [['Fecha y hora', 17], ['Reporte / elemento', 30], ['Acción', 15], ['Usuario', 22], ['Placa', 10], ['Fecha del viaje', 13], ['Detalle (antes → después)', 90]];
     ws.columns = H.map(x => ({ width: x[1] }));
     ws.mergeCells(1, 1, 1, H.length); ws.getCell('A1').value = 'CONTROL DE CAMBIOS — REGISTRO DE TRANSPORTES'; ws.getCell('A1').font = { bold: true, size: 15, color: { argb: VERDE } }; ws.getRow(1).height = 24;
     ws.mergeCells(2, 1, 2, H.length); ws.getCell('A2').value = 'Periodo: ' + fmtF($('desde').value) + ' al ' + fmtF($('hasta').value) + '  ·  ' + rr.filas.length + ' movimientos  ·  Generado ' + new Date().toLocaleString('es-CO') + '  ·  Autor: Carlos Eduardo Bermúdez Castro'; ws.getCell('A2').font = { size: 10, color: { argb: 'FF455A64' } };
     const hr = ws.getRow(4); H.forEach((x, i) => { const c = hr.getCell(i + 1); c.value = x[0]; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: VERDE } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; c.border = B4; }); hr.height = 24;
     ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: H.length } };
     rr.filas.slice().sort((a, b) => String(a.ts).localeCompare(String(b.ts))).forEach((x, i) => {
-      const row = ws.addRow([fmtTs(x.ts), x.cod, x.accion, x.usuario, x.placa, x.fecha ? fmtF(x.fecha) : '', x.detalle]);
+      const row = ws.addRow([fmtTs(x.ts), sinVT(x.cod), x.accion, x.usuario, x.placa, x.fecha ? fmtF(x.fecha) : '', sinVT(x.detalle)]);
       row.alignment = { vertical: 'top', wrapText: true };
       row.eachCell({ includeEmpty: true }, (c, k) => { c.border = B4; if (i % 2) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F8F1' } }; });
       row.getCell(3).font = { bold: true, color: { argb: COL[x.accion] || 'FF37474F' } };
@@ -1486,7 +1488,7 @@ function pintarTr() {
       cj.appendChild(h('div', {}, 'Revisados todos tus registros (no solo este rango): ' + dupA.slice(0, 6).map(x => 'N° ' + x.vs[0].n_valera + ' (' + x.vs.length + ' viajes)').join(' · ') + (dupA.length > 6 ? ' …' : '')));
       cj.appendChild(h('button', { class: 'alertaDupB', onclick: () => { TRSOSP = 'Albarán repetido'; TRTAB = 'sosp'; selSet('tr', 'sosp'); pintarTr(); } }, 'Revisar ahora'));
     }
-    blq.slice(0, 5).forEach(x => cj.appendChild(h('div', { style: 'margin-top:6px;font-size:14px' }, '🚫 Bloqueado ' + fmtTs(x.ts) + ' · ' + (x.usuario || '—') + ' · ' + x.placa + ' — ' + x.detalle, h('button', { class: 'sec sm', style: 'margin-left:8px;background:#fff', onclick: () => revBloq([x]) }, '✔ Ya lo revisé'))));
+    blq.slice(0, 5).forEach(x => cj.appendChild(h('div', { style: 'margin-top:6px;font-size:14px' }, '🚫 Bloqueado ' + fmtTs(x.ts) + ' · ' + (x.usuario || '—') + ' · ' + x.placa + ' — ' + sinVT(x.detalle), h('button', { class: 'sec sm', style: 'margin-left:8px;background:#fff', onclick: () => revBloq([x]) }, '✔ Ya lo revisé'))));
     if (blq.length > 5) cj.appendChild(h('div', { style: 'margin-top:4px;font-size:13px' }, '…y ' + (blq.length - 5) + ' intentos más (ver el control de cambios).'));
     if (blq.length) cj.appendChild(h('button', { class: 'alertaDupB', style: 'margin-top:8px', onclick: () => revBloq(blq) }, '✔ Marcar los ' + blq.length + ' como revisados'));
     top.appendChild(cj);

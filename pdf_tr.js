@@ -51,10 +51,10 @@
     doc.setDrawColor.apply(doc, VERDE); doc.setLineWidth(0.5);
     // fila 1
     let y = 32;
-    celda(M, y, 32, 15, true); etiqueta('VALE Nº', M, y, 32, 15, true);
+    celda(M, y, 32, 15, true); etiqueta('REPORTE Nº', M, y, 32, 15, true);
     celda(M + 32, y, XM - M - 32, 15, false);
     doc.setFont('courier', 'bold'); doc.setFontSize(17); doc.setTextColor.apply(doc, ROJO);
-    doc.text(String(v.cod || ''), M + 32 + (XM - M - 32) / 2, y + 10, { align: 'center' });
+    doc.text(String((ctx && ctx.consec) || v.consec || ''), M + 32 + (XM - M - 32) / 2, y + 10, { align: 'center' });
     celda(XM, y, 40, 15, true); etiqueta('FECHA', XM, y, 40, 15, true);
     const cw = (X1 - XM - 40) / 3, p = String(v.fecha || '').split('-');
     ['DÍA', 'MES', 'AÑO'].forEach((t, i) => {
@@ -163,7 +163,7 @@
             if (j === 1 && r) {
               doc.setFont('helvetica', 'normal');
               if (r.n_valera) { doc.setFontSize(9.5); tx(r.n_valera, x + 1.5, y + 4.8, { maxWidth: c[1] - 3 }); }
-              else { doc.setFontSize(7.5); tx(r.cod, x + 1.5, y + 4.8, { maxWidth: c[1] - 3 }); }
+              else { doc.setFontSize(7.5); tx('S/N', x + 1.5, y + 4.8, { maxWidth: c[1] - 3 }); }
             } else if (j === 6 && r) {
               doc.setFont('helvetica', 'normal'); doc.setFontSize(6.4);
               doc.setFontSize(8.5); tx(f2(volv(r)), x + 1.5, y + 4.8, { maxWidth: c[1] - 3 });

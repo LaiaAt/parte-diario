@@ -860,7 +860,6 @@ async function guardarViaje() {
 function mostrarListo(v) {
   const L = $('listo'); L.textContent = '';
   L.appendChild(h('div', { class: 'card', style: 'text-align:center' }, h('p', { class: 'hecho' }, '✅'), h('h2', {}, '¡Viaje guardado!'), h('p', { style: 'font-size:22px;font-weight:800;background:#fff3cd;border:2px solid #12202b;border-radius:8px;padding:8px;margin:6px 0' }, '✍️ Escribe el N° ' + consecDe(v) + ' en el albarán'),
-    h('p', { style: 'font-family:monospace;font-size:24px;font-weight:700;color:#b00000;margin:4px 0' }, v.cod),
     h('p', {}, v.placa + ' · ' + v.material + ' · ' + r2(volV(v)) + ' m³'), h('p', { id: 'estadoEnvio' }, 'Guardado en el teléfono.')));
   const bs = h('div', { class: 'gr' });
   bs.appendChild(h('button', { class: 'verde', onclick: () => compartirVale(v) }, '📄 Ver o enviar el vale'));
@@ -904,7 +903,7 @@ async function entregarPdf(doc, nombre, titulo, directo) {
   bajar(blob, nombre);
 }
 async function compartirVale(v) {
-  try { const doc = PDT.generarVale(v, { nombre: user.nombre }, window.jspdf.jsPDF, await cargarLogo()); await entregarPdf(doc, 'Vale_' + v.cod + '.pdf', 'Vale ' + v.cod); }
+  try { const doc = PDT.generarVale(v, { nombre: user.nombre, consec: consecDe(v) }, window.jspdf.jsPDF, await cargarLogo()); await entregarPdf(doc, 'Vale_' + v.placa + '_N' + consecDe(v) + '.pdf', 'Vale N° ' + consecDe(v) + ' · ' + v.placa); }
   catch (e) { console.error(e); aviso('No se pudo crear el PDF del vale.', 'err'); }
 }
 async function planilla(f) {
