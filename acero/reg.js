@@ -115,7 +115,8 @@
     var h = '';
     STK.forEach(function (s) {
       var P = posiciones(s).filter(function (p) { return p.lib > 0; }); if (!P.length) return;
-      h += '<div class="card"><h3>' + (s === 'ACERO RECTO' ? '📏 ' : '➰ ') + NOM[s] + '</h3>' + P.map(function (p) { return '<div class="fila"><div>' + posTxt(p) + '</div><div><b>' + K(p.lib * p.kgU) + '</b> · ' + pz(p.lib) + '</div></div>'; }).join('') + '</div>';
+      var tk = P.reduce(function (t, p) { return t + p.lib * p.kgU; }, 0);
+      h += '<div class="card"><h3 class="sf-h"><span>' + (s === 'ACERO RECTO' ? '📏 ' : '➰ ') + NOM[s] + '</span><b>' + K(tk) + '</b></h3>' + P.map(function (p) { return '<div class="sf"><div class="sf-a"><b class="sf-m">' + esc(p.m) + '</b><span class="chips"><em class="ch-d">Ø ' + esc(X.C.diamLabel(p.d)) + '</em>' + (p.largo ? '<em class="ch-l">' + String(p.largo).replace('.', ',') + ' m</em>' : '') + '</span></div><div class="sf-k"><b>' + K(p.lib * p.kgU) + '</b><small>' + pz(p.lib) + '</small></div></div>'; }).join('') + '</div>';
     });
     return h;
   }
