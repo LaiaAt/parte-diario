@@ -35,6 +35,7 @@ input,select{width:100%;padding:14px;font-size:20px;border:1px solid #8794a0;bor
 input:focus,select:focus,button:focus-visible{outline:3px solid var(--hv);outline-offset:1px}
 button{padding:16px 16px;min-height:56px;font-size:19px;font-weight:700;border:0;border-radius:6px;background:var(--ink);color:#fff;width:100%}
 button.sec{background:#fff;color:#12202b;border:2px solid #12202b}
+button.reenv{width:auto;display:inline-flex;align-items:center;gap:6px;background:#12202b;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:16px;font-weight:700}
 button.link{background:none;color:var(--ink);text-decoration:underline;width:auto;padding:4px;font-weight:400;font-size:15px}
 .chk{display:flex;align-items:center;gap:10px;font-size:18px;color:var(--ink);margin:0;font-weight:700}
 .chk input{width:28px;height:28px}
@@ -353,7 +354,20 @@ function filaViaje(v, solo) {
     h('div', { style: 'margin-bottom:8px' }, v.tiene_recibo ? h('span', { class: 'tag hoy' }, '✔ Con recibo') : h('span', { class: 'tag pend' }, 'Falta recibo'), !String(v.material || '').trim() && v.estado !== 'ANULADO' ? h('span', { class: 'tag pend', style: 'background:#b3261e;color:#fff' }, '⚠ Falta el material') : null, pend ? h('span', { class: 'tag pend' }, 'Sin enviar') : null),
     bs, mas,
     alertasCampo(v.alertas) ? h('small', { style: 'color:#b36b00;display:block;margin-top:6px' }, '⚠ ' + alertasCampo(v.alertas)) : null,
-    op ? h('small', { style: 'color:#b3261e;display:block;margin-top:6px' }, '⚠ No se pudo enviar: ' + op.error + ' ', h('button', { class: 'link', onclick: () => quitarOp(op) }, 'Descartar cambio')) : null);
+    op ? h('div', { style: 'color:#b3261e;margin-top:6px;font-size:14px' }, '⚠ No se pudo enviar: ' + op.error,
+      h('div', { style: 'display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap' },
+        h('button', { class: 'reenv', onclick: () => reenviarOp(op) }, icoReenviar(), ' Reenviar'),
+        h('button', { class: 'link', onclick: () => quitarOp(op) }, 'Descartar cambio'))) : null);
+}
+function icoReenviar() { const d = document.createElement('span'); d.style.cssText = 'display:inline-flex;vertical-align:middle'; d.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 0-13.7-5.6L4 8.7"/><path d="M4 4v4.7h4.7"/><path d="M4 12a8 8 0 0 0 13.7 5.6L20 15.3"/><path d="M20 20v-4.7h-4.7"/></svg>'; return d; }
+// vuelve a enviar un viaje que la oficina rechazó (por ejemplo, un albarán repetido ya corregido); recibe un número de reporte nuevo
+async function reenviarOp(op) {
+  const v = VIAJES.find(x => x.cod === op.cod);
+  if (v) { v.consec = siguienteConsec(repDe(v), v.usuario); v.bloqueado = false; if (op.viaje) op.viaje.consec = v.consec; await guardarViajes(); }
+  delete op.error; await guardarCola();
+  if (!navigator.onLine) aviso('Sin señal: se enviará cuando haya internet.');
+  sincronizar();
+  if (diaActual) abrirDia(diaActual); else if (enPend) abrirPend(); else pintarInicio();
 }
 async function quitarOp(op) { COLA = COLA.filter(o => o !== op); await guardarCola(); if (op.t === 'g' && op.viaje && op.viaje.nuevo) { VIAJES = VIAJES.filter(v => v.cod !== op.cod); await guardarViajes(); } volver(); }
 
@@ -924,7 +938,7 @@ async function sincronizar() {
       const vigente = COLA.find(o => o.t === op.t && o.cod === op.cod);
       if (vigente && vigente.id === op.id) COLA = COLA.filter(o => o !== op);
       const v = VIAJES.find(x => x.cod === op.cod);
-      if (op.t === 'g' && v && vigente && vigente.id === op.id) { v.nuevo = false; v.tiene_carga = !!r.tiene_carga || v.tiene_carga; v.alertas = (r.alertas || []).join('; '); if (op.fotoNueva) await kv.del('f_' + op.cod + '_c'); }
+      if (op.t === 'g' && v && vigente && vigente.id === op.id) { v.nuevo = false; v.bloqueado = false; v.tiene_carga = !!r.tiene_carga || v.tiene_carga; v.alertas = (r.alertas || []).join('; '); if (op.fotoNueva) await kv.del('f_' + op.cod + '_c'); }
       if (op.t === 'r') await kv.del('f_' + op.cod + '_r');
       await guardarViajes(); await guardarCola();
     }
