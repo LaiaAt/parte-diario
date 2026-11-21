@@ -536,7 +536,7 @@ async function marcarRev(x, estado) {
 function sospechosos() {
   const V = TR.todos || TR.viajes, S = [], hoy = TR.hoy; // alertas sobre el 100 % de los registros, no solo el periodo
   const add = (tipo, msg, vs) => { const clave = claveSosp(tipo, vs), r = (TR.revisados || []).find(x => x.clave === clave); S.push({ tipo, msg, vs, clave, rev: r || null }); };
-  (TR.repetidos || []).forEach(g => add('Albarán repetido', 'El albarán N° ' + g.n_valera + ' (' + (g.valera_de || '—') + ') está en ' + g.viajes.length + ' viajes', g.viajes));
+  (TR.repetidos || []).forEach(g => add('Albarán repetido', (g.historico ? 'Albarán ACTUAL repetido con la serie HISTÓRICA: N° ' : 'El albarán N° ') + g.n_valera + ' (' + (g.valera_de || '—') + ') está en ' + g.viajes.length + ' viajes', g.viajes));
   const pd = {}; V.forEach(v => { const k = v.placa + '|' + v.fecha; (pd[k] = pd[k] || []).push(v); });
   Object.keys(pd).forEach(k => {
     const L = pd[k], cond = new Set(L.map(v => String(v.conductor).toUpperCase().replace(/\s+/g, ' ').trim()).filter(Boolean));
@@ -576,7 +576,7 @@ async function recargaTr() {
 }
 function cardRepetido(x) {
   const caja = h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4' },
-    h('div', { class: 'big', style: 'color:#b3261e' }, '🚨 Albarán N° ' + x.vs[0].n_valera + ' repetido en ' + x.vs.length + ' viajes'),
+    h('div', { class: 'big', style: 'color:#b3261e' }, '🚨 Albarán N° ' + x.vs[0].n_valera + ' repetido en ' + x.vs.length + ' viajes' + (x.vs.some(v => String(v.llave).toUpperCase() === 'HISTORICO') && x.vs.some(v => String(v.llave).toUpperCase() !== 'HISTORICO') ? ' · ACTUAL vs serie HISTÓRICA' : '')),
     h('div', { class: 'small' }, 'Compara las fotos y decide cuál es el correcto. Si fue un error de digitación, edita el número; si el viaje está registrado dos veces, anula el que sobra.'));
   x.vs.forEach(v => {
     const pan = h('div', {});
