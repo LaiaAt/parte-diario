@@ -515,7 +515,7 @@ function siguienteConsec(fecha, nombre) {
   L.forEach(x => { if (Number(x.consec) > mx) mx = Number(x.consec); });
   return mx + 1;
 }
-const alertasCampo = a => String(a || '').split('; ').filter(x => x && !/capacidad|nominal|tolva|cantidad mayor|carga por encima/i.test(x)).join('; ');
+const alertasCampo = a => String(a || '').split('; ').filter(x => x && !/capacidad|nominal|tolva|cantidad mayor|carga por encima|por validar|placa nueva/i.test(x)).join('; ');
 const asArr = x => Array.isArray(x) ? x : (x ? [x] : []);
 const MATERIALES_BASE = ['Material de excavación', 'Escombro', 'Material de relleno seleccionado', 'Recebo', 'Subbase granular', 'Base granular tipo A', 'Base granular tipo B', 'Base granular tipo C', 'Base PA', 'Rajón', 'Rajoncillo', 'Arena', 'Arena de trituración', 'Arena de peña', 'Gravilla', 'Triturado', 'Mezcla asfáltica', 'Descapote', 'RCD (demolición)'];
 function listaMateriales() {
