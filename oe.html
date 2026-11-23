@@ -40,6 +40,7 @@ img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;backg
 .lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
 .dcard{padding:0;overflow:hidden}.dcard>*:not(.dh){margin-left:14px;margin-right:14px}.dcard>.btn.blk{width:calc(100% - 28px)}.dcard>.rt{margin-bottom:14px}.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:14px;font-size:1.05rem;color:#0f172a;text-align:left;cursor:pointer;margin-bottom:0}.dh b{flex:1}.dh i{font-style:normal;color:#0a7f2e;font-size:1.1rem}.dh.vac{cursor:default;opacity:.7}.dcard>.hh:first-of-type,.dcard>.btn+.hh{margin-top:12px}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}.rr .btn{min-height:34px;padding:4px 10px}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.uch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.uch button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:12px;min-height:54px;font-weight:700;font-size:.98rem;cursor:pointer;padding:6px}.uch button.on{background:#0a7f2e;border-color:#0a7f2e;color:#fff}.otro{margin:10px 0 4px;min-height:48px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
 .sbar .sres{display:none}.sbar{gap:12px}.sbar .btn,.sbar .btn.sacar2,.sbar .btn.cnl{flex:1 1 0;width:0;min-width:0;box-sizing:border-box;margin:0;padding:0 8px;min-height:56px;font-size:1.1rem}.sbar .btn{white-space:nowrap}.btn.blk{box-sizing:border-box}
+.act small.est{color:#0d5c2e;font-weight:700}
 </style>
 </head>
 <body>
@@ -94,6 +95,8 @@ async function cargarCat() {
   try { const r = await fetch('oe/catalogo.json'); S.cat = await r.json(); } catch (e) { S.cat = null; }
 }
 const paquetesDe = (h, uf) => (S.cat && S.cat.cat[h + '|' + uf]) || [];
+// Estructura a la que pertenece una actividad (por el prefijo del código: 1M06.1 → Muro 6, 1S05.17 → Sifón 5, 1MC7 → muros en concreto)
+const estDe = c => { c = String(c || ''); const p = c.includes('.') ? c.split('.')[0] : ((c.match(/^\d*[A-Z]+/) || [''])[0]); return (S.cat && S.cat.est && S.cat.est[p]) || ''; };
 const nomHito = c => { const x = S.cat && S.cat.hitos.find(y => y[0] === c); return x ? x[1] : ''; };
 
 /* ---------- Datos del día: se abre al instante con lo guardado y se actualiza por detrás ---------- */
@@ -246,7 +249,7 @@ function nuevoForm() { return { id: idNuevo(), p: 0, uf: '', costado: '', aI: ''
 const PASOS = [['uf', '¿En qué UF?'], ['costado', '¿En qué costado?'], ['abs', '¿Entre qué abscisas?'], ['paquete', '¿Qué paquete de trabajo?'], ['act', '¿Qué actividad hiciste?'], ['med', 'Medidas'], ['foto', 'Foto y ubicación']];
 /* Abscisa en una sola celda: "12+340" o "12340" → K12+340 */
 const UNID = [['UN', 'Unidad (UND)'], ['ML', 'Metro lineal (m)'], ['M2', 'Metro cuadrado (m²)'], ['M3', 'Metro cúbico (m³)'], ['KG', 'Kilo (kg)'], ['GL', 'Global (GL)']];
-const abTxt = v => { let t = String(v == null ? '' : v).toUpperCase().replace(/[K\s]/g, ''); if (!t) return ''; let k, m; if (t.includes('+')) { [k, m] = t.split('+'); } else { m = t.slice(-3); k = t.slice(0, -3) || '0'; } if (!/^\d+$/.test(k) || !/^\d{1,3}$/.test(m || '')) return ''; return 'K' + k.padStart(2, '0') + '+' + m.padStart(3, '0'); };
+const abTxt = v => { let t = String(v == null ? '' : v).toUpperCase().replace(/[K\s]/g, '').replace(',', '.'); if (!t) return ''; let dec = ''; const i = t.indexOf('.'); if (i >= 0) { dec = t.slice(i + 1); t = t.slice(0, i); if (!/^\d{1,2}$/.test(dec)) return ''; } let k, m; if (t.includes('+')) { [k, m] = t.split('+'); } else { m = t.slice(-3); k = t.slice(0, -3) || '0'; } if (!/^\d+$/.test(k) || !/^\d{1,3}$/.test(m || '')) return ''; return 'K' + k.padStart(2, '0') + '+' + m.padStart(3, '0') + (dec ? '.' + dec : ''); }; // admite hasta 2 decimales: 12340.5 = K12+340.5
 const nd = () => S.f && S.f.act ? (S.f.act.nd !== undefined ? S.f.act.nd : (UND[S.f.act.u] || 0)) : 0;
 function calc() {
   const f = S.f, n = nd(); let c;
@@ -273,8 +276,8 @@ function vPaso() {
   if (k === 'uf') h = grandes(S.cat.ufs, f.uf, 'uf');
   else if (k === 'costado') h = grandes(COSTADOS, f.costado, 'costado');
   else if (k === 'abs') {
-    h = '<label class="f" style="margin-top:0">Abscisa de inicio</label><input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-f="aI" value="' + esc(f.aI) + '" placeholder="Ej: 12340"><div class="pv" id="pvI">' + (abTxt(f.aI) ? '✔ ' + abTxt(f.aI) : '') + '</div>' +
-      '<label class="f">Abscisa de fin</label><input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-f="aF" value="' + esc(f.aF) + '" placeholder="Ej: 12380"><div class="pv" id="pvF">' + (abTxt(f.aF) ? '✔ ' + abTxt(f.aF) : '') + '</div><div class="peq mut" style="margin-top:8px">Solo números: los 3 últimos son los metros. Ej: 12340 = K12+340.</div>';
+    h = '<label class="f" style="margin-top:0">Abscisa de inicio</label><input type="text" inputmode="decimal" autocomplete="off" data-f="aI" value="' + esc(f.aI) + '" placeholder="Ej: 12340"><div class="pv" id="pvI">' + (abTxt(f.aI) ? '✔ ' + abTxt(f.aI) : '') + '</div>' +
+      '<label class="f">Abscisa de fin</label><input type="text" inputmode="decimal" autocomplete="off" data-f="aF" value="' + esc(f.aF) + '" placeholder="Ej: 12380"><div class="pv" id="pvF">' + (abTxt(f.aF) ? '✔ ' + abTxt(f.aF) : '') + '</div><div class="peq mut" style="margin-top:8px">Solo números: los 3 últimos son los metros. Ej: 12340 = K12+340 · con decimales: 12340.5 = K12+340.5</div>';
   } else if (k === 'paquete') {
     const pqs = paquetesDe(S.hito, f.uf);
     h = pqs.length ? pqs.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + p[1].length + ' actividades</small></button>').join('') : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>';
@@ -285,15 +288,17 @@ function vPaso() {
         (f.ou === 'OTRA' ? '<label class="f">¿Cuál unidad? (ej: km, jornal, punto)</label><input type="text" data-f="ot" value="' + esc(f.ot) + '" maxlength="12" placeholder="Escribe la unidad"><label class="f">¿Cuántas medidas necesita?</label><div class="uch">' + [[0, 'Solo cantidad'], [1, '1 · Largo'], [2, '2 · Largo y ancho'], [3, '3 · Largo, ancho y alto']].map(m => '<button type="button" class="' + (f.ond === m[0] ? 'on' : '') + '" data-a="ond" data-v="' + m[0] + '">' + m[1] + '</button>').join('') + '</div><div class="peq mut" style="margin-top:6px">Descuento y factor siempre se piden.</div>' : '') +
         '<button type="button" class="btn blk" style="margin-top:14px" data-a="usarOtra">✔ Usar esta actividad</button><button type="button" class="btn sec blk" style="margin-top:10px" data-a="lista">◀ Volver a la lista</button>';
     } else {
-      const q = S.q.toLowerCase(), L = (paquetesDe(S.hito, f.uf)[f.pq] || ['', []])[1].filter(a => !q || (a[0] + ' ' + a[1]).toLowerCase().includes(q));
+      const T = (paquetesDe(S.hito, f.uf)[f.pq] || ['', []])[1], rep = {}; T.forEach(a => { const k = a[1].trim().toUpperCase() + '|' + a[2]; rep[k] = (rep[k] || 0) + 1; });
+      const esR = a => rep[a[1].trim().toUpperCase() + '|' + a[2]] > 1;
+      const q = S.q.toLowerCase(), L = T.filter(a => !q || (a[0] + ' ' + a[1] + ' ' + estDe(a[0])).toLowerCase().includes(q));
       h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '">' +
-        L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
+        L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + (esR(a) && estDe(a[0]) ? '<small class="est">📍 ' + esc(estDe(a[0])) + '</small>' : '') + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
         (L.length > 40 ? '<div class="peq mut" style="margin-top:6px">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</div>' : '') +
         (!L.length && q ? '<div class="peq mut" style="margin:10px 0 4px">No hay actividades con ese nombre.</div><button type="button" class="btn sec blk otro" data-a="otra">➕ No está en la lista: escribirla</button>' : '');
     }
   } else if (k === 'med') {
     const n = nd(), K = calc(), u = f.act.u;
-    h = '<div class="sel" style="margin:0 0 12px">' + esc(f.act.d) + '<small>unidad ' + undTxt(u) + (f.act.nueva ? ' · actividad nueva' : '') + '</small></div>';
+    h = '<div class="sel" style="margin:0 0 12px">' + esc(f.act.d) + (estDe(f.act.c) ? '<small>📍 ' + esc(estDe(f.act.c)) + '</small>' : '') + '<small>unidad ' + undTxt(u) + (f.act.nueva ? ' · actividad nueva' : '') + '</small></div>';
     if (n === 0) h += '<label class="f" style="margin-top:0">Cantidad (' + undTxt(u) + ')</label><input type="text" inputmode="decimal" data-f="cant" value="' + esc(f.cant) + '">';
     else { h += '<div class="fila">'; ['largo', 'ancho', 'alto'].slice(0, n).forEach((x, i) => { h += '<div><label class="f" style="margin-top:0">' + NDIM[i] + '</label><input type="text" inputmode="decimal" data-f="' + x + '" value="' + esc(f[x]) + '"></div>'; }); h += '</div>'; }
     h += '<div class="fila"><div><label class="f">Descuento</label><input type="text" inputmode="decimal" data-f="desc" value="' + esc(f.desc) + '" placeholder="0"></div><div></div></div>' +
@@ -349,7 +354,7 @@ function validarPaso() {
   const f = S.f, k = PASOS[f.p][0];
   if (k === 'uf' && !f.uf) return 'Elige la UF.';
   if (k === 'costado' && !f.costado) return 'Elige el costado.';
-  if (k === 'abs') { if (!abTxt(f.aI) || !abTxt(f.aF)) return 'Escribe las dos abscisas, solo números (ej: 12340).'; }
+  if (k === 'abs') { if (!abTxt(f.aI) || !abTxt(f.aF)) return 'Escribe las dos abscisas, solo números (ej: 12340 o 12340.5).'; }
   if (k === 'paquete' && f.pq === '') return 'Elige el paquete.';
   if (k === 'act' && !f.act) return 'Elige la actividad.';
   if (k === 'med') { const K = calc(); if (isNaN(K.c) || K.c <= 0) return 'Escribe las medidas (mayores que cero).'; if (K.d < 0 || K.d > K.c) return 'El descuento no puede ser mayor que la cantidad.'; if (!(K.fa > 0)) return 'El factor debe ser mayor que cero.'; }
@@ -363,7 +368,7 @@ function editar(id) {
   const n = x.cc === 'NUEVA' ? [x.largo, x.ancho, x.alto].filter(v => v !== '' && v != null).length : (UND[x.und] || 0);
   S.hito = x.hito;
   const f = nuevoForm(); f.id = x.id; f.edit = true; f.fecha = x.fecha; f.uf = x.uf; f.costado = x.costado;
-  f.aI = String(x.abIni || '').replace(/\D/g, ''); f.aF = String(x.abFin || '').replace(/\D/g, '');
+  f.aI = String(x.abIni || '').replace(/[^\d.]/g, ''); f.aF = String(x.abFin || '').replace(/[^\d.]/g, '');
   f.pq = (() => { const i = paquetesDe(x.hito, x.uf).findIndex(p => p[0] === x.paquete); return i >= 0 ? i : ''; })();
   f.act = { c: x.cc, d: x.actividad, u: x.und, nd: n, nueva: x.cc === 'NUEVA' };
   if (x.cc === 'NUEVA') { f.otra = true; f.on = x.actividad; f.ou = UNID.some(u => u[0] === x.und) ? x.und : 'OTRA'; f.ot = f.ou === 'OTRA' ? x.und : ''; f.ond = n; }
@@ -449,7 +454,7 @@ document.addEventListener('input', ev => {
   const t = ev.target;
   if (t.id === 'buscar') { S.q = t.value; render(); const n = $('#buscar'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
   const k = t.dataset && t.dataset.f; if (!k || !S.f) return;
-  if (k === 'aI' || k === 'aF') t.value = t.value.replace(/\D/g, '');
+  if (k === 'aI' || k === 'aF') { let v = t.value.replace(',', '.').replace(/[^\d.]/g, ''); const i = v.indexOf('.'); if (i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '').slice(0, 2); t.value = v; }
   S.f[k] = t.value;
   if (k === 'aI' || k === 'aF') { const e = $(k === 'aI' ? '#pvI' : '#pvF'); if (e) e.textContent = abTxt(t.value) ? '✔ ' + abTxt(t.value) : ''; }
   if (['largo', 'ancho', 'alto', 'cant', 'desc', 'fac'].includes(k)) { const e = $('#tot'); if (e) e.innerHTML = totHtml(calc(), S.f.act.u); }
