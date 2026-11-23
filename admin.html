@@ -170,16 +170,18 @@ header>span{gap:6px!important;min-width:0}
 #panel>.card:first-child .row select,#panel>.card:first-child .row input{min-height:0;height:36px;padding:0 6px;font-size:14px;width:100%}
 #panel>.card:first-child .row #act,#panel>.card:first-child .row #infSem{grid-column:span 3;min-height:0;height:38px;padding:0 8px;font-size:14px;margin:0;width:100%}
 #panel>.card:first-child .row #estado{grid-column:1/-1}
-#panel>.card:first-child .row #infSem[hidden]{display:none}#panel>.card:first-child .row:has(#infSem[hidden]) #act{grid-column:span 6}
+#panel>.card:first-child .row #infSem[hidden]{display:none}
+#panel>.card:first-child .row .acts{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px}#panel>.card:first-child .row .acts:has(#infSem[hidden]){grid-template-columns:1fr}
 @media (min-width:900px){
 #panel>.card:first-child{padding:8px 12px}
 #panel>.card:first-child>.small{display:none}
-#panel>.card:first-child .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+#panel>.card:first-child .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
 #panel>.card:first-child .row>div:nth-child(1){flex:1.5 1 0}
 #panel>.card:first-child .row>div:nth-child(2),#panel>.card:first-child .row>div:nth-child(3){flex:1 1 0}
 #panel>.card:first-child .row label{font-size:11px;font-weight:700;color:#51606d;text-transform:uppercase;letter-spacing:.03em}
 #panel>.card:first-child .row select,#panel>.card:first-child .row input{height:38px;border-radius:8px;border:1px solid #c9d3dc;background:#fff;font-size:14px}
-#panel>.card:first-child .row #act,#panel>.card:first-child .row #infSem{flex:0 0 150px;height:38px;border-radius:8px}
+#panel>.card:first-child .row .acts{flex:0 0 160px;display:flex;flex-direction:column;gap:6px;margin-top:17px}
+#panel>.card:first-child .row #act,#panel>.card:first-child .row #infSem{width:100%;height:38px;border-radius:8px}
 #panel>.card:first-child .row #act{background:#0a7a32;border-color:#0a7a32;color:#fff;font-weight:800}
 #panel>.card:first-child .row #estado{flex-basis:100%}#panel>.card:first-child .row #estado:empty{display:none}
 }
@@ -243,8 +245,8 @@ header>span{gap:6px!important;min-width:0}
       <div><label>Mes</label><select id="mes"></select></div>
       <div><label>Desde</label><input type="date" id="desde"></div>
       <div><label>Hasta</label><input type="date" id="hasta"></div>
-      <button id="act">Actualizar</button>
-      <button id="infSem" style="background:#0d3b66;color:#fff;border:2px solid #0d3b66;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.35)">📄 Informe</button>
+      <div class="acts"><button id="act">Actualizar</button>
+      <button id="infSem" style="background:#0d3b66;color:#fff;border:2px solid #0d3b66;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.35)">📄 Informe</button></div>
       <span id="estado" class="small"></span>
     </div>
     <div id="err" class="msg"></div>
