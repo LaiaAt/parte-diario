@@ -676,7 +676,7 @@ function cardRepetido(x) {
   return caja;
 }
 function vistaSosp(c) {
-  const todos = sospechosos(), S = todos.filter(x => !x.rev), R = todos.filter(x => x.rev), tipos = Array.from(new Set(S.map(x => x.tipo))).sort();
+  const todos = sospechosos(), sf = x => x.tipo === 'Sin foto de albarán', S = todos.filter(x => !x.rev || sf(x)), R = todos.filter(x => x.rev && !sf(x)), tipos = Array.from(new Set(S.map(x => x.tipo))).sort();
   c.appendChild(h('div', { class: 'small' }, 'Revisa casos raros con los datos del formulario. Cuando ya lo verificaste, marca la casilla «Ya lo revisé» y deja de salir como sospechoso.'));
   c.appendChild(chips([['', 'Pendientes (' + S.length + ')']].concat(tipos.map(t => [t, t + ' (' + S.filter(x => x.tipo === t).length + ')'])).concat([['__rev', '✔ Revisados (' + R.length + ')'], ['__anu', '🚫 Anulados (' + (TR.anulados || []).length + ')']]), TRSOSP, k => { TRSOSP = k; pintarTr(); }));
   if (TRSOSP === '__anu') {
@@ -698,8 +698,11 @@ function vistaSosp(c) {
     if (x.tipo === 'Albarán repetido') { c.appendChild(cardRepetido(x)); return; }
     if (x.tipo === 'Sin foto de albarán') {
       const v = x.vs[0], pan = h('div', {});
-      c.appendChild(h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4' }, h('div', { class: 'big', style: 'color:#b3261e' }, '📄 Sin foto de albarán'), h('div', {}, x.msg), h('div', { class: 'small' }, rotulo(v)),
-        h('div', { class: 'acc', style: 'margin-top:8px' }, h('button', { onclick: () => formEditAlb(v, 0, pan) }, '📷 Agregar foto / revisar'), h('button', { class: 'sec', onclick: () => marcarRev(x, 'revisar') }, '✔ Ya lo revisé')), pan));
+      // la alerta solo se quita al cargar la foto del albarán
+      c.appendChild(h('div', { class: 'tcard', style: 'border:2px solid #b3261e;background:#fff5f4;padding:8px 12px' },
+        h('div', { style: 'display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap' },
+          h('div', { style: 'flex:1;min-width:240px' }, h('b', { style: 'color:#b3261e' }, '📄 Sin foto de albarán'), h('span', {}, ' · ' + x.msg), h('div', { class: 'small' }, rotulo(v))),
+          h('button', { style: 'flex:none;width:auto;padding:8px 14px;font-size:15px', onclick: () => formEditAlb(v, 0, pan) }, '📷 Agregar foto')), pan));
       return;
     }
     const cb = h('input', { type: 'checkbox', style: 'width:26px;height:26px;margin:0' });
