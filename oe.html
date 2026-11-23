@@ -309,7 +309,14 @@ function vPaso() {
   } else if (k === 'paquete') {
     const PQ = pqs();
     if (f.pqEsc) h = '<label class="f" style="margin-top:0">¿En qué paquete estás trabajando?</label><input type="text" data-f="pqOtro" value="' + esc(f.pqOtro || '') + '" maxlength="80" placeholder="Ej: Andenes provisionales" autocapitalize="sentences"><button type="button" class="btn blk" style="margin-top:12px" data-a="pqOtroOk">✔ Usar este paquete</button><button type="button" class="btn sec blk" style="margin-top:10px" data-a="pqLista">◀ Volver a la lista</button>';
-    else h = PQ.length ? PQ.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + new Set(p[1].map(x => x[1].trim().toUpperCase() + '|' + x[2])).size + ' actividades</small></button>').join('') + '<button type="button" class="act otro' + (f.pq === 'O' ? ' on' : '') + '" data-a="pqOtro">➕ Otro paquete' + (f.pq === 'O' && f.pqOtro ? ': ' + esc(f.pqOtro) : '') + '<small>No está el paquete: escríbelo y verás todas las actividades</small></button>' : (esRed(S.hito) && f.red !== 'CAPEX' ? '<div class="aviso">La red ' + esc(f.red) + ' no tiene lista de actividades. Escribe la actividad que hiciste.</div><button type="button" class="btn blk" style="margin-top:10px" data-a="pqLibre">✍ Escribir la actividad</button>' : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>');
+    else if (PQ.length) {
+      const q = S.q.trim().toLowerCase(), sinT = t => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const V = PQ.map((p, i) => [p, i]).filter(x => !q || sinT(x[0][0]).includes(sinT(q)));
+      h = '<input type="search" id="buscar" placeholder="🔍 Buscar paquete…" value="' + esc(S.q) + '">' +
+        V.map(([p, i]) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + new Set(p[1].map(x => x[1].trim().toUpperCase() + '|' + x[2])).size + ' actividades</small></button>').join('') +
+        (!V.length ? '<div class="peq mut" style="margin:10px 2px 4px">No hay un paquete con ese nombre.</div>' : '') +
+        '<button type="button" class="act otro' + (f.pq === 'O' ? ' on' : '') + '" data-a="pqOtro">➕ Otro paquete' + (f.pq === 'O' && f.pqOtro ? ': ' + esc(f.pqOtro) : '') + '<small>No está el paquete: escríbelo y verás todas las actividades</small></button>';
+    } else h = (esRed(S.hito) && f.red !== 'CAPEX' ? '<div class="aviso">La red ' + esc(f.red) + ' no tiene lista de actividades. Escribe la actividad que hiciste.</div><button type="button" class="btn blk" style="margin-top:10px" data-a="pqLibre">✍ Escribir la actividad</button>' : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>');
   } else if (k === 'act') {
     if (f.otra) {
       h = '<label class="f" style="margin-top:0">Nombre de la actividad (no está en la lista)</label><input type="text" data-f="on" value="' + esc(f.on) + '" maxlength="120" placeholder="Ej: Demolición de lindero" autocapitalize="sentences">' +
@@ -469,7 +476,7 @@ document.addEventListener('click', async ev => {
   if (a === 'nuevo') { S.f = nuevoForm(); if (esMant(S.hito)) S.f.uf = 'UF0'; S.q = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'redTipo') { S.f.redTipo = v; S.f.msg = ''; if (v === 'CAPEX') { if (S.f.red !== 'CAPEX') { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.red = 'CAPEX'; ir(ix('red') + 1); } else render(); return; }
   if (a === 'red' || a === 'redOtra') { const r = a === 'red' ? v : (String(S.f.redOtra || '').trim() ? (S.f.redTipo || 'SUBCUENTA') + ': ' + String(S.f.redOtra).trim().toUpperCase() : ''); if (!r) { S.f.msg = 'Escribe el nombre de la red.'; render(); return; } if (S.f.red !== r) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.red = r; ir(ix('red') + 1); return; }
-  if (a === 'pqOtro') { S.f.pqEsc = true; S.f.msg = ''; render(); return; }
+  if (a === 'pqOtro') { if (!S.f.pqOtro && S.q.trim()) S.f.pqOtro = S.q.trim(); S.f.pqEsc = true; S.f.msg = ''; render(); return; }
   if (a === 'pqLista') { S.f.pqEsc = false; S.f.msg = ''; render(); return; }
   if (a === 'pqOtroOk') { const t = String(S.f.pqOtro || '').trim(); if (t.length < 3) { S.f.msg = 'Escribe en qué paquete estás trabajando.'; render(); return; } if (S.f.pq !== 'O') { S.f.act = null; S.f.otra = false; } S.f.pq = 'O'; S.f.pqEsc = false; ir(ix('act')); return; }
   if (a === 'pqLibre') { S.f.pq = 'L'; S.f.act = null; S.f.otra = true; ir(ix('act')); return; }
