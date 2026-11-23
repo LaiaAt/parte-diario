@@ -2307,25 +2307,43 @@ function zipear(items) {
   w32(fin, 0x06054b50); w16(fin, 0); w16(fin, 0); w16(fin, items.length); w16(fin, items.length); w32(fin, cs); w32(fin, off); w16(fin, 0);
   return new Blob(partes.concat(central, [new Uint8Array(fin)]), { type: 'application/zip' });
 }
+// Ventana de avance para descargas largas de fotos: barra, cuántas van, % y tiempo restante, con botón Cancelar
+function avanceFotos(titulo, total) {
+  let cancel = false; const t0 = Date.now();
+  const bar = h('div', { style: 'height:100%;width:0;background:#0a7a32;border-radius:8px;transition:width .2s' });
+  const txt = h('div', { style: 'font-size:16px;font-weight:700;margin:10px 0 2px' }, '0 de ' + total), sub = h('div', { class: 'small' }, 'Calculando tiempo…');
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px' },
+    h('div', { style: 'background:#fff;border-radius:14px;padding:20px 22px;width:min(460px,100%);box-shadow:0 10px 40px rgba(0,0,0,.3)' },
+      h('div', { style: 'font-size:19px;font-weight:800;margin-bottom:12px' }, titulo),
+      h('div', { style: 'height:16px;background:#e3e8ed;border-radius:8px;overflow:hidden' }, bar), txt, sub,
+      h('div', { style: 'text-align:right;margin-top:14px' }, h('button', { class: 'sec', onclick: () => { cancel = true; sub.textContent = 'Cancelando…'; } }, 'Cancelar'))));
+  document.body.appendChild(ov);
+  return {
+    paso(n) { const p = Math.round(n * 100 / total); bar.style.width = p + '%'; txt.textContent = n + ' de ' + total + ' fotos · ' + p + '%';
+      const seg = n ? (Date.now() - t0) / n * (total - n) / 1000 : 0; if (n && !cancel) sub.textContent = n >= total ? 'Armando el archivo…' : 'Faltan unos ' + (seg > 90 ? Math.ceil(seg / 60) + ' min' : Math.ceil(seg) + ' s'); },
+    get cancelado() { return cancel; }, cerrar() { ov.remove(); }
+  };
+}
 async function bajarZip() {
   const L = FV; if (!L.length) return;
-  if (L.length > 150 && !confirm('Son ' + L.length + ' fotos; puede tardar y pesar mucho. ¿Continuar?')) return;
-  $('bajaZip').disabled = true; const items = [];
-  for (let i = 0; i < L.length; i++) {
-    $('estado').textContent = 'Preparando fotos ' + (i + 1) + ' de ' + L.length + '…';
-    const o = await obtener(L[i]); if (o) items.push({ nombre: nombreFoto(L[i]), datos: new Uint8Array(await o.blob.arrayBuffer()) });
-  }
-  $('estado').textContent = ''; $('bajaZip').disabled = false;
-  if (!items.length) { $('err').textContent = 'No se pudieron bajar las fotos.'; return; }
-  $('err').textContent = items.length < L.length ? 'Faltaron ' + (L.length - items.length) + ' fotos que no se pudieron bajar.' : '';
-  bajar(zipear(items), 'fotos_' + bogota().replace(/-/g, '') + '_' + items.length + '.zip');
+  if (L.length > 150 && !confirm('Son ' + L.length + ' fotos; puede tardar varios minutos y pesar mucho. ¿Continuar?')) return;
+  $('bajaZip').disabled = true; const items = new Array(L.length); let hechas = 0, sig = 0;
+  const av = avanceFotos('📦 Preparando el ZIP de fotos', L.length);
+  const trabajador = async () => { while (sig < L.length && !av.cancelado) { const i = sig++; try { const o = await obtener(L[i]); if (o) items[i] = { nombre: nombreFoto(L[i]), datos: new Uint8Array(await o.blob.arrayBuffer()) }; } catch (e) {} av.paso(++hechas); } };
+  try { await Promise.all([trabajador(), trabajador(), trabajador(), trabajador()]); } finally { $('bajaZip').disabled = false; }
+  if (av.cancelado) { av.cerrar(); banner('Descarga cancelada', 'mal'); return; }
+  const ok = items.filter(Boolean);
+  if (!ok.length) { av.cerrar(); $('err').textContent = 'No se pudieron bajar las fotos.'; return; }
+  await new Promise(r => setTimeout(r, 50));
+  $('err').textContent = ok.length < L.length ? 'Faltaron ' + (L.length - ok.length) + ' fotos que no se pudieron bajar.' : '';
+  bajar(zipear(ok), 'fotos_' + bogota().replace(/-/g, '') + '_' + ok.length + '.zip'); av.cerrar(); banner('✔ ZIP con ' + ok.length + ' fotos descargado', 'ok');
 }
 async function bajarFotos() {
   const L = FV; if (!L.length) return;
   if (L.length > 1 && !confirm('Se descargarán ' + L.length + ' fotos una tras otra. ¿Continuar?')) return;
-  $('bajaFotos').disabled = true;
-  for (let i = 0; i < L.length; i++) { $('estado').textContent = 'Foto ' + (i + 1) + ' de ' + L.length + '…'; if (!(await bajarFoto(L[i]))) break; await new Promise(r => setTimeout(r, 500)); }
-  $('estado').textContent = ''; $('bajaFotos').disabled = false;
+  $('bajaFotos').disabled = true; const av = L.length > 1 ? avanceFotos('⬇ Descargando fotos una por una', L.length) : null;
+  for (let i = 0; i < L.length; i++) { if (av && av.cancelado) break; if (!(await bajarFoto(L[i]))) break; if (av) av.paso(i + 1); await new Promise(r => setTimeout(r, 500)); }
+  if (av) av.cerrar(); $('bajaFotos').disabled = false;
 }
 function fotos(reset) {
   if (!D) return;
