@@ -1600,8 +1600,8 @@ function chips(opts, val, fn) {
   return h('div', { class: 'chips' }, opts.map(([k, t]) => h('button', { class: 'chip' + (val === k ? ' on' : ''), onclick: () => fn(k) }, t)));
 }
 /* ----- Acero: se muestra dentro del Dashboard con el mismo periodo ----- */
-let ACTAB = selGet('ac', 'reg', v => ['reg', 'inv', 'mov', 'panel', 'ped', 'inf'].indexOf(v) >= 0);
-const AC_TABS = [['reg', '🏠 Resumen'], ['inv', '📦 Inventario'], ['mov', '🕒 Movimientos'], ['ped', '📋 Pedidos'], ['panel', '📊 Panel'], ['inf', '📄 Informe']];
+let ACTAB = selGet('ac', 'reg', v => ['reg', 'inv', 'mov', 'ped', 'inf'].indexOf(v) >= 0);
+const AC_TABS = [['reg', '🏠 Resumen'], ['inv', '📦 Inventario'], ['mov', '🕒 Movimientos'], ['ped', '📋 Pedidos'], ['inf', '📄 Informe']];
 function navAc() {
   const tb = $('nav4'); tb.textContent = '';
   AC_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: ACTAB === k ? 'on' : '', onclick: () => { ACTAB = k; selSet('ac', k); navAc(); enviarAc(false); } }, t)));
