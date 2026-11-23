@@ -1915,7 +1915,11 @@ function xlsxOe() {
   const cols = ['Fecha', 'Topógrafo', 'Hito', 'Tipo de red', 'UF', 'Costado', 'Abscisa inicial', 'Abscisa final', 'Paquete', 'C. costos', 'Actividad', 'Und', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Total', 'Latitud', 'Longitud', 'Observaciones'];
   const rows = L.slice().sort((a, b) => (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.red || '', r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.total, r.lat, r.lon, r.obs]);
   const T = oeTablas(L);
-  excelHoja('Registros OE', cols, rows, 'OE_' + $('desde').value + '_a_' + $('hasta').value + '.xlsx', [T.hito, T.act, T.red, T.top, T.dia].filter(x => x.rows.length).map(x => ({ nombre: x.nombre, cols: x.cols, rows: x.rows })));
+  // Actividades escritas por el topógrafo (no estaban en el catálogo): costos debe crear y asignar su centro de costo
+  const N = L.filter(r => String(r.cc).toUpperCase() === 'NUEVA').sort((a, b) => (a.actividad + a.fecha).localeCompare(b.actividad + b.fecha));
+  const sinCC = { nombre: 'Sin centro de costo', cols: ['Actividad escrita en obra', 'Und', 'Hito', 'Tipo de red', 'Paquete', 'UF', 'Costado', 'Abscisa inicial', 'Abscisa final', 'Fecha', 'Topógrafo', 'Total', 'CENTRO DE COSTO A ASIGNAR', 'OBSERVACIÓN COSTOS'],
+    rows: N.map(r => [r.actividad, r.und, oeHitoTxt(r.hito), r.red || '', r.paquete, r.uf, r.costado, r.abIni, r.abFin, fmtF(r.fecha), r.topografo || nomDe(r.llave), oeR(oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad)), '', '']) };
+  excelHoja('Registros OE', cols, rows, 'OE_' + $('desde').value + '_a_' + $('hasta').value + '.xlsx', [sinCC, T.hito, T.act, T.red, T.top, T.dia].filter(x => x.rows.length).map(x => ({ nombre: x.nombre, cols: x.cols, rows: x.rows })));
 }
 function verFotoOe(r) {
   const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px', onclick: () => ov.remove() }, h('div', { style: 'color:#fff' }, 'Cargando foto…'));
@@ -1942,7 +1946,9 @@ function pintarOe() {
   if (OETAB === 'kpi') {
     const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
     const und = {}; L.forEach(r => { const u = r.und || '—'; und[u] = (und[u] || 0) + oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad); });
-    c.appendChild(h('div', { class: 'kpis' }, K('Registros', L.length), K('Topógrafos', new Set(L.map(r => r.llave)).size), K('Días con OE', new Set(L.map(r => r.fecha)).size), K('Hitos', new Set(L.map(r => r.hito)).size), K('Actividades', new Set(L.map(r => r.actividad)).size)));
+    c.appendChild(h('div', { class: 'kpis' }, K('Registros', L.length), K('Topógrafos', new Set(L.map(r => r.llave)).size), K('Días con OE', new Set(L.map(r => r.fecha)).size), K('Hitos', new Set(L.map(r => r.hito)).size), K('Actividades', new Set(L.map(r => r.actividad)).size), K('Sin centro de costo', L.filter(r => String(r.cc).toUpperCase() === 'NUEVA').length)));
+    const nN = L.filter(r => String(r.cc).toUpperCase() === 'NUEVA').length;
+    if (nN) c.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700;margin:8px 0' }, '🟠 ' + nN + ' registro(s) con actividades escritas en obra que no tienen centro de costo. Descarga el Excel: van en la hoja «Sin centro de costo» para que Costos los cree y asigne.'));
     c.appendChild(h('div', { class: 'kpis' }, Object.keys(und).sort().map(u => K('Total en ' + u, oeFmt(und[u])))));
     c.appendChild(tablaMq('📐 Por hito', T.hito.cols, T.hito.rows));
     c.appendChild(tablaMq('📅 Por día', T.dia.cols, T.dia.rows));
