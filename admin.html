@@ -2030,7 +2030,7 @@ function dashOe(L) {
   const filt = [OEF.top ? 'Topógrafo: ' + nomDe(OEF.top) : '', OEF.hito ? 'Hito: ' + oeHitoTxt(OEF.hito) : '', OEF.red ? 'Red: ' + OEF.red : '', OEF.q ? 'Búsqueda: ' + OEF.q : ''].filter(Boolean).join(' · ') || 'Ninguno (todos los registros del periodo)';
   const aoa = [['CONTROL PROYECTO CCSN — OBRA EJECUTADA · DASHBOARD'], [],
     ['RANGO DE DATOS DEL LIBRO', 'Del ' + fmtF($('desde').value) + ' al ' + fmtF($('hasta').value)], ['Primer y último registro', fs.length ? fmtF(fs[0]) + ' a ' + fmtF(fs[fs.length - 1]) : ''],
-    ['Filtros aplicados', filt], ['Generado', new Date().toLocaleString('es-CO')], ['Autor', 'Carlos Eduardo Bermúdez Castro'], [],
+    ['Filtros aplicados', filt], ['Generado', new Date().toLocaleString('es-CO')], [],
     ['KPI GENERALES', 'Valor'], ['Registros', L.length], ['Topógrafos', new Set(L.map(r => r.llave)).size], ['Días con registro', new Set(L.map(r => r.fecha)).size],
     ['Hitos', new Set(L.map(r => r.hito)).size], ['Actividades distintas', new Set(L.map(r => r.actividad)).size], ['Promedio de registros por día', new Set(L.map(r => r.fecha)).size ? Math.round(L.length / new Set(L.map(r => r.fecha)).size * 10) / 10 : ''],
     ['Sin centro de costo', L.filter(oeSinCc).length], ['Con centro de costo reasignado', L.filter(r => r.cc_re).length], ['Corregidos por la oficina', L.filter(r => r.rev === 'CORREGIDO').length],
