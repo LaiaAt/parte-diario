@@ -1876,7 +1876,7 @@ let OE = null, OETAB = selGet('oe', 'kpi', v => OE_TABS.some(x => x[0] === v)), 
 const oeNum = x => { const n = Number(String(x == null ? '' : x).replace(',', '.')); return isFinite(n) ? n : 0; };
 const oeR = n => Math.round(n * 100) / 100;
 const oeFmt = n => oeR(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
-const oeHitoTxt = k => k ? k + ' ' + (((OE && OE.hitos) || {})[k] || '') : '';
+const oeHitoTxt = k => k ? (((OE && OE.hitos) || {})[k] || k) : ''; // sin numeración del hito
 const oeAbs = r => (r.abIni || '') + (r.abFin ? ' → ' + r.abFin : '');
 function navOe() {
   const tb = $('nav4'); tb.textContent = '';
@@ -1911,8 +1911,8 @@ function oeTablas(L) {
 function xlsxOe() {
   const L = oeFiltrados(); if (!L.length) { avisoDatos('No hay registros con este filtro'); return; }
   if (!window.XLSX) { avisoDatos('El Excel aún está cargando, intenta de nuevo'); return; }
-  const cols = ['Fecha', 'Topógrafo', 'Hito', 'UF', 'Costado', 'Abscisa inicial', 'Abscisa final', 'Paquete', 'C. costos', 'Actividad', 'Und', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Factor', 'Total', 'Latitud', 'Longitud', 'Observaciones'];
-  const rows = L.slice().sort((a, b) => (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.factor, r.total, r.lat, r.lon, r.obs]);
+  const cols = ['Fecha', 'Topógrafo', 'Hito', 'UF', 'Costado', 'Abscisa inicial', 'Abscisa final', 'Paquete', 'C. costos', 'Actividad', 'Und', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Total', 'Latitud', 'Longitud', 'Observaciones'];
+  const rows = L.slice().sort((a, b) => (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.total, r.lat, r.lon, r.obs]);
   const T = oeTablas(L);
   excelHoja('Registros OE', cols, rows, 'OE_' + $('desde').value + '_a_' + $('hasta').value + '.xlsx', [T.hito, T.act, T.top, T.dia].map(x => ({ nombre: x.nombre, cols: x.cols, rows: x.rows })));
 }
