@@ -104,7 +104,7 @@ const CAT_UF = {};
 const paquetesDe = (h, uf) => {
   if (!S.cat) return [];
   if (S.cat.cat[h + '|' + uf]) return S.cat.cat[h + '|' + uf];
-  if (uf !== 'UF6' && uf !== 'UF7') return [];
+  // si el hito no está en esta UF (ej. Puente peatonal en UF1), se usa la lista de la primera UF que lo tenga, con el código de esta UF
   const k = h + '|' + uf, d = uf.slice(2);
   // base: la UF1; si el hito no existe en la UF1 (ej. Puente peatonal), la primera UF que lo tenga
   const base = ['UF1', 'UF2', 'UF3', 'UF4', 'UF5'].find(u => S.cat.cat[h + '|' + u]);
