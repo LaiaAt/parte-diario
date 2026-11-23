@@ -98,8 +98,17 @@ async function cargarCat() {
   if (S.cat) return;
   try { const r = await fetch('oe/catalogo.json'); S.cat = await r.json(); } catch (e) { S.cat = null; }
 }
-// UF6 y UF7 aún no tienen catálogo propio: usan temporalmente la lista de la UF1
-const paquetesDe = (h, uf) => (S.cat && (S.cat.cat[h + '|' + uf] || ((uf === 'UF6' || uf === 'UF7') ? S.cat.cat[h + '|UF1'] : null))) || [];
+// UF6 y UF7 aún no tienen catálogo propio: usan temporalmente la lista de la UF1 con su propio código
+// (el primer dígito del centro de costo es la UF: 1M06.1 → 6M06.1 en la UF6)
+const CAT_UF = {};
+const paquetesDe = (h, uf) => {
+  if (!S.cat) return [];
+  if (S.cat.cat[h + '|' + uf]) return S.cat.cat[h + '|' + uf];
+  if (uf !== 'UF6' && uf !== 'UF7') return [];
+  const k = h + '|' + uf, d = uf.slice(2);
+  if (!CAT_UF[k]) CAT_UF[k] = (S.cat.cat[h + '|UF1'] || []).map(p => [p[0], p[1].map(a => [String(a[0]).replace(/^1/, d), a[1], a[2]])]);
+  return CAT_UF[k];
+};
 // Redes (2.11 húmedas, 2.12 secas): primero se elige el tipo de red. CAPEX usa la estructura del proyecto; una subcuenta o ENEL usa su propio catálogo.
 const esRed = h => h === '2.11' || h === '2.12';
 const esMant = h => h === 'MANT';
