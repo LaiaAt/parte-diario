@@ -1195,13 +1195,16 @@ function csvTr() {
   bajar(new Blob(['\ufeff' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' }), arch + '.csv');
 }
 // Excel real (columnas separadas): los textos que son números se guardan como número
-function excelHoja(nombre, cols, rows, archivo, extras) {
+function excelHoja(nombre, cols, rows, archivo, extras, opt) {
+  opt = opt || {}; let nH = 0; const nom = t => (opt.numerar ? (++nH) + '. ' : '') + t;
   const aoa = [cols].concat(rows.map(r => r.map(v => (typeof v === 'string' && v.trim() !== '' && /^-?\d+([.,]\d+)?$/.test(v.trim()) && !/^0\d/.test(v.trim())) ? Number(v.trim().replace(',', '.')) : v)));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = cols.map((c, i) => ({ wch: Math.min(40, Math.max(10, String(c).length + 2, ...rows.slice(0, 200).map(r => String(r[i] === undefined || r[i] === null ? '' : r[i]).length + 1))) }));
   ws['!freeze'] = { xSplit: 0, ySplit: 1 }; ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: cols.length - 1 } }) };
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, nombre.slice(0, 31));
-  (extras || []).forEach(x => { const w2 = XLSX.utils.aoa_to_sheet([x.cols].concat(x.rows)); w2['!cols'] = x.cols.map((c, i) => ({ wch: Math.max(10, String(c).length + 2, ...x.rows.map(r => String(r[i] === undefined || r[i] === null ? '' : r[i]).length + 1)) })); w2['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: x.rows.length, c: x.cols.length - 1 } }) }; XLSX.utils.book_append_sheet(wb, w2, x.nombre.slice(0, 31)); });
+  const wb = XLSX.utils.book_new();
+  if (opt.pre) { const w0 = XLSX.utils.aoa_to_sheet(opt.pre.aoa); if (opt.pre.cols) w0['!cols'] = opt.pre.cols; if (opt.pre.merges) w0['!merges'] = opt.pre.merges; XLSX.utils.book_append_sheet(wb, w0, nom(opt.pre.nombre).slice(0, 31)); }
+  XLSX.utils.book_append_sheet(wb, ws, nom(nombre).slice(0, 31));
+  (extras || []).forEach(x => { const w2 = XLSX.utils.aoa_to_sheet([x.cols].concat(x.rows)); w2['!cols'] = x.cols.map((c, i) => ({ wch: Math.max(10, String(c).length + 2, ...x.rows.map(r => String(r[i] === undefined || r[i] === null ? '' : r[i]).length + 1)) })); w2['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: x.rows.length, c: x.cols.length - 1 } }) }; XLSX.utils.book_append_sheet(wb, w2, nom(x.nombre).slice(0, 31)); });
   XLSX.writeFile(wb, archivo);
 }
 // Descarga las fotos de los albaranes del periodo filtrado (lo que se ve en la lista) en ZIP, en partes de máx. 120 fotos
@@ -1672,6 +1675,11 @@ function vistaMqMaq(c) {
   const marca = (k, campo, v, inp, orig) => { const d = MQDIRTY[k] = MQDIRTY[k] || {}; if (String(v) === String(orig === undefined ? '' : orig) && d.op !== 'crear') delete d[campo]; else d[campo] = v; if (!Object.keys(d).filter(x => x !== 'op').length && d.op !== 'crear' && d.op !== 'retirar' && d.op !== 'reactivar') delete MQDIRTY[k]; inp.style.background = (MQDIRTY[k] && campo in MQDIRTY[k]) ? '#fff6cc' : ''; pintaBarra(); };
   const celda = (k, x, campo, w) => { const d = MQDIRTY[k] || {}, v = campo in d ? d[campo] : (x[campo] === undefined ? '' : x[campo]);
     const i = h('input', { type: 'text', value: v, placeholder: campo === 'vis' ? 'Auto' : '', style: 'width:' + w + 'px;font-size:14px;padding:6px 7px;border:1px solid #cfd8e3;border-radius:6px' + (campo in d ? ';background:#fff6cc' : '') });
+    if (/^(sd|sn|hdl|hds|hnl|hns)$/.test(campo)) { // horarios y stand-by: se eligen con botones
+      const b = h('button', { type: 'button', style: 'width:' + w + 'px;font-size:14px;padding:6px 7px;border:1px solid #cfd8e3;border-radius:6px;text-align:left;color:' + (v ? '#12202b' : '#8a96a3') + ';background:' + (campo in d ? '#fff6cc' : '#fff') + ';font-weight:400;min-height:32px' }, v ? (/^(sd|sn)$/.test(campo) && /^\d+([.,]\d+)?$/.test(String(v)) ? v + ' h' : v) : 'Elegir ▾');
+      const tit = (campo[1] === 'd' || campo === 'sd' ? '☀ Turno día' : '🌙 Turno noche') + ' · ' + (/^s/.test(campo) ? 'Stand-by' : /l$/.test(campo) ? 'Lunes a viernes' : 'Sábado') + (x.vis || x.cod ? ' — Máquina ' + (x.vis || x.cod) : '');
+      b.onclick = () => pickMq(tit, campo, v, nv => { marca(k, campo, nv, b, x[campo]); const y = window.scrollY; pintarMq(); window.scrollTo(0, y); });
+      return h('td', { style: 'padding:3px 4px' }, b); }
     i.oninput = () => marca(k, campo, campo === 'vis' ? i.value.toUpperCase().replace(/\s+/g, '') : i.value, i, x[campo]); return h('td', { style: 'padding:3px 4px' }, i); };
   const th = (t, extra) => h('th', Object.assign({ style: 'text-align:left;padding:6px 4px;white-space:nowrap;font-size:13px' }, extra || {}), t);
   const filas = [];
@@ -1690,12 +1698,51 @@ function vistaMqMaq(c) {
     h('tr', {}, th('Código', { rowspan: 2 }), th('Tipo de máquina', { rowspan: 2 }), th('Empresa', { rowspan: 2 }), th('☀ Turno día', { colspan: 3, style: 'text-align:center;padding:6px 4px;background:#fff8e1;font-size:13px' }), th('🌙 Turno noche', { colspan: 3, style: 'text-align:center;padding:6px 4px;background:#e8eaf6;font-size:13px' }), th('', { rowspan: 2 })),
     h('tr', {}, th('Stand-by'), th('Lunes a viernes'), th('Sábado'), th('Stand-by'), th('Lunes a viernes'), th('Sábado'))), tb);
   const nAct = (MQ.maquinas || []).filter(x => x.estado !== 'RETIRADA').length;
-  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, nAct + ' máquina(s) activas. Escribe directo en la tabla (lo cambiado se pinta amarillo) y toca «Guardar cambios». El ID nunca cambia; el código sí (ej. 1 → 1AST) y el historial se conserva.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, nAct + ' máquina(s) activas. Escribe el código, tipo y empresa; los horarios y el stand-by se eligen con botones. Lo cambiado se pinta amarillo; al final toca «Guardar cambios». El ID nunca cambia; el código sí (ej. 1 → 1AST) y el historial se conserva.'));
   c.appendChild(h('div', { style: 'position:sticky;top:64px;z-index:5;background:#fff;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #e3e8ed;margin-bottom:6px' },
     h('button', { class: 'sec', onclick: () => { MQNUEVAS++; const y = window.scrollY; pintarMq(); window.scrollTo(0, y); } }, '➕ Agregar máquina'), btG, btD, msg));
   c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tabla));
   pintaBarra();
   c.insertBefore(h('h3', { style: 'margin:16px 0 6px' }, '⚙ Máquinas del proyecto'), c.firstChild); c.insertBefore(vistaMqAsig(), c.firstChild);
+}
+// Selector con botones para horarios de jornada y stand-by de las máquinas
+const MQ_HFMT = (hh, mm) => ((hh % 12) || 12) + ':' + (mm ? '30' : '00') + ' ' + (hh < 12 ? 'am' : 'pm');
+function pickMq(titulo, campo, actual, cb) {
+  const esSb = /^(sd|sn)$/.test(campo), noche = campo === 'sn' || campo[1] === 'n';
+  const usados = Array.from(new Set((MQ.maquinas || []).map(m => String(m[campo] || '').trim()).filter(v => v && v.toUpperCase() !== 'NO APLICA')));
+  const cerrar = () => ov.remove(), elegir = v => { cerrar(); cb(v); };
+  const chip = (t, v, on) => h('button', { type: 'button', style: 'padding:12px 14px;font-size:16px;border-radius:10px;border:2px solid ' + (on ? '#0a7a32' : '#cfd8e3') + ';background:' + (on ? '#e7f6ec' : '#fff') + ';color:#12202b;font-weight:700', onclick: () => elegir(v) }, t);
+  const caja = h('div', { style: 'background:#fff;border-radius:14px;padding:16px;width:min(640px,100%);max-height:90vh;overflow:auto' });
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px', onclick: e => { if (e.target === ov) cerrar(); } }, caja);
+  caja.appendChild(h('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px' }, h('b', { style: 'font-size:18px' }, titulo), h('button', { class: 'sec sm', onclick: cerrar }, '✖')));
+  const fila = h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px' });
+  caja.appendChild(fila);
+  if (esSb) {
+    Array.from(new Set(usados.concat(['100', '150', '200']))).sort((a, b) => Number(a) - Number(b)).forEach(v => fila.appendChild(chip(v + ' h', v, String(actual) === v)));
+    fila.appendChild(chip('🚫 No aplica', 'NO APLICA', String(actual).toUpperCase() === 'NO APLICA'));
+    const n = h('input', { type: 'number', min: 0, step: 1, inputmode: 'numeric', placeholder: 'Ej: 180', style: 'font-size:17px;padding:10px;width:130px' });
+    caja.appendChild(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, h('span', { style: 'font-weight:700' }, 'Otra cantidad:'), n, h('span', {}, 'horas'),
+      h('button', { style: 'background:#0a7a32;color:#fff;border:0;padding:10px 16px', onclick: () => { if (!(Number(n.value) > 0)) { n.focus(); return; } elegir(String(Number(n.value))); } }, '✔ Usar')));
+  } else {
+    const base = noche ? '6:00 pm - 7:00 am' : '7:00 am - 6:00 pm';
+    Array.from(new Set([base].concat(usados))).forEach(v => fila.appendChild(chip('🕒 ' + v, v, String(actual) === v)));
+    fila.appendChild(chip('🚫 No aplica', 'NO APLICA', String(actual).toUpperCase() === 'NO APLICA'));
+    const st = { e: noche ? 18 : 7, em: 0, s: noche ? 7 : 18, sm: 0 };
+    const m = String(actual).match(/(\d+):(\d\d)\s*(am|pm)\s*-\s*(\d+):(\d\d)\s*(am|pm)/i);
+    if (m) { const to = (hh, ap) => (Number(hh) % 12) + (ap.toLowerCase() === 'pm' ? 12 : 0); st.e = to(m[1], m[3]); st.em = m[2] === '30' ? 1 : 0; st.s = to(m[4], m[6]); st.sm = m[5] === '30' ? 1 : 0; }
+    const prev = h('div', { style: 'font-size:18px;font-weight:800;margin:8px 0' });
+    const grid = (k, km) => { const g = h('div', { style: 'display:grid;grid-template-columns:repeat(8,1fr);gap:4px' });
+      const pinta = () => { g.textContent = ''; for (let i = 0; i < 24; i++) g.appendChild(h('button', { type: 'button', style: 'padding:7px 0;font-size:13px;border-radius:7px;border:1px solid ' + (st[k] === i ? '#0a7a32' : '#cfd8e3') + ';background:' + (st[k] === i ? '#0a7a32' : '#fff') + ';color:' + (st[k] === i ? '#fff' : '#12202b') + ';font-weight:700', onclick: () => { st[k] = i; pinta(); act(); } }, ((i % 12) || 12) + (i < 12 ? ' am' : ' pm')));
+        ['00', '30'].forEach((t, j) => g.appendChild(h('button', { type: 'button', style: 'grid-column:span 4;padding:7px 0;font-size:13px;border-radius:7px;border:1px solid ' + (st[km] === j ? '#1565c0' : '#cfd8e3') + ';background:' + (st[km] === j ? '#e3eefc' : '#fff') + ';font-weight:700;color:#12202b', onclick: () => { st[km] = j; pinta(); act(); } }, ':' + t))); };
+      pinta(); return g; };
+    const txt = () => MQ_HFMT(st.e, st.em) + ' - ' + MQ_HFMT(st.s, st.sm);
+    const act = () => { let d = (st.s * 60 + st.sm * 30) - (st.e * 60 + st.em * 30); if (d <= 0) d += 1440; prev.textContent = txt() + '  (' + nf1(d / 60) + ' h)'; };
+    caja.appendChild(h('b', {}, 'Otro horario · Entra a las:')); caja.appendChild(grid('e', 'em'));
+    caja.appendChild(h('b', { style: 'display:block;margin-top:10px' }, 'Sale a las:')); caja.appendChild(grid('s', 'sm'));
+    caja.appendChild(prev); act();
+    caja.appendChild(h('button', { style: 'background:#0a7a32;color:#fff;border:0;padding:12px 18px;font-size:16px;width:100%', onclick: () => elegir(txt()) }, '✔ Usar este horario'));
+  }
+  document.body.appendChild(ov);
 }
 // Asignación operador → máquina (con fecha desde e historial)
 function vistaMqAsig() {
@@ -1885,7 +1932,36 @@ function xlsxMq() {
   const cons = Object.values(dm).map(a => [a[0], a[1], a[2], a[3], a[4], Math.round(a[5] * 100) / 100, a[6]]).sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'es', { numeric: true }) || b[5] - a[5]);
   excelHoja('REGISTRO', cols, rows, 'Maquinaria_' + $('desde').value + '_' + $('hasta').value + '.xlsx', [
     { nombre: 'Detalle de actividades', cols: ['Fecha', 'N° albarán', 'Móvil', 'Tipo de máquina', 'Turno', 'Usuario que registró', 'Tipo', 'Centro de costo', 'Actividad', 'Grupo', 'Desde', 'Hasta', 'Horas', 'Detalle'], rows: det },
-    { nombre: 'Consolidado', cols: ['Móvil', 'Tipo de máquina', 'Tipo', 'Centro de costo', 'Actividad', 'Horas', 'Veces'], rows: cons }]);
+    { nombre: 'Consolidado', cols: ['Móvil', 'Tipo de máquina', 'Tipo', 'Centro de costo', 'Actividad', 'Horas', 'Veces'], rows: cons }], { numerar: true, pre: dashMq(L) });
+}
+// Hoja 1 del Excel de maquinaria: rango de datos, KPIs generales, KPIs por máquina y horas no productivas por motivo
+function dashMq(L) {
+  const r2 = x => Math.round((Number(x) || 0) * 100) / 100, pc = (a, b) => b ? Math.round(a / b * 1000) / 10 : '';
+  const fs = L.map(r => r.fecha).sort(), mot = {}, M = {}, G = { ef: 0, np: 0, hor: 0, dias: new Set() };
+  L.forEach(r => { const k = String(r.maquina), m = (M[k] = M[k] || { mov: mqLbl(r), tipo: r.tipo || '', emp: r.empresa || '', n: 0, d: 0, nch: 0, dias: new Set(), hor: 0, ef: 0, np: 0, mot: {}, sf: 0, al: 0 });
+    m.n++; r.turno === 'NOCHE' ? m.nch++ : m.d++; m.dias.add(r.fecha); G.dias.add(r.fecha); m.hor += Number(r.h_hor) || 0; G.hor += Number(r.h_hor) || 0; if (!r.n_parte) m.sf++; if (mqAl(r).length) m.al++;
+    (r.det || []).forEach(x => { const hh = Number(x.h) || 0; if (x.parada) { m.np += hh; G.np += hh; m.mot[x.a] = (m.mot[x.a] || 0) + hh; mot[x.a] = mot[x.a] || { h: 0, m: new Set() }; mot[x.a].h += hh; mot[x.a].m.add(mqLbl(r)); } else { m.ef += hh; G.ef += hh; } }); });
+  const motK = Object.keys(mot).sort((a, b) => mot[b].h - mot[a].h);
+  const filt = [MQF.maq ? 'Máquina: ' + MQF.maq : '', MQF.usr ? 'Usuario: ' + nomDe(MQF.usr) : '', MQF.est ? 'Estado: ' + MQF.est : '', MQF.q ? 'Búsqueda: ' + MQF.q : ''].filter(Boolean).join(' · ') || 'Ninguno (todos los albaranes del periodo)';
+  const aoa = [['CONTROL PROYECTO CCSN — MAQUINARIA · DASHBOARD'], [],
+    ['RANGO DE DATOS DEL LIBRO', 'Del ' + fmtF($('desde').value) + ' al ' + fmtF($('hasta').value)],
+    ['Primer y último albarán', fs.length ? fmtF(fs[0]) + ' a ' + fmtF(fs[fs.length - 1]) : ''],
+    ['Filtros aplicados', filt], ['Generado', new Date().toLocaleString('es-CO')], ['Autor', 'Carlos Eduardo Bermúdez Castro'], [],
+    ['KPI GENERALES', 'Valor'], ['Albaranes', L.length], ['Máquinas con registro', Object.keys(M).length], ['Días con registro', G.dias.size],
+    ['Horas según horómetro', r2(G.hor)], ['Horas efectivas (productivas)', r2(G.ef)], ['Horas no productivas', r2(G.np)],
+    ['% efectividad (efectivas / (efectivas + no productivas))', pc(G.ef, G.ef + G.np)], ['Promedio horas efectivas por albarán', L.length ? r2(G.ef / L.length) : ''],
+    ['Albaranes sin foto', L.filter(r => !r.n_parte).length], ['Albaranes con alertas', L.filter(r => mqAl(r).length).length], [],
+    ['KPI POR MÁQUINA']];
+  const hdr = ['Móvil', 'Tipo de máquina', 'Empresa', 'Albaranes', 'Turnos día', 'Turnos noche', 'Días trabajados', 'Horas horómetro', 'Horas efectivas', 'Horas no productivas', '% efectividad', 'Prom. h efectivas por día', 'Ranking (h efectivas)'].concat(motK.map(k => 'NP: ' + k), ['Sin foto', 'Con alertas']);
+  aoa.push(hdr);
+  const ks = Object.keys(M).sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true })), rk = ks.slice().sort((a, b) => M[b].ef - M[a].ef);
+  ks.forEach(k => { const m = M[k]; aoa.push([m.mov, m.tipo, m.emp, m.n, m.d, m.nch, m.dias.size, r2(m.hor), r2(m.ef), r2(m.np), pc(m.ef, m.ef + m.np), m.dias.size ? r2(m.ef / m.dias.size) : '', rk.indexOf(k) + 1].concat(motK.map(x => m.mot[x] ? r2(m.mot[x]) : ''), [m.sf, m.al])); });
+  aoa.push(['TOTAL', '', '', L.length, L.filter(r => r.turno !== 'NOCHE').length, L.filter(r => r.turno === 'NOCHE').length, G.dias.size, r2(G.hor), r2(G.ef), r2(G.np), pc(G.ef, G.ef + G.np), G.dias.size ? r2(G.ef / G.dias.size) : '', ''].concat(motK.map(x => r2(mot[x].h)), [L.filter(r => !r.n_parte).length, L.filter(r => mqAl(r).length).length]));
+  aoa.push([], ['HORAS NO PRODUCTIVAS POR MOTIVO'], ['Motivo', 'Horas', '% del total no productivo', 'Máquinas']);
+  motK.forEach(k => aoa.push([k, r2(mot[k].h), pc(mot[k].h, G.np), Array.from(mot[k].m).join(', ')]));
+  if (!motK.length) aoa.push(['Sin horas no productivas en el rango']);
+  const cols = hdr.map((t, i) => ({ wch: i === 0 ? 46 : i === 1 ? 30 : Math.max(11, Math.min(26, t.length + 2)) }));
+  return { nombre: 'Dashboard', aoa: aoa, cols: cols, merges: [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }] };
 }
 const esPd = m => m !== 'transportes' && m !== 'acero' && m !== 'maquinaria' && m !== 'oe';
 function navegacion() {
