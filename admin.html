@@ -1623,9 +1623,9 @@ window.addEventListener('message', e => {
   else if (e.data.t === 'acero-alto' && $('acFrame')) $('acFrame').style.height = Math.max(400, e.data.h) + 'px';
 });
 /* ----- Maquinaria: reportes de las máquinas (horómetro, registro, horas por actividad) ----- */
-const MQ_TABS = [['rep', '📋 Albaranes'], ['res', '📊 Resumen'], ['pend', '🚨 Pendientes'], ['maq', '⚙ Máquinas']];
+const MQ_TABS = [['res', '📊 Resumen'], ['rep', '📋 Albaranes'], ['maq', '⚙ Máquinas'], ['pend', '🚨 Pendientes']];
 const mqNPend = () => (MQ && MQ.pend_foto ? MQ.pend_foto.length : 0);
-let MQ = null, MQTAB = selGet('mq', 'rep', v => MQ_TABS.some(x => x[0] === v)), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
+let MQ = null, MQTAB = selGet('mq', 'res', v => MQ_TABS.some(x => x[0] === v)), MQF = { q: '', maq: '', usr: '', est: '' }, MQN = 40;
 const mqNorm = x => { let t = String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, ''); return t; };
 const mqSinTilde = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const mqLbl = r => (r.vis || r.maquina) + (r.tipo ? ' · ' + r.tipo : '');
