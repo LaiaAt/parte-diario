@@ -2253,7 +2253,9 @@ function fotosVisibles() {
   return fotosBase().filter(f => !ac || (ac === '__sin' ? !f._k.length : f._k.indexOf(ac) >= 0))
     .sort((a, b) => (b.fecha + b.llave).localeCompare(a.fecha + a.llave) || a.n - b.n);
 }
-const nombreFoto = f => f.llave + '_' + f.fecha.slice(2).replace(/-/g, '') + (/_n\d+$/.test(String(f.id)) ? 'i' + String(f.id).match(/_n(\d+)$/)[1] : '') + '_' + f.n + '.jpg';
+// Nombre corto: fecha + actividad (pocas palabras) + número. Ej: 2026-11-20_Limpieza-box-la-novita_3.jpg
+const slugFoto = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 ]+/g, ' ').trim().split(/\s+/).filter(Boolean).slice(0, 5).join('-').slice(0, 28).replace(/-+$/, '');
+const nombreFoto = f => { const ad = f._ad && f._ad.length ? f._ad[0].t : (f.tipo === 'ALBARAN' ? 'Albaran' : 'Sin-actividad'); return f.fecha + '_' + (slugFoto(ad) || 'Foto') + '_' + f.n + '.jpg'; };
 async function obtener(f) {
   const k = f.id + '#' + f.foto;
   if (IMG.has(k)) return IMG.get(k);
@@ -2298,9 +2300,10 @@ function zipear(items) {
   const w16 = (a, v) => a.push(v & 255, (v >> 8) & 255), w32 = (a, v) => a.push(v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255);
   items.forEach(it => {
     const nm = enc.encode(it.nombre), crc = crc32(it.datos), h1 = [];
-    w32(h1, 0x04034b50); w16(h1, 20); w16(h1, 0x0800); w16(h1, 0); w16(h1, 0); w16(h1, 0x21); w32(h1, crc); w32(h1, it.datos.length); w32(h1, it.datos.length); w16(h1, nm.length); w16(h1, 0);
+    const fz = /^\d{4}-\d\d-\d\d/.test(it.fecha || '') ? it.fecha : bogota(), dd = ((Number(fz.slice(0, 4)) - 1980) << 9) | (Number(fz.slice(5, 7)) << 5) | Number(fz.slice(8, 10)), tt = 12 << 11; // fecha real de la foto en el ZIP
+    w32(h1, 0x04034b50); w16(h1, 20); w16(h1, 0x0800); w16(h1, 0); w16(h1, tt); w16(h1, dd); w32(h1, crc); w32(h1, it.datos.length); w32(h1, it.datos.length); w16(h1, nm.length); w16(h1, 0);
     partes.push(new Uint8Array(h1), nm, it.datos);
-    const c1 = []; w32(c1, 0x02014b50); w16(c1, 20); w16(c1, 20); w16(c1, 0x0800); w16(c1, 0); w16(c1, 0); w16(c1, 0x21); w32(c1, crc); w32(c1, it.datos.length); w32(c1, it.datos.length); w16(c1, nm.length); w16(c1, 0); w16(c1, 0); w16(c1, 0); w16(c1, 0); w32(c1, 0); w32(c1, off);
+    const c1 = []; w32(c1, 0x02014b50); w16(c1, 20); w16(c1, 20); w16(c1, 0x0800); w16(c1, 0); w16(c1, tt); w16(c1, dd); w32(c1, crc); w32(c1, it.datos.length); w32(c1, it.datos.length); w16(c1, nm.length); w16(c1, 0); w16(c1, 0); w16(c1, 0); w16(c1, 0); w32(c1, 0); w32(c1, off);
     central.push(new Uint8Array(c1), nm);
     off += h1.length + nm.length + it.datos.length;
   });
@@ -2330,10 +2333,11 @@ async function bajarZip() {
   if (L.length > 150 && !confirm('Son ' + L.length + ' fotos; puede tardar varios minutos y pesar mucho. ¿Continuar?')) return;
   $('bajaZip').disabled = true; const items = new Array(L.length); let hechas = 0, sig = 0;
   const av = avanceFotos('📦 Preparando el ZIP de fotos', L.length);
-  const trabajador = async () => { while (sig < L.length && !av.cancelado) { const i = sig++; try { const o = await obtener(L[i]); if (o) items[i] = { nombre: nombreFoto(L[i]), datos: new Uint8Array(await o.blob.arrayBuffer()) }; } catch (e) {} av.paso(++hechas); } };
+  const trabajador = async () => { while (sig < L.length && !av.cancelado) { const i = sig++; try { const o = await obtener(L[i]); if (o) items[i] = { nombre: nombreFoto(L[i]), fecha: L[i].fecha, datos: new Uint8Array(await o.blob.arrayBuffer()) }; } catch (e) {} av.paso(++hechas); } };
   try { await Promise.all([trabajador(), trabajador(), trabajador(), trabajador()]); } finally { $('bajaZip').disabled = false; }
   if (av.cancelado) { av.cerrar(); banner('Descarga cancelada', 'mal'); return; }
-  const ok = items.filter(Boolean);
+  const ok = items.filter(Boolean), usados = {};
+  ok.forEach(it => { let n = it.nombre, k = 2; while (usados[n]) n = it.nombre.replace(/\.jpg$/, '-' + (k++) + '.jpg'); usados[n] = 1; it.nombre = n; });
   if (!ok.length) { av.cerrar(); $('err').textContent = 'No se pudieron bajar las fotos.'; return; }
   await new Promise(r => setTimeout(r, 50));
   $('err').textContent = ok.length < L.length ? 'Faltaron ' + (L.length - ok.length) + ' fotos que no se pudieron bajar.' : '';
