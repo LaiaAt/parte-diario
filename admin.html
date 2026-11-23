@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Dashboard</title>
 <style>
@@ -1972,12 +1972,12 @@ function navegacion() {
   modulo(MOD);
 }
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
-const OE_TABS = [['kpi', '📊 Resumen'], ['reg', '📋 Registros'], ['mapa', '🗺️ Mapa']];
+const OE_TABS = [['reg', '📋 Registros'], ['mapa', '🗺️ Mapa']];
 const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Aprobado', '#0a7a32'], CORREGIDO: ['🔵', 'Corregido', '#1565c0'], RECHAZADO: ['🔴', 'Rechazado', '#b3261e'] };
 const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
 const oeCuenta = r => r.rev !== 'RECHAZADO'; // los rechazados no suman
-const oeSinCc = r => (!String(r.cc || '').trim() || String(r.cc).toUpperCase() === 'NUEVA') && !String(r.cc_re || '').trim();
-let OE = null, OETAB = selGet('oe', 'kpi', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', red: '', rev: '', q: '' }, OEN = 60;
+const oeSinCc = r => !String(r.cc || '').trim() || String(r.cc).toUpperCase() === 'NUEVA';
+let OE = null, OETAB = selGet('oe', 'reg', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', red: '', rev: '', q: '' }, OEN = 60;
 const oeNum = x => { const n = Number(String(x == null ? '' : x).replace(',', '.')); return isFinite(n) ? n : 0; };
 const oeR = n => Math.round(n * 100) / 100;
 const oeFmt = n => oeR(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
@@ -2015,14 +2015,66 @@ function oeTablas(L) {
     dia: { nombre: 'Por día', cols: ['Fecha', 'Registros', 'Topógrafos'], rows: Object.keys(L.reduce((o, r) => { (o[r.fecha] = o[r.fecha] || []).push(r); return o; }, {})).sort().map(f => { const x = L.filter(r => r.fecha === f); return [fmtF(f), x.length, new Set(x.map(r => r.llave)).size]; }) }
   };
 }
-// Columnas del Excel de O. Ejecutada: [título, campo editable (solo administrador de O. Ejecutada) o null]
-const OE_XL = [['ID', null], ['Fecha', null], ['Topógrafo', null], ['Hito', null], ['Tipo de red', null], ['UF', 'uf'], ['Costado', 'costado'], ['Abscisa inicial', 'abIni'], ['Abscisa final', 'abFin'], ['Paquete', 'paquete'], ['C. costos', 'cc'], ['Actividad', 'actividad'], ['Und', 'und'], ['Largo', 'largo'], ['Ancho', 'ancho'], ['Alto', 'alto'], ['Cantidad', 'cantidad'], ['Descuento', 'descuento'], ['Total', null], ['Latitud', null], ['Longitud', null], ['Observaciones', null]];
-function xlsxOe() {
+// Columnas del Excel de O. Ejecutada: [título, campo, ancho]. Campo null = bloqueado (ID, topógrafo, GPS); Total es fórmula.
+const OE_XL = [['ID', null, 17], ['Fecha', 'fecha', 11], ['Topógrafo', null, 20], ['Hito', 'hito', 17], ['Tipo de red', 'red', 14], ['UF', 'uf', 6], ['Costado', 'costado', 12], ['Abscisa inicial', 'abIni', 13], ['Abscisa final', 'abFin', 13], ['Paquete', 'paquete', 34], ['C. costos', 'cc', 12], ['Actividad', 'actividad', 46], ['Und', 'und', 6], ['Largo', 'largo', 8], ['Ancho', 'ancho', 8], ['Alto', 'alto', 8], ['Cantidad', 'cantidad', 10], ['Descuento', 'descuento', 10], ['Total', null, 10], ['Latitud', null, 11], ['Longitud', null, 12], ['Observaciones', 'obs', 30]];
+const OE_CAMPO_TXT = { fecha: 'Fecha', hito: 'Hito', red: 'Tipo de red', uf: 'UF', costado: 'Costado', abIni: 'Abscisa inicial', abFin: 'Abscisa final', paquete: 'Paquete', cc: 'C. costos', actividad: 'Actividad', und: 'Und', largo: 'Largo', ancho: 'Ancho', alto: 'Alto', cantidad: 'Cantidad', descuento: 'Descuento', obs: 'Observaciones', total: 'Total' };
+async function xlsxOe() {
   const L = oeFiltrados(); if (!L.length) { avisoDatos('No hay registros con este filtro'); return; }
-  if (!window.XLSX) { avisoDatos('El Excel aún está cargando, intenta de nuevo'); return; }
-  const cols = OE_XL.map(x => x[0]).concat([OE_RCC]);
-  const rows = L.slice().sort((a, b) => (oeSinCc(b) - oeSinCc(a)) || (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [r.id, fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.red || '', r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.total, r.lat, r.lon, r.obs, r.cc_re || '']);
-  excelHoja('Registros OE', cols, rows, 'OE_' + $('desde').value + '_a_' + $('hasta').value + '.xlsx', [], { numerar: true, pre: dashOe(L) });
+  banner('Preparando Excel…');
+  try { await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'); } catch (e) { banner('Sin señal: no se pudo preparar el Excel', 'mal'); return; }
+  const wb = new ExcelJS.Workbook(); wb.creator = 'CCSN';
+  const verde = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B5E20' } }, gris = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE7EBEF' } };
+  // 1. Dashboard
+  const D1 = dashOe(L), w1 = wb.addWorksheet('1. Dashboard');
+  w1.columns = [{ width: 44 }, { width: 44 }]; D1.aoa.forEach(r => w1.addRow(r));
+  w1.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FF1B5E20' } };
+  w1.eachRow(r => { const t = String(r.getCell(1).value || ''); if (/^(RANGO|KPI)/.test(t)) r.font = { bold: true }; });
+  // Listas para elegir (hoja oculta)
+  const HI = Object.keys(OE.hitos || {}).map(k => OE.hitos[k]), wl = wb.addWorksheet('Listas', { state: 'veryHidden' });
+  HI.forEach((t, i) => { wl.getCell(i + 1, 1).value = t; }); ['UF0', 'UF1', 'UF2', 'UF3', 'UF4', 'UF5', 'UF6', 'UF7'].forEach((t, i) => { wl.getCell(i + 1, 2).value = t; }); ['ORIENTAL', 'OCCIDENTAL', 'NO APLICA'].forEach((t, i) => { wl.getCell(i + 1, 3).value = t; });
+  // 2. Registros
+  const ws = wb.addWorksheet('2. Registros OE', { views: [{ state: 'frozen', xSplit: 1, ySplit: 1 }] });
+  ws.columns = OE_XL.map(x => ({ header: x[0], width: x[2] }));
+  const hr = ws.getRow(1); hr.font = { bold: true, color: { argb: 'FFFFFFFF' } }; hr.eachCell(ce => { ce.fill = verde; });
+  const ix = t => OE_XL.findIndex(x => x[0] === t) + 1, col = t => ws.getColumn(ix(t)).letter, num = v => v === '' || v === null || v === undefined ? null : (isFinite(Number(v)) ? Number(v) : v);
+  const R = L.slice().sort((a, b) => (oeSinCc(b) - oeSinCc(a)) || (a.fecha + a.creado).localeCompare(b.fecha + b.creado));
+  R.forEach((r, k) => {
+    const n = k + 2, p = String(r.fecha).split('-'), dims = [r.largo, r.ancho, r.alto].some(v => v !== '' && v !== null && v !== undefined);
+    const row = ws.addRow([r.id, p.length === 3 ? new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])) : r.fecha, r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.red || '', r.uf || '', r.costado || '', r.abIni || '', r.abFin || '', r.paquete || '', r.cc || '', r.actividad || '', r.und || '', num(r.largo), num(r.ancho), num(r.alto),
+      dims ? { formula: 'PRODUCT(' + col('Largo') + n + ':' + col('Alto') + n + ')', result: num(r.cantidad) } : num(r.cantidad), num(r.descuento) || 0,
+      { formula: col('Cantidad') + n + '-' + col('Descuento') + n, result: num(r.total) }, num(r.lat), num(r.lon), r.obs || '']);
+    row.getCell(ix('Fecha')).numFmt = 'dd/mm/yyyy';
+    OE_XL.forEach(([t, campo], c) => { const ce = row.getCell(c + 1); const libre = campo && !(t === 'Cantidad' && dims); ce.protection = { locked: !libre }; if (!libre) ce.fill = gris; });
+    row.getCell(ix('Hito')).dataValidation = { type: 'list', allowBlank: false, formulae: ['Listas!$A$1:$A$' + HI.length], showErrorMessage: true, errorTitle: 'Hito', error: 'Elige un hito de la lista' };
+    row.getCell(ix('UF')).dataValidation = { type: 'list', allowBlank: false, formulae: ['Listas!$B$1:$B$8'], showErrorMessage: true, errorTitle: 'UF', error: 'Elige UF0 a UF7' };
+    row.getCell(ix('Costado')).dataValidation = { type: 'list', allowBlank: false, formulae: ['Listas!$C$1:$C$3'], showErrorMessage: true, errorTitle: 'Costado', error: 'Elige ORIENTAL, OCCIDENTAL o NO APLICA' };
+  });
+  // 3. Centros de costo: lista válida. Para uno nuevo se escribe al final de esta hoja y luego se asigna.
+  const CAT = await catOe(), cods = Object.keys(CAT).sort((a, b) => a.localeCompare(b, 'es', { numeric: true })), w3c = wb.addWorksheet('3. Centros de costo', { views: [{ state: 'frozen', ySplit: 1 }] }), NLIB = 300;
+  w3c.columns = [['Código', 13], ['Actividad', 60], ['Und', 7], ['UF', 6], ['Hito', 22], ['Paquete', 40], ['Origen', 34]].map(x => ({ header: x[0], width: x[1] }));
+  const h3c = w3c.getRow(1); h3c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; h3c.eachCell(ce => { ce.fill = verde; });
+  cods.forEach(k => { const x = CAT[k], rw = w3c.addRow([k, x[0], x[1], x[2], x[3], x[4], x[5]]); rw.eachCell({ includeEmpty: true }, ce => { ce.protection = { locked: true }; }); });
+  for (let i = 0; i < NLIB; i++) { const rw = w3c.getRow(cods.length + 2 + i); for (let c = 1; c <= 6; c++) { const ce = rw.getCell(c); ce.protection = { locked: false }; ce.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } }; } }
+  w3c.getRow(cods.length + 2).getCell(7).value = '◀ Escribe aquí los centros de costo nuevos (código, actividad, und, UF, hito y paquete)';
+  w3c.autoFilter = { from: { row: 1, column: 1 }, to: { row: cods.length + 1, column: 7 } };
+  await w3c.protect('', { selectLockedCells: true, selectUnlockedCells: true, formatColumns: true, autoFilter: true });
+  const cc = col('C. costos'), last = R.length + 1, rgCc = "'3. Centros de costo'!$A$2:$A$" + (cods.length + 1 + NLIB);
+  for (let n = 2; n <= last; n++) ws.getCell(cc + n).dataValidation = { type: 'list', allowBlank: true, formulae: [rgCc], showErrorMessage: true, errorStyle: 'stop', errorTitle: 'Centro de costo', error: 'Ese centro de costo no está en la hoja «3. Centros de costo». Créalo primero al final de esa hoja.' };
+  ws.addConditionalFormatting({ ref: cc + '2:' + cc + last, rules: [{ type: 'expression', priority: 1, formulae: ['OR(TRIM(' + cc + '2)="",UPPER(TRIM(' + cc + '2))="NUEVA",COUNTIF(' + rgCc + ',' + cc + '2)=0)'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC000' } }, font: { bold: true, color: { argb: 'FF7A3E00' } } } }] });
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: last, column: OE_XL.length } };
+  await ws.protect('', { selectLockedCells: true, selectUnlockedCells: true, formatColumns: true, formatRows: true, autoFilter: true, sort: false });
+  // 3. Control de cambios
+  const ids = new Set(L.map(r => r.id)), CB = (OE.cambios || []).filter(x => ids.has(x.id)).sort((a, b) => b.ts.localeCompare(a.ts));
+  const w3 = wb.addWorksheet('4. Control de cambios', { views: [{ state: 'frozen', ySplit: 1 }] });
+  w3.columns = [['Fecha del cambio', 19], ['ID', 17], ['Fecha del registro', 12], ['Topógrafo', 20], ['Campo', 16], ['Antes', 34], ['Después', 34], ['Cambió', 22], ['Motivo', 30]].map(x => ({ header: x[0], width: x[1] }));
+  const h3 = w3.getRow(1); h3.font = { bold: true, color: { argb: 'FFFFFFFF' } }; h3.eachCell(ce => { ce.fill = verde; });
+  CB.forEach(x => w3.addRow([x.ts, x.id, fmtF(x.fecha), x.top, OE_CAMPO_TXT[x.campo] || x.campo, x.campo === 'hito' ? oeHitoTxt(x.antes) : x.antes, x.campo === 'hito' ? oeHitoTxt(x.despues) : x.despues, x.por, x.motivo]));
+  if (!CB.length) w3.addRow(['Sin cambios registrados para estos registros']);
+  else w3.autoFilter = { from: { row: 1, column: 1 }, to: { row: CB.length + 1, column: 9 } };
+  const buf = await wb.xlsx.writeBuffer(), a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = 'OE_' + $('desde').value + '_a_' + $('hasta').value + '.xlsx'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  banner('✔ Excel descargado', 'ok');
 }
 // Hoja 1 del Excel de O. Ejecutada: rango, KPI generales, totales por unidad, por hito y por topógrafo
 function dashOe(L) {
@@ -2033,7 +2085,7 @@ function dashOe(L) {
     ['Filtros aplicados', filt], ['Generado', new Date().toLocaleString('es-CO')], [],
     ['KPI GENERALES', 'Valor'], ['Registros', L.length], ['Topógrafos', new Set(L.map(r => r.llave)).size], ['Días con registro', new Set(L.map(r => r.fecha)).size],
     ['Hitos', new Set(L.map(r => r.hito)).size], ['Actividades distintas', new Set(L.map(r => r.actividad)).size], ['Promedio de registros por día', new Set(L.map(r => r.fecha)).size ? Math.round(L.length / new Set(L.map(r => r.fecha)).size * 10) / 10 : ''],
-    ['Sin centro de costo', L.filter(oeSinCc).length], ['Con centro de costo reasignado', L.filter(r => r.cc_re).length], ['Corregidos por la oficina', L.filter(r => r.rev === 'CORREGIDO').length],
+    ['Sin centro de costo', L.filter(oeSinCc).length], ['Corregidos por la oficina', L.filter(r => r.rev === 'CORREGIDO').length],
     ['Con foto', L.filter(r => r.foto).length], ['Con ubicación GPS', L.filter(r => isFinite(parseFloat(r.lat)) && Math.abs(parseFloat(r.lat)) > 0.01).length]];
   return { nombre: 'Dashboard', aoa: aoa, cols: [{ wch: 44 }, { wch: 40 }], merges: [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }] };
 }
@@ -2055,7 +2107,7 @@ function pintarOe() {
   const sel = (k, op, def) => { const s = h('select', { onchange: () => { OEF[k] = s.value; OEN = 60; pintarOe(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = OEF[k]; return s; };
   const q = h('input', { type: 'search', placeholder: '🔎 Buscar actividad, UF, costado, paquete…', value: OEF.q, style: 'font-size:17px;padding:10px;min-width:220px;flex:2' });
   let tq; q.oninput = () => { OEF.q = q.value; clearTimeout(tq); tq = setTimeout(() => { OEN = 60; const y = window.scrollY; pintarOe(); const n = $('oeBody').querySelector('input[type=search]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } window.scrollTo(0, y); }, 300); };
-  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, q, sel('top', tops.map(l => [l, nomDe(l)]), 'Todos los topógrafos'), sel('hito', hitos.map(k => [k, oeHitoTxt(k)]), 'Todos los hitos'), reds.length ? sel('red', reds.map(k => [k, k]), 'Todas las redes') : null, OETAB === 'reg' ? null : h('button', { onclick: xlsxOe }, '⬇ Excel')));
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, OETAB === 'kpi' ? null : q, sel('top', tops.map(l => [l, nomDe(l)]), 'Todos los topógrafos'), sel('hito', hitos.map(k => [k, oeHitoTxt(k)]), 'Todos los hitos'), reds.length ? sel('red', reds.map(k => [k, k]), 'Todas las redes') : null, OETAB === 'reg' ? null : h('button', { onclick: xlsxOe }, '⬇ Excel')));
   const L = oeFiltrados();
   if (!L.length) { c.appendChild(h('div', { class: 'trok' }, 'Ningún registro coincide con el filtro')); return; }
   const T = oeTablas(L);
@@ -2066,9 +2118,6 @@ function pintarOe() {
     const nN = L.filter(oeSinCc).length;
     if (nN) c.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700;margin:8px 0' }, '🟠 ' + nN + ' registro(s) sin centro de costo. En «Registros» descarga el Excel, llena la columna REASIGNAR CENTRO DE COSTO y súbelo.'));
     c.appendChild(h('div', { class: 'kpis' }, Object.keys(und).sort().map(u => K('Total en ' + u, oeFmt(und[u])))));
-    c.appendChild(tablaMq('📐 Por hito', T.hito.cols, T.hito.rows));
-    c.appendChild(tablaMq('📅 Por día', T.dia.cols, T.dia.rows));
-    c.appendChild(tablaMq('👷 Por topógrafo', T.top.cols, T.top.rows));
     return;
   }
   if (OETAB === 'mapa') { vistaOeMapa(c, L); return; }
@@ -2077,12 +2126,12 @@ function pintarOe() {
     const nS = L.filter(oeSinCc).length;
     c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;gap:8px;align-items:center;flex-wrap:wrap' },
       h('button', { onclick: xlsxOe }, '⬇ Descargar Excel (' + L.length + ')'),
-      h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: () => file.click() }, '⬆ Subir Excel modificado'), file,
-      h('span', { class: 'small' }, (nS ? '🟠 ' + nS + ' sin centro de costo. ' : '') + (OE.editor ? 'Corrige las celdas o llena ' + OE_RCC + ' y súbelo: verás los cambios antes de aplicar.' : 'Llena ' + OE_RCC + ' y súbelo. Las demás columnas solo las cambia el administrador de O. Ejecutada.')))); }
+      OE.editor ? h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: () => file.click() }, '⬆ Subir Excel modificado') : null, file,
+      h('span', { class: 'small' }, (nS ? '🟠 ' + nS + ' sin centro de costo. ' : '') + (OE.editor ? 'Modifica las celdas en el Excel (menos el ID) y súbelo: verás los cambios antes de aplicar y queda el control de cambios.' : 'Solo el administrador de O. Ejecutada puede subir cambios.')))); }
   const th = ['Fecha', 'Topógrafo', 'Hito', 'Red', 'UF · Costado', 'Abscisas', 'Actividad', 'Und', 'Total', ''];
   c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, L.length + ' registros' + (L.length > vis.length ? ' · se muestran ' + vis.length + ', el Excel trae todos' : '')));
   c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, th.map(t => h('th', {}, t)))), h('tbody', {}, vis.map(r => h('tr', { style: r.rev === 'RECHAZADO' ? 'opacity:.55;text-decoration:line-through' : '' },
-    h('td', {}, fmtF(r.fecha)), h('td', {}, r.topografo || nomDe(r.llave)), h('td', {}, oeHitoTxt(r.hito)), h('td', {}, r.red || ''), h('td', {}, [r.uf, r.costado].filter(Boolean).join(' · ')), h('td', {}, oeAbs(r)), h('td', {}, r.actividad || '', r.rev === 'CORREGIDO' ? h('div', { class: 'small', style: 'color:#1565c0' }, '🔵 Corregido' + (r.rev_motivo ? ': ' + r.rev_motivo : '')) : null, oeSinCc(r) ? h('div', { class: 'small', style: 'color:#b35c00' }, '🟠 Sin centro de costo') : null, r.cc_re ? h('div', { class: 'small', style: 'color:#6a1b9a' }, '🔁 CC reasignado: ' + r.cc_re + ' (reporte: ' + (r.cc || '—') + ')') : null), h('td', {}, r.und || ''),
+    h('td', {}, fmtF(r.fecha)), h('td', {}, r.topografo || nomDe(r.llave)), h('td', {}, oeHitoTxt(r.hito)), h('td', {}, r.red || ''), h('td', {}, [r.uf, r.costado].filter(Boolean).join(' · ')), h('td', {}, oeAbs(r)), h('td', {}, r.actividad || '', r.rev === 'CORREGIDO' ? h('div', { class: 'small', style: 'color:#1565c0' }, '🔵 Corregido' + (r.rev_motivo ? ': ' + r.rev_motivo : '')) : null, oeSinCc(r) ? h('div', { class: 'small', style: 'color:#b35c00' }, '🟠 Sin centro de costo') : null), h('td', {}, r.und || ''),
     h('td', { style: 'text-align:right;font-weight:700' }, oeFmt(oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad))),
     h('td', { style: 'white-space:nowrap' }, r.foto ? h('button', { class: 'sec sm', onclick: () => verFotoOe(r) }, '📷') : null,
       OE.editor ? h('button', { class: 'sec sm', title: 'Corregir', onclick: () => editarOe(r) }, '✏️') : null)))))));
@@ -2105,6 +2154,7 @@ async function enviarRevOe(cambios, silencio) {
       if (!x.ok) { banner(x.mensaje || 'No se pudo guardar', 'mal'); return false; }
       ap += x.aplicados; err = err.concat(x.errores || []);
       (x.registros || []).forEach(n => { const k = OE.registros.findIndex(r => r.id === n.id); if (k >= 0) OE.registros[k] = n; });
+      if (x.cambios && x.cambios.length) { const ids = new Set(x.cambios.map(c => c.id)); OE.cambios = (OE.cambios || []).filter(c => !ids.has(c.id)).concat(x.cambios); }
     }
   } catch (e) { banner('Sin señal: no se guardó', 'mal'); return false; }
   CDB.del('admin_oe'); const y = window.scrollY; pintarOe(); window.scrollTo(0, y);
@@ -2133,6 +2183,7 @@ function editarOe(r) {
           const campos = {}; OE_EDIT.forEach(([k]) => { const v = inp[k].value.trim(), a = r[k] === undefined || r[k] === null ? '' : String(r[k]); if (v !== a) campos[k] = v; });
           if (!Object.keys(campos).length) { msg.textContent = 'No cambiaste nada.'; return; }
           if (mot.value.trim().length < 4) { msg.textContent = 'Escribe el motivo de la corrección.'; mot.focus(); return; }
+          if (campos.cc) { campos.cc = campos.cc.toUpperCase().replace(/\s+/g, ''); const CAT = await catOe(); if (!CAT[campos.cc]) { msg.textContent = 'El centro de costo ' + campos.cc + ' no está en la lista. Créalo primero en la hoja «Centros de costo» del Excel.'; return; } }
           if (await enviarRevOe([{ id: r.id, campos: campos, motivo: mot.value.trim() }])) ov.remove();
         } }, '💾 Guardar corrección'))));
   document.body.appendChild(ov);
@@ -2167,56 +2218,68 @@ function vistaOeMapa(c, L) {
     m.fitBounds(b, { padding: [30, 30], maxZoom: 17 });
   }).catch(() => { box.textContent = 'No se pudo cargar el mapa (sin señal).'; });
 }
-let OE_CAT = null;
-async function catOe() { if (OE_CAT) return OE_CAT; try { const c = await (await fetch('oe/catalogo.json')).json(), m = {}; Object.values(c.cat).concat(Object.values(c.sub || {})).forEach(L => L.forEach(p => p[1].forEach(a => { m[a[0]] = a[1] + ' (' + a[2] + ')'; }))); OE_CAT = m; } catch (e) { OE_CAT = {}; } return OE_CAT; }
-// Subir el Excel de O. Ejecutada. REASIGNAR CENTRO DE COSTO: cualquier administrador, se guarda aparte y NUNCA reemplaza el centro de costo del reporte.
-// Las demás columnas editables: solo el administrador de O. Ejecutada (modificación masiva).
-const OE_RCC = 'REASIGNAR CENTRO DE COSTO';
+// Centros de costo válidos: catálogo de la app (incluye UF6/UF7 con su código), subcuentas y los creados por la oficina. código → [actividad, und, UF, hito, paquete, origen]
+let OE_CATJ = null;
+async function catOe() {
+  if (!OE_CATJ) { try { OE_CATJ = await (await fetch('oe/catalogo.json')).json(); } catch (e) { OE_CATJ = { cat: {}, sub: {}, hitos: [] }; } }
+  const c = OE_CATJ, m = {}, HN = {}; (c.hitos || []).forEach(x => { HN[x[0]] = x[1]; });
+  const add = (cod, a, und, uf, hi, pq, org) => { cod = String(cod).toUpperCase(); if (!m[cod]) m[cod] = [a, und, uf, hi, pq, org]; };
+  Object.keys(c.cat || {}).forEach(k => { const [hc, uf] = k.split('|'); c.cat[k].forEach(p => p[1].forEach(a => add(a[0], a[1], a[2], uf, oeHitoTxt(hc) || HN[hc] || hc, p[0], 'Catálogo'))); });
+  (c.hitos || []).forEach(([hc]) => ['UF6', 'UF7'].forEach(uf => { if (c.cat[hc + '|' + uf]) return; const b = ['UF1', 'UF2', 'UF3', 'UF4', 'UF5'].find(u => c.cat[hc + '|' + u]); if (!b) return;
+    c.cat[hc + '|' + b].forEach(p => p[1].forEach(a => add(String(a[0]).replace(/^\d/, uf.slice(2)), a[1], a[2], uf, oeHitoTxt(hc) || HN[hc] || hc, p[0], 'Catálogo'))); }));
+  Object.keys(c.sub || {}).forEach(k => c.sub[k].forEach(p => p[1].forEach(a => add(a[0], a[1], a[2], k === 'UF0' ? 'UF0' : '', k === 'UF0' ? 'MANTENIMIENTO' : k, p[0], 'Catálogo'))));
+  ((OE && OE.ccs) || []).forEach(x => add(x.cod, x.act, x.und, x.uf, oeHitoTxt(x.hito), x.pq, 'Creado por ' + x.por + ' · ' + String(x.ts).slice(0, 10)));
+  return m;
+}
+// Subir el Excel de O. Ejecutada (solo el administrador de O. Ejecutada): modificación masiva por ID. El ID no se cambia; cada cambio queda en el control de cambios.
 async function subirXlsOe(file) {
+  if (!OE.editor) { banner('Solo el administrador de O. Ejecutada puede subir cambios', 'mal'); return; }
   if (!window.XLSX) { avisoDatos('El Excel aún está cargando, intenta de nuevo'); return; }
-  let filas = null;
+  let filas = null, hcc = [];
   try { const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-    for (const n of wb.SheetNames) { const f = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '', raw: true }); if (f.length && 'ID' in f[0] && Object.keys(f[0]).some(k => k.trim().toUpperCase() === OE_RCC)) { filas = f; break; } } }
+    for (const n of wb.SheetNames) { const f = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '', raw: true }); if (!f.length) continue; if ('ID' in f[0] && 'Actividad' in f[0]) filas = filas || f; else if ('Código' in f[0] && 'Und' in f[0]) hcc = f; } }
   catch (e) { banner('No se pudo leer el Excel', 'mal'); return; }
-  if (!filas) { alertaOe('El Excel no tiene la hoja de registros con la columna ' + OE_RCC, ['Descarga el Excel desde Registros y súbelo sin cambiar los títulos.']); return; }
-  const cat = await catOe(), por = {}; OE.registros.forEach(r => { por[String(r.id).toUpperCase()] = r; });
-  const col = Object.keys(filas[0]).find(k => k.trim().toUpperCase() === OE_RCC);
+  if (!filas) { alertaOe('El Excel no tiene la hoja de registros', ['Descarga el Excel desde Registros y súbelo sin cambiar los títulos.']); return; }
+  const por = {}; OE.registros.forEach(r => { por[String(r.id).toUpperCase()] = r; });
+  const hit = {}; Object.keys(OE.hitos || {}).forEach(k => { hit[String(OE.hitos[k]).toUpperCase()] = k; hit[k.toUpperCase()] = k; });
   const nrm = v => String(v === null || v === undefined ? '' : v).trim(), esN = v => nrm(v) !== '' && isFinite(Number(nrm(v).replace(',', '.')));
+  const fecha = v => { if (typeof v === 'number') return new Date(Math.round((v - 25569) * 86400000)).toISOString().slice(0, 10); const m = nrm(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); return m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : nrm(v); };
   const igual = (a, b) => (esN(a) && esN(b)) ? Math.abs(Number(nrm(a).replace(',', '.')) - Number(nrm(b).replace(',', '.'))) < 0.0005 : nrm(a).toUpperCase() === nrm(b).toUpperCase();
-  const ccs = [], verCc = [], mods = [], verMod = [], errores = []; let ignor = 0;
+  const CAT = await catOe(), nuevos = [], verN = [], valido = {}; Object.keys(CAT).forEach(k => { valido[k] = 1; });
+  const mods = [], ver = [], errores = [];
+  hcc.forEach((f, i) => { const cod = nrm(f['Código']).toUpperCase().replace(/\s+/g, ''); if (!cod || valido[cod] || cod === 'NUEVA') return;
+    const act = nrm(f['Actividad']), und = nrm(f['Und']).toUpperCase(), hn = nrm(f['Hito']), hc = hn ? hit[hn.toUpperCase()] : '';
+    if (!act || !und) { errores.push('Centros de costo, fila ' + (i + 2) + ': a ' + cod + ' le falta la actividad o la unidad (no se crea)'); return; }
+    if (hn && !hc) { errores.push('Centros de costo, fila ' + (i + 2) + ': hito «' + hn + '» no existe (no se crea ' + cod + ')'); return; }
+    valido[cod] = 1; nuevos.push({ cod: cod, act: act, und: und, uf: nrm(f['UF']).toUpperCase(), hito: hc || '', pq: nrm(f['Paquete']) }); verN.push('🆕 ' + cod + ' · ' + act + ' (' + und + ')' + (hc ? ' · ' + oeHitoTxt(hc) : '') + (nrm(f['UF']) ? ' · ' + nrm(f['UF']).toUpperCase() : '')); });
   filas.forEach((f, i) => {
     const id = nrm(f['ID']).toUpperCase(); if (!id) return;
-    const r = por[id]; if (!r) { errores.push('Fila ' + (i + 2) + ': el ID ' + id + ' no está en las fechas filtradas (no se toca)'); return; }
-    const re = nrm(f[col]).toUpperCase().replace(/\s+/g, '');
-    if (!igual(re, r.cc_re || '')) { ccs.push({ id: id, cc: re }); verCc.push((re && !cat[re] ? '⚠ ' : '🔁 ') + fmtF(r.fecha) + ' · ' + nrm(r.actividad).slice(0, 40) + ' · reporte ' + (r.cc || '—') + ' → ' + (re ? 'reasignado ' + re + (cat[re] ? ' · ' + cat[re] : ' · no está en el catálogo') : 'sin reasignar')); }
+    const r = por[id]; if (!r) { errores.push('Fila ' + (i + 2) + ': el ID ' + id + ' no existe en las fechas filtradas (no se toca)'); return; }
     const campos = {}, dif = [];
-    OE_XL.forEach(([t, k]) => { if (!k || !(t in f) || igual(f[t], r[k])) return; campos[k] = nrm(f[t]); dif.push(t + ': ' + (nrm(r[k]) || '—') + ' → ' + (nrm(f[t]) || '—')); });
-    if (!dif.length) return;
-    if (!OE.editor) { ignor++; return; }
-    mods.push({ id: id, campos: campos, motivo: 'Modificación masiva por Excel' }); verMod.push('✏️ ' + fmtF(r.fecha) + ' · ' + nrm(r.actividad).slice(0, 40) + ' · ' + dif.join(' · '));
+    OE_XL.forEach(([t, k]) => {
+      if (!k || !(t in f)) return;
+      let nv = f[t], ant = r[k];
+      if (k === 'fecha') { nv = fecha(nv); ant = r.fecha; }
+      else if (k === 'hito') { const c = hit[nrm(nv).toUpperCase()]; if (!c) { errores.push('Fila ' + (i + 2) + ': hito «' + nrm(nv) + '» no existe'); return; } nv = c; }
+      if (igual(nv, ant)) return;
+      if (k === 'cc' && !valido[nrm(nv).toUpperCase().replace(/\s+/g, '')]) { errores.push('Fila ' + (i + 2) + ' (' + id + '): el centro de costo «' + nrm(nv) + '» no está en la hoja Centros de costo (no se asigna)'); return; }
+      campos[k] = k === 'cc' ? nrm(nv).toUpperCase().replace(/\s+/g, '') : nrm(nv); dif.push(t + ': ' + (k === 'hito' ? oeHitoTxt(ant) : k === 'fecha' ? fmtF(ant) : nrm(ant) || '—') + ' → ' + (k === 'hito' ? oeHitoTxt(nv) : k === 'fecha' ? fmtF(nv) : nrm(nv) || '—'));
+    });
+    if (dif.length) { mods.push({ id: id, campos: campos, motivo: 'Modificación masiva por Excel' }); ver.push('✏️ ' + id + ' · ' + nrm(r.actividad).slice(0, 35) + ' · ' + dif.join(' · ')); }
   });
-  if (ignor) errores.unshift(ignor + ' fila(s) con cambios en otras columnas NO se aplican: solo el administrador de O. Ejecutada puede modificar los registros.');
-  if (!ccs.length && !mods.length) { alertaOe('El Excel no trae cambios para aplicar', errores.length ? errores : ['Todo coincide con lo que hay en el sistema.']); return; }
-  const nNo = verCc.filter(x => x[0] === '⚠').length, lista = (t, L) => L.length ? h('div', { style: 'margin:8px 0' }, h('b', {}, t), h('ul', { style: 'margin:4px 0' }, L.slice(0, 300).map(x => h('li', { class: 'small' }, x))), L.length > 300 ? h('div', { class: 'small' }, '… y ' + (L.length - 300) + ' más') : null) : null;
+  if (!mods.length && !nuevos.length) { alertaOe('El Excel no trae cambios para aplicar', errores.length ? errores : ['Todo coincide con lo que hay en el sistema.']); return; }
   const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px' },
-    h('div', { style: 'background:#fff;border-radius:12px;padding:16px;width:min(800px,100%);max-height:85vh;overflow:auto' },
-      h('b', { style: 'font-size:17px' }, 'Revisa antes de aplicar'),
+    h('div', { style: 'background:#fff;border-radius:12px;padding:16px;width:min(820px,100%);max-height:85vh;overflow:auto' },
+      h('b', { style: 'font-size:17px' }, 'Revisa antes de aplicar' + (nuevos.length ? ': ' + nuevos.length + ' centro(s) de costo nuevo(s)' : '') + (mods.length ? ' · ' + mods.length + ' registro(s) con cambios' : '')),
+      h('div', { class: 'small', style: 'margin:4px 0' }, 'Cada cambio queda en el control de cambios (quién, cuándo, antes y después). Los registros modificados ya no los puede editar el topógrafo.'),
       errores.length ? h('div', { style: 'color:#b3261e;margin:8px 0' }, h('ul', {}, errores.slice(0, 50).map(x => h('li', { class: 'small' }, x)))) : null,
-      nNo ? h('div', { style: 'color:#9a6b00;font-weight:700;margin:6px 0' }, '⚠ ' + nNo + ' código(s) reasignados no están en el catálogo de la app. Revisa que estén bien escritos.') : null,
-      lista('🔁 Centro de costo reasignado (' + ccs.length + ') · el centro de costo del reporte no cambia', verCc),
-      lista('✏️ Registros modificados (' + mods.length + ')', verMod),
-      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, h('button', { class: 'sec', onclick: () => ov.remove() }, 'Cancelar'), h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: async () => { ov.remove(); await aplicarXlsOe(ccs, mods); } }, '✔ Aplicar ' + (ccs.length + mods.length) + ' cambio(s)'))));
+      verN.length ? h('div', { style: 'margin:8px 0' }, h('b', {}, 'Centros de costo que se crean (se suman a la lista y a la app de O. Ejecutada)'), h('ul', {}, verN.slice(0, 200).map(x => h('li', { class: 'small' }, x)))) : null,
+      ver.length ? h('b', {}, 'Registros modificados') : null,
+      h('ul', { style: 'margin:8px 0' }, ver.slice(0, 300).map(x => h('li', { class: 'small' }, x))), ver.length > 300 ? h('div', { class: 'small' }, '… y ' + (ver.length - 300) + ' más') : null,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, h('button', { class: 'sec', onclick: () => ov.remove() }, 'Cancelar'), h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: async () => { ov.remove();
+        if (nuevos.length) { banner('Creando centros de costo…'); try { const x = await api({ accion: 'admin_oe_ccnuevo', llave: LLAVE, lista: nuevos }); if (!x.ok) { banner(x.mensaje || 'No se pudieron crear', 'mal'); return; } OE.ccs = x.ccs; CDB.del('admin_oe'); if (x.errores && x.errores.length) alertaOe('Algunos centros de costo no se crearon', x.errores); if (!mods.length) banner('✔ ' + x.creados + ' centro(s) de costo creados', 'ok'); } catch (e) { banner('Sin señal: no se guardó', 'mal'); return; } }
+        if (mods.length) await enviarRevOe(mods); } }, '✔ Aplicar'))));
   document.body.appendChild(ov);
-}
-async function aplicarXlsOe(ccs, mods) {
-  if (ccs.length) {
-    banner('Guardando centros de costo reasignados…'); let n = 0, err = [];
-    try { for (let i = 0; i < ccs.length; i += 500) { const x = await api({ accion: 'admin_oe_cc', llave: LLAVE, cambios: ccs.slice(i, i + 500) }); if (!x.ok) { banner(x.mensaje || 'No se pudo guardar', 'mal'); return; }
-      n += x.aplicados; err = err.concat(x.errores || []); (x.registros || []).forEach(nr => { const k = OE.registros.findIndex(r => r.id === nr.id); if (k >= 0) OE.registros[k] = nr; }); } }
-    catch (e) { banner('Sin señal: no se guardó', 'mal'); return; }
-    CDB.del('admin_oe'); if (!mods.length) { const y = window.scrollY; pintarOe(); window.scrollTo(0, y); banner('✔ ' + n + ' centro(s) de costo reasignados' + (err.length ? ' · ' + err.length + ' con error' : ''), err.length ? 'mal' : 'ok'); if (err.length) alertaOe('Algunos no se aplicaron', err); }
-  }
-  if (mods.length) await enviarRevOe(mods);
 }
 function llaves() { return D.usuarios.map(u => u.llave); }
 // En el Dashboard solo se ven nombres de usuario; la llave (clave de acceso) no se muestra

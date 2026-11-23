@@ -118,11 +118,20 @@ const revTag = x => x.rev && REVT[x.rev] ? '<span class="tag" style="background:
 const esRed = h => h === '2.11' || h === '2.12';
 const esMant = h => h === 'MANT';
 const redLista0 = r => !!(S.cat && S.cat.redes && S.cat.redes.some(x => x[0] === r));
+// Centros de costo creados por la oficina en el Dashboard: se suman a la lista de su hito y UF (en su paquete o en «Nuevos centros de costo»)
+S.ccx = lsGet('oe_ccx') || [];
+function conNuevos(L, h, uf) {
+  const X = (S.ccx || []).filter(x => x[4] === h && (!x[3] || x[3] === uf)); if (!X.length) return L;
+  const usados = new Set([].concat(...L.map(p => p[1].map(a => String(a[0]).toUpperCase()))));
+  const R = L.map(p => [p[0], p[1].concat(X.filter(x => !usados.has(x[0]) && String(x[5]).toUpperCase() === String(p[0]).toUpperCase()).map(x => [x[0], x[1], x[2]]))]);
+  const resto = X.filter(x => !usados.has(x[0]) && !L.some(p => String(p[0]).toUpperCase() === String(x[5]).toUpperCase())).map(x => [x[0], x[1], x[2]]);
+  return resto.length ? R.concat([['Nuevos centros de costo', resto]]) : R;
+}
 function pqs(f, h) {
   f = f || S.f; h = h || S.hito; if (!S.cat) return [];
-  if (esMant(h)) return (S.cat.sub && S.cat.sub.UF0) || [];
+  if (esMant(h)) return conNuevos((S.cat.sub && S.cat.sub.UF0) || [], h, 'UF0');
   if (esRed(h) && f.red && f.red !== 'CAPEX') return (S.cat.sub && S.cat.sub[f.red]) || [];
-  return paquetesDe(h, f.uf);
+  return conNuevos(paquetesDe(h, f.uf), h, f.uf);
 }
 // Actividades del paquete elegido; con «Otro paquete» (pq = 'O') se muestran todas las del hito/red
 function actsPq(f) { f = f || S.f; const L = pqs(f); return f.pq === 'O' ? [].concat(...L.map(p => p[1])) : ((L[f.pq] || ['', []])[1]); }
@@ -142,7 +151,7 @@ async function pedirDia() {
   try {
     const r = await llamar({ accion: 'oe_lista', llave: S.ses.llave, fecha: S.fecha });
     S.offline = false;
-    if (r && r.ok) { S.srv = r.registros; S.mis[S.fecha] = r.registros; lsSet(LSC, { llave: S.ses.llave, f: S.fecha, r: r.registros }); }
+    if (r && r.ok) { S.srv = r.registros; S.mis[S.fecha] = r.registros; lsSet(LSC, { llave: S.ses.llave, f: S.fecha, r: r.registros }); if (Array.isArray(r.ccs)) { S.ccx = r.ccs; lsSet('oe_ccx', r.ccs); } }
     else if (r && /Llave/.test(r.mensaje || '')) { salir(); S.loginErr = 'Tu llave ya no es válida.'; render(); return; }
   } catch (e) { S.offline = true; }
   S.cargando = false; render();
