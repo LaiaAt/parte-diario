@@ -1431,8 +1431,8 @@ async function postGeo(d) {
   TR.geo = r.geo; TR.dist = r.dist; TR.sitios = r.sitios; TR.ufs = r.ufs; return r;
 }
 let GP = {}, GEO_DOM = null;
-const nPend = () => Object.keys(GP).length + Object.keys(VDIRTY).length + Object.keys(VMEM).length;
-function descartarPend() { GP = {}; GEO_DOM = null; Object.keys(VDIRTY).forEach(k => delete VDIRTY[k]); Object.keys(VMEM).forEach(k => delete VMEM[k]); }
+const nPend = () => Object.keys(GP).length + Object.keys(VDIRTY).length + Object.keys(VMEM).length + (typeof MQDIRTY === 'object' ? Object.keys(MQDIRTY).length : 0);
+function descartarPend() { MQDIRTY = {}; MQNUEVAS = 0; GP = {}; GEO_DOM = null; Object.keys(VDIRTY).forEach(k => delete VDIRTY[k]); Object.keys(VMEM).forEach(k => delete VMEM[k]); }
 /** Si hay cambios sin guardar, avisa que se perderán. Devuelve true si se puede continuar. */
 function puedeSalir() {
   if (!nPend()) return true;
@@ -1631,7 +1631,7 @@ const mqFuera = r => (r.det || []).some(x => x.fuera);
 const mqSin = r => Math.max(0, Math.round(((Number(r.h_hor) || 0) - (Number(r.h_trab) || 0)) * 100) / 100);
 function navMq() {
   const tb = $('nav4'); tb.textContent = '';
-  MQ_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: MQTAB === k ? 'on' : '', onclick: () => { MQTAB = k; selSet('mq', k); navMq(); if (MQ) pintarMq(); else cargarMq(); } }, t, k === 'pend' && mqNPend() ? h('span', { class: 'tabBadge' }, '📷 ' + mqNPend()) : null)));
+  MQ_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: MQTAB === k ? 'on' : '', onclick: () => { if (k !== MQTAB && !puedeSalir()) return; MQTAB = k; selSet('mq', k); navMq(); if (MQ) pintarMq(); else cargarMq(); } }, t, k === 'pend' && mqNPend() ? h('span', { class: 'tabBadge' }, '📷 ' + mqNPend()) : null)));
   pintarArbol();
 }
 async function cargarMq() {
@@ -1645,38 +1645,57 @@ async function cargarMq() {
     const y = window.scrollY; MQ = r; pintarMq(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
   } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · maquinaria guardada'); else $('mqBody').textContent = 'No se pudo conectar.'; finBanner(false); }
 }
+// Máquinas del proyecto: se edita en la tabla y se guarda TODO con un solo botón. Si cambias de vista sin guardar, avisa.
+let MQDIRTY = {}, MQNUEVAS = 0;
+const MQ_CAMPOS = [['vis', 'Código', 80], ['tipo', 'Tipo de máquina', 230], ['empresa', 'Empresa', 120], ['sd', 'Stand-by', 80], ['hdl', 'Lunes a viernes', 140], ['hds', 'Sábado', 140], ['sn', 'Stand-by', 80], ['hnl', 'Lunes a viernes', 140], ['hns', 'Sábado', 140]];
 function vistaMqMaq(c) {
-  const msg = h('div', { id: 'mqMsg', style: 'margin:8px 0;font-weight:700;min-height:22px' });
-  const envia = async (req, ok) => {
-    msg.style.color = '#51606d'; msg.textContent = 'Guardando…';
-    try {
-      const r = await api(Object.assign({ accion: 'admin_mq_maq', llave: LLAVE }, req));
-      if (!r.ok) { msg.style.color = '#b3261e'; msg.textContent = '⚠ ' + (r.mensaje || 'No se pudo guardar'); return; }
-      MQ.maquinas = r.maquinas || []; const y = window.scrollY; pintarMq(); window.scrollTo(0, y);
-      const m2 = $('mqMsg'); if (m2) { m2.style.color = '#1b7a3a'; m2.textContent = '✔ ' + ok; }
-    } catch (e) { msg.style.color = '#b3261e'; msg.textContent = '⚠ Sin señal. Intenta de nuevo.'; }
-  };
-  const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap' }, t), td = x => h('td', { style: 'padding:4px 6px;vertical-align:middle' }, x);
-  const inp = (v, w, ph) => h('input', { type: 'text', value: v || '', placeholder: ph || '', style: 'width:' + w + 'px;font-size:14px;padding:6px' });
-  const fila = (x, nuevo) => {
-    const vi = inp(nuevo ? '' : (x.vis || x.cod), 80, nuevo ? 'Auto' : 'Código'), tp = inp(x.tipo, 240, 'Tipo de máquina'), em = inp(x.empresa, 110, 'Empresa'), sd = inp(x.sd, 70, 'Stand-by'), hdl = inp(x.hdl, 140, 'L-V'), hds = inp(x.hds, 140, 'Sáb'), sn = inp(x.sn, 70, 'Stand-by'), hnl = inp(x.hnl, 140, 'L-V'), hns = inp(x.hns, 140, 'Sáb');
-    const req = op => ({ op: op, cod: x.cod, vis: vi.value, tipo: tp.value, empresa: em.value, sd: sd.value, hdl: hdl.value, hds: hds.value, sn: sn.value, hnl: hnl.value, hns: hns.value });
-    const ret = x.estado === 'RETIRADA';
-    const bs = h('div', { style: 'display:flex;gap:6px;white-space:nowrap' });
-    if (nuevo) bs.appendChild(h('button', { style: 'padding:8px 12px', onclick: () => { if (!tp.value.trim()) { tp.focus(); return; } if (!em.value.trim()) { em.focus(); return; } envia(req('crear'), 'Máquina creada con su código'); } }, '➕ Crear'));
-    else {
-      bs.appendChild(h('button', { style: 'padding:8px 12px', onclick: () => envia(req('editar'), 'Máquina ' + x.cod + ' guardada') }, '💾 Guardar'));
-      bs.appendChild(ret ? h('button', { class: 'sec', style: 'padding:8px 12px', onclick: () => envia({ op: 'reactivar', cod: x.cod }, 'Máquina ' + x.cod + ' reactivada') }, '♻ Reactivar')
-        : h('button', { class: 'sec', style: 'padding:8px 12px', onclick: () => { if (confirm('¿Retirar la máquina ' + x.cod + ' (' + x.tipo + ')? Su código queda reservado y no se vuelve a asignar.')) envia({ op: 'retirar', cod: x.cod }, 'Máquina ' + x.cod + ' retirada (código reservado)'); } }, '⏹ Retirar'));
+  const msg = h('span', { style: 'font-weight:700' });
+  const nCamb = () => Object.keys(MQDIRTY).length;
+  const btG = h('button', { style: 'background:#0a7a32;color:#fff;border:0;font-weight:800' }), btD = h('button', { class: 'sec' }, 'Descartar cambios');
+  const pintaBarra = () => { const n = nCamb(); btG.textContent = '💾 Guardar cambios' + (n ? ' (' + n + ')' : ''); btG.disabled = !n; btD.hidden = !n; msg.style.color = n ? '#9a6b00' : '#51606d'; msg.textContent = n ? '● ' + n + ' máquina(s) con cambios sin guardar' : ''; };
+  btD.onclick = () => { if (!confirm('¿Descartar todos los cambios sin guardar?')) return; MQDIRTY = {}; MQNUEVAS = 0; const y = window.scrollY; pintarMq(); window.scrollTo(0, y); };
+  btG.onclick = async () => {
+    const L = Object.keys(MQDIRTY); if (!L.length) return;
+    const nuevas = L.filter(k => MQDIRTY[k].op === 'crear');
+    for (const k of nuevas) { const d = MQDIRTY[k]; if (!String(d.tipo || '').trim() || !String(d.empresa || '').trim()) { msg.style.color = '#b3261e'; msg.textContent = '⚠ A la máquina nueva le falta el tipo o la empresa.'; return; } }
+    btG.disabled = true; btG.textContent = 'Guardando…'; let ok = 0; const err = [];
+    for (const k of L) {
+      const d = MQDIRTY[k], base = (MQ.maquinas || []).find(x => x.cod === k) || {};
+      const req = Object.assign({ accion: 'admin_mq_maq', llave: LLAVE }, base, d, { op: d.op || 'editar', cod: d.op === 'crear' ? '' : k });
+      try { const r = await api(req); if (r.ok) { ok++; MQ.maquinas = r.maquinas || MQ.maquinas; delete MQDIRTY[k]; } else err.push((d.op === 'crear' ? 'Nueva' : 'Máquina ' + (base.vis || k)) + ': ' + (r.mensaje || 'no se pudo')); }
+      catch (e) { err.push('Sin señal: no se guardó ' + (base.vis || k)); break; }
     }
-    return h('tr', { style: nuevo ? 'background:#f1f8f1' : (ret ? 'opacity:.55;background:#eee' : '') }, td(vi), td(h('small', {}, nuevo ? 'nuevo' : x.cod)), td(tp), td(em), td(sd), td(hdl), td(hds), td(sn), td(hnl), td(hns), td(ret ? h('small', {}, 'Retirada ' + (x.retiro || '')) : ''), td(bs));
+    if (!Object.keys(MQDIRTY).some(k => MQDIRTY[k].op === 'crear')) MQNUEVAS = 0;
+    const y = window.scrollY; pintarMq(); window.scrollTo(0, y);
+    banner(err.length ? '⚠ ' + err.length + ' sin guardar' : '✔ ' + ok + ' máquina(s) guardadas', err.length ? 'mal' : 'ok'); if (err.length) alertaOe('Algunas máquinas no se guardaron', err);
   };
-  const tb = h('table', { style: 'border-collapse:collapse;width:100%' }, h('thead', {}, h('tr', {}, ['Código', 'ID fijo', 'Tipo de máquina', 'Empresa', 'Stand-by día', 'Día L-V', 'Día sáb', 'Stand-by noche', 'Noche L-V', 'Noche sáb', '', ''].map(th))));
-  const body = h('tbody', {}, fila({}, true)); (MQ.maquinas || []).forEach(x => body.appendChild(fila(x, false))); tb.appendChild(body);
-  const n = (MQ.maquinas || []).filter(x => x.estado !== 'RETIRADA').length;
-  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Tabla global de máquinas: ' + n + ' activa(s). El ID fijo nunca cambia ni se reutiliza; el CÓDIGO sí se puede cambiar (ej. 1 → 1AST) y todo el historial de albaranes se conserva. Los operadores solo ven las máquinas activas.'));
+  const marca = (k, campo, v, inp, orig) => { const d = MQDIRTY[k] = MQDIRTY[k] || {}; if (String(v) === String(orig === undefined ? '' : orig) && d.op !== 'crear') delete d[campo]; else d[campo] = v; if (!Object.keys(d).filter(x => x !== 'op').length && d.op !== 'crear' && d.op !== 'retirar' && d.op !== 'reactivar') delete MQDIRTY[k]; inp.style.background = (MQDIRTY[k] && campo in MQDIRTY[k]) ? '#fff6cc' : ''; pintaBarra(); };
+  const celda = (k, x, campo, w) => { const d = MQDIRTY[k] || {}, v = campo in d ? d[campo] : (x[campo] === undefined ? '' : x[campo]);
+    const i = h('input', { type: 'text', value: v, placeholder: campo === 'vis' ? 'Auto' : '', style: 'width:' + w + 'px;font-size:14px;padding:6px 7px;border:1px solid #cfd8e3;border-radius:6px' + (campo in d ? ';background:#fff6cc' : '') });
+    i.oninput = () => marca(k, campo, campo === 'vis' ? i.value.toUpperCase().replace(/\s+/g, '') : i.value, i, x[campo]); return h('td', { style: 'padding:3px 4px' }, i); };
+  const th = (t, extra) => h('th', Object.assign({ style: 'text-align:left;padding:6px 4px;white-space:nowrap;font-size:13px' }, extra || {}), t);
+  const filas = [];
+  for (let n = 1; n <= MQNUEVAS; n++) { const k = 'nueva' + n; if (!MQDIRTY[k]) MQDIRTY[k] = { op: 'crear' }; filas.push([k, {}, true]); }
+  (MQ.maquinas || []).forEach(x => filas.push([x.cod, x, false]));
+  const tb = h('tbody', {}, filas.map(([k, x, nueva]) => {
+    const d = MQDIRTY[k] || {}, ret = d.op === 'retirar' || (x.estado === 'RETIRADA' && d.op !== 'reactivar');
+    const acc = nueva ? h('button', { class: 'sec sm', title: 'Quitar', onclick: () => { delete MQDIRTY[k]; MQNUEVAS = Math.max(0, MQNUEVAS - 1); const y = window.scrollY; pintarMq(); window.scrollTo(0, y); } }, '✖')
+      : x.estado === 'RETIRADA' ? h('button', { class: 'sec sm', onclick: () => { if (d.op === 'reactivar') delete MQDIRTY[k]; else MQDIRTY[k] = Object.assign(d, { op: 'reactivar' }); const y = window.scrollY; pintarMq(); window.scrollTo(0, y); } }, d.op === 'reactivar' ? '↩ No reactivar' : '♻ Reactivar')
+      : h('button', { class: 'sec sm', onclick: () => { if (d.op === 'retirar') { delete d.op; if (!Object.keys(d).length) delete MQDIRTY[k]; } else MQDIRTY[k] = Object.assign(d, { op: 'retirar' }); const y = window.scrollY; pintarMq(); window.scrollTo(0, y); } }, d.op === 'retirar' ? '↩ No retirar' : '⏹ Retirar');
+    return h('tr', { style: nueva ? 'background:#eef8f0' : ret ? 'opacity:.55;background:#f3f3f3' : '' },
+      h('td', { style: 'padding:3px 4px' }, celda(k, x, 'vis', 70).firstChild, h('div', { class: 'small' }, nueva ? 'nueva' : 'ID ' + x.cod + (x.estado === 'RETIRADA' ? ' · retirada' : d.op === 'retirar' ? ' · se retirará' : ''))),
+      MQ_CAMPOS.slice(1).map(([campo, , w]) => celda(k, x, campo, w)), h('td', { style: 'padding:3px 4px;white-space:nowrap' }, acc));
+  }));
+  const tabla = h('table', { style: 'border-collapse:collapse;width:100%' }, h('thead', {},
+    h('tr', {}, th('Código', { rowspan: 2 }), th('Tipo de máquina', { rowspan: 2 }), th('Empresa', { rowspan: 2 }), th('☀ Turno día', { colspan: 3, style: 'text-align:center;padding:6px 4px;background:#fff8e1;font-size:13px' }), th('🌙 Turno noche', { colspan: 3, style: 'text-align:center;padding:6px 4px;background:#e8eaf6;font-size:13px' }), th('', { rowspan: 2 })),
+    h('tr', {}, th('Stand-by'), th('Lunes a viernes'), th('Sábado'), th('Stand-by'), th('Lunes a viernes'), th('Sábado'))), tb);
+  const nAct = (MQ.maquinas || []).filter(x => x.estado !== 'RETIRADA').length;
+  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, nAct + ' máquina(s) activas. Escribe directo en la tabla (lo cambiado se pinta amarillo) y toca «Guardar cambios». El ID nunca cambia; el código sí (ej. 1 → 1AST) y el historial se conserva.'));
+  c.appendChild(h('div', { style: 'position:sticky;top:64px;z-index:5;background:#fff;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #e3e8ed;margin-bottom:6px' },
+    h('button', { class: 'sec', onclick: () => { MQNUEVAS++; const y = window.scrollY; pintarMq(); window.scrollTo(0, y); } }, '➕ Agregar máquina'), btG, btD, msg));
+  c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tabla));
+  pintaBarra();
   c.insertBefore(h('h3', { style: 'margin:16px 0 6px' }, '⚙ Máquinas del proyecto'), c.firstChild); c.insertBefore(vistaMqAsig(), c.firstChild);
-  c.appendChild(msg); c.appendChild(h('div', { class: 'tw', style: 'max-height:none' }, tb));
 }
 // Asignación operador → máquina (con fecha desde e historial)
 function vistaMqAsig() {
