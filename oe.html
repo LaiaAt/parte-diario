@@ -106,6 +106,8 @@ function pqs(f, h) {
   if (esRed(h) && f.red && f.red !== 'CAPEX') return (S.cat.sub && S.cat.sub[f.red]) || [];
   return paquetesDe(h, f.uf);
 }
+// Actividades del paquete elegido; con «Otro paquete» (pq = 'O') se muestran todas las del hito/red
+function actsPq(f) { f = f || S.f; const L = pqs(f); return f.pq === 'O' ? [].concat(...L.map(p => p[1])) : ((L[f.pq] || ['', []])[1]); }
 const P = () => { let L = PASOS.slice(); if (esMant(S.hito)) L = L.filter(x => x[0] !== 'uf'); if (esRed(S.hito)) L = [['red', '¿Qué tipo de red?']].concat(L); return L; };
 const ix = k => P().findIndex(x => x[0] === k);
 // Estructura a la que pertenece una actividad (por el prefijo del código: 1M06.1 → Muro 6, 1S05.17 → Sifón 5, 1MC7 → muros en concreto)
@@ -280,7 +282,7 @@ function resumen() {
   const f = S.f, p = [];
   if (f.red) p.push(f.red === 'CAPEX' ? 'CAPEX' : f.red); if (f.uf) p.push(f.uf); if (f.costado) p.push(f.costado);
   const a = abTxt(f.aI), b = abTxt(f.aF); if (f.p > ix('abs') && a && b) p.push(a + ' → ' + b);
-  if (f.p > ix('paquete') && f.pq !== '') { const q = pqs()[f.pq]; if (q) p.push(q[0]); }
+  if (f.p > ix('paquete') && f.pq !== '') { if (f.pq === 'O') p.push('Otro: ' + f.pqOtro); else { const q = pqs()[f.pq]; if (q) p.push(q[0]); } }
   return p.length ? '<div class="resu">' + p.map(esc).join(' · ') + '</div>' : '';
 }
 function vPaso() {
@@ -301,7 +303,8 @@ function vPaso() {
       '<label class="f">Abscisa de fin</label><input type="text" inputmode="decimal" autocomplete="off" data-f="aF" value="' + esc(f.aF) + '" placeholder="Ej: 12380"><div class="pv" id="pvF">' + (abTxt(f.aF) ? '✔ ' + abTxt(f.aF) : '') + '</div><div class="peq mut" style="margin-top:8px">Solo números: los 3 últimos son los metros. Ej: 12340 = K12+340 · con decimales: 12340.5 = K12+340.5</div>';
   } else if (k === 'paquete') {
     const PQ = pqs();
-    h = PQ.length ? PQ.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + new Set(p[1].map(x => x[1].trim().toUpperCase() + '|' + x[2])).size + ' actividades</small></button>').join('') : (esRed(S.hito) && f.red !== 'CAPEX' ? '<div class="aviso">La red ' + esc(f.red) + ' no tiene lista de actividades. Escribe la actividad que hiciste.</div><button type="button" class="btn blk" style="margin-top:10px" data-a="pqLibre">✍ Escribir la actividad</button>' : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>');
+    if (f.pqEsc) h = '<label class="f" style="margin-top:0">¿En qué paquete estás trabajando?</label><input type="text" data-f="pqOtro" value="' + esc(f.pqOtro || '') + '" maxlength="80" placeholder="Ej: Andenes provisionales" autocapitalize="sentences"><button type="button" class="btn blk" style="margin-top:12px" data-a="pqOtroOk">✔ Usar este paquete</button><button type="button" class="btn sec blk" style="margin-top:10px" data-a="pqLista">◀ Volver a la lista</button>';
+    else h = PQ.length ? PQ.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + new Set(p[1].map(x => x[1].trim().toUpperCase() + '|' + x[2])).size + ' actividades</small></button>').join('') + '<button type="button" class="act otro' + (f.pq === 'O' ? ' on' : '') + '" data-a="pqOtro">➕ Otro paquete' + (f.pq === 'O' && f.pqOtro ? ': ' + esc(f.pqOtro) : '') + '<small>No está el paquete: escríbelo y verás todas las actividades</small></button>' : (esRed(S.hito) && f.red !== 'CAPEX' ? '<div class="aviso">La red ' + esc(f.red) + ' no tiene lista de actividades. Escribe la actividad que hiciste.</div><button type="button" class="btn blk" style="margin-top:10px" data-a="pqLibre">✍ Escribir la actividad</button>' : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>');
   } else if (k === 'act') {
     if (f.otra) {
       h = '<label class="f" style="margin-top:0">Nombre de la actividad (no está en la lista)</label><input type="text" data-f="on" value="' + esc(f.on) + '" maxlength="120" placeholder="Ej: Demolición de lindero" autocapitalize="sentences">' +
@@ -310,7 +313,7 @@ function vPaso() {
         '<button type="button" class="btn blk" style="margin-top:14px" data-a="usarOtra">✔ Usar esta actividad</button><button type="button" class="btn sec blk" style="margin-top:10px" data-a="lista">◀ Volver a la lista</button>';
     } else {
       // cada actividad aparece una sola vez (la misma actividad de distintas estructuras se muestra una vez)
-      const vis = {}, T = (pqs()[f.pq] || ['', []])[1].filter(a => { const k = a[1].trim().toUpperCase() + '|' + a[2]; if (vis[k]) return false; vis[k] = 1; return true; });
+      const vis = {}, T = actsPq().filter(a => { const k = a[1].trim().toUpperCase() + '|' + a[2]; if (vis[k]) return false; vis[k] = 1; return true; });
       const q = S.q.toLowerCase(), L = T.filter(a => !q || (a[0] + ' ' + a[1]).toLowerCase().includes(q));
       h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '">' +
         L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
@@ -377,6 +380,7 @@ function validarPaso() {
   if (k === 'uf' && !f.uf) return 'Elige la UF.';
   if (k === 'costado' && !f.costado) return 'Elige el costado.';
   if (k === 'abs') { if (!abTxt(f.aI) || !abTxt(f.aF)) return 'Escribe las dos abscisas, solo números (ej: 12340 o 12340.5).'; }
+  if (k === 'paquete' && f.pqEsc) return 'Toca «Usar este paquete».';
   if (k === 'paquete' && f.pq === '') return pqs().length ? 'Elige el paquete.' : 'Toca «Escribir la actividad».';
   if (k === 'act' && !f.act) return 'Elige la actividad.';
   if (k === 'med') { const K = calc(); if (isNaN(K.c) || K.c <= 0) return 'Escribe las medidas (mayores que cero).'; if (K.d < 0 || K.d > K.c) return 'El descuento no puede ser mayor que la cantidad.'; if (!(K.fa > 0)) return 'El factor debe ser mayor que cero.'; }
@@ -392,7 +396,7 @@ function editar(id) {
   const f = nuevoForm(); f.id = x.id; f.edit = true; f.fecha = x.fecha; f.uf = x.uf; f.costado = x.costado;
   f.aI = String(x.abIni || '').replace(/[^\d.]/g, ''); f.aF = String(x.abFin || '').replace(/[^\d.]/g, '');
   f.red = x.red || (esRed(x.hito) ? 'CAPEX' : '');
-  f.pq = (() => { const i = pqs(f, x.hito).findIndex(p => p[0] === x.paquete); return i >= 0 ? i : (x.paquete === 'Sin paquete' ? 'L' : ''); })();
+  f.pq = (() => { const i = pqs(f, x.hito).findIndex(p => p[0] === x.paquete); return i >= 0 ? i : (x.paquete === 'Sin paquete' ? 'L' : /^OTRO: /.test(x.paquete || '') ? 'O' : ''); })(); if (f.pq === 'O') f.pqOtro = String(x.paquete).replace(/^OTRO: /, '');
   f.act = { c: x.cc, d: x.actividad, u: x.und, nd: n, nueva: x.cc === 'NUEVA' };
   if (x.cc === 'NUEVA') { f.otra = true; f.on = x.actividad; f.ou = UNID.some(u => u[0] === x.und) ? x.und : 'OTRA'; f.ot = f.ou === 'OTRA' ? x.und : ''; f.ond = n; }
   f.largo = s0(x.largo); f.ancho = s0(x.ancho); f.alto = s0(x.alto); f.cant = n === 0 ? s0(x.cantidad) : '';
@@ -423,7 +427,7 @@ async function guardar() {
   const f = S.f, m = validarPaso();
   if (m) { f.msg = m; render(); window.scrollTo(0, 0); return; }
   const K = calc(), n = nd();
-  const reg = { id: f.id, fecha: f.fecha || S.fecha, hito: S.hito, uf: f.uf, costado: f.costado, abIni: abTxt(f.aI), abFin: abTxt(f.aF), paquete: f.pq === 'L' ? 'Sin paquete' : (pqs()[f.pq] || ['Sin paquete'])[0], red: f.red || '', cc: f.act.c, actividad: f.act.d, und: f.act.u, nd: n,
+  const reg = { id: f.id, fecha: f.fecha || S.fecha, hito: S.hito, uf: f.uf, costado: f.costado, abIni: abTxt(f.aI), abFin: abTxt(f.aF), paquete: f.pq === 'L' ? 'Sin paquete' : f.pq === 'O' ? 'OTRO: ' + String(f.pqOtro || '').trim().toUpperCase() : (pqs()[f.pq] || ['Sin paquete'])[0], red: f.red || '', cc: f.act.c, actividad: f.act.d, und: f.act.u, nd: n,
     largo: n >= 1 ? num(f.largo) : '', ancho: n >= 2 ? num(f.ancho) : '', alto: n >= 3 ? num(f.alto) : '', cantidad: K.c, descuento: K.d, factor: K.fa, total: r3(K.t),
     lat: f.gps ? f.gps.lat : '', lon: f.gps ? f.gps.lon : '', prec: f.gps ? f.gps.prec : '', foto: f.foto, obs: '', llave: S.ses.llave, creado: new Date().toISOString().slice(0, 19).replace('T', ' ') };
   f.guardando = true; render();
@@ -459,13 +463,16 @@ document.addEventListener('click', async ev => {
   if (a === 'volver') { S.hito = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'nuevo') { S.f = nuevoForm(); if (esMant(S.hito)) S.f.uf = 'UF0'; S.q = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'red' || a === 'redOtra') { const r = a === 'red' ? v : String(S.f.redOtra || '').trim().toUpperCase(); if (!r) { S.f.msg = 'Escribe el nombre de la red.'; render(); return; } if (S.f.red !== r) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.red = r; ir(ix('red') + 1); return; }
+  if (a === 'pqOtro') { S.f.pqEsc = true; S.f.msg = ''; render(); return; }
+  if (a === 'pqLista') { S.f.pqEsc = false; S.f.msg = ''; render(); return; }
+  if (a === 'pqOtroOk') { const t = String(S.f.pqOtro || '').trim(); if (t.length < 3) { S.f.msg = 'Escribe en qué paquete estás trabajando.'; render(); return; } if (S.f.pq !== 'O') { S.f.act = null; S.f.otra = false; } S.f.pq = 'O'; S.f.pqEsc = false; ir(ix('act')); return; }
   if (a === 'pqLibre') { S.f.pq = 'L'; S.f.act = null; S.f.otra = true; ir(ix('act')); return; }
   if (a === 'atras') { if (S.f.p > 0) { ir(S.f.p - 1); return; } if ((!S.f.uf && !S.f.foto) || confirm(S.f.edit ? '¿Descartar los cambios?' : '¿Descartar este registro?')) { cerrarForm(); render(); } return; }
   if (a === 'sig') { sig(); return; }
   if (a === 'uf') { if (S.f.uf !== v) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.uf = v; ir(ix('costado')); return; }
   if (a === 'costado') { S.f.costado = v; ir(ix('abs')); return; }
-  if (a === 'pq') { if (String(S.f.pq) !== String(v)) { S.f.act = null; S.f.otra = false; } S.f.pq = v; ir(ix('act')); return; }
-  if (a === 'act') { S.f.otra = false; const p = pqs()[S.f.pq], x = p[1].find(y => y[0] === v); if (!S.f.act || S.f.act.c !== x[0]) { S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; } S.f.act = { c: x[0], d: x[1], u: x[2] }; ir(ix('med')); return; }
+  if (a === 'pq') { if (String(S.f.pq) !== String(v)) { S.f.act = null; S.f.otra = false; } S.f.pqEsc = false; S.f.pq = v; ir(ix('act')); return; }
+  if (a === 'act') { S.f.otra = false; const x = actsPq().find(y => y[0] === v); if (!S.f.act || S.f.act.c !== x[0]) { S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; } S.f.act = { c: x[0], d: x[1], u: x[2] }; ir(ix('med')); return; }
   if (a === 'otra') { S.f.otra = true; if (!S.f.on) S.f.on = S.q.trim(); S.f.msg = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'lista') { S.f.otra = false; S.f.msg = ''; render(); return; }
   if (a === 'ou') { S.f.ou = v; render(); return; }
