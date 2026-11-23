@@ -99,7 +99,7 @@ const paquetesDe = (h, uf) => (S.cat && S.cat.cat[h + '|' + uf]) || [];
 // Redes (2.11 húmedas, 2.12 secas): primero se elige el tipo de red. CAPEX usa la estructura del proyecto; una subcuenta o ENEL usa su propio catálogo.
 const esRed = h => h === '2.11' || h === '2.12';
 const esMant = h => h === 'MANT';
-const redLista = r => !!(S.cat && S.cat.redes && S.cat.redes.some(x => x[0] === r));
+const redLista0 = r => !!(S.cat && S.cat.redes && S.cat.redes.some(x => x[0] === r));
 function pqs(f, h) {
   f = f || S.f; h = h || S.hito; if (!S.cat) return [];
   if (esMant(h)) return (S.cat.sub && S.cat.sub.UF0) || [];
@@ -289,12 +289,17 @@ function vPaso() {
   const f = S.f, k = P()[f.p][0];
   let h = '';
   if (k === 'red') {
-    const R = (S.cat.redes || []), b = (v, t, sub) => '<button type="button" class="act' + (f.red === v ? ' on' : '') + '" data-a="red" data-v="' + esc(v) + '">' + esc(t) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>';
-    h = b('CAPEX', '🏗 CAPEX', 'Estructura del proyecto (paquetes por UF)') +
-      '<div class="peq mut" style="margin:12px 2px 0;font-weight:700">Subcuentas</div><div class="redg">' + R.filter(x => x[1] !== 'CONTRATO EXTERNO').map(x => b(x[0], x[0])).join('') + '</div>' +
-      '<div class="peq mut" style="margin:12px 2px 0;font-weight:700">ENEL · contrato externo</div><div class="redg">' + R.filter(x => x[1] === 'CONTRATO EXTERNO').map(x => b(x[0], x[0].replace('ENEL_', 'ENEL ') )).join('') + '</div>' +
-      '<label class="f">¿Es otra red que no está en la lista? Escríbela</label><input type="text" data-f="redOtra" value="' + esc(f.red && f.red !== 'CAPEX' && !redLista(f.red) ? f.red : (f.redOtra || '')) + '" maxlength="60" placeholder="Ej: CLARO">' +
-      '<button type="button" class="btn sec blk" style="margin-top:8px" data-a="redOtra">✔ Usar esta red</button>';
+    // Primero 3 botones: CAPEX, SUBCUENTA o ENEL; después la lista que depende de esa elección
+    const R = (S.cat.redes || []), tipoDe = r => r === 'CAPEX' ? 'CAPEX' : /^ENEL: /.test(r) || (R.find(x => x[0] === r) || [])[1] === 'CONTRATO EXTERNO' ? 'ENEL' : r ? 'SUBCUENTA' : '';
+    const T = f.redTipo || tipoDe(f.red);
+    const b = (v, t, sub) => '<button type="button" class="act' + (f.red === v ? ' on' : '') + '" data-a="red" data-v="' + esc(v) + '">' + esc(t) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>';
+    h = '<div class="opc">' + [['CAPEX', '🏗 CAPEX'], ['SUBCUENTA', '📂 SUBCUENTA'], ['ENEL', '⚡ ENEL']].map(x => '<button type="button" class="' + (T === x[0] ? 'on' : '') + '" data-a="redTipo" data-v="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
+    if (T === 'SUBCUENTA' || T === 'ENEL') {
+      const L = R.filter(x => (x[1] === 'CONTRATO EXTERNO') === (T === 'ENEL'));
+      h += '<div class="peq mut" style="margin:14px 2px 0;font-weight:700">' + (T === 'ENEL' ? 'ENEL · contrato externo' : 'Subcuentas') + '</div><div class="redg">' + L.map(x => b(x[0], x[0].replace('ENEL_', 'ENEL '))).join('') + '</div>' +
+        '<label class="f">¿No está en la lista? Escríbela</label><input type="text" data-f="redOtra" value="' + esc(f.redOtra || (/: /.test(f.red || '') ? f.red.replace(/^[A-Z]+: /, '') : '')) + '" maxlength="50" placeholder="Ej: CLARO">' +
+        '<button type="button" class="btn sec blk" style="margin-top:8px" data-a="redOtra">✔ Usar esta</button>';
+    }
   }
   else if (k === 'uf') h = grandes(S.cat.ufs.filter(u => u !== 'UF0'), f.uf, 'uf');
   else if (k === 'costado') h = grandes(COSTADOS, f.costado, 'costado');
@@ -462,7 +467,8 @@ document.addEventListener('click', async ev => {
   if (a === 'hito') { S.hito = v; render(); window.scrollTo(0, 0); return; }
   if (a === 'volver') { S.hito = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'nuevo') { S.f = nuevoForm(); if (esMant(S.hito)) S.f.uf = 'UF0'; S.q = ''; render(); window.scrollTo(0, 0); return; }
-  if (a === 'red' || a === 'redOtra') { const r = a === 'red' ? v : String(S.f.redOtra || '').trim().toUpperCase(); if (!r) { S.f.msg = 'Escribe el nombre de la red.'; render(); return; } if (S.f.red !== r) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.red = r; ir(ix('red') + 1); return; }
+  if (a === 'redTipo') { S.f.redTipo = v; S.f.msg = ''; if (v === 'CAPEX') { if (S.f.red !== 'CAPEX') { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.red = 'CAPEX'; ir(ix('red') + 1); } else render(); return; }
+  if (a === 'red' || a === 'redOtra') { const r = a === 'red' ? v : (String(S.f.redOtra || '').trim() ? (S.f.redTipo || 'SUBCUENTA') + ': ' + String(S.f.redOtra).trim().toUpperCase() : ''); if (!r) { S.f.msg = 'Escribe el nombre de la red.'; render(); return; } if (S.f.red !== r) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.red = r; ir(ix('red') + 1); return; }
   if (a === 'pqOtro') { S.f.pqEsc = true; S.f.msg = ''; render(); return; }
   if (a === 'pqLista') { S.f.pqEsc = false; S.f.msg = ''; render(); return; }
   if (a === 'pqOtroOk') { const t = String(S.f.pqOtro || '').trim(); if (t.length < 3) { S.f.msg = 'Escribe en qué paquete estás trabajando.'; render(); return; } if (S.f.pq !== 'O') { S.f.act = null; S.f.otra = false; } S.f.pq = 'O'; S.f.pqEsc = false; ir(ix('act')); return; }
