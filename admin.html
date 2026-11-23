@@ -323,7 +323,7 @@ header>span{gap:6px!important;min-width:0}
   <div id="trTop"></div><div id="trTabs" class="trtabs"></div><div id="trBody"></div>
 </div>
 <div class="card" id="mqCard" data-m="maquinaria" hidden><h2>🚜 Maquinaria</h2><div id="mqBody"></div></div>
-<div class="card" id="oeCard" data-m="oe" hidden><h2>📐 Obra ejecutada (OE)</h2><div id="oeBody"></div></div>
+<div class="card" id="oeCard" data-m="oe" hidden><h2>📐 Obra ejecutada</h2><div id="oeBody"></div></div>
 <div id="detalle" hidden></div>
 <div id="visor" hidden></div>
 </main></div>
@@ -456,7 +456,7 @@ function pintarArbol() {
   ];
   if (D.acero) G.push({ g: 'a', ico: '🔩', t: 'Acero', on: ga, hojas: AC_TABS.map((x, i) => [x[1], ga && ACTAB === x[0], () => irSub('nav4', i, 'acero')]) });
   G.push({ g: 'm', ico: '🚜', t: 'Maquinaria', on: gm, hojas: MQ_TABS.map((x, i) => [x[1] + (x[0] === 'pend' && mqNPend() ? '  📷 ' + mqNPend() : ''), gm && MQTAB === x[0], () => irSub('nav4', i, 'maquinaria')]) });
-  G.push({ g: 'o', ico: '📐', t: 'OE', on: go, hojas: OE_TABS.map((x, i) => [x[1], go && OETAB === x[0], () => irSub('nav4', i, 'oe')]) });
+  G.push({ g: 'o', ico: '📐', t: 'O. Ejecutada', on: go, hojas: OE_TABS.map((x, i) => [x[1], go && OETAB === x[0], () => irSub('nav4', i, 'oe')]) });
   G.forEach(x => {
     a.appendChild(h('button', { class: 'ar-g' + (x.on ? ' on' : ''), onclick: () => { if (!x.on) irGrupo(x.g); } }, h('span', {}, x.ico), h('em', {}, x.t)));
     if (x.on) a.appendChild(h('div', { class: 'ar-h' }, x.hojas.map(t => h('button', { class: 'ar-s' + (t[1] ? ' on' : ''), onclick: t[2] }, t[0]))));
@@ -1967,7 +1967,7 @@ const esPd = m => m !== 'transportes' && m !== 'acero' && m !== 'maquinaria' && 
 function navegacion() {
   const n = $('nav'); n.hidden = false; if (n.firstChild) { modulo(MOD); return; }
   const n2 = $('nav2'); let ultP = 'resumen';
-  [['p', '📅 Parte diario', () => modulo(esPd(MOD) ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (esPd(MOD)) ultP = MOD; modulo('transportes'); }], D.acero ? ['a', '🔩 Acero', () => { if (esPd(MOD)) ultP = MOD; modulo('acero'); }] : null, ['m', '🚜 Maquinaria', () => { if (esPd(MOD)) ultP = MOD; modulo('maquinaria'); }], ['o', '📐 OE', () => { if (esPd(MOD)) ultP = MOD; modulo('oe'); }]].filter(Boolean).forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
+  [['p', '📅 Parte diario', () => modulo(esPd(MOD) ? MOD : ultP)], ['t', '🚛 Transportes', () => { if (esPd(MOD)) ultP = MOD; modulo('transportes'); }], D.acero ? ['a', '🔩 Acero', () => { if (esPd(MOD)) ultP = MOD; modulo('acero'); }] : null, ['m', '🚜 Maquinaria', () => { if (esPd(MOD)) ultP = MOD; modulo('maquinaria'); }], ['o', '📐 O. Ejecutada', () => { if (esPd(MOD)) ultP = MOD; modulo('oe'); }]].filter(Boolean).forEach(g => { const b = h('button', { onclick: g[2] }, g[1]); b.dataset.g = g[0]; n.appendChild(b); });
   MODS.filter(x => x[0] !== 'transportes').forEach(x => { const b = h('button', { onclick: () => modulo(x[0]) }, x[1]); b.dataset.mod = x[0]; n2.appendChild(b); });
   modulo(MOD);
 }
