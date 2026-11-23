@@ -98,7 +98,8 @@ async function cargarCat() {
   if (S.cat) return;
   try { const r = await fetch('oe/catalogo.json'); S.cat = await r.json(); } catch (e) { S.cat = null; }
 }
-const paquetesDe = (h, uf) => (S.cat && S.cat.cat[h + '|' + uf]) || [];
+// UF6 y UF7 aún no tienen catálogo propio: usan temporalmente la lista de la UF1
+const paquetesDe = (h, uf) => (S.cat && (S.cat.cat[h + '|' + uf] || ((uf === 'UF6' || uf === 'UF7') ? S.cat.cat[h + '|UF1'] : null))) || [];
 // Redes (2.11 húmedas, 2.12 secas): primero se elige el tipo de red. CAPEX usa la estructura del proyecto; una subcuenta o ENEL usa su propio catálogo.
 const esRed = h => h === '2.11' || h === '2.12';
 const esMant = h => h === 'MANT';
@@ -334,7 +335,7 @@ function vPaso() {
       h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '">' +
         L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
         (L.length > 40 ? '<div class="peq mut" style="margin-top:6px">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</div>' : '') +
-        (!L.length && q ? '<div class="peq mut" style="margin:10px 0 4px">No hay actividades con ese nombre.</div><button type="button" class="btn sec blk otro" data-a="otra">➕ No está en la lista: escribirla</button>' : '');
+        (!L.length && q ? '<div class="peq mut" style="margin:10px 0 4px">No hay actividades con ese nombre.</div>' : '') + '<button type="button" class="btn sec blk otro" style="margin-top:10px" data-a="otra">➕ No está en la lista: escribirla</button>';
     }
   } else if (k === 'med') {
     const n = nd(), K = calc(), u = f.act.u;
