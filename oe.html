@@ -301,7 +301,7 @@ function vPaso() {
       '<label class="f">Abscisa de fin</label><input type="text" inputmode="decimal" autocomplete="off" data-f="aF" value="' + esc(f.aF) + '" placeholder="Ej: 12380"><div class="pv" id="pvF">' + (abTxt(f.aF) ? '✔ ' + abTxt(f.aF) : '') + '</div><div class="peq mut" style="margin-top:8px">Solo números: los 3 últimos son los metros. Ej: 12340 = K12+340 · con decimales: 12340.5 = K12+340.5</div>';
   } else if (k === 'paquete') {
     const PQ = pqs();
-    h = PQ.length ? PQ.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + p[1].length + ' actividades</small></button>').join('') : (esRed(S.hito) && f.red !== 'CAPEX' ? '<div class="aviso">La red ' + esc(f.red) + ' no tiene lista de actividades. Escribe la actividad que hiciste.</div><button type="button" class="btn blk" style="margin-top:10px" data-a="pqLibre">✍ Escribir la actividad</button>' : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>');
+    h = PQ.length ? PQ.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + new Set(p[1].map(x => x[1].trim().toUpperCase() + '|' + x[2])).size + ' actividades</small></button>').join('') : (esRed(S.hito) && f.red !== 'CAPEX' ? '<div class="aviso">La red ' + esc(f.red) + ' no tiene lista de actividades. Escribe la actividad que hiciste.</div><button type="button" class="btn blk" style="margin-top:10px" data-a="pqLibre">✍ Escribir la actividad</button>' : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>');
   } else if (k === 'act') {
     if (f.otra) {
       h = '<label class="f" style="margin-top:0">Nombre de la actividad (no está en la lista)</label><input type="text" data-f="on" value="' + esc(f.on) + '" maxlength="120" placeholder="Ej: Demolición de lindero" autocapitalize="sentences">' +
@@ -309,17 +309,17 @@ function vPaso() {
         (f.ou === 'OTRA' ? '<label class="f">¿Cuál unidad? (ej: km, jornal, punto)</label><input type="text" data-f="ot" value="' + esc(f.ot) + '" maxlength="12" placeholder="Escribe la unidad"><label class="f">¿Cuántas medidas necesita?</label><div class="uch">' + [[0, 'Solo cantidad'], [1, '1 · Largo'], [2, '2 · Largo y ancho'], [3, '3 · Largo, ancho y alto']].map(m => '<button type="button" class="' + (f.ond === m[0] ? 'on' : '') + '" data-a="ond" data-v="' + m[0] + '">' + m[1] + '</button>').join('') + '</div><div class="peq mut" style="margin-top:6px">Descuento y factor siempre se piden.</div>' : '') +
         '<button type="button" class="btn blk" style="margin-top:14px" data-a="usarOtra">✔ Usar esta actividad</button><button type="button" class="btn sec blk" style="margin-top:10px" data-a="lista">◀ Volver a la lista</button>';
     } else {
-      const T = (pqs()[f.pq] || ['', []])[1], rep = {}; T.forEach(a => { const k = a[1].trim().toUpperCase() + '|' + a[2]; rep[k] = (rep[k] || 0) + 1; });
-      const esR = a => rep[a[1].trim().toUpperCase() + '|' + a[2]] > 1;
-      const q = S.q.toLowerCase(), L = T.filter(a => !q || (a[0] + ' ' + a[1] + ' ' + estDe(a[0])).toLowerCase().includes(q));
+      // cada actividad aparece una sola vez (la misma actividad de distintas estructuras se muestra una vez)
+      const vis = {}, T = (pqs()[f.pq] || ['', []])[1].filter(a => { const k = a[1].trim().toUpperCase() + '|' + a[2]; if (vis[k]) return false; vis[k] = 1; return true; });
+      const q = S.q.toLowerCase(), L = T.filter(a => !q || (a[0] + ' ' + a[1]).toLowerCase().includes(q));
       h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '">' +
-        L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + (esR(a) && estDe(a[0]) ? '<small class="est">📍 ' + esc(estDe(a[0])) + '</small>' : '') + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
+        L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
         (L.length > 40 ? '<div class="peq mut" style="margin-top:6px">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</div>' : '') +
         (!L.length && q ? '<div class="peq mut" style="margin:10px 0 4px">No hay actividades con ese nombre.</div><button type="button" class="btn sec blk otro" data-a="otra">➕ No está en la lista: escribirla</button>' : '');
     }
   } else if (k === 'med') {
     const n = nd(), K = calc(), u = f.act.u;
-    h = '<div class="sel" style="margin:0 0 12px">' + esc(f.act.d) + (estDe(f.act.c) ? '<small>📍 ' + esc(estDe(f.act.c)) + '</small>' : '') + '<small>unidad ' + undTxt(u) + (f.act.nueva ? ' · actividad nueva' : '') + '</small></div>';
+    h = '<div class="sel" style="margin:0 0 12px">' + esc(f.act.d) + '<small>unidad ' + undTxt(u) + (f.act.nueva ? ' · actividad nueva' : '') + '</small></div>';
     if (n === 0) h += '<label class="f" style="margin-top:0">Cantidad (' + undTxt(u) + ')</label><input type="text" inputmode="decimal" data-f="cant" value="' + esc(f.cant) + '">';
     else { h += '<div class="fila">'; ['largo', 'ancho', 'alto'].slice(0, n).forEach((x, i) => { h += '<div><label class="f" style="margin-top:0">' + NDIM[i] + '</label><input type="text" inputmode="decimal" data-f="' + x + '" value="' + esc(f[x]) + '"></div>'; }); h += '</div>'; }
     h += '<div class="fila"><div><label class="f">Descuento</label><input type="text" inputmode="decimal" data-f="desc" value="' + esc(f.desc) + '" placeholder="0"></div><div></div></div>' +
