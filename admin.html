@@ -171,6 +171,12 @@ header>span{gap:6px!important;min-width:0}
 #panel>.card:first-child .row #act,#panel>.card:first-child .row #infSem{grid-column:span 3;min-height:0;height:38px;padding:0 8px;font-size:14px;margin:0;width:100%}
 #panel>.card:first-child .row #estado{grid-column:1/-1}
 #panel>.card:first-child .row #infSem[hidden]{display:none}
+.filaPc{display:flex;flex-direction:column;gap:0}
+@media (min-width:900px){
+.filaPc{flex-direction:row;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px}.filaPc>input{flex:1 1 320px;width:auto!important;margin:0!important}.filaPc>*:not(input){flex:0 0 auto;margin:0!important}
+.conFiltros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}.conFiltros .conBusca{flex:1 1 320px;margin:0}.conFiltros>.row{flex:0 1 auto;margin:0}.conFiltros>.row select{min-width:150px}.conFiltros .conBajar{display:flex;gap:6px;margin:0}
+#panel button[style*="width:100%"]:not(.trav){width:auto!important;padding-left:24px!important;padding-right:24px!important}
+}
 #panel>.card:first-child .row .acts{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px}#panel>.card:first-child .row .acts:has(#infSem[hidden]){grid-template-columns:1fr}
 @media (min-width:900px){
 #panel>.card:first-child{padding:8px 12px}
@@ -873,7 +879,7 @@ function vistaAlb(c) {
   const inp = h('input', { id: 'albQ', type: 'search', placeholder: '🔎 Búsqueda libre: N° de albarán, valera, vale o placa…', value: ALB.q, inputmode: 'search' });
   inp.oninput = () => { ALB.q = inp.value; };
   inp.onkeydown = e => { if (e.key === 'Enter') buscarAlb(); };
-  c.append(inp, h('button', { style: 'width:100%;padding:14px;font-size:18px', onclick: buscarAlb }, 'Buscar'), h('div', { id: 'albFil', style: 'display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;margin-top:10px;align-items:center' }), h('div', { id: 'albRes', style: 'margin-top:10px' }));
+  c.append(h('div', { class: 'filaPc' }, inp, h('button', { class: 'btnBus', style: 'padding:12px 22px;font-size:17px', onclick: buscarAlb }, 'Buscar')), h('div', { id: 'albFil', style: 'display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;margin-top:10px;align-items:center' }), h('div', { id: 'albRes', style: 'margin-top:10px' }));
   buscarAlb();
 }
 
@@ -1155,7 +1161,7 @@ function vistaViajes(c) {
   const lista = h('div', { class: 'vgrid' });
   const bus = h('input', { type: 'search', placeholder: '🔍 Buscar placa, material, destino, valera…', value: TRQ });
   bus.oninput = () => { TRQ = bus.value; pintaLista(); };
-  c.append(bus, chips([['', 'Todos'], ['alerta', '⚠️ Con alerta'], ['sinrec', 'Sin albarán']], TRFIL, k => { TRFIL = k; pintarTr(); }),
+  c.append(h('div', { class: 'filaPc' }, bus, chips([['', 'Todos'], ['alerta', '⚠️ Con alerta'], ['sinrec', 'Sin albarán']], TRFIL, k => { TRFIL = k; pintarTr(); })),
     h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px' }, h('button', { class: 'sec', onclick: csvTr }, '⬇ Excel (solo datos)'), h('button', { onclick: xlsxTr, id: 'btnXlsxTr' }, '⬇ Excel con fotos'), h('button', { class: 'sec', onclick: xlsxCambios, id: 'btnCamb' }, '⬇ Control de cambios (Excel)'), h('button', { class: 'sec', onclick: zipAlbaranes, id: 'btnZip' }, '🖼️ Fotos de albaranes (ZIP)')), h('div', { id: 'xlsxMsg', class: 'small', style: 'margin:0 0 6px' }), lista);
   function pintaLista() {
     const L = viajesTr(); lista.textContent = '';
