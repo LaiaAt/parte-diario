@@ -2034,17 +2034,8 @@ function dashOe(L) {
     ['KPI GENERALES', 'Valor'], ['Registros', L.length], ['Topógrafos', new Set(L.map(r => r.llave)).size], ['Días con registro', new Set(L.map(r => r.fecha)).size],
     ['Hitos', new Set(L.map(r => r.hito)).size], ['Actividades distintas', new Set(L.map(r => r.actividad)).size], ['Promedio de registros por día', new Set(L.map(r => r.fecha)).size ? Math.round(L.length / new Set(L.map(r => r.fecha)).size * 10) / 10 : ''],
     ['Sin centro de costo', L.filter(oeSinCc).length], ['Con centro de costo reasignado', L.filter(r => r.cc_re).length], ['Corregidos por la oficina', L.filter(r => r.rev === 'CORREGIDO').length],
-    ['Con foto', L.filter(r => r.foto).length], ['Con ubicación GPS', L.filter(r => isFinite(parseFloat(r.lat)) && Math.abs(parseFloat(r.lat)) > 0.01).length], [],
-    ['CANTIDAD TOTAL POR UNIDAD', 'Cantidad', 'Registros']];
-  const und = {}; L.forEach(r => { const u = r.und || '—'; und[u] = und[u] || [0, 0]; und[u][0] += tot(r); und[u][1]++; });
-  Object.keys(und).sort().forEach(u => aoa.push([u, oeR(und[u][0]), und[u][1]]));
-  aoa.push([], ['POR HITO', 'Und', 'Registros', 'Cantidad total']);
-  const hu = {}; L.forEach(r => { const k = oeHitoTxt(r.hito) + '|' + (r.und || ''); hu[k] = hu[k] || [0, 0]; hu[k][0]++; hu[k][1] += tot(r); });
-  Object.keys(hu).sort().forEach(k => aoa.push(k.split('|').concat([hu[k][0], oeR(hu[k][1])])));
-  aoa.push([], ['POR TOPÓGRAFO', 'Registros', 'Días con registro', 'Sin centro de costo']);
-  const tp = {}; L.forEach(r => { const k = r.topografo || nomDe(r.llave); tp[k] = tp[k] || { n: 0, d: new Set(), s: 0 }; tp[k].n++; tp[k].d.add(r.fecha); if (oeSinCc(r)) tp[k].s++; });
-  Object.keys(tp).sort().forEach(k => aoa.push([k, tp[k].n, tp[k].d.size, tp[k].s]));
-  return { nombre: 'Dashboard', aoa: aoa, cols: [{ wch: 44 }, { wch: 30 }, { wch: 16 }, { wch: 18 }], merges: [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }] };
+    ['Con foto', L.filter(r => r.foto).length], ['Con ubicación GPS', L.filter(r => isFinite(parseFloat(r.lat)) && Math.abs(parseFloat(r.lat)) > 0.01).length]];
+  return { nombre: 'Dashboard', aoa: aoa, cols: [{ wch: 44 }, { wch: 40 }], merges: [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }] };
 }
 function verFotoOe(r) {
   const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px', onclick: () => ov.remove() }, h('div', { style: 'color:#fff' }, 'Cargando foto…'));
