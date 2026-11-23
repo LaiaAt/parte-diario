@@ -171,6 +171,18 @@ header>span{gap:6px!important;min-width:0}
 #panel>.card:first-child .row #act,#panel>.card:first-child .row #infSem{grid-column:span 3;min-height:0;height:38px;padding:0 8px;font-size:14px;margin:0;width:100%}
 #panel>.card:first-child .row #estado{grid-column:1/-1}
 #panel>.card:first-child .row #infSem[hidden]{display:none}#panel>.card:first-child .row:has(#infSem[hidden]) #act{grid-column:span 6}
+@media (min-width:900px){
+#panel>.card:first-child{padding:8px 12px}
+#panel>.card:first-child>.small{display:none}
+#panel>.card:first-child .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+#panel>.card:first-child .row>div:nth-child(1){flex:1.5 1 0}
+#panel>.card:first-child .row>div:nth-child(2),#panel>.card:first-child .row>div:nth-child(3){flex:1 1 0}
+#panel>.card:first-child .row label{font-size:11px;font-weight:700;color:#51606d;text-transform:uppercase;letter-spacing:.03em}
+#panel>.card:first-child .row select,#panel>.card:first-child .row input{height:38px;border-radius:8px;border:1px solid #c9d3dc;background:#fff;font-size:14px}
+#panel>.card:first-child .row #act,#panel>.card:first-child .row #infSem{flex:0 0 150px;height:38px;border-radius:8px}
+#panel>.card:first-child .row #act{background:#0a7a32;border-color:#0a7a32;color:#fff;font-weight:800}
+#panel>.card:first-child .row #estado{flex-basis:100%}#panel>.card:first-child .row #estado:empty{display:none}
+}
 
 /* ---- PC: menú lateral en cascada (igual al de Acero). El celular conserva sus pestañas ---- */
 .arbol{display:none}
