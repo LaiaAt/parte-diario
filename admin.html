@@ -2259,9 +2259,8 @@ function fotosVisibles() {
   return fotosBase().filter(f => !ac || (ac === '__sin' ? !f._k.length : f._k.indexOf(ac) >= 0))
     .sort((a, b) => (b.fecha + b.llave).localeCompare(a.fecha + a.llave) || a.n - b.n);
 }
-// Nombre corto: fecha + actividad (pocas palabras) + número. Ej: 2026-11-20_Limpieza-box-la-novita_3.jpg
-const slugFoto = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 ]+/g, ' ').trim().split(/\s+/).filter(Boolean).slice(0, 5).join('-').slice(0, 28).replace(/-+$/, '');
-const nombreFoto = f => { const ad = f._ad && f._ad.length ? f._ad[0].t : (f.tipo === 'ALBARAN' ? 'Albaran' : 'Sin-actividad'); return f.fecha + '_' + (slugFoto(ad) || 'Foto') + '_' + f.n + '.jpg'; };
+// Nombre corto: DDMMAA + primera palabra de la actividad. Ej: 201126_LIMPIEZA.jpg (si se repite: 201126_LIMPIEZA_2.jpg)
+const nombreFoto = f => { const ad = f._ad && f._ad.length ? f._ad[0].t : (f.tipo === 'ALBARAN' ? 'Albaran' : 'Foto'); const w = (String(ad).normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[A-Za-z0-9]+/) || ['FOTO'])[0].toUpperCase().slice(0, 15); return f.fecha.slice(8, 10) + f.fecha.slice(5, 7) + f.fecha.slice(2, 4) + '_' + w + '.jpg'; };
 async function obtener(f) {
   const k = f.id + '#' + f.foto;
   if (IMG.has(k)) return IMG.get(k);
@@ -2343,7 +2342,7 @@ async function bajarZip() {
   try { await Promise.all([trabajador(), trabajador(), trabajador(), trabajador()]); } finally { $('bajaZip').disabled = false; }
   if (av.cancelado) { av.cerrar(); banner('Descarga cancelada', 'mal'); return; }
   const ok = items.filter(Boolean), usados = {};
-  ok.forEach(it => { let n = it.nombre, k = 2; while (usados[n]) n = it.nombre.replace(/\.jpg$/, '-' + (k++) + '.jpg'); usados[n] = 1; it.nombre = n; });
+  ok.forEach(it => { let n = it.nombre, k = 2; while (usados[n]) n = it.nombre.replace(/\.jpg$/, '_' + (k++) + '.jpg'); usados[n] = 1; it.nombre = n; });
   if (!ok.length) { av.cerrar(); $('err').textContent = 'No se pudieron bajar las fotos.'; return; }
   await new Promise(r => setTimeout(r, 50));
   $('err').textContent = ok.length < L.length ? 'Faltaron ' + (L.length - ok.length) + ' fotos que no se pudieron bajar.' : '';
