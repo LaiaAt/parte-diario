@@ -170,6 +170,7 @@ header>span{gap:6px!important;min-width:0}
 #panel>.card:first-child .row select,#panel>.card:first-child .row input{min-height:0;height:36px;padding:0 6px;font-size:14px;width:100%}
 #panel>.card:first-child .row #act,#panel>.card:first-child .row #infSem{grid-column:span 3;min-height:0;height:38px;padding:0 8px;font-size:14px;margin:0;width:100%}
 #panel>.card:first-child .row #estado{grid-column:1/-1}
+#panel>.card:first-child .row #infSem[hidden]{display:none}#panel>.card:first-child .row:has(#infSem[hidden]) #act{grid-column:span 6}
 
 /* ---- PC: menú lateral en cascada (igual al de Acero). El celular conserva sus pestañas ---- */
 .arbol{display:none}
@@ -449,6 +450,7 @@ function modulo(m) {
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
   const gt = m === 'transportes', ga = m === 'acero', gm = m === 'maquinaria', go = m === 'oe', grp = gt ? 't' : ga ? 'a' : gm ? 'm' : go ? 'o' : 'p';
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g === grp));
+  $('infSem').hidden = ga || gm || go; // el Informe solo existe para Parte diario y Transportes
   $('nav2').hidden = gt || ga || gm || go; $('nav3').hidden = !gt; $('nav4').hidden = !(ga || gm || go); if (!gt) $('cPer').hidden = false; if (gt) navTr(); if (ga) navAc(); if (gm) navMq(); if (go) navOe();
   { medirHeader(); const t = (headerH() + $('nav').offsetHeight) + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav4').style.top = t; $('nav4').style.marginTop = '0'; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
@@ -2445,7 +2447,7 @@ let RECARGA = 0, ACWAIT = null, ENACT = false, ACINI = false;
 function finBanner(ok) { if (!ENACT) banner(ok ? '✔ Datos actualizados' : 'No se pudo cargar. Revisa tu conexión.', ok ? 'ok' : 'mal'); }
 $('act').onclick = async () => {
   const d = $('desde').value, hh = $('hasta').value;
-  if (d && hh && (new Date(hh) - new Date(d)) / 86400000 > 31) { $('err').textContent = 'Elige máximo un mes (31 días) para que cargue rápido.'; banner('Elige máximo un mes (31 días)', 'mal'); return; }
+  if (d && hh && d > hh) { banner('La fecha «Desde» es posterior a «Hasta»', 'mal'); return; }
   const mi = ++RECARGA, bt = $('act'), t0 = Date.now(), fm = x => x ? x.slice(8) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4) : '';
   ENACT = true; bt.disabled = true; bt.textContent = 'Cargando…';
   banner('Cargando datos del ' + fm(d) + ' al ' + fm(hh) + '…');
@@ -2481,7 +2483,7 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
   const pad = n => String(n).padStart(2, '0');
   let y = Number(hy.slice(0, 4)), m = Number(hy.slice(5, 7));
   if (Number(hy.slice(8, 10)) > 20) { m++; if (m > 12) { m = 1; y++; } }   // corte actual: termina el 20 del mes siguiente
-  const s = $('mes'); s.appendChild(h('option', { value: '__hoy' }, 'Hoy')); s.appendChild(h('option', { value: '__rec' }, 'Reciente (hoy y 2 días antes)')); s.appendChild(h('option', { value: '' }, 'Rango propio (máx. 31 días)'));
+  const s = $('mes'); s.appendChild(h('option', { value: '__hoy' }, 'Hoy')); s.appendChild(h('option', { value: '__rec' }, 'Reciente (hoy y 2 días antes)')); s.appendChild(h('option', { value: '__31' }, 'Últimos 31 días')); s.appendChild(h('option', { value: '__90' }, 'Últimos 3 meses')); s.appendChild(h('option', { value: '__todo' }, 'Todos los datos')); s.appendChild(h('option', { value: '' }, 'Rango propio (cualquier periodo)'));
   const cortes = {};
   for (let i = 0; i < 24; i++) {
     let py = y, pm = m - 1; if (!pm) { pm = 12; py--; }
@@ -2494,6 +2496,8 @@ setInterval(() => { if (LLAVE && !document.hidden && !$('panel').hidden && !$('d
     if (!s.value) return;
     if (s.value === '__hoy') { $('desde').value = hy; $('hasta').value = hy; if (LLAVE) $('act').onclick(); return; }
     if (s.value === '__rec') { $('desde').value = sumDias(hy, -2); $('hasta').value = hy; if (LLAVE) $('act').onclick(); return; }
+    if (s.value === '__31' || s.value === '__90') { $('desde').value = sumDias(hy, s.value === '__31' ? -30 : -89); $('hasta').value = hy; if (LLAVE) $('act').onclick(); return; }
+    if (s.value === '__todo') { $('desde').value = '2025-01-01'; $('hasta').value = hy; if (LLAVE) $('act').onclick(); return; }
     const c = cortes[s.value]; $('desde').value = c[0]; $('hasta').value = c[1] > hy ? hy : c[1];
     if (LLAVE) $('act').onclick();
   };
