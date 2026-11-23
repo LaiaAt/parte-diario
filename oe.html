@@ -20,9 +20,9 @@
 .top{background:#0a7f2e}.ibtn{display:inline-flex;align-items:center;justify-content:center}.top .logo{width:auto;height:38px;border-radius:6px;background:#fff;padding:2px 4px}
 main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padding-bottom:110px}
 .preg{font-size:1.35rem;margin:6px 2px 12px;color:#0f172a}
-.hs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 14px}
+.hs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:0 0 8px}
 @media(min-width:620px){.hs{grid-template-columns:repeat(3,1fr)}}
-.hs .bg{min-height:104px;position:relative;padding:10px 8px}.hs .bg-i{font-size:1.9rem}.hs .bg b{font-size:1.02rem}
+.hs .bg{min-height:0;position:relative;padding:8px 4px 7px;gap:2px}.hs .bg-i{font-size:1.5rem;line-height:1.2}.hs .bg b{font-size:.8rem;line-height:1.15}.hs .bg small{display:none}
 .hs .bg .n{position:absolute;right:8px;top:8px;background:#0a7f2e;color:#fff;border-radius:12px;min-width:24px;height:24px;line-height:24px;text-align:center;font-size:.8rem;font-weight:800;padding:0 6px;font-style:normal}
 .btn.grande{min-height:64px;font-size:1.2rem;background:#0a7f2e;border-color:#065f1f;box-shadow:0 3px 0 #065f1f}
 .dia{display:flex;gap:8px;align-items:center}.dia input{text-align:center}.dia .btn{min-width:54px}
@@ -40,6 +40,7 @@ img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;backg
 .lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
 .dcard{padding:0;overflow:hidden}.dcard>*:not(.dh){margin-left:14px;margin-right:14px}.dcard>.btn.blk{width:calc(100% - 28px)}.dcard>.rt{margin-bottom:14px}.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:14px;font-size:1.05rem;color:#0f172a;text-align:left;cursor:pointer;margin-bottom:0}.dh b{flex:1}.dh i{font-style:normal;color:#0a7f2e;font-size:1.1rem}.dh.vac{cursor:default;opacity:.7}.dcard>.hh:first-of-type,.dcard>.btn+.hh{margin-top:12px}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}.rr .btn{min-height:34px;padding:4px 10px}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.uch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.uch button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:12px;min-height:54px;font-weight:700;font-size:.98rem;cursor:pointer;padding:6px}.uch button.on{background:#0a7f2e;border-color:#0a7f2e;color:#fff}.otro{margin:10px 0 4px;min-height:48px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
 .sbar .sres{display:none}.sbar{gap:12px}.sbar .btn,.sbar .btn.sacar2,.sbar .btn.cnl{flex:1 1 0;width:0;min-width:0;box-sizing:border-box;margin:0;padding:0 8px;min-height:56px;font-size:1.1rem}.sbar .btn{white-space:nowrap}.btn.blk{box-sizing:border-box}
+.redg{display:grid;grid-template-columns:1fr 1fr;gap:6px}.redg .act{width:auto;min-width:0;box-sizing:border-box;margin-top:6px;padding:10px 8px;font-size:.85rem;min-height:52px}
 .act small.est{color:#0d5c2e;font-weight:700}
 </style>
 </head>
@@ -54,7 +55,7 @@ function jpg1MB(cv, q) { var d = cv.toDataURL('image/jpeg', q); while (d.length 
 const API = 'https://script.google.com/macros/s/AKfycbz6LjPHWbh_vLcYhwSvYFp8tMN737nX-hJUPiX6vOvLb_3tEAyH9zeCC_4pqNSPRz9O1w/exec';
 const LS = 'oe_ses_v1', LSC = 'oe_cache_v1', TITULO = 'OE · Topografía';
 const COSTADOS = ['ORIENTAL', 'OCCIDENTAL', 'NO APLICA'];
-const ICO = { '2.01': '🛣️', '2.02': '🚌', '2.03': '🛤️', '2.04': '🌳', '2.05': '🚲', '2.06': '🌉', '2.07': '🔄', '2.08': '🚧', '2.09': '🏢', '2.10': '🏗️', '2.11': '💧', '2.12': '⚡' };
+const ICO = { '2.01': '🛣️', '2.02': '🚌', '2.03': '🛤️', '2.04': '🌳', '2.05': '🚲', '2.06': '🌉', '2.07': '🔄', '2.08': '🚧', '2.09': '🏢', '2.10': '🏗️', '2.11': '💧', '2.12': '⚡', 'MANT': '🛠️' };
 const $ = s => document.querySelector(s);
 const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
@@ -68,7 +69,7 @@ const fmt = x => isNaN(x) ? '—' : r3(x).toLocaleString('es-CO', { maximumFract
 const fechaTxt = f => f.split('-').reverse().join('/');
 
 /* Unidad → cuántas medidas se piden (largo, ancho, alto). Las demás piden una sola cantidad. */
-const UND = { 'M3': 3, 'M2': 2, 'ML': 1 };
+const UND = { 'M3': 3, 'M2': 2, 'ML': 1, 'M': 1 };
 const NDIM = ['Largo (m)', 'Ancho (m)', 'Alto / espesor (m)'];
 const undTxt = u => ({ 'M3': 'm³', 'M2': 'm²', 'ML': 'm', 'UN': 'und', 'KG': 'kg', 'M3-KM': 'm³·km', 'TON-M': 'ton·m' }[u] || u);
 
@@ -95,6 +96,18 @@ async function cargarCat() {
   try { const r = await fetch('oe/catalogo.json'); S.cat = await r.json(); } catch (e) { S.cat = null; }
 }
 const paquetesDe = (h, uf) => (S.cat && S.cat.cat[h + '|' + uf]) || [];
+// Redes (2.11 húmedas, 2.12 secas): primero se elige el tipo de red. CAPEX usa la estructura del proyecto; una subcuenta o ENEL usa su propio catálogo.
+const esRed = h => h === '2.11' || h === '2.12';
+const esMant = h => h === 'MANT';
+const redLista = r => !!(S.cat && S.cat.redes && S.cat.redes.some(x => x[0] === r));
+function pqs(f, h) {
+  f = f || S.f; h = h || S.hito; if (!S.cat) return [];
+  if (esMant(h)) return (S.cat.sub && S.cat.sub.UF0) || [];
+  if (esRed(h) && f.red && f.red !== 'CAPEX') return (S.cat.sub && S.cat.sub[f.red]) || [];
+  return paquetesDe(h, f.uf);
+}
+const P = () => { let L = PASOS.slice(); if (esMant(S.hito)) L = L.filter(x => x[0] !== 'uf'); if (esRed(S.hito)) L = [['red', '¿Qué tipo de red?']].concat(L); return L; };
+const ix = k => P().findIndex(x => x[0] === k);
 // Estructura a la que pertenece una actividad (por el prefijo del código: 1M06.1 → Muro 6, 1S05.17 → Sifón 5, 1MC7 → muros en concreto)
 const estDe = c => { c = String(c || ''); const p = c.includes('.') ? c.split('.')[0] : ((c.match(/^\d*[A-Z]+/) || [''])[0]); return (S.cat && S.cat.est && S.cat.est[p]) || ''; };
 const nomHito = c => { const x = S.cat && S.cat.hitos.find(y => y[0] === c); return x ? x[1] : ''; };
@@ -177,14 +190,14 @@ function vDia() {
 }
 function vInicio() {
   const reg = todosDia(), por = {}; reg.forEach(x => { por[x.hito] = (por[x.hito] || 0) + 1; });
-  let h = '<div class="card">' + vDia() + '</div><h2 class="preg">¿En qué hito trabajaste?</h2><div class="hs">';
+  let h = '<div class="card" style="padding:8px;margin-bottom:8px">' + vDia() + '</div><h2 class="preg" style="font-size:1.1rem;margin:2px 2px 8px">¿En qué hito trabajaste?</h2><div class="hs">';
   (S.cat ? S.cat.hitos : []).forEach(x => { const n = por[x[0]] || 0; h += '<button type="button" class="bg" data-a="hito" data-v="' + x[0] + '"><span class="bg-i">' + (ICO[x[0]] || '📍') + '</span><b>' + esc(x[1]) + '</b><small>' + (n ? n + (n === 1 ? ' registro' : ' registros') : '&nbsp;') + '</small>' + (n ? '<i class="n">' + n + '</i>' : '') + '</button>'; });
   h += '</div>';
   if (!S.cat) h += '<div class="error">No se pudo cargar el catálogo. Conéctate una vez para guardarlo.</div>';
-  return h + '<p class="peq mut cen">Un reporte por hito, con las actividades que ejecutaste.</p>';
+  return h;
 }
 function filaReg(x) {
-  return '<div class="reg"><b>' + esc(x.actividad) + '</b><span class="peq mut">' + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + '</span><div><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b> ' +
+  return '<div class="reg"><b>' + esc(x.actividad) + '</b><span class="peq mut">' + (x.red ? esc(x.red) + ' · ' : '') + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + '</span><div><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b> ' +
     (x._ok ? '<span class="tag" style="background:#e6f6ee;color:#14532d">subido</span> <button class="btn chico sec" style="float:right" data-a="anular" data-v="' + esc(x.id) + '">Anular</button>' : '<span class="tag pend">por subir' + (x.error ? ' · ' + esc(x.error) : '') + '</span>') + '</div></div>';
 }
 function vHito() {
@@ -208,7 +221,7 @@ function vMis() {
       let hit = '';
       reg.forEach(x => {
         if (x.hito !== hit) { hit = x.hito; h += '<div class="hh">' + (ICO[hit] || '') + ' ' + esc(nomHito(hit)) + '</div>'; }
-        h += '<div class="rl"><div><b>' + esc(x.actividad) + '</b><span class="peq mut">' + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + (x.cc === 'NUEVA' ? ' · actividad nueva' : '') + (x._ok ? '' : ' · ⏳ por subir') + '</span></div><div class="rr"><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b><button type="button" class="btn chico sec" data-a="editar" data-v="' + esc(x.id) + '">✏️ Editar</button></div></div>';
+        h += '<div class="rl"><div><b>' + esc(x.actividad) + '</b><span class="peq mut">' + (x.red ? esc(x.red) + ' · ' : '') + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + (x.cc === 'NUEVA' ? ' · actividad nueva' : '') + (x._ok ? '' : ' · ⏳ por subir') + '</span></div><div class="rr"><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b><button type="button" class="btn chico sec" data-a="editar" data-v="' + esc(x.id) + '">✏️ Editar</button></div></div>';
       });
       h += '<div class="rt">Total: ' + totUnd(reg) + '</div>';
     }
@@ -222,9 +235,9 @@ const vBarra = () => '<nav class="mbar" style="grid-template-columns:repeat(2,1f
 function excelDia(f) {
   const reg = regDe(f).sort((a, b) => String(a.hito).localeCompare(String(b.hito)) || String(a.creado || '~').localeCompare(String(b.creado || '~')));
   const H = t => ({ v: t, s: 1 });
-  const filas = [['Fecha', 'Hito', 'UF', 'Costado', 'Abscisa inicio', 'Abscisa fin', 'Paquete', 'Código', 'Actividad', 'Unidad', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Total', 'Latitud', 'Longitud', 'Topógrafo'].map(H)];
+  const filas = [['Fecha', 'Hito', 'Tipo de red', 'UF', 'Costado', 'Abscisa inicio', 'Abscisa fin', 'Paquete', 'Código', 'Actividad', 'Unidad', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Total', 'Latitud', 'Longitud', 'Topógrafo'].map(H)];
   const nz = v => (v === '' || v == null || isNaN(Number(v))) ? '' : Number(v);
-  reg.forEach(x => filas.push([fechaTxt(f), nomHito(x.hito), x.uf, x.costado, x.abIni, x.abFin, x.paquete, x.cc, x.actividad, undTxt(x.und), nz(x.largo), nz(x.ancho), nz(x.alto), nz(x.cantidad), nz(x.descuento), nz(x.total), nz(x.lat), nz(x.lon), S.ses.nombre]));
+  reg.forEach(x => filas.push([fechaTxt(f), nomHito(x.hito), x.red || '', x.uf, x.costado, x.abIni, x.abFin, x.paquete, x.cc, x.actividad, undTxt(x.und), nz(x.largo), nz(x.ancho), nz(x.alto), nz(x.cantidad), nz(x.descuento), nz(x.total), nz(x.lat), nz(x.lon), S.ses.nombre]));
   const res = {}; reg.forEach(x => { const k = x.hito + '|' + x.actividad + '|' + x.und; res[k] = (res[k] || 0) + Number(x.total || 0); });
   const f2 = [['Hito', 'Actividad', 'Unidad', 'Total'].map(H)];
   Object.keys(res).sort().forEach(k => { const p = k.split('|'); f2.push([nomHito(p[0]), p[1], undTxt(p[2]), r3(res[k])]); });
@@ -265,22 +278,30 @@ function gpsHtml() {
 const grandes = (arr, sel, acc) => '<div class="opc">' + arr.map(x => '<button type="button" class="' + (x === sel ? 'on' : '') + '" data-a="' + acc + '" data-v="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div>';
 function resumen() {
   const f = S.f, p = [];
-  if (f.uf) p.push(f.uf); if (f.costado) p.push(f.costado);
-  const a = abTxt(f.aI), b = abTxt(f.aF); if (f.p > 2 && a && b) p.push(a + ' → ' + b);
-  if (f.p > 3 && f.pq !== '') { const q = paquetesDe(S.hito, f.uf)[f.pq]; if (q) p.push(q[0]); }
+  if (f.red) p.push(f.red === 'CAPEX' ? 'CAPEX' : f.red); if (f.uf) p.push(f.uf); if (f.costado) p.push(f.costado);
+  const a = abTxt(f.aI), b = abTxt(f.aF); if (f.p > ix('abs') && a && b) p.push(a + ' → ' + b);
+  if (f.p > ix('paquete') && f.pq !== '') { const q = pqs()[f.pq]; if (q) p.push(q[0]); }
   return p.length ? '<div class="resu">' + p.map(esc).join(' · ') + '</div>' : '';
 }
 function vPaso() {
-  const f = S.f, k = PASOS[f.p][0];
+  const f = S.f, k = P()[f.p][0];
   let h = '';
-  if (k === 'uf') h = grandes(S.cat.ufs, f.uf, 'uf');
+  if (k === 'red') {
+    const R = (S.cat.redes || []), b = (v, t, sub) => '<button type="button" class="act' + (f.red === v ? ' on' : '') + '" data-a="red" data-v="' + esc(v) + '">' + esc(t) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>';
+    h = b('CAPEX', '🏗 CAPEX', 'Estructura del proyecto (paquetes por UF)') +
+      '<div class="peq mut" style="margin:12px 2px 0;font-weight:700">Subcuentas</div><div class="redg">' + R.filter(x => x[1] !== 'CONTRATO EXTERNO').map(x => b(x[0], x[0])).join('') + '</div>' +
+      '<div class="peq mut" style="margin:12px 2px 0;font-weight:700">ENEL · contrato externo</div><div class="redg">' + R.filter(x => x[1] === 'CONTRATO EXTERNO').map(x => b(x[0], x[0].replace('ENEL_', 'ENEL ') )).join('') + '</div>' +
+      '<label class="f">¿Es otra red que no está en la lista? Escríbela</label><input type="text" data-f="redOtra" value="' + esc(f.red && f.red !== 'CAPEX' && !redLista(f.red) ? f.red : (f.redOtra || '')) + '" maxlength="60" placeholder="Ej: CLARO">' +
+      '<button type="button" class="btn sec blk" style="margin-top:8px" data-a="redOtra">✔ Usar esta red</button>';
+  }
+  else if (k === 'uf') h = grandes(S.cat.ufs.filter(u => u !== 'UF0'), f.uf, 'uf');
   else if (k === 'costado') h = grandes(COSTADOS, f.costado, 'costado');
   else if (k === 'abs') {
     h = '<label class="f" style="margin-top:0">Abscisa de inicio</label><input type="text" inputmode="decimal" autocomplete="off" data-f="aI" value="' + esc(f.aI) + '" placeholder="Ej: 12340"><div class="pv" id="pvI">' + (abTxt(f.aI) ? '✔ ' + abTxt(f.aI) : '') + '</div>' +
       '<label class="f">Abscisa de fin</label><input type="text" inputmode="decimal" autocomplete="off" data-f="aF" value="' + esc(f.aF) + '" placeholder="Ej: 12380"><div class="pv" id="pvF">' + (abTxt(f.aF) ? '✔ ' + abTxt(f.aF) : '') + '</div><div class="peq mut" style="margin-top:8px">Solo números: los 3 últimos son los metros. Ej: 12340 = K12+340 · con decimales: 12340.5 = K12+340.5</div>';
   } else if (k === 'paquete') {
-    const pqs = paquetesDe(S.hito, f.uf);
-    h = pqs.length ? pqs.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + p[1].length + ' actividades</small></button>').join('') : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>';
+    const PQ = pqs();
+    h = PQ.length ? PQ.map((p, i) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + p[1].length + ' actividades</small></button>').join('') : (esRed(S.hito) && f.red !== 'CAPEX' ? '<div class="aviso">La red ' + esc(f.red) + ' no tiene lista de actividades. Escribe la actividad que hiciste.</div><button type="button" class="btn blk" style="margin-top:10px" data-a="pqLibre">✍ Escribir la actividad</button>' : '<div class="aviso">Este hito no tiene actividades en la ' + esc(f.uf) + '. Vuelve y elige otra UF.</div>');
   } else if (k === 'act') {
     if (f.otra) {
       h = '<label class="f" style="margin-top:0">Nombre de la actividad (no está en la lista)</label><input type="text" data-f="on" value="' + esc(f.on) + '" maxlength="120" placeholder="Ej: Demolición de lindero" autocapitalize="sentences">' +
@@ -288,7 +309,7 @@ function vPaso() {
         (f.ou === 'OTRA' ? '<label class="f">¿Cuál unidad? (ej: km, jornal, punto)</label><input type="text" data-f="ot" value="' + esc(f.ot) + '" maxlength="12" placeholder="Escribe la unidad"><label class="f">¿Cuántas medidas necesita?</label><div class="uch">' + [[0, 'Solo cantidad'], [1, '1 · Largo'], [2, '2 · Largo y ancho'], [3, '3 · Largo, ancho y alto']].map(m => '<button type="button" class="' + (f.ond === m[0] ? 'on' : '') + '" data-a="ond" data-v="' + m[0] + '">' + m[1] + '</button>').join('') + '</div><div class="peq mut" style="margin-top:6px">Descuento y factor siempre se piden.</div>' : '') +
         '<button type="button" class="btn blk" style="margin-top:14px" data-a="usarOtra">✔ Usar esta actividad</button><button type="button" class="btn sec blk" style="margin-top:10px" data-a="lista">◀ Volver a la lista</button>';
     } else {
-      const T = (paquetesDe(S.hito, f.uf)[f.pq] || ['', []])[1], rep = {}; T.forEach(a => { const k = a[1].trim().toUpperCase() + '|' + a[2]; rep[k] = (rep[k] || 0) + 1; });
+      const T = (pqs()[f.pq] || ['', []])[1], rep = {}; T.forEach(a => { const k = a[1].trim().toUpperCase() + '|' + a[2]; rep[k] = (rep[k] || 0) + 1; });
       const esR = a => rep[a[1].trim().toUpperCase() + '|' + a[2]] > 1;
       const q = S.q.toLowerCase(), L = T.filter(a => !q || (a[0] + ' ' + a[1] + ' ' + estDe(a[0])).toLowerCase().includes(q));
       h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '">' +
@@ -310,13 +331,13 @@ function vPaso() {
   return h;
 }
 function vForm() {
-  const f = S.f, n = PASOS.length, ult = f.p === n - 1;
+  const f = S.f, n = P().length, ult = f.p === n - 1;
   let h = '<div class="prog"><i style="width:' + Math.round((f.p + 1) / n * 100) + '%"></i></div><div class="peq mut" style="margin:6px 2px">' + ICO[S.hito] + ' ' + esc(nomHito(S.hito)) + ' · paso ' + (f.p + 1) + ' de ' + n + '</div>' + resumen() +
-    '<div class="card"><h2 class="preg" style="margin-top:0">' + PASOS[f.p][1] + '</h2>' + (f.msg ? '<div class="error">' + esc(f.msg) + '</div>' : '') + vPaso() + '</div>';
+    '<div class="card"><h2 class="preg" style="margin-top:0">' + P()[f.p][1] + '</h2>' + (f.msg ? '<div class="error">' + esc(f.msg) + '</div>' : '') + vPaso() + '</div>';
   return h;
 }
 function vSbar() {
-  const f = S.f, ult = f.p === PASOS.length - 1;
+  const f = S.f, ult = f.p === P().length - 1;
   return '<div class="sbar"><button type="button" class="btn sec cnl" data-a="atras">◀ ' + (f.p === 0 ? 'Cancelar' : 'Atrás') + '</button>' +
     (ult ? '<button type="button" class="btn sacar2" data-a="guardar"' + (f.guardando ? ' disabled' : '') + '>' + (f.guardando ? 'Guardando…' : '💾 Guardar') + '</button>' : '<button type="button" class="btn sacar2" data-a="sig">Siguiente ▶</button>') + '</div>';
 }
@@ -349,13 +370,14 @@ function reducirFoto(file) {
 
 /* ---------- Acciones ---------- */
 function salir() { lsSet(LS, null); lsSet(LSC, null); lsSet(LSM, null); S.mis = {}; S.tab = 'rep'; S.ses = null; S.f = null; S.hito = ''; }
-function ir(p) { S.f.p = p; S.f.msg = ''; S.q = ''; render(); window.scrollTo(0, 0); if (PASOS[p][0] === 'foto' && !S.f.gps) tomarGps(); }
+function ir(p) { S.f.p = p; S.f.msg = ''; S.q = ''; render(); window.scrollTo(0, 0); if (P()[p][0] === 'foto' && !S.f.gps) tomarGps(); }
 function validarPaso() {
-  const f = S.f, k = PASOS[f.p][0];
+  const f = S.f, k = P()[f.p][0];
+  if (k === 'red' && !f.red) return 'Elige el tipo de red.';
   if (k === 'uf' && !f.uf) return 'Elige la UF.';
   if (k === 'costado' && !f.costado) return 'Elige el costado.';
   if (k === 'abs') { if (!abTxt(f.aI) || !abTxt(f.aF)) return 'Escribe las dos abscisas, solo números (ej: 12340 o 12340.5).'; }
-  if (k === 'paquete' && f.pq === '') return 'Elige el paquete.';
+  if (k === 'paquete' && f.pq === '') return pqs().length ? 'Elige el paquete.' : 'Toca «Escribir la actividad».';
   if (k === 'act' && !f.act) return 'Elige la actividad.';
   if (k === 'med') { const K = calc(); if (isNaN(K.c) || K.c <= 0) return 'Escribe las medidas (mayores que cero).'; if (K.d < 0 || K.d > K.c) return 'El descuento no puede ser mayor que la cantidad.'; if (!(K.fa > 0)) return 'El factor debe ser mayor que cero.'; }
   if (k === 'foto' && !f.foto && !f.tieneFoto) return 'Falta la foto de la actividad.';
@@ -369,7 +391,8 @@ function editar(id) {
   S.hito = x.hito;
   const f = nuevoForm(); f.id = x.id; f.edit = true; f.fecha = x.fecha; f.uf = x.uf; f.costado = x.costado;
   f.aI = String(x.abIni || '').replace(/[^\d.]/g, ''); f.aF = String(x.abFin || '').replace(/[^\d.]/g, '');
-  f.pq = (() => { const i = paquetesDe(x.hito, x.uf).findIndex(p => p[0] === x.paquete); return i >= 0 ? i : ''; })();
+  f.red = x.red || (esRed(x.hito) ? 'CAPEX' : '');
+  f.pq = (() => { const i = pqs(f, x.hito).findIndex(p => p[0] === x.paquete); return i >= 0 ? i : (x.paquete === 'Sin paquete' ? 'L' : ''); })();
   f.act = { c: x.cc, d: x.actividad, u: x.und, nd: n, nueva: x.cc === 'NUEVA' };
   if (x.cc === 'NUEVA') { f.otra = true; f.on = x.actividad; f.ou = UNID.some(u => u[0] === x.und) ? x.und : 'OTRA'; f.ot = f.ou === 'OTRA' ? x.und : ''; f.ond = n; }
   f.largo = s0(x.largo); f.ancho = s0(x.ancho); f.alto = s0(x.alto); f.cant = n === 0 ? s0(x.cantidad) : '';
@@ -393,14 +416,14 @@ function usarOtra() {
   } else dims = UND[u] || 0;
   const nm = n.toUpperCase();
   if (!f.act || f.act.c !== 'NUEVA' || f.act.d !== nm || f.act.u !== u || f.act.nd !== dims) { f.largo = f.ancho = f.alto = f.cant = f.desc = ''; f.fac = '1'; }
-  f.act = { c: 'NUEVA', d: nm, u: u, nd: dims, nueva: true }; ir(5);
+  f.act = { c: 'NUEVA', d: nm, u: u, nd: dims, nueva: true }; ir(ix('med'));
 }
-function sig() { if (PASOS[S.f.p][0] === 'act' && S.f.otra) { usarOtra(); return; } const m = validarPaso(); if (m) { S.f.msg = m; render(); window.scrollTo(0, 0); return; } ir(S.f.p + 1); }
+function sig() { if (P()[S.f.p][0] === 'act' && S.f.otra) { usarOtra(); return; } const m = validarPaso(); if (m) { S.f.msg = m; render(); window.scrollTo(0, 0); return; } ir(S.f.p + 1); }
 async function guardar() {
   const f = S.f, m = validarPaso();
   if (m) { f.msg = m; render(); window.scrollTo(0, 0); return; }
   const K = calc(), n = nd();
-  const reg = { id: f.id, fecha: f.fecha || S.fecha, hito: S.hito, uf: f.uf, costado: f.costado, abIni: abTxt(f.aI), abFin: abTxt(f.aF), paquete: paquetesDe(S.hito, f.uf)[f.pq][0], cc: f.act.c, actividad: f.act.d, und: f.act.u, nd: n,
+  const reg = { id: f.id, fecha: f.fecha || S.fecha, hito: S.hito, uf: f.uf, costado: f.costado, abIni: abTxt(f.aI), abFin: abTxt(f.aF), paquete: f.pq === 'L' ? 'Sin paquete' : (pqs()[f.pq] || ['Sin paquete'])[0], red: f.red || '', cc: f.act.c, actividad: f.act.d, und: f.act.u, nd: n,
     largo: n >= 1 ? num(f.largo) : '', ancho: n >= 2 ? num(f.ancho) : '', alto: n >= 3 ? num(f.alto) : '', cantidad: K.c, descuento: K.d, factor: K.fa, total: r3(K.t),
     lat: f.gps ? f.gps.lat : '', lon: f.gps ? f.gps.lon : '', prec: f.gps ? f.gps.prec : '', foto: f.foto, obs: '', llave: S.ses.llave, creado: new Date().toISOString().slice(0, 19).replace('T', ' ') };
   f.guardando = true; render();
@@ -434,13 +457,15 @@ document.addEventListener('click', async ev => {
   if (a === 'dia') { cambioDia(sumDias(S.fecha, Number(v))); return; }
   if (a === 'hito') { S.hito = v; render(); window.scrollTo(0, 0); return; }
   if (a === 'volver') { S.hito = ''; render(); window.scrollTo(0, 0); return; }
-  if (a === 'nuevo') { S.f = nuevoForm(); S.q = ''; render(); window.scrollTo(0, 0); return; }
+  if (a === 'nuevo') { S.f = nuevoForm(); if (esMant(S.hito)) S.f.uf = 'UF0'; S.q = ''; render(); window.scrollTo(0, 0); return; }
+  if (a === 'red' || a === 'redOtra') { const r = a === 'red' ? v : String(S.f.redOtra || '').trim().toUpperCase(); if (!r) { S.f.msg = 'Escribe el nombre de la red.'; render(); return; } if (S.f.red !== r) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.red = r; ir(ix('red') + 1); return; }
+  if (a === 'pqLibre') { S.f.pq = 'L'; S.f.act = null; S.f.otra = true; ir(ix('act')); return; }
   if (a === 'atras') { if (S.f.p > 0) { ir(S.f.p - 1); return; } if ((!S.f.uf && !S.f.foto) || confirm(S.f.edit ? '¿Descartar los cambios?' : '¿Descartar este registro?')) { cerrarForm(); render(); } return; }
   if (a === 'sig') { sig(); return; }
-  if (a === 'uf') { if (S.f.uf !== v) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.uf = v; ir(1); return; }
-  if (a === 'costado') { S.f.costado = v; ir(2); return; }
-  if (a === 'pq') { if (String(S.f.pq) !== String(v)) { S.f.act = null; S.f.otra = false; } S.f.pq = v; ir(4); return; }
-  if (a === 'act') { S.f.otra = false; const p = paquetesDe(S.hito, S.f.uf)[S.f.pq], x = p[1].find(y => y[0] === v); if (!S.f.act || S.f.act.c !== x[0]) { S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; } S.f.act = { c: x[0], d: x[1], u: x[2] }; ir(5); return; }
+  if (a === 'uf') { if (S.f.uf !== v) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.uf = v; ir(ix('costado')); return; }
+  if (a === 'costado') { S.f.costado = v; ir(ix('abs')); return; }
+  if (a === 'pq') { if (String(S.f.pq) !== String(v)) { S.f.act = null; S.f.otra = false; } S.f.pq = v; ir(ix('act')); return; }
+  if (a === 'act') { S.f.otra = false; const p = pqs()[S.f.pq], x = p[1].find(y => y[0] === v); if (!S.f.act || S.f.act.c !== x[0]) { S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; } S.f.act = { c: x[0], d: x[1], u: x[2] }; ir(ix('med')); return; }
   if (a === 'otra') { S.f.otra = true; if (!S.f.on) S.f.on = S.q.trim(); S.f.msg = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'lista') { S.f.otra = false; S.f.msg = ''; render(); return; }
   if (a === 'ou') { S.f.ou = v; render(); return; }

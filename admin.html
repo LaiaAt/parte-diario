@@ -1872,7 +1872,7 @@ function navegacion() {
 }
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
 const OE_TABS = [['kpi', '📊 Resumen'], ['reg', '📋 Registros'], ['hito', '🏗️ Por hito y actividad']];
-let OE = null, OETAB = selGet('oe', 'kpi', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', q: '' }, OEN = 60;
+let OE = null, OETAB = selGet('oe', 'kpi', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', red: '', q: '' }, OEN = 60;
 const oeNum = x => { const n = Number(String(x == null ? '' : x).replace(',', '.')); return isFinite(n) ? n : 0; };
 const oeR = n => Math.round(n * 100) / 100;
 const oeFmt = n => oeR(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
@@ -1896,14 +1896,15 @@ async function cargarOe() {
 }
 function oeFiltrados() {
   const q = mqSinTilde(OEF.q);
-  return (OE.registros || []).filter(r => (!OEF.top || r.llave === OEF.top) && (!OEF.hito || r.hito === OEF.hito) &&
-    (!q || mqSinTilde([r.actividad, r.topografo, r.uf, r.costado, r.paquete, r.cc, r.abIni, r.abFin, r.obs].join(' ')).indexOf(q) >= 0));
+  return (OE.registros || []).filter(r => (!OEF.top || r.llave === OEF.top) && (!OEF.hito || r.hito === OEF.hito) && (!OEF.red || (r.red || '') === OEF.red) &&
+    (!q || mqSinTilde([r.actividad, r.red, r.topografo, r.uf, r.costado, r.paquete, r.cc, r.abIni, r.abFin, r.obs].join(' ')).indexOf(q) >= 0));
 }
 function oeGrupos(L, fk) { const o = {}; L.forEach(r => { const k = fk(r); const a = (o[k.join('|')] = o[k.join('|')] || { k: k, n: 0, t: 0 }); a.n++; a.t += oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad); }); return Object.keys(o).sort().map(x => o[x]); }
 function oeTablas(L) {
   return {
     hito: { nombre: 'Por hito', cols: ['Hito', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [oeHitoTxt(r.hito), r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
     act: { nombre: 'Por actividad', cols: ['Hito', 'Paquete', 'Actividad', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [oeHitoTxt(r.hito), r.paquete || '', r.actividad || '', r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
+    red: { nombre: 'Por tipo de red', cols: ['Tipo de red', 'Hito', 'Actividad', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L.filter(r => r.red), r => [r.red, oeHitoTxt(r.hito), r.actividad || '', r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
     top: { nombre: 'Por topógrafo', cols: ['Topógrafo', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [r.topografo || nomDe(r.llave), r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
     dia: { nombre: 'Por día', cols: ['Fecha', 'Registros', 'Topógrafos'], rows: Object.keys(L.reduce((o, r) => { (o[r.fecha] = o[r.fecha] || []).push(r); return o; }, {})).sort().map(f => { const x = L.filter(r => r.fecha === f); return [fmtF(f), x.length, new Set(x.map(r => r.llave)).size]; }) }
   };
@@ -1911,10 +1912,10 @@ function oeTablas(L) {
 function xlsxOe() {
   const L = oeFiltrados(); if (!L.length) { avisoDatos('No hay registros con este filtro'); return; }
   if (!window.XLSX) { avisoDatos('El Excel aún está cargando, intenta de nuevo'); return; }
-  const cols = ['Fecha', 'Topógrafo', 'Hito', 'UF', 'Costado', 'Abscisa inicial', 'Abscisa final', 'Paquete', 'C. costos', 'Actividad', 'Und', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Total', 'Latitud', 'Longitud', 'Observaciones'];
-  const rows = L.slice().sort((a, b) => (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.total, r.lat, r.lon, r.obs]);
+  const cols = ['Fecha', 'Topógrafo', 'Hito', 'Tipo de red', 'UF', 'Costado', 'Abscisa inicial', 'Abscisa final', 'Paquete', 'C. costos', 'Actividad', 'Und', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Total', 'Latitud', 'Longitud', 'Observaciones'];
+  const rows = L.slice().sort((a, b) => (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.red || '', r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.total, r.lat, r.lon, r.obs]);
   const T = oeTablas(L);
-  excelHoja('Registros OE', cols, rows, 'OE_' + $('desde').value + '_a_' + $('hasta').value + '.xlsx', [T.hito, T.act, T.top, T.dia].map(x => ({ nombre: x.nombre, cols: x.cols, rows: x.rows })));
+  excelHoja('Registros OE', cols, rows, 'OE_' + $('desde').value + '_a_' + $('hasta').value + '.xlsx', [T.hito, T.act, T.red, T.top, T.dia].filter(x => x.rows.length).map(x => ({ nombre: x.nombre, cols: x.cols, rows: x.rows })));
 }
 function verFotoOe(r) {
   const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px', onclick: () => ov.remove() }, h('div', { style: 'color:#fff' }, 'Cargando foto…'));
@@ -1930,11 +1931,11 @@ function pintarOe() {
   const c = $('oeBody'); if (!OE) return; c.textContent = '';
   const R = OE.registros || [];
   if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay registros de OE en estas fechas')); return; }
-  const tops = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => (nomDe(a) || '').localeCompare(nomDe(b) || '')), hitos = Array.from(new Set(R.map(r => r.hito).filter(Boolean))).sort();
+  const tops = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => (nomDe(a) || '').localeCompare(nomDe(b) || '')), hitos = Array.from(new Set(R.map(r => r.hito).filter(Boolean))).sort(), reds = Array.from(new Set(R.map(r => r.red).filter(Boolean))).sort();
   const sel = (k, op, def) => { const s = h('select', { onchange: () => { OEF[k] = s.value; OEN = 60; pintarOe(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = OEF[k]; return s; };
   const q = h('input', { type: 'search', placeholder: '🔎 Buscar actividad, UF, costado, paquete…', value: OEF.q, style: 'font-size:17px;padding:10px;min-width:220px;flex:2' });
   let tq; q.oninput = () => { OEF.q = q.value; clearTimeout(tq); tq = setTimeout(() => { OEN = 60; const y = window.scrollY; pintarOe(); const n = $('oeBody').querySelector('input[type=search]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } window.scrollTo(0, y); }, 300); };
-  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, q, sel('top', tops.map(l => [l, nomDe(l)]), 'Todos los topógrafos'), sel('hito', hitos.map(k => [k, oeHitoTxt(k)]), 'Todos los hitos'), h('button', { onclick: xlsxOe }, '⬇ Excel')));
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, q, sel('top', tops.map(l => [l, nomDe(l)]), 'Todos los topógrafos'), sel('hito', hitos.map(k => [k, oeHitoTxt(k)]), 'Todos los hitos'), reds.length ? sel('red', reds.map(k => [k, k]), 'Todas las redes') : null, h('button', { onclick: xlsxOe }, '⬇ Excel')));
   const L = oeFiltrados();
   if (!L.length) { c.appendChild(h('div', { class: 'trok' }, 'Ningún registro coincide con el filtro')); return; }
   const T = oeTablas(L);
@@ -1948,12 +1949,12 @@ function pintarOe() {
     c.appendChild(tablaMq('👷 Por topógrafo', T.top.cols, T.top.rows));
     return;
   }
-  if (OETAB === 'hito') { c.appendChild(tablaMq('🏗️ Por hito, paquete y actividad', T.act.cols, T.act.rows)); return; }
+  if (OETAB === 'hito') { c.appendChild(tablaMq('🏗️ Por hito, paquete y actividad', T.act.cols, T.act.rows)); if (T.red.rows.length) c.appendChild(tablaMq('🔌 Redes por tipo (CAPEX, subcuenta, ENEL)', T.red.cols, T.red.rows)); return; }
   const vis = L.slice(0, OEN);
-  const th = ['Fecha', 'Topógrafo', 'Hito', 'UF · Costado', 'Abscisas', 'Actividad', 'Und', 'Total', ''];
+  const th = ['Fecha', 'Topógrafo', 'Hito', 'Red', 'UF · Costado', 'Abscisas', 'Actividad', 'Und', 'Total', ''];
   c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, L.length + ' registros' + (L.length > vis.length ? ' · se muestran ' + vis.length + ', el Excel trae todos' : '')));
   c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, th.map(t => h('th', {}, t)))), h('tbody', {}, vis.map(r => h('tr', {},
-    h('td', {}, fmtF(r.fecha)), h('td', {}, r.topografo || nomDe(r.llave)), h('td', {}, oeHitoTxt(r.hito)), h('td', {}, [r.uf, r.costado].filter(Boolean).join(' · ')), h('td', {}, oeAbs(r)), h('td', {}, r.actividad || ''), h('td', {}, r.und || ''),
+    h('td', {}, fmtF(r.fecha)), h('td', {}, r.topografo || nomDe(r.llave)), h('td', {}, oeHitoTxt(r.hito)), h('td', {}, r.red || ''), h('td', {}, [r.uf, r.costado].filter(Boolean).join(' · ')), h('td', {}, oeAbs(r)), h('td', {}, r.actividad || ''), h('td', {}, r.und || ''),
     h('td', { style: 'text-align:right;font-weight:700' }, oeFmt(oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad))),
     h('td', {}, r.foto ? h('button', { class: 'sec sm', onclick: () => verFotoOe(r) }, '📷') : null)))))));
   if (L.length > vis.length) c.appendChild(h('button', { class: 'sec', style: 'margin-top:8px', onclick: () => { OEN += 60; const y = window.scrollY; pintarOe(); window.scrollTo(0, y); } }, 'Ver más'));
