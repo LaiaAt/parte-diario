@@ -2142,7 +2142,7 @@ function vistaOeMapa(c, L) {
   cargarLeaflet().then(() => {
     if (!box.isConnected) return; box.textContent = '';
     const m = window.L.map(box, { scrollWheelZoom: true });
-    window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
+    window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', referrerPolicy: 'strict-origin-when-cross-origin' }).addTo(m);
     const b = [];
     P.forEach(r => { const la = parseFloat(r.lat), lo = parseFloat(r.lon); b.push([la, lo]);
       const g = 'https://www.google.com/maps/search/?api=1&query=' + la.toFixed(6) + ',' + lo.toFixed(6), e = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
