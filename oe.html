@@ -312,10 +312,11 @@ function vPaso() {
     const R = (S.cat.redes || []), tipoDe = r => r === 'CAPEX' ? 'CAPEX' : /^ENEL: /.test(r) || (R.find(x => x[0] === r) || [])[1] === 'CONTRATO EXTERNO' ? 'ENEL' : r ? 'SUBCUENTA' : '';
     const T = f.redTipo || tipoDe(f.red);
     const b = (v, t, sub) => '<button type="button" class="act' + (f.red === v ? ' on' : '') + '" data-a="red" data-v="' + esc(v) + '">' + esc(t) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>';
-    h = '<div class="opc">' + [['CAPEX', '🏗 CAPEX'], ['SUBCUENTA', '📂 SUBCUENTA'], ['ENEL', '⚡ ENEL']].map(x => '<button type="button" class="' + (T === x[0] ? 'on' : '') + '" data-a="redTipo" data-v="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
+    const hum = S.hito === '2.11', esHum = x => /^(ACUEDUCTO|ALCANTARILLADO|EMSERSOPO)/.test(x[0]);
+    h = '<div class="opc">' + [['CAPEX', '🏗 CAPEX'], ['SUBCUENTA', '📂 SUBCUENTA'], ['ENEL', '⚡ ENEL']].filter(x => !(hum && x[0] === 'ENEL')).map(x => '<button type="button" class="' + (T === x[0] ? 'on' : '') + '" data-a="redTipo" data-v="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
     if (T === 'SUBCUENTA' || T === 'ENEL') {
-      const L = R.filter(x => (x[1] === 'CONTRATO EXTERNO') === (T === 'ENEL'));
-      h += '<div class="peq mut" style="margin:14px 2px 0;font-weight:700">' + (T === 'ENEL' ? 'ENEL · contrato externo' : 'Subcuentas') + '</div><div class="redg">' + L.map(x => b(x[0], x[0].replace('ENEL_', 'ENEL '))).join('') + '</div>' +
+      const L = R.filter(x => (x[1] === 'CONTRATO EXTERNO') === (T === 'ENEL') && esHum(x) === hum);
+      h += '<div class="peq mut" style="margin:14px 2px 0;font-weight:700">' + (T === 'ENEL' ? 'ENEL · contrato externo' : hum ? 'Subcuentas · redes húmedas' : 'Subcuentas · redes secas') + '</div><div class="redg">' + L.map(x => b(x[0], x[0].replace('ENEL_', 'ENEL '))).join('') + '</div>' +
         '<label class="f">¿No está en la lista? Escríbela</label><input type="text" data-f="redOtra" value="' + esc(f.redOtra || (/: /.test(f.red || '') ? f.red.replace(/^[A-Z]+: /, '') : '')) + '" maxlength="50" placeholder="Ej: CLARO">' +
         '<button type="button" class="btn sec blk" style="margin-top:8px" data-a="redOtra">✔ Usar esta</button>';
     }
