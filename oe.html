@@ -112,6 +112,9 @@ const paquetesDe = (h, uf) => {
   return CAT_UF[k];
 };
 // Redes (2.11 húmedas, 2.12 secas): primero se elige el tipo de red. CAPEX usa la estructura del proyecto; una subcuenta o ENEL usa su propio catálogo.
+// Revisión de la oficina: el topógrafo ve el color y el motivo; lo revisado ya no se edita
+const REVT = { APROBADO: ['🟢 Aprobado', '#e6f6ee', '#14532d'], CORREGIDO: ['🔵 Corregido por oficina', '#e3eefc', '#0d3c7a'], RECHAZADO: ['🔴 Rechazado', '#fde8e8', '#8a1c1c'] };
+const revTag = x => x.rev && REVT[x.rev] ? '<span class="tag" style="background:' + REVT[x.rev][1] + ';color:' + REVT[x.rev][2] + '">' + REVT[x.rev][0] + '</span>' + (x.rev_motivo ? '<div class="peq" style="color:' + REVT[x.rev][2] + ';margin-top:2px">Oficina: ' + esc(x.rev_motivo) + '</div>' : '') : '';
 const esRed = h => h === '2.11' || h === '2.12';
 const esMant = h => h === 'MANT';
 const redLista0 = r => !!(S.cat && S.cat.redes && S.cat.redes.some(x => x[0] === r));
@@ -152,7 +155,7 @@ async function sincronizar() {
     for (const x of cola) {
       const { llave, error, ...reg } = x;
       let r; try { r = await llamar({ accion: 'oe_guardar', llave: S.ses.llave, reg }, 60000); } catch (e) { S.offline = true; break; }
-      if (r && (r.ok || r.codigo === 'PASADO')) await DB.quitar(x.id);
+      if (r && (r.ok || r.codigo === 'PASADO' || r.codigo === 'REVISADO')) { await DB.quitar(x.id); if (r.codigo === 'REVISADO') toast(r.mensaje); }
       else if (r && !r.ok) { x.error = r.mensaje || 'Error'; await DB.poner(x); }
     }
   } finally { S.busy = false; }
@@ -216,7 +219,7 @@ function vInicio() {
 }
 function filaReg(x) {
   return '<div class="reg"><b>' + esc(x.actividad) + '</b><span class="peq mut">' + (x.red ? esc(x.red) + ' · ' : '') + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + '</span><div><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b> ' +
-    (x._ok ? '<span class="tag" style="background:#e6f6ee;color:#14532d">subido</span> <button class="btn chico sec" style="float:right" data-a="anular" data-v="' + esc(x.id) + '">Anular</button>' : '<span class="tag pend">por subir' + (x.error ? ' · ' + esc(x.error) : '') + '</span>') + '</div></div>';
+    (x.rev ? revTag(x) : x._ok ? '<span class="tag" style="background:#e6f6ee;color:#14532d">subido</span> <button class="btn chico sec" style="float:right" data-a="anular" data-v="' + esc(x.id) + '">Anular</button>' : '<span class="tag pend">por subir' + (x.error ? ' · ' + esc(x.error) : '') + '</span>') + '</div></div>';
 }
 function vHito() {
   const reg = todosDia().filter(x => x.hito === S.hito).sort((a, b) => String(a.creado || '~').localeCompare(String(b.creado || '~')));
@@ -227,7 +230,7 @@ function vHito() {
 
 /* ---- Mis reportes: resumen por día ---- */
 const diaTxt = f => { const h = hoyISO(); const d = new Date(f + 'T12:00:00'); const w = d.toLocaleDateString('es-CO', { weekday: 'long' }); return (f === h ? 'Hoy' : f === sumDias(h, -1) ? 'Ayer' : w.charAt(0).toUpperCase() + w.slice(1)) + ' · ' + fechaTxt(f); };
-function totUnd(reg) { const t = {}; reg.forEach(x => { const k = undTxt(x.und); t[k] = (t[k] || 0) + Number(x.total || 0); }); return Object.keys(t).map(k => '<b>' + fmt(t[k]) + '</b> ' + esc(k)).join(' · '); }
+function totUnd(reg) { const t = {}; reg.filter(x => x.rev !== 'RECHAZADO').forEach(x => { const k = undTxt(x.und); t[k] = (t[k] || 0) + Number(x.total || 0); }); return Object.keys(t).map(k => '<b>' + fmt(t[k]) + '</b> ' + esc(k)).join(' · '); }
 function vMis() {
   let h = '<h2 class="preg">Mis reportes</h2>';
   ultimosDias().forEach(f => {
@@ -239,7 +242,7 @@ function vMis() {
       let hit = '';
       reg.forEach(x => {
         if (x.hito !== hit) { hit = x.hito; h += '<div class="hh">' + (ICO[hit] || '') + ' ' + esc(nomHito(hit)) + '</div>'; }
-        h += '<div class="rl"><div><b>' + esc(x.actividad) + '</b><span class="peq mut">' + (x.red ? esc(x.red) + ' · ' : '') + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + (x.cc === 'NUEVA' ? ' · actividad nueva' : '') + (x._ok ? '' : ' · ⏳ por subir') + '</span></div><div class="rr"><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b><button type="button" class="btn chico sec" data-a="editar" data-v="' + esc(x.id) + '">✏️ Editar</button></div></div>';
+        h += '<div class="rl"><div><b>' + esc(x.actividad) + '</b><span class="peq mut">' + (x.red ? esc(x.red) + ' · ' : '') + esc(x.uf) + ' · ' + esc(x.costado) + ' · ' + esc(x.abIni) + ' → ' + esc(x.abFin) + (x.cc === 'NUEVA' ? ' · actividad nueva' : '') + (x._ok ? '' : ' · ⏳ por subir') + '</span></div><div class="rr"><b class="tt">' + fmt(Number(x.total)) + ' ' + undTxt(x.und) + '</b>' + (x.rev ? revTag(x) : '<button type="button" class="btn chico sec" data-a="editar" data-v="' + esc(x.id) + '">✏️ Editar</button>') + '</div></div>';
       });
       h += '<div class="rt">Total: ' + totUnd(reg) + '</div>';
     }
@@ -418,6 +421,7 @@ function validarPaso() {
 function editar(id) {
   let x = null; for (const d of ultimosDias()) { x = regDe(d).find(y => y.id === id); if (x) break; }
   if (!x) return;
+  if (x.rev) { toast('La oficina ya revisó este registro: no se puede editar.'); return; }
   const s0 = v => (v === '' || v == null) ? '' : String(v);
   const n = x.cc === 'NUEVA' ? [x.largo, x.ancho, x.alto].filter(v => v !== '' && v != null).length : (UND[x.und] || 0);
   S.hito = x.hito;

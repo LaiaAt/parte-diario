@@ -1871,8 +1871,11 @@ function navegacion() {
   modulo(MOD);
 }
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
-const OE_TABS = [['kpi', '📊 Resumen'], ['reg', '📋 Registros'], ['hito', '🏗️ Por hito y actividad']];
-let OE = null, OETAB = selGet('oe', 'kpi', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', red: '', q: '' }, OEN = 60;
+const OE_TABS = [['kpi', '📊 Resumen'], ['reg', '📋 Registros'], ['hito', '🏗️ Por hito y actividad'], ['scc', '🟠 Sin centro de costo']];
+const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Aprobado', '#0a7a32'], CORREGIDO: ['🔵', 'Corregido', '#1565c0'], RECHAZADO: ['🔴', 'Rechazado', '#b3261e'] };
+const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
+const oeCuenta = r => r.rev !== 'RECHAZADO'; // los rechazados no suman
+let OE = null, OETAB = selGet('oe', 'kpi', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', red: '', rev: '', q: '' }, OEN = 60;
 const oeNum = x => { const n = Number(String(x == null ? '' : x).replace(',', '.')); return isFinite(n) ? n : 0; };
 const oeR = n => Math.round(n * 100) / 100;
 const oeFmt = n => oeR(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
@@ -1896,11 +1899,12 @@ async function cargarOe() {
 }
 function oeFiltrados() {
   const q = mqSinTilde(OEF.q);
-  return (OE.registros || []).filter(r => (!OEF.top || r.llave === OEF.top) && (!OEF.hito || r.hito === OEF.hito) && (!OEF.red || (r.red || '') === OEF.red) &&
+  return (OE.registros || []).filter(r => (!OEF.top || r.llave === OEF.top) && (!OEF.hito || r.hito === OEF.hito) && (!OEF.red || (r.red || '') === OEF.red) && (!OEF.rev || (OEF.rev === 'P' ? !r.rev : r.rev === OEF.rev)) &&
     (!q || mqSinTilde([r.actividad, r.red, r.topografo, r.uf, r.costado, r.paquete, r.cc, r.abIni, r.abFin, r.obs].join(' ')).indexOf(q) >= 0));
 }
 function oeGrupos(L, fk) { const o = {}; L.forEach(r => { const k = fk(r); const a = (o[k.join('|')] = o[k.join('|')] || { k: k, n: 0, t: 0 }); a.n++; a.t += oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad); }); return Object.keys(o).sort().map(x => o[x]); }
 function oeTablas(L) {
+  L = L.filter(oeCuenta);
   return {
     hito: { nombre: 'Por hito', cols: ['Hito', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [oeHitoTxt(r.hito), r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
     act: { nombre: 'Por actividad', cols: ['Hito', 'Paquete', 'Actividad', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [oeHitoTxt(r.hito), r.paquete || '', r.actividad || '', r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
@@ -1912,8 +1916,8 @@ function oeTablas(L) {
 function xlsxOe() {
   const L = oeFiltrados(); if (!L.length) { avisoDatos('No hay registros con este filtro'); return; }
   if (!window.XLSX) { avisoDatos('El Excel aún está cargando, intenta de nuevo'); return; }
-  const cols = ['Fecha', 'Topógrafo', 'Hito', 'Tipo de red', 'UF', 'Costado', 'Abscisa inicial', 'Abscisa final', 'Paquete', 'C. costos', 'Actividad', 'Und', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Total', 'Latitud', 'Longitud', 'Observaciones'];
-  const rows = L.slice().sort((a, b) => (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.red || '', r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.total, r.lat, r.lon, r.obs]);
+  const cols = ['ID', 'Revisión', 'Motivo revisión', 'Total medido en campo', 'Fecha', 'Topógrafo', 'Hito', 'Tipo de red', 'UF', 'Costado', 'Abscisa inicial', 'Abscisa final', 'Paquete', 'C. costos', 'Actividad', 'Und', 'Largo', 'Ancho', 'Alto', 'Cantidad', 'Descuento', 'Total', 'Latitud', 'Longitud', 'Observaciones'];
+  const rows = L.slice().sort((a, b) => (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [r.id, oeRev(r)[1], r.rev_motivo || '', (() => { try { return r.orig ? JSON.parse(r.orig).total : r.total; } catch (e) { return r.total; } })(), fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.red || '', r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.total, r.lat, r.lon, r.obs]);
   const T = oeTablas(L);
   // Actividades escritas por el topógrafo (no estaban en el catálogo): costos debe crear y asignar su centro de costo
   const N = L.filter(r => String(r.cc).toUpperCase() === 'NUEVA').sort((a, b) => (a.actividad + a.fecha).localeCompare(b.actividad + b.fecha));
@@ -1939,14 +1943,16 @@ function pintarOe() {
   const sel = (k, op, def) => { const s = h('select', { onchange: () => { OEF[k] = s.value; OEN = 60; pintarOe(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = OEF[k]; return s; };
   const q = h('input', { type: 'search', placeholder: '🔎 Buscar actividad, UF, costado, paquete…', value: OEF.q, style: 'font-size:17px;padding:10px;min-width:220px;flex:2' });
   let tq; q.oninput = () => { OEF.q = q.value; clearTimeout(tq); tq = setTimeout(() => { OEN = 60; const y = window.scrollY; pintarOe(); const n = $('oeBody').querySelector('input[type=search]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } window.scrollTo(0, y); }, 300); };
-  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, q, sel('top', tops.map(l => [l, nomDe(l)]), 'Todos los topógrafos'), sel('hito', hitos.map(k => [k, oeHitoTxt(k)]), 'Todos los hitos'), reds.length ? sel('red', reds.map(k => [k, k]), 'Todas las redes') : null, h('button', { onclick: xlsxOe }, '⬇ Excel')));
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, q, sel('top', tops.map(l => [l, nomDe(l)]), 'Todos los topógrafos'), sel('hito', hitos.map(k => [k, oeHitoTxt(k)]), 'Todos los hitos'), reds.length ? sel('red', reds.map(k => [k, k]), 'Todas las redes') : null, sel('rev', [['P', '🟡 Por revisar'], ['APROBADO', '🟢 Aprobado'], ['CORREGIDO', '🔵 Corregido'], ['RECHAZADO', '🔴 Rechazado']], 'Toda revisión'), h('button', { onclick: xlsxOe }, '⬇ Excel')));
   const L = oeFiltrados();
   if (!L.length) { c.appendChild(h('div', { class: 'trok' }, 'Ningún registro coincide con el filtro')); return; }
   const T = oeTablas(L);
   if (OETAB === 'kpi') {
     const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
-    const und = {}; L.forEach(r => { const u = r.und || '—'; und[u] = (und[u] || 0) + oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad); });
+    const und = {}; L.filter(oeCuenta).forEach(r => { const u = r.und || '—'; und[u] = (und[u] || 0) + oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad); });
     c.appendChild(h('div', { class: 'kpis' }, K('Registros', L.length), K('Topógrafos', new Set(L.map(r => r.llave)).size), K('Días con OE', new Set(L.map(r => r.fecha)).size), K('Hitos', new Set(L.map(r => r.hito)).size), K('Actividades', new Set(L.map(r => r.actividad)).size), K('Sin centro de costo', L.filter(r => String(r.cc).toUpperCase() === 'NUEVA').length)));
+    const nP = L.filter(r => !r.rev).length, nR = L.filter(r => r.rev === 'RECHAZADO').length;
+    c.appendChild(h('div', { class: 'kpis' }, K('🟡 Por revisar', nP), K('🟢 Aprobados', L.filter(r => r.rev === 'APROBADO').length), K('🔵 Corregidos', L.filter(r => r.rev === 'CORREGIDO').length), K('🔴 Rechazados (no suman)', nR)));
     const nN = L.filter(r => String(r.cc).toUpperCase() === 'NUEVA').length;
     if (nN) c.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700;margin:8px 0' }, '🟠 ' + nN + ' registro(s) con actividades escritas en obra que no tienen centro de costo. Descarga el Excel: van en la hoja «Sin centro de costo» para que Costos los cree y asigne.'));
     c.appendChild(h('div', { class: 'kpis' }, Object.keys(und).sort().map(u => K('Total en ' + u, oeFmt(und[u])))));
@@ -1955,15 +1961,132 @@ function pintarOe() {
     c.appendChild(tablaMq('👷 Por topógrafo', T.top.cols, T.top.rows));
     return;
   }
+  if (OETAB === 'scc') { vistaOeScc(c, L); return; }
   if (OETAB === 'hito') { c.appendChild(tablaMq('🏗️ Por hito, paquete y actividad', T.act.cols, T.act.rows)); if (T.red.rows.length) c.appendChild(tablaMq('🔌 Redes por tipo (CAPEX, subcuenta, ENEL)', T.red.cols, T.red.rows)); return; }
   const vis = L.slice(0, OEN);
-  const th = ['Fecha', 'Topógrafo', 'Hito', 'Red', 'UF · Costado', 'Abscisas', 'Actividad', 'Und', 'Total', ''];
+  if (OE.editor) c.appendChild(barraRevOe(L));
+  else c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, 'Solo el administrador con función OE puede revisar y corregir.'));
+  const th = ['Revisión', 'Fecha', 'Topógrafo', 'Hito', 'Red', 'UF · Costado', 'Abscisas', 'Actividad', 'Und', 'Total', ''];
   c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, L.length + ' registros' + (L.length > vis.length ? ' · se muestran ' + vis.length + ', el Excel trae todos' : '')));
-  c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, th.map(t => h('th', {}, t)))), h('tbody', {}, vis.map(r => h('tr', {},
+  c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, th.map(t => h('th', {}, t)))), h('tbody', {}, vis.map(r => h('tr', { style: r.rev === 'RECHAZADO' ? 'opacity:.55;text-decoration:line-through' : '' },
+    h('td', { title: r.rev_motivo || '' }, h('b', { style: 'color:' + oeRev(r)[2] + ';white-space:nowrap' }, oeRev(r)[0] + ' ' + oeRev(r)[1]), r.rev_motivo ? h('div', { class: 'small' }, r.rev_motivo) : null),
     h('td', {}, fmtF(r.fecha)), h('td', {}, r.topografo || nomDe(r.llave)), h('td', {}, oeHitoTxt(r.hito)), h('td', {}, r.red || ''), h('td', {}, [r.uf, r.costado].filter(Boolean).join(' · ')), h('td', {}, oeAbs(r)), h('td', {}, r.actividad || ''), h('td', {}, r.und || ''),
     h('td', { style: 'text-align:right;font-weight:700' }, oeFmt(oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad))),
-    h('td', {}, r.foto ? h('button', { class: 'sec sm', onclick: () => verFotoOe(r) }, '📷') : null)))))));
+    h('td', { style: 'white-space:nowrap' }, r.foto ? h('button', { class: 'sec sm', onclick: () => verFotoOe(r) }, '📷') : null,
+      OE.editor ? h('button', { class: 'sec sm', title: 'Corregir', onclick: () => editarOe(r) }, '✏️') : null,
+      OE.editor && r.rev !== 'APROBADO' ? h('button', { class: 'sec sm', title: 'Aprobar', onclick: () => enviarRevOe([{ id: r.id, estado: 'APROBADO' }]) }, '✔') : null,
+      OE.editor && r.rev !== 'RECHAZADO' ? h('button', { class: 'sec sm', title: 'Rechazar', onclick: () => motivoOe('¿Por qué se rechaza?', m => enviarRevOe([{ id: r.id, estado: 'RECHAZADO', motivo: m }])) }, '✖') : null)))))));
   if (L.length > vis.length) c.appendChild(h('button', { class: 'sec', style: 'margin-top:8px', onclick: () => { OEN += 60; const y = window.scrollY; pintarOe(); window.scrollTo(0, y); } }, 'Ver más'));
+}
+// ===== Revisión y corrección (solo administrador con función OE)
+function motivoOe(titulo, ok, valor) {
+  const t = h('textarea', { rows: 3, style: 'width:100%;font-size:15px;padding:8px', placeholder: 'Ej: la medida del largo es 12,5 m según plano' }); t.value = valor || '';
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px' },
+    h('div', { style: 'background:#fff;border-radius:12px;padding:16px;width:min(460px,100%)' }, h('b', { style: 'font-size:17px' }, titulo), h('div', { style: 'margin:10px 0' }, t),
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, h('button', { class: 'sec', onclick: () => ov.remove() }, 'Cancelar'), h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: () => { if (t.value.trim().length < 4) { t.focus(); return; } ov.remove(); ok(t.value.trim()); } }, 'Guardar'))));
+  document.body.appendChild(ov); t.focus();
+}
+async function enviarRevOe(cambios, silencio) {
+  banner('Guardando revisión…');
+  let ap = 0, err = [];
+  try {
+    for (let i = 0; i < cambios.length; i += 300) {
+      const x = await api({ accion: 'admin_oe_rev', llave: LLAVE, cambios: cambios.slice(i, i + 300) });
+      if (!x.ok) { banner(x.mensaje || 'No se pudo guardar', 'mal'); return false; }
+      ap += x.aplicados; err = err.concat(x.errores || []);
+      (x.registros || []).forEach(n => { const k = OE.registros.findIndex(r => r.id === n.id); if (k >= 0) OE.registros[k] = n; });
+    }
+  } catch (e) { banner('Sin señal: no se guardó', 'mal'); return false; }
+  CDB.del('admin_oe'); const y = window.scrollY; pintarOe(); window.scrollTo(0, y);
+  banner('✔ ' + ap + ' registro(s) actualizados' + (err.length ? ' · ' + err.length + ' con error' : ''), err.length ? 'mal' : 'ok');
+  if (err.length && !silencio) alertaOe('Algunos cambios no se aplicaron', err);
+  return true;
+}
+function alertaOe(t, L) {
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px', onclick: e => { if (e.target === ov) ov.remove(); } },
+    h('div', { style: 'background:#fff;border-radius:12px;padding:16px;width:min(560px,100%);max-height:80vh;overflow:auto' }, h('b', {}, t), h('ul', {}, L.slice(0, 200).map(x => h('li', { class: 'small' }, x))), h('button', { onclick: () => ov.remove() }, 'Entendido')));
+  document.body.appendChild(ov);
+}
+const OE_EDIT = [['uf', 'UF'], ['costado', 'Costado'], ['abIni', 'Abscisa inicial'], ['abFin', 'Abscisa final'], ['paquete', 'Paquete'], ['cc', 'Centro de costo'], ['actividad', 'Actividad'], ['und', 'Unidad'], ['largo', 'Largo'], ['ancho', 'Ancho'], ['alto', 'Alto'], ['cantidad', 'Cantidad'], ['descuento', 'Descuento']];
+function editarOe(r) {
+  let o = null; try { o = r.orig ? JSON.parse(r.orig) : null; } catch (e) {}
+  const inp = {}, mot = h('textarea', { rows: 2, style: 'width:100%;font-size:14px;padding:6px', placeholder: 'Motivo de la corrección (obligatorio)' });
+  const grid = h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px' }, OE_EDIT.map(([k, t]) => { inp[k] = h('input', { type: 'text', value: r[k] === undefined || r[k] === null ? '' : String(r[k]), style: 'width:100%;font-size:14px;padding:6px' }); return h('label', { class: 'small' }, t, inp[k], o && String(o[k]) !== String(r[k]) ? h('div', { style: 'color:#9a6b00' }, 'Campo: ' + o[k]) : null); }));
+  const msg = h('div', { style: 'color:#b3261e;font-weight:700;min-height:18px' });
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px' },
+    h('div', { style: 'background:#fff;border-radius:12px;padding:16px;width:min(760px,100%);max-height:90vh;overflow:auto' },
+      h('b', { style: 'font-size:17px' }, '✏️ Corregir medición · ' + fmtF(r.fecha) + ' · ' + (r.topografo || nomDe(r.llave))),
+      h('div', { class: 'small', style: 'margin:4px 0 10px' }, oeHitoTxt(r.hito) + ' · total actual ' + oeFmt(oeNum(r.total)) + ' ' + (r.und || '') + (o ? ' · medido en campo ' + oeFmt(oeNum(o.total)) : '') + '. Si cambias largo/ancho/alto, la cantidad se recalcula sola.'),
+      grid, h('div', { style: 'margin-top:10px' }, mot), msg,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:8px' }, h('button', { class: 'sec', onclick: () => ov.remove() }, 'Cancelar'),
+        h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: async () => {
+          const campos = {}; OE_EDIT.forEach(([k]) => { const v = inp[k].value.trim(), a = r[k] === undefined || r[k] === null ? '' : String(r[k]); if (v !== a) campos[k] = v; });
+          if (!Object.keys(campos).length) { msg.textContent = 'No cambiaste nada.'; return; }
+          if (mot.value.trim().length < 4) { msg.textContent = 'Escribe el motivo de la corrección.'; mot.focus(); return; }
+          if (await enviarRevOe([{ id: r.id, campos: campos, motivo: mot.value.trim() }])) ov.remove();
+        } }, '💾 Guardar corrección'))));
+  document.body.appendChild(ov);
+}
+function barraRevOe(L) {
+  const pend = L.filter(r => !r.rev), file = h('input', { type: 'file', accept: '.xlsx,.xls', hidden: true });
+  file.onchange = () => { const f = file.files && file.files[0]; file.value = ''; if (f) subirRevOe(f); };
+  return h('div', { class: 'row', style: 'margin-bottom:8px;gap:8px;flex-wrap:wrap' },
+    pend.length ? h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: () => { if (confirm('¿Aprobar los ' + pend.length + ' registros por revisar que estás viendo?')) enviarRevOe(pend.map(r => ({ id: r.id, estado: 'APROBADO' }))); } }, '✔ Aprobar ' + pend.length + ' por revisar') : null,
+    h('button', { class: 'sec', onclick: () => xlsxRevOe(L) }, '⬇ Excel de revisión'),
+    h('button', { class: 'sec', onclick: () => file.click() }, '⬆ Subir Excel corregido'), file);
+}
+const OE_XCOL = [['ID', 'id'], ['Fecha', null], ['Topógrafo', null], ['Hito', null], ['Tipo de red', null], ['UF', 'uf'], ['Costado', 'costado'], ['Abscisa inicial', 'abIni'], ['Abscisa final', 'abFin'], ['Paquete', 'paquete'], ['Centro de costo', 'cc'], ['Actividad', 'actividad'], ['Und', 'und'], ['Largo', 'largo'], ['Ancho', 'ancho'], ['Alto', 'alto'], ['Cantidad', 'cantidad'], ['Descuento', 'descuento'], ['Total', null], ['Revisión', 'rev'], ['Motivo', 'rev_motivo']];
+function xlsxRevOe(L) {
+  if (!window.XLSX) { avisoDatos('El Excel aún está cargando, intenta de nuevo'); return; }
+  const rows = L.slice().sort((a, b) => (a.fecha + a.creado).localeCompare(b.fecha + b.creado)).map(r => [r.id, fmtF(r.fecha), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.red || '', r.uf, r.costado, r.abIni, r.abFin, r.paquete, r.cc, r.actividad, r.und, r.largo, r.ancho, r.alto, r.cantidad, r.descuento, r.total, r.rev || '', r.rev_motivo || '']);
+  excelHoja('Revisión OE', OE_XCOL.map(x => x[0]), rows, 'OE_revision_' + $('desde').value + '_a_' + $('hasta').value + '.xlsx', [{ nombre: 'Instrucciones', cols: ['Cómo corregir'], rows: [
+    ['1. No cambies la columna ID ni el nombre de la hoja «Revisión OE».'], ['2. Corrige UF, costado, abscisas, paquete, centro de costo, actividad, unidad, medidas o descuento directamente en su celda.'],
+    ['3. Si corriges algo, escribe el motivo en la columna Motivo (obligatorio).'], ['4. Para aprobar sin cambios escribe APROBADO en Revisión. Para rechazar escribe RECHAZADO y el motivo.'],
+    ['5. Si cambias largo, ancho o alto, deja la cantidad como estaba: se recalcula sola.'], ['6. Sube el archivo con «⬆ Subir Excel corregido»: verás qué cambia antes de aplicarlo.']] }]);
+}
+async function subirRevOe(file) {
+  if (!window.XLSX) { avisoDatos('El Excel aún está cargando, intenta de nuevo'); return; }
+  let filas;
+  try { const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); const ws = wb.Sheets['Revisión OE'] || wb.Sheets[wb.SheetNames[0]]; filas = XLSX.utils.sheet_to_json(ws, { defval: '', raw: true }); }
+  catch (e) { banner('No se pudo leer el Excel', 'mal'); return; }
+  const por = {}; OE.registros.forEach(r => { por[r.id] = r; });
+  const norm = v => String(v === null || v === undefined ? '' : v).trim(), num = v => { const n = Number(String(v).replace(',', '.')); return norm(v) === '' ? '' : (isFinite(n) ? Math.round(n * 1000) / 1000 : norm(v)); };
+  const NUM = ['largo', 'ancho', 'alto', 'cantidad', 'descuento'], cambios = [], ver = [], errores = []; let sinId = 0;
+  filas.forEach((f, i) => {
+    const id = norm(f['ID']).toUpperCase(), r = por[id]; if (!id) return; if (!r) { sinId++; return; }
+    const campos = {}, dif = [];
+    OE_XCOL.forEach(([t, k]) => { if (!k || k === 'id' || k === 'rev' || k === 'rev_motivo' || !(t in f)) return; const a = NUM.includes(k) ? num(r[k]) : norm(r[k]).toUpperCase(), b = NUM.includes(k) ? num(f[t]) : norm(f[t]).toUpperCase(); if (String(a) !== String(b)) { campos[k] = NUM.includes(k) ? b : norm(f[t]); dif.push(t + ': ' + (a === '' ? '—' : a) + ' → ' + (b === '' ? '—' : b)); } });
+    const est = norm(f['Revisión']).toUpperCase(), mot = norm(f['Motivo']);
+    if (Object.keys(campos).length) { if (mot.length < 4) { errores.push('Fila ' + (i + 2) + ' (' + id + '): falta el motivo de la corrección'); return; } cambios.push({ id: id, campos: campos, motivo: mot }); ver.push('🔵 ' + fmtF(r.fecha) + ' · ' + r.actividad.slice(0, 40) + ' · ' + dif.join(' · ')); }
+    else if ((est === 'APROBADO' || est === 'RECHAZADO') && est !== (r.rev || '')) { if (est === 'RECHAZADO' && mot.length < 4) { errores.push('Fila ' + (i + 2) + ' (' + id + '): falta el motivo del rechazo'); return; } cambios.push({ id: id, estado: est, motivo: mot }); ver.push((est === 'APROBADO' ? '🟢 ' : '🔴 ') + fmtF(r.fecha) + ' · ' + r.actividad.slice(0, 40) + ' · ' + est.toLowerCase()); }
+  });
+  if (sinId) errores.push(sinId + ' fila(s) con ID que no está en el periodo filtrado (no se tocan)');
+  if (!cambios.length) { alertaOe('El Excel no trae cambios para aplicar', errores.length ? errores : ['Todo coincide con lo que hay en el sistema.']); return; }
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px' },
+    h('div', { style: 'background:#fff;border-radius:12px;padding:16px;width:min(760px,100%);max-height:85vh;overflow:auto' },
+      h('b', { style: 'font-size:17px' }, 'Revisa antes de aplicar: ' + cambios.length + ' cambio(s)'),
+      errores.length ? h('div', { style: 'color:#b3261e;margin:8px 0' }, h('b', {}, errores.length + ' fila(s) no se aplicarán:'), h('ul', {}, errores.slice(0, 50).map(x => h('li', { class: 'small' }, x)))) : null,
+      h('ul', { style: 'margin:8px 0' }, ver.slice(0, 300).map(x => h('li', { class: 'small' }, x))), ver.length > 300 ? h('div', { class: 'small' }, '… y ' + (ver.length - 300) + ' más') : null,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, h('button', { class: 'sec', onclick: () => ov.remove() }, 'Cancelar'), h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: async () => { ov.remove(); await enviarRevOe(cambios); } }, '✔ Aplicar ' + cambios.length + ' cambio(s)'))));
+  document.body.appendChild(ov);
+}
+let OE_CAT = null;
+async function catOe() { if (OE_CAT) return OE_CAT; try { const c = await (await fetch('oe/catalogo.json')).json(), m = {}; Object.values(c.cat).concat(Object.values(c.sub || {})).forEach(L => L.forEach(p => p[1].forEach(a => { m[a[0]] = a[1] + ' (' + a[2] + ')'; }))); OE_CAT = m; } catch (e) { OE_CAT = {}; } return OE_CAT; }
+function vistaOeScc(c, L) {
+  const N = L.filter(r => String(r.cc).toUpperCase() === 'NUEVA'), g = {};
+  N.forEach(r => { const k = String(r.actividad).trim().toUpperCase() + '|' + r.und; (g[k] = g[k] || []).push(r); });
+  if (!N.length) { c.appendChild(h('div', { class: 'trok' }, '✔ No hay actividades sin centro de costo en este periodo')); return; }
+  c.appendChild(h('div', { class: 'aviso', style: 'margin-bottom:10px' }, 'Actividades escritas en obra que no estaban en el catálogo. Escribe el centro de costo y toca «Asignar»: se aplica a todos los registros de esa actividad. ' + (OE.editor ? '' : 'Solo el administrador con función OE puede asignarlo.')));
+  const dl = h('datalist', { id: 'oeCcList' }); c.appendChild(dl);
+  catOe().then(m => { Object.keys(m).slice(0, 4000).forEach(k => dl.appendChild(h('option', { value: k }, m[k]))); });
+  Object.keys(g).sort().forEach(k => {
+    const G = g[k], r0 = G[0], inp = h('input', { type: 'text', list: 'oeCcList', placeholder: 'Centro de costo. Ej: 1EX1', style: 'font-size:15px;padding:8px;width:180px' }), ayuda = h('div', { class: 'small', style: 'min-height:16px;color:#0a7a32' });
+    inp.oninput = () => { ayuda.textContent = (OE_CAT && OE_CAT[inp.value.trim().toUpperCase()]) || ''; };
+    c.appendChild(h('div', { class: 'tcard', style: 'display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 12px' },
+      h('div', { style: 'flex:1;min-width:260px' }, h('b', {}, r0.actividad), h('div', { class: 'small' }, (r0.und || '') + ' · ' + G.length + ' registro(s) · total ' + oeFmt(G.reduce((a, r) => a + oeNum(r.total), 0)) + ' · ' + Array.from(new Set(G.map(r => oeHitoTxt(r.hito)))).join(', '))),
+      OE.editor ? h('div', {}, inp, ayuda) : null,
+      OE.editor ? h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: () => { const cc = inp.value.trim().toUpperCase(); if (cc.length < 2) { inp.focus(); return; } enviarRevOe(G.map(r => ({ id: r.id, campos: { cc: cc }, motivo: 'Centro de costo asignado por Costos: ' + cc }))); } }, '✔ Asignar a ' + G.length) : null));
+  });
 }
 function llaves() { return D.usuarios.map(u => u.llave); }
 // En el Dashboard solo se ven nombres de usuario; la llave (clave de acceso) no se muestra
