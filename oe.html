@@ -325,7 +325,13 @@ function levParse(texto) {
   });
   return { capas: capas, n: pts.length, mal: mal, geo: geo };
 }
-function levFecha(nombre) { const n = String(nombre || ''), ok = f => /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(f), re = /(?<!\d)(\d{2})[-_.](\d{2})[-_.](\d{4}|\d{2})(?!\d)/g; let m; while ((m = re.exec(n))) { const y = m[3].length === 2 ? '20' + m[3] : m[3], f = y + '-' + m[2] + '-' + m[1]; if (ok(f)) return f; } const q = n.match(/(?<!\d)(2\d)(\d{2})(\d{2})(?!\d)/); if (q && ok('20' + q[1] + '-' + q[2] + '-' + q[3])) return '20' + q[1] + '-' + q[2] + '-' + q[3]; return ''; }
+function levFecha(nombre) { // la fecha va en el nombre como dd-mm-aa, ddmmaa o aamm dd (ej. 191126 = 19/11/2026, 261104 = 04/11/2026); solo vale si es de los últimos 120 días
+  const n = String(nombre || ''), hoy = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10), lim = new Date(Date.now() - 5 * 3600e3 - 120 * 86400e3).toISOString().slice(0, 10), cand = [];
+  const ok = (y, m, d) => { y = String(y).length === 2 ? '20' + y : String(y); const f = y + '-' + m + '-' + d; return /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(f) && f >= lim && f <= hoy ? f : ''; };
+  let m; const re = /(?<!\d)(\d{2})[-_.](\d{2})[-_.](\d{4}|\d{2})(?!\d)/g; while ((m = re.exec(n))) cand.push(ok(m[3], m[2], m[1]));
+  const q = n.match(/(?<!\d)(\d{2})(\d{2})(\d{2})(?!\d)/); if (q) { cand.push(ok(q[3], q[2], q[1])); cand.push(ok(q[1], q[2], q[3])); }
+  return cand.find(Boolean) || '';
+}
 
 async function pedirLev() {
   if (!S.ses) return; S.cargLev = true; render();
