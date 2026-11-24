@@ -456,7 +456,7 @@ function pintarArbol() {
   ];
   if (D.acero) G.push({ g: 'a', ico: '🔩', t: 'Acero', on: ga, hojas: AC_TABS.map((x, i) => [x[1], ga && ACTAB === x[0], () => irSub('nav4', i, 'acero')]) });
   G.push({ g: 'm', ico: '🚜', t: 'Maquinaria', on: gm, hojas: MQ_TABS.map((x, i) => [x[1] + (x[0] === 'pend' && mqNPend() ? '  📷 ' + mqNPend() : ''), gm && MQTAB === x[0], () => irSub('nav4', i, 'maquinaria')]) });
-  G.push({ g: 'o', ico: '📐', t: 'O. Ejecutada', on: go, hojas: OE_TABS.map((x, i) => [x[1], go && OETAB === x[0], () => irSub('nav4', i, 'oe')]) });
+  G.push({ g: 'o', ico: '📐', t: 'O. Ejecutada', on: go, hojas: (oeTabsSuper(), OE_TABS).map((x, i) => [x[1], go && OETAB === x[0], () => irSub('nav4', i, 'oe')]) });
   G.forEach(x => {
     a.appendChild(h('button', { class: 'ar-g' + (x.on ? ' on' : ''), onclick: () => { if (!x.on) irGrupo(x.g); } }, h('span', {}, x.ico), h('em', {}, x.t)));
     if (x.on) a.appendChild(h('div', { class: 'ar-h' }, x.hojas.map(t => h('button', { class: 'ar-s' + (t[1] ? ' on' : ''), onclick: t[2] }, t[0]))));
@@ -1975,7 +1975,8 @@ function navegacion() {
   modulo(MOD);
 }
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
-const OE_TABS = [['reg', '📋 Registros'], ['avance', '🏗️ Avance']]; // Mapa de registros oculto por ahora: ['mapa', '🗺️ Mapa']
+const OE_TABS = [['reg', '📋 Registros']]; // Mapa de registros oculto por ahora: ['mapa', '🗺️ Mapa']
+const oeTabsSuper = () => { if (D && D.superadm && OE_TABS.length < 2) OE_TABS.push(['avance', '🏗️ Avance']); }; // Avance (levantamientos TXT): solo super administrador mientras se prueba
 const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Aprobado', '#0a7a32'], CORREGIDO: ['🔵', 'Corregido', '#1565c0'], RECHAZADO: ['🔴', 'Rechazado', '#b3261e'] };
 const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
 const oeCuenta = r => r.rev !== 'RECHAZADO'; // los rechazados no suman
@@ -1987,7 +1988,7 @@ const oeFmt = n => oeR(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
 const oeHitoTxt = k => k ? (((OE && OE.hitos) || {})[k] || k) : ''; // sin numeración del hito
 const oeAbs = r => (r.abIni || '') + (r.abFin ? ' → ' + r.abFin : '');
 function navOe() {
-  const tb = $('nav4'); tb.textContent = '';
+  oeTabsSuper(); const tb = $('nav4'); tb.textContent = '';
   OE_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: OETAB === k ? 'on' : '', onclick: () => { OETAB = k; selSet('oe', k); navOe(); if (OE) pintarOe(); else cargarOe(); } }, t)));
   pintarArbol();
 }
@@ -2225,7 +2226,59 @@ function vistaOeMapa(c, L) {
 }
 
 /* ---------- OE · Avance: levantamientos TXT de la estación total dibujados en el mapa ---------- */
-let OEAV = null, OEAVF = { capa: '', top: '' };
+let OEAV = null, OEAVF = { capa: '', top: '' }, OEPREV = [];
+/* ---------- Levantamientos TXT (estación total) ---------- */
+function tmInv(E, N) { // plano de Bogotá D.C. (IDU, MAGNA GRS80) → [lat, lon]
+  const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180;
+  const arco = p => a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256) * p - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 * e2 * e2 / 1024) * Math.sin(2 * p) + (15 * e2 * e2 / 256 + 45 * e2 * e2 * e2 / 1024) * Math.sin(4 * p) - (35 * e2 * e2 * e2 / 3072) * Math.sin(6 * p));
+  const M = arco(4.680486111 * R) + (N - 109320.965);
+  const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256)), s = Math.sqrt(1 - e2), e1 = (1 - s) / (1 + s);
+  const p1 = mu + (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu) + (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu) + (1097 * Math.pow(e1, 4) / 512) * Math.sin(8 * mu);
+  const sn = Math.sin(p1), cs = Math.cos(p1), tn = Math.tan(p1), C1 = ep2 * cs * cs, T1 = tn * tn, N1 = a / Math.sqrt(1 - e2 * sn * sn), R1 = a * (1 - e2) / Math.pow(1 - e2 * sn * sn, 1.5), D = (E - 92334.879) / N1;
+  const lat = p1 - (N1 * tn / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * Math.pow(D, 4) / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * Math.pow(D, 6) / 720);
+  const lon = -74.146591667 * R + (D - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * Math.pow(D, 5) / 120) / cs;
+  return [lat / R, lon / R];
+}
+function levCasco(P) { // envolvente convexa (cadena monótona) de [[x,y,...]]
+  const q = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (q.length < 3) return q;
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  q.forEach(p => { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); });
+  q.slice().reverse().forEach(p => { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); });
+  lo.pop(); up.pop(); return lo.concat(up);
+}
+function levParse(texto) {
+  const pts = []; let mal = 0;
+  String(texto || '').split(/\r?\n/).forEach(l => {
+    if (!l.trim()) return;
+    const c = l.split(','); if (c.length < 3) { mal++; return; }
+    const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : NaN, d = (c.slice(4).join(',').trim() || 'SIN DESCRIPCION').toUpperCase();
+    if (!isFinite(x) || !isFinite(y)) { mal++; return; }
+    pts.push({ x: x, y: y, z: isFinite(z) ? z : 0, d: d });
+  });
+  if (!pts.length) return { error: 'El archivo no tiene puntos. Debe ser: punto, este, norte, cota, descripción.' };
+  const geo = pts.every(p => Math.abs(p.x) <= 180 && Math.abs(p.y) <= 90);
+  pts.forEach(p => {
+    if (geo) { const a = Math.abs(p.x) < Math.abs(p.y) ? [p.x, p.y] : [p.y, p.x]; p.lat = a[0]; p.lon = a[1]; p.mx = p.lon * 111320 * Math.cos(p.lat * Math.PI / 180); p.my = p.lat * 110574; }
+    else { const g = tmInv(p.x, p.y); p.lat = g[0]; p.lon = g[1]; p.mx = p.x; p.my = p.y; }
+  });
+  if (pts.some(p => !(p.lat > -5 && p.lat < 14 && p.lon > -82 && p.lon < -66))) return { error: 'Las coordenadas no caen en Colombia. Revisa el sistema de coordenadas del archivo.' };
+  const por = {}; pts.forEach(p => { (por[p.d] = por[p.d] || []).push(p); });
+  const capas = Object.keys(por).sort().map(k => {
+    const L = por[k], zs = L.map(p => p.z), z = { zmin: Math.min.apply(null, zs), zmax: Math.max.apply(null, zs), zprom: Math.round(zs.reduce((s, v) => s + v, 0) / zs.length * 1000) / 1000 };
+    const xs = L.map(p => p.mx), ys = L.map(p => p.my), diag = Math.hypot(Math.max.apply(null, xs) - Math.min.apply(null, xs), Math.max.apply(null, ys) - Math.min.apply(null, ys));
+    const r6 = v => Math.round(v * 1e6) / 1e6;
+    if (L.length < 3 || diag / L.length > 20) // puntos sueltos o muy separados (postes, hitos): se dibujan como puntos, sin área
+      return Object.assign({ capa: k, n: L.length, area: 0, poly: L.slice(0, 400).map(p => [r6(p.lat), r6(p.lon)]) }, z);
+    const H = levCasco(L.map(p => [p.mx, p.my, p.lat, p.lon]));
+    let ar = 0; for (let i = 0; i < H.length; i++) { const a = H[i], b = H[(i + 1) % H.length]; ar += a[0] * b[1] - b[0] * a[1]; }
+    return Object.assign({ capa: k, n: L.length, area: Math.round(Math.abs(ar) / 2 * 100) / 100, poly: H.map(p => [r6(p[2]), r6(p[3])]) }, z);
+  });
+  return { capas: capas, n: pts.length, mal: mal, geo: geo };
+}
+function levFecha(nombre) { const n = String(nombre || ''), ok = f => /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(f), re = /(?<!\d)(\d{2})[-_.](\d{2})[-_.](\d{4}|\d{2})(?!\d)/g; let m; while ((m = re.exec(n))) { const y = m[3].length === 2 ? '20' + m[3] : m[3], f = y + '-' + m[2] + '-' + m[1]; if (ok(f)) return f; } const q = n.match(/(?<!\d)(2\d)(\d{2})(\d{2})(?!\d)/); if (q && ok('20' + q[1] + '-' + q[2] + '-' + q[3])) return '20' + q[1] + '-' + q[2] + '-' + q[3]; return ''; }
+
 const OEAV_COL = ['#0a7a32', '#1565c0', '#b3261e', '#9a6b00', '#6a1b9a', '#00838f', '#c2185b', '#4e342e', '#e65100', '#283593', '#2e7d32', '#ad1457'];
 async function pintarOeAvance(c) {
   const k = $('desde').value + '|' + $('hasta').value;
@@ -2239,8 +2292,13 @@ async function pintarOeAvance(c) {
   }
   if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
-  const A = OEAV.lev || [];
-  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay levantamientos topográficos en estas fechas. Los topógrafos los suben desde la app OE, pestaña Levantamiento.')); return; }
+  const A = OEPREV.length ? OEPREV : (OEAV.lev || []);
+  const fin = h('input', { type: 'file', accept: '.txt,.csv,text/plain', multiple: true, hidden: true });
+  fin.onchange = async () => { const fs = Array.from(fin.files || []); fin.value = ''; const R = [], mal = []; for (const f of fs) { try { const res = levParse(await f.text()); if (res.error) { mal.push(f.name); continue; } const fe = levFecha(f.name) || bogota(); res.capas.forEach(c => R.push(Object.assign({ fecha: fe, llave: 'PREV', topografo: 'Vista previa', archivo: f.name }, c))); } catch (e) { mal.push(f.name); } } OEPREV = R; OEAVF = { capa: '', top: '' }; if (mal.length) banner('No se pudo leer: ' + mal.join(', '), 'mal'); pintarOe(); };
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;align-items:center' }, h('button', { class: 'sec', onclick: () => fin.click() }, '📂 Cargar TXT (vista previa)'), fin,
+    OEPREV.length ? h('button', { onclick: () => { OEPREV = []; OEAVF = { capa: '', top: '' }; pintarOe(); } }, '✖ Quitar vista previa') : null,
+    OEPREV.length ? h('span', { class: 'small', style: 'font-weight:700;color:#9a6b00' }, 'VISTA PREVIA de ' + new Set(OEPREV.map(x => x.archivo)).size + ' archivo(s): se ven solo aquí, no se guardó nada.') : null));
+  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados en estas fechas. Usa «Cargar TXT (vista previa)» para ver cómo se vería con tus archivos.')); return; }
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const sel = (key, op, def) => { const s = h('select', { onchange: () => { OEAVF[key] = s.value; pintarOe(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = OEAVF[key]; return s; };
@@ -2260,9 +2318,11 @@ async function pintarOeAvance(c) {
     window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', referrerPolicy: 'strict-origin-when-cross-origin' }).addTo(m);
     L.slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
       const P = (x.poly || []).filter(p => isFinite(p[0]) && isFinite(p[1])); if (!P.length) return; P.forEach(p => b.push(p));
-      const op = { color: col(x.capa), weight: 2, fillColor: col(x.capa), fillOpacity: .45 };
+      const op = { color: col(x.capa), weight: 3, fillColor: col(x.capa), fillOpacity: .5 };
+      const pop = '<b>' + e(x.capa) + '</b><br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m';
+      if (!x.area) { P.forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(m).bindPopup(pop)); return; }
       const g = P.length >= 3 ? window.L.polygon(P, op) : P.length === 2 ? window.L.polyline(P, op) : window.L.circleMarker(P[0], Object.assign({ radius: 7 }, op));
-      g.addTo(m).bindPopup('<b>' + e(x.capa) + '</b><br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m');
+      g.addTo(m).bindPopup(pop);
     });
     if (b.length) m.fitBounds(b, { padding: [30, 30], maxZoom: 19 });
   }).catch(() => { box.textContent = 'No se pudo cargar el mapa (sin señal).'; });
