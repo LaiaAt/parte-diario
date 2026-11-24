@@ -2286,7 +2286,7 @@ function cargarLeaflet() {
 
 // Mapas de fondo (calles): Esri Calles, OpenStreetMap y CARTO. La elección queda guardada en este navegador.
 function oeBase(m, propio) {
-  const ref = 'strict-origin-when-cross-origin', T = (u, o) => window.L.tileLayer(u, Object.assign({ maxZoom: 19, referrerPolicy: ref }, o));
+  const ref = 'strict-origin-when-cross-origin', T = (u, o) => window.L.tileLayer(u, Object.assign({ maxZoom: 22, maxNativeZoom: 19, referrerPolicy: ref }, o)); // más allá de 19 se amplía la última imagen
   const B = {
     'Calles (Esri)': T('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri — HERE, Garmin, OpenStreetMap contributors' }),
     'OpenStreetMap': T('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
@@ -2722,7 +2722,7 @@ async function pintarOeAvance(c) {
   refrescar(false);
   cargarLeaflet().then(() => {
     if (!box.isConnected) return; box.textContent = '';
-    const m = window.L.map(box, { scrollWheelZoom: true }); mapa = m;
+    const m = window.L.map(box, { scrollWheelZoom: true, maxZoom: 22, zoomSnap: 0.5 }); mapa = m;
     const bs = oeBase(m, true); m.createPane('plano').style.zIndex = 350; m.createPane('orto').style.zIndex = 250;
     fondoSel = h('div', {}, h('div', { class: 'av-ph' }, h('b', {}, 'Fondo')), Object.keys(bs.B).map(nm => h('label', { class: 'av-radio' }, (() => { const r = h('input', { type: 'radio', name: 'oefondo' }); r.checked = nm === bs.k; r.onchange = () => { Object.keys(bs.B).forEach(x => { if (m.hasLayer(bs.B[x])) m.removeLayer(bs.B[x]); }); bs.B[nm].addTo(m); bs.k = nm; try { localStorage.setItem('oe_base', nm); } catch (x) {} }; return r; })(), nm)));
     const Ctl = window.L.Control.extend({ options: { position: 'topright' }, onAdd: () => { const d = h('div', { class: 'av-ctl leaflet-bar' }); const bt = h('button', { type: 'button', class: 'av-ctl-b' }, '🗺️ Capas ▾'); let ab = false; bt.onclick = () => { ab = !ab; planoBox.style.display = ab ? 'block' : 'none'; bt.textContent = ab ? '🗺️ Capas ▴' : '🗺️ Capas ▾'; }; planoBox.style.display = 'none'; d.appendChild(bt); d.appendChild(planoBox); window.L.DomEvent.disableClickPropagation(d); window.L.DomEvent.disableScrollPropagation(d); return d; } });
