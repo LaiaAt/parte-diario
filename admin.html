@@ -233,12 +233,14 @@ header>span{gap:6px!important;min-width:0}
 .av-grid{display:grid;grid-template-columns:290px 1fr;gap:10px;align-items:stretch}
 .av-panel{border:1px solid #cfd8e3;border-radius:12px;padding:10px;background:#fff;display:flex;flex-direction:column;max-height:min(72vh,660px)}
 .av-ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.av-ph b{font-size:15px}.av-ph a{color:#0a7a32;font-weight:700;font-size:13px}
-.av-lista{overflow:auto;flex:1;display:flex;flex-direction:column;gap:4px;padding-right:2px}
+.av-lista{overflow:auto;flex:1;min-height:120px;display:flex;flex-direction:column;gap:4px;padding-right:2px}
 .av-fila{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:10px;cursor:pointer;user-select:none}.av-fila:hover{background:#f2f5f8}.av-fila b{display:block;font-size:14px;word-break:break-word}.av-fila small{display:block;font-size:11.5px;color:#5b6b78}
 .av-chk{width:22px;height:22px;flex:none;border:2px solid #999;border-radius:6px;color:#fff;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center}
 .av-seg{display:inline-flex;background:#eef2f5;border-radius:8px;padding:2px;flex:none}.av-seg button{border:0;background:transparent;font-size:11.5px;font-weight:700;padding:4px 7px;border-radius:6px;min-height:0;width:auto;color:#4b5b67;cursor:pointer;box-shadow:none}.av-seg button.on{background:#fff;color:#0a7a32;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .av-pf{display:flex;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid #e3e8ee;margin-top:8px;padding-top:8px;font-size:12.5px;font-weight:700;color:#4b5b67}
-.av-mapa{height:min(72vh,660px);border-radius:12px;border:1px solid #cfd8e3;overflow:hidden;background:#eef2f5}
+.leaflet-pane svg,.leaflet-pane canvas{max-width:none!important}
+.av-plano{border-top:1px solid #e3e8ee;margin-top:8px}
+.av-mapa{height:min(72vh,660px);border-radius:12px;border:1px solid #cfd8e3;overflow:hidden;background:#fff}.av-mapa.leaflet-container{background:#fff}
 @media (max-width:760px){.av-grid{grid-template-columns:1fr}.av-panel{max-height:none}.av-lista{max-height:260px}.av-ks{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -2246,7 +2248,8 @@ function oeBase(m) {
   const ref = 'strict-origin-when-cross-origin', T = (u, o) => window.L.tileLayer(u, Object.assign({ maxZoom: 19, referrerPolicy: ref }, o));
   const B = {
     'Calles (Esri)': T('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri — HERE, Garmin, OpenStreetMap contributors' }),
-    'OpenStreetMap': T('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' })
+    'OpenStreetMap': T('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
+    'Sin mapa (solo plano)': window.L.layerGroup()
   };
   let k = ''; try { k = localStorage.getItem('oe_base') || ''; } catch (e) {}
   if (!B[k]) k = 'Calles (Esri)';
@@ -2333,6 +2336,64 @@ function dxfArmar(grupos) { // grupos: { capa: { pts:[[x,y,z]], anillos:[[[x,y,z
   capas.forEach(c => cab.push('0', 'LAYER', '2', c[0], '70', '0', '62', String(c[1]), '6', 'CONTINUOUS'));
   cab.push('0', 'ENDTAB', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES');
   return { txt: cab.concat(out, ['0', 'ENDSEC', '0', 'EOF']).join('\r\n') + '\r\n', tri: nTri };
+}
+
+function ctm12Inv(E, N) { // Origen Nacional (CTM12, EPSG:9377) → [lat, lon]
+  const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180, k0 = 0.9992, A0 = 1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256;
+  const arco = p => a * (A0 * p - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 * e2 * e2 / 1024) * Math.sin(2 * p) + (15 * e2 * e2 / 256 + 45 * e2 * e2 * e2 / 1024) * Math.sin(4 * p) - (35 * e2 * e2 * e2 / 3072) * Math.sin(6 * p));
+  const M = arco(4 * R) + (N - 2000000) / k0, mu = M / (a * A0), s = Math.sqrt(1 - e2), e1 = (1 - s) / (1 + s);
+  const p1 = mu + (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu) + (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu) + (1097 * Math.pow(e1, 4) / 512) * Math.sin(8 * mu);
+  const sn = Math.sin(p1), cs = Math.cos(p1), tn = Math.tan(p1), C1 = ep2 * cs * cs, T1 = tn * tn, N1 = a / Math.sqrt(1 - e2 * sn * sn), R1 = a * (1 - e2) / Math.pow(1 - e2 * sn * sn, 1.5), D = (E - 5000000) / (N1 * k0);
+  const lat = p1 - (N1 * tn / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * Math.pow(D, 4) / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * Math.pow(D, 6) / 720);
+  const lon = -73 * R + (D - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * Math.pow(D, 5) / 120) / cs;
+  return [lat / R, lon / R];
+}
+function planoXY(x, y) { // detecta el sistema: lat/lon, Origen Nacional (CTM12) o plano de Bogotá
+  if (Math.abs(x) <= 180 && Math.abs(y) <= 90) return [y, x];
+  if (x > 3e6 && y > 1e6) return ctm12Inv(x, y);
+  if (y > 3e6 && x > 1e6) return ctm12Inv(y, x);
+  return tmInv(x, y);
+}
+function planoSimplif(P, tol) { // Douglas-Peucker en metros sobre [[lat,lon]]
+  if (P.length < 3) return P;
+  const k = 111320 * Math.cos(P[0][0] * Math.PI / 180), q = p => [p[1] * k, p[0] * 110574], keep = new Uint8Array(P.length); keep[0] = keep[P.length - 1] = 1; const st = [[0, P.length - 1]];
+  while (st.length) { const [a, b] = st.pop(), A = q(P[a]), B = q(P[b]), dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy); let mx = 0, mi = -1;
+    for (let i = a + 1; i < b; i++) { const C = q(P[i]), d = L > 1e-6 ? Math.abs(dy * (C[0] - A[0]) - dx * (C[1] - A[1])) / L : Math.hypot(C[0] - A[0], C[1] - A[1]); if (d > mx) { mx = d; mi = i; } }
+    if (mx > tol) { keep[mi] = 1; st.push([a, mi], [mi, b]); } }
+  return P.filter((p, i) => keep[i]);
+}
+function planoLeer(nombre, texto) { // KML o DXF → { geo: [[[lat,lon],...]], n }
+  const L = [], r6 = v => Math.round(v * 1e6) / 1e6, add = P => { P = P.filter(p => isFinite(p[0]) && isFinite(p[1])); if (P.length >= 2) L.push(planoSimplif(P, 0.1).map(p => [r6(p[0]), r6(p[1])])); };
+  if (/\.kml$/i.test(nombre)) {
+    (texto.match(/<coordinates>([\s\S]*?)<\/coordinates>/g) || []).forEach(c => add(c.replace(/<\/?coordinates>/g, '').trim().split(/\s+/).map(t => { const v = t.split(',').map(Number); return [v[1], v[0]]; })));
+  } else if (/\.dxf$/i.test(nombre)) {
+    const ln = texto.split(/\r?\n/); let i = 0, enEnt = false, cur = null, poly = null; const pr = [];
+    for (; i + 1 < ln.length; i += 2) pr.push([ln[i].trim(), ln[i + 1].trim()]);
+    const fin = () => { if (!cur) return; if (cur.t === 'LINE' && cur.x2 != null) add([planoXY(cur.x, cur.y), planoXY(cur.x2, cur.y2)]); else if (cur.t === 'LWPOLYLINE' && cur.v.length) { const P = cur.v.map(v => planoXY(v[0], v[1])); if (cur.cerr) P.push(P[0]); add(P); } cur = null; };
+    pr.forEach(([c, v]) => {
+      if (c === '2' && v === 'ENTITIES' && !enEnt) { enEnt = true; return; }
+      if (!enEnt) return;
+      if (c === '0') { fin(); if (v === 'ENDSEC') { enEnt = false; return; }
+        if (v === 'POLYLINE') { poly = { v: [], cerr: false }; return; } if (v === 'VERTEX' && poly) { cur = { t: 'VERTEX' }; return; } if (v === 'SEQEND' && poly) { const P = poly.v.map(q => planoXY(q[0], q[1])); if (poly.cerr) P.push(P[0]); add(P); poly = null; return; }
+        cur = (v === 'LINE' || v === 'LWPOLYLINE') ? { t: v, v: [] } : null; return; }
+      if (cur && cur.t === 'VERTEX') { if (c === '10') poly.v.push([+v, NaN]); else if (c === '20') poly.v[poly.v.length - 1][1] = +v; return; }
+      if (poly && !cur && c === '70') { poly.cerr = (+v & 1) === 1; return; }
+      if (!cur) return;
+      if (cur.t === 'LINE') { if (c === '10') cur.x = +v; else if (c === '20') cur.y = +v; else if (c === '11') cur.x2 = +v; else if (c === '21') cur.y2 = +v; }
+      else if (cur.t === 'LWPOLYLINE') { if (c === '10') cur.v.push([+v, NaN]); else if (c === '20' && cur.v.length) cur.v[cur.v.length - 1][1] = +v; else if (c === '70') cur.cerr = (+v & 1) === 1; }
+    }); fin();
+  } else return { error: 'Formato no soportado. Usa KML o DXF (en AutoCAD: Guardar como → DXF).' };
+  const n = L.reduce((s, x) => s + x.length, 0);
+  if (!L.length) return { error: 'El archivo no tiene líneas que se puedan dibujar.' };
+  if (L.some(P => P.some(p => !(p[0] > -5 && p[0] < 14 && p[1] > -82 && p[1] < -66)))) return { error: 'Las coordenadas no caen en Colombia. Revisa el sistema de coordenadas del plano.' };
+  return { geo: L, n: n };
+}
+let OEPLANOS = null; const OEPLANO_COL = ['#d32f2f', '#1565c0', '#6a1b9a', '#ef6c00', '#00838f', '#5d4037', '#c2185b', '#2e7d32'];
+let OEPLOFF = (() => { try { return new Set(JSON.parse(localStorage.getItem('oe_planos_off') || '[]')); } catch (e) { return new Set(); } })();
+async function cargarPlanos() {
+  const L = []; try { const r = await fetch('oe/planos.json', { cache: 'no-cache' }); const o = await r.json(); (o.capas || []).forEach((c, i) => L.push({ id: 'fijo' + i, nombre: c.nombre, color: c.color, geo: c.geo, fijo: true })); } catch (e) {}
+  try { const r = await api({ accion: 'admin_oe_planos', llave: LLAVE }); if (r.ok) (r.capas || []).forEach(c => L.push(c)); } catch (e) {}
+  OEPLANOS = L; return L;
 }
 function levParse(texto) {
   const pts = []; let mal = 0;
@@ -2463,10 +2524,36 @@ async function pintarOeAvance(c) {
     lista.appendChild(fila);
   });
   const todasSeg = seg(() => OEDIB, v => { OEDIB = v; OEDIBC = {}; try { localStorage.setItem('oe_dib', OEDIB); localStorage.setItem('oe_dibc', '{}'); } catch (e2) {} Object.keys(modos).forEach(k => modos[k]()); dibujar(); refrescar(false); });
+  const planoBox = h('div', { class: 'av-plano' }), grPlano = {};
+  const pintarPlanos = () => {
+    planoBox.textContent = '';
+    const fin = h('input', { type: 'file', accept: '.kml,.dxf', hidden: true });
+    fin.onchange = async () => { const f = fin.files && fin.files[0]; fin.value = ''; if (!f) return;
+      banner('Leyendo ' + f.name + '…', 'ok'); let res; try { res = planoLeer(f.name, await f.text()); } catch (e) { res = { error: 'No se pudo leer el archivo.' }; }
+      if (res.error) { banner(res.error); return; }
+      const nom = (prompt('Nombre de la capa (' + res.geo.length + ' líneas). Ej: Diseño geométrico', f.name.replace(/\.[^.]+$/, '')) || '').trim(); if (!nom) return;
+      const color = OEPLANO_COL[(OEPLANOS || []).length % OEPLANO_COL.length];
+      try { const r = await api({ accion: 'admin_oe_plano_subir', llave: LLAVE, nombre: nom, color: color, geo: res.geo }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar la capa.'); return; } banner('Capa «' + nom + '» guardada.', 'ok'); OEPLANOS = null; pintarOe(); } catch (e) { banner('No se pudo guardar la capa (sin conexión o archivo muy grande).'); } };
+    planoBox.appendChild(h('div', { class: 'av-ph', style: 'margin-top:8px' }, h('b', {}, 'Capas del plano'), h('a', { href: '#', onclick: ev => { ev.preventDefault(); fin.click(); } }, '+ Cargar KML / DXF')));
+    planoBox.appendChild(fin);
+    if (!OEPLANOS) { planoBox.appendChild(h('div', { class: 'small' }, 'Cargando capas…')); return; }
+    if (!OEPLANOS.length) planoBox.appendChild(h('div', { class: 'small' }, 'Sin capas. Carga un KML o DXF del proyecto.'));
+    OEPLANOS.forEach(p => { const on = !OEPLOFF.has(p.nombre);
+      const caja = h('span', { class: 'av-chk', style: 'border-color:' + p.color + ';background:' + (on ? p.color : '#fff') }, on ? '✓' : '');
+      planoBox.appendChild(h('div', { class: 'av-fila', onclick: () => { if (OEPLOFF.has(p.nombre)) OEPLOFF.delete(p.nombre); else OEPLOFF.add(p.nombre); try { localStorage.setItem('oe_planos_off', JSON.stringify(Array.from(OEPLOFF))); } catch (e) {} pintarPlanos(); verPlanos(); } }, caja,
+        h('div', { style: 'flex:1;min-width:0' }, h('b', {}, p.nombre), h('small', {}, p.fijo ? 'Capa base del proyecto' : 'Cargada por ' + (p.quien || '—') + ' · ' + String(p.creado || '').slice(0, 10))),
+        p.fijo ? null : h('button', { type: 'button', class: 'sec', title: 'Quitar esta capa', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px', onclick: async ev => { ev.stopPropagation(); if (!confirm('¿Quitar la capa «' + p.nombre + '» para todos los usuarios?')) return; try { const r = await api({ accion: 'admin_oe_plano_borrar', llave: LLAVE, id: p.id }); if (!r.ok) { banner(r.mensaje || 'No se pudo quitar.'); return; } OEPLANOS = null; pintarOe(); } catch (e) { banner('No se pudo quitar.'); } } }, '✕')));
+    });
+  };
+  const verPlanos = () => { if (!mapa || !OEPLANOS) return; OEPLANOS.forEach(p => { let g = grPlano[p.id]; if (!g) { g = grPlano[p.id] = window.L.layerGroup(); p.geo.forEach(P => window.L.polyline(P, { color: p.color, weight: 1.6, opacity: .9, interactive: false, pane: 'plano' }).addTo(g)); }
+    if (OEPLOFF.has(p.nombre)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); } else if (!mapa.hasLayer(g)) g.addTo(mapa); }); };
+  pintarPlanos();
+  if (!OEPLANOS) cargarPlanos().then(() => { if (planoBox.isConnected) { pintarPlanos(); verPlanos(); } });
   const panel = h('div', { class: 'av-panel' },
     h('div', { class: 'av-ph' }, h('b', {}, 'Actividades'), h('span', {}, h('a', { href: '#', onclick: ev => { ev.preventDefault(); todas(true); } }, 'Todas'), ' · ', h('a', { href: '#', onclick: ev => { ev.preventDefault(); todas(false); } }, 'Ninguna'))),
     lista,
     h('div', { class: 'av-pf' }, h('span', {}, 'Dibujar todas como'), todasSeg),
+    planoBox,
     h('button', { class: 'sec', style: 'width:100%;margin-top:8px', onclick: () => refrescar(true) }, '🎯 Centrar mapa'));
   const box = h('div', { class: 'av-mapa' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
   c.appendChild(h('div', { class: 'av-grid' }, panel, box));
@@ -2493,7 +2580,7 @@ async function pintarOeAvance(c) {
   cargarLeaflet().then(() => {
     if (!box.isConnected) return; box.textContent = '';
     const m = window.L.map(box, { scrollWheelZoom: true }); mapa = m;
-    oeBase(m);
+    oeBase(m); m.createPane('plano').style.zIndex = 350;
     dibujar = () => {
     Object.keys(grupos).forEach(k => grupos[k].clearLayers());
     L.slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
@@ -2512,6 +2599,7 @@ async function pintarOeAvance(c) {
     };
     dibujar(); window.__dib = dibujar;
     refrescar(true);
+    setTimeout(() => { m.invalidateSize(); verPlanos(); }, 50);
   }).catch(() => { box.textContent = 'No se pudo cargar el mapa (sin señal).'; });
 }
 // Centros de costo válidos: catálogo de la app (incluye UF6/UF7 con su código), subcuentas y los creados por la oficina. código → [actividad, und, UF, hito, paquete, origen]
