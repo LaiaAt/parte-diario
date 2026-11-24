@@ -252,6 +252,7 @@ header>span{gap:6px!important;min-width:0}
 .av-zip{width:auto;min-height:34px;background:#0a7a32;color:#fff;border:0;border-radius:10px;font-weight:800;font-size:13.5px;padding:6px 12px;cursor:pointer;white-space:nowrap}
 .av-grid{position:relative}.av-grid.av-full{position:fixed;inset:0;z-index:99990;background:#fff;padding:8px;gap:8px;grid-template-columns:330px 1fr;height:100vh;box-sizing:border-box}
 .av-grid.av-full .av-panel{max-height:none;height:100%;box-sizing:border-box}.av-grid.av-full .av-mapa{height:100%}
+.av-abs-m span{font:500 11px/1 system-ui,Segoe UI,Arial!important;color:#334155!important}
 .av-plano{width:270px;max-height:min(60vh,520px);overflow:auto;padding:10px;background:#fff}
 .av-ctl{background:#fff;border-radius:10px!important;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.2)}.av-ctl-b{display:block;width:100%;border:0;background:#fff;font-weight:800;font-size:14px;padding:9px 14px;cursor:pointer;min-height:0;color:#0f172a;text-align:left}
 .av-radio{display:flex;gap:8px;align-items:center;font-size:13.5px;padding:3px 2px;cursor:pointer}.av-radio input{width:16px;height:16px;min-height:0;margin:0}
@@ -2676,8 +2677,8 @@ async function pintarOeAvance(c) {
         if (ya) pon(ya); else api({ accion: 'admin_oe_plano_img', llave: LLAVE, id: p.id }).then(r => { if (r.ok) { OEIMG[p.id] = r.img; pon(r.img); } else { g.cargada = false; banner(r.mensaje || 'No se pudo cargar la ortofoto.'); } }).catch(() => { g.cargada = false; }); }
       return; }
     if (!g) { g = grPlano[p.id] = window.L.layerGroup(); p.geo.forEach(P => window.L.polyline(P, { color: p.color, weight: 1.6, opacity: .9, interactive: false, pane: 'plano' }).addTo(g));
-      if (p.textos && p.textos.length) { const gt = window.L.layerGroup(); p.textos.forEach(t => { let r = ((t.r % 360) + 360) % 360; if (r > 90 && r < 270) r -= 180; window.L.marker(t.p, { interactive: false, keyboard: false, pane: 'plano', icon: window.L.divIcon({ className: 'av-abs', iconSize: [0, 0], html: '<span style="transform:translate(-50%,-50%) rotate(' + (-r) + 'deg)">' + String(t.t).replace(/[<&]/g, '') + '</span>' }) }).addTo(gt); });
-        const zv = () => { if (!g.hasLayer(gt) && mapa.getZoom() >= 17) g.addLayer(gt); else if (g.hasLayer(gt) && mapa.getZoom() < 17) g.removeLayer(gt); }; mapa.on('zoomend', zv); zv(); } }
+      if (p.textos && p.textos.length) { const gt = window.L.layerGroup(), gm = window.L.layerGroup(); p.textos.forEach(t => { let r = ((t.r % 360) + 360) % 360; if (r > 90 && r < 270) r -= 180; window.L.marker(t.p, { interactive: false, keyboard: false, pane: 'plano', icon: window.L.divIcon({ className: t.m ? 'av-abs av-abs-m' : 'av-abs', iconSize: [0, 0], html: '<span style="transform:translate(-50%,-50%) rotate(' + (-r) + 'deg)">' + String(t.t).replace(/[<&]/g, '') + '</span>' }) }).addTo(t.m ? gm : gt); });
+        const zv = () => { const z = mapa.getZoom(); if (z >= 17) { if (!g.hasLayer(gt)) g.addLayer(gt); } else if (g.hasLayer(gt)) g.removeLayer(gt); if (z >= 19) { if (!g.hasLayer(gm)) g.addLayer(gm); } else if (g.hasLayer(gm)) g.removeLayer(gm); }; mapa.on('zoomend', zv); zv(); } }
     if (OEPLOFF.has(p.nombre)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); } else if (!mapa.hasLayer(g)) g.addTo(mapa); }); };
   pintarPlanos();
   if (!OEPLANOS) cargarPlanos().then(() => { if (planoBox.isConnected) { pintarPlanos(); verPlanos(); } });
