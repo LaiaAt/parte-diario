@@ -1034,7 +1034,7 @@ window.addEventListener('online', () => { estadoRed(); sincronizar(); refrescar(
 window.addEventListener('offline', estadoRed);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && user && !$('inicio').hidden) { pintarInicio(); refrescar(); } });
 estadoRed();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hab || rec) return; rec = true; /* versión nueva: no se recarga sola mientras se usa; aviso para actualizar con un toque */ if (!document.getElementById('nuevaVer')) { const d = document.createElement('button'); d.id = 'nuevaVer'; d.textContent = '🔄 Hay una versión nueva de Transportes · toca aquí para actualizar'; d.style.cssText = 'position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:99999;background:#0a7a32;color:#fff;border:0;border-radius:24px;padding:12px 20px;font-weight:800;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer;width:max-content;max-width:92vw'; d.onclick = () => location.reload(); document.body.appendChild(d); } }); navigator.serviceWorker.register('sw.js').then(reg => { const buscar = () => { try { reg.update(); } catch (e) {} }; setInterval(buscar, 900000); document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar(); }); window.addEventListener('focus', buscar); buscar(); }).catch(() => {}); }
 (async () => {
   try { user = await kv.get('user'); } catch (e) { user = null; }
   if (user) { await cargarLocal(); abrirInicio(); sincronizar(); } else pantalla('login');
