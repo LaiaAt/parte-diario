@@ -42,7 +42,14 @@ img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;backg
 .sbar .sres{display:none}.sbar{gap:12px}.sbar .btn,.sbar .btn.sacar2,.sbar .btn.cnl{flex:1 1 0;width:0;min-width:0;box-sizing:border-box;margin:0;padding:0 8px;min-height:56px;font-size:1.1rem}.sbar .btn{white-space:nowrap}.btn.blk{box-sizing:border-box}
 .redg{display:grid;grid-template-columns:1fr 1fr;gap:6px}.redg .act{width:auto;min-width:0;box-sizing:border-box;margin-top:6px;padding:10px 8px;font-size:.85rem;min-height:52px}
 .ini .dia{gap:6px;margin:0 0 6px}.ini .dia .btn{min-width:44px;height:38px;min-height:0;padding:0;font-size:1rem}.ini .dia input{height:38px;min-height:0;padding:0 8px;font-size:1rem;font-weight:700;flex:1}
-.ini .preg{font-size:1rem;margin:4px 2px 6px}.ini .hs{grid-auto-rows:clamp(50px,calc((100dvh - 262px) / 5),80px)}.ini .hs .bg{height:100%;overflow:hidden;justify-content:center}.ini .hs{gap:6px;margin:0}.ini .hs .bg{padding:6px 3px 5px}.ini .hs .bg-i{font-size:1.3rem}.ini .hs .bg b{font-size:.74rem}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#dfe7e2;padding:5px;border-radius:16px;margin:0 0 10px}.seg button{border:0;border-radius:12px;padding:11px 6px;font-weight:800;font-size:1rem;background:transparent;color:#3f5547;min-height:0;box-shadow:none}.seg button.on{background:#0a7f2e;color:#fff;box-shadow:0 3px 10px rgba(10,127,46,.35)}
+.seg button.on::before,.seg button.on::after{content:none!important}.lv input[type=date]{width:100%;box-sizing:border-box}
+.lv{background:#fff;border-radius:18px;padding:14px;box-shadow:0 2px 12px rgba(15,23,42,.08)}.lv-h{display:flex;gap:12px;align-items:center;margin-bottom:12px}.lv-i{font-size:2rem;background:#e8f5ec;border-radius:14px;width:52px;height:52px;display:flex;align-items:center;justify-content:center}.lv-h b{display:block;font-size:1.15rem;color:#0f172a}.lv small,.lv-sub small{display:block;color:#5b6b78;font-size:.8rem;font-weight:500;margin-top:2px}
+.lv-drop{display:flex;flex-direction:column;align-items:center;gap:6px;border:2.5px dashed #0a7f2e;background:#f3faf5;border-radius:18px;padding:26px 12px;text-align:center;cursor:pointer;color:#0a5a22}.lv-drop b{font-size:1.1rem}.lv-d1{font-size:2.6rem;line-height:1}
+.lv-arch{display:flex;gap:10px;align-items:center;background:#f3faf5;border:1px solid #bfe3c9;border-radius:14px;padding:10px 12px}.lv-arch>span{font-size:1.6rem}.lv-arch>div{flex:1;min-width:0}.lv-arch b{display:block;word-break:break-all;font-size:.95rem}.lv-otro{font-weight:800;color:#0a7f2e;padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #0a7f2e;font-size:.85rem;cursor:pointer}
+.lv-caps{margin-top:12px;display:grid;gap:6px}.lv-cap{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#f6f8fa;border-radius:12px;padding:9px 12px}.lv-cap b{display:block;font-size:.95rem}.lv-cap em{font-style:normal;font-weight:800;color:#0a7f2e;white-space:nowrap}
+.lv-sub{display:flex;gap:10px;align-items:center;background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 6px rgba(15,23,42,.07)}.lv-sub>div{flex:1;min-width:0}.lv-sub b{font-size:.95rem}.lv-sub small{word-break:break-word}.lv-ok{width:30px;height:30px;border-radius:50%;background:#0a7f2e;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+.ini .preg{font-size:1rem;margin:4px 2px 6px}.ini .hs{grid-auto-rows:clamp(50px,calc((100dvh - 330px) / 5),80px)}.ini .hs .bg{height:100%;overflow:hidden;justify-content:center}.ini .hs{gap:6px;margin:0}.ini .hs .bg{padding:6px 3px 5px}.ini .hs .bg-i{font-size:1.3rem}.ini .hs .bg b{font-size:.74rem}
 main.oe:has(.ini){padding-top:8px;padding-bottom:12px}
 .act small.est{color:#0d5c2e;font-weight:700}
 </style>
@@ -77,7 +84,7 @@ const NDIM = ['Largo (m)', 'Ancho (m)', 'Alto / espesor (m)'];
 const undTxt = u => ({ 'M3': 'm³', 'M2': 'm²', 'ML': 'm', 'UN': 'und', 'KG': 'kg', 'M3-KM': 'm³·km', 'TON-M': 'ton·m' }[u] || u);
 
 const LSM = 'oe_mis_v1';
-let S = { ses: lsGet(LS), cat: null, tab: 'rep', abierto: {}, mis: {}, cargMis: false, fecha: hoyISO(), hito: '', srv: [], pend: [], f: null, busy: false, cargando: false, offline: false, loginErr: '', q: '', lev: null, levLista: [], cargLev: false };
+let S = { ses: lsGet(LS), cat: null, tab: 'rep', sub: 'hoy', abierto: {}, mis: {}, cargMis: false, fecha: hoyISO(), hito: '', srv: [], pend: [], f: null, busy: false, cargando: false, offline: false, loginErr: '', q: '', lev: null, levLista: [], cargLev: false };
 
 /* ---------- Cola local (IndexedDB): los registros con foto esperan aquí hasta que haya señal ---------- */
 const DB = (() => {
@@ -168,7 +175,7 @@ async function sincronizar() {
       else if (r && !r.ok) { x.error = r.mensaje || 'Error'; await DB.poner(x); }
     }
   } finally { S.busy = false; }
-  await pedirDia(); if (S.tab === 'mis') pedirMis();
+  await pedirDia(); if (S.tab === 'res') pedirMis();
 }
 /* Hojas de cálculo guardan "2.10" como número 2.1: se vuelve a su código de dos decimales */
 const normH = h => { const t = String(h == null ? '' : h).trim(); return /^\d\.\d$/.test(t) ? t + '0' : t; };
@@ -217,9 +224,11 @@ function vDia() {
   const hoy = hoyISO();
   return '<div class="dia"><button class="btn sec" data-a="dia" data-v="-1"' + (S.fecha <= sumDias(hoy, -7) ? ' disabled' : '') + '>◀</button><input type="date" id="fecha" value="' + S.fecha + '" min="' + sumDias(hoy, -7) + '" max="' + hoy + '"><button class="btn sec" data-a="dia" data-v="1"' + (S.fecha >= hoy ? ' disabled' : '') + '>▶</button></div>';
 }
+const vSeg = () => LEV_ON ? '<div class="seg"><button type="button" class="' + (S.sub !== 'lev' ? 'on' : '') + '" data-a="sub" data-v="hoy">📝 Qué hice hoy</button><button type="button" class="' + (S.sub === 'lev' ? 'on' : '') + '" data-a="sub" data-v="lev">📐 Levantamientos</button></div>' : '';
 function vInicio() {
   const reg = todosDia(), por = {}; reg.forEach(x => { por[x.hito] = (por[x.hito] || 0) + 1; });
-  let h = '<div class="ini">' + vDia() + '<h2 class="preg">¿En qué hito trabajaste?</h2><div class="hs">';
+  if (LEV_ON && S.sub === 'lev') return vSeg() + vLev();
+  let h = vSeg() + '<div class="ini">' + vDia() + '<h2 class="preg">¿En qué hito trabajaste?</h2><div class="hs">';
   (S.cat ? S.cat.hitos : []).forEach(x => { const n = por[x[0]] || 0; h += '<button type="button" class="bg" data-a="hito" data-v="' + x[0] + '"><span class="bg-i">' + (ICO[x[0]] || '📍') + '</span><b>' + esc(x[1]) + '</b><small>' + (n ? n + (n === 1 ? ' registro' : ' registros') : '&nbsp;') + '</small>' + (n ? '<i class="n">' + n + '</i>' : '') + '</button>'; });
   h += '</div>';
   h += '</div>';
@@ -260,7 +269,7 @@ function vMis() {
   return h;
 }
 const LEV_ON = true; // levantamientos TXT: el topógrafo sube el TXT del día
-const TABS = [['rep', '📝', 'Reporte'], ['res', '📊', 'Resumen'], ['mis', '📋', 'Mis reportes']].concat(LEV_ON ? [['lev', '📐', 'Levantamiento']] : []);
+const TABS = [['rep', '📝', 'Reporte'], ['res', '📊', 'Resumen']]; // solo dos vistas; Reporte trae «Qué hice hoy» y «Levantamientos»; los reportes de la semana van dentro de Resumen
 /* ---------- Levantamientos TXT (estación total) ---------- */
 function tmInv(E, N) { // plano de Bogotá D.C. (IDU, MAGNA GRS80) → [lat, lon]
   const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180;
@@ -339,23 +348,25 @@ async function pedirLev() {
   S.cargLev = false; render();
 }
 function vLev() {
-  const L = S.lev, hoy = hoyISO();
-  let h = '<div class="card"><h2 style="margin:0 0 4px">Levantamiento del día</h2><div class="peq mut" style="margin-bottom:10px">Sube el TXT de la estación total (punto, este, norte, cota, descripción). Cada descripción se dibuja como una capa en el mapa del Dashboard.</div>' +
-    '<input type="file" id="levArchivo" accept=".txt,.csv,text/plain" style="width:100%;margin-bottom:10px">';
-  if (L && L.err) h += '<div class="error">' + esc(L.err) + '</div>';
-  if (L && L.res) {
-    h += '<label class="f" for="levFecha" style="margin-top:4px">Fecha del levantamiento</label><input type="date" id="levFecha" value="' + L.fecha + '" max="' + hoy + '" min="' + sumDias(hoy, -60) + '">' +
-      '<div style="margin:10px 0 6px"><b>' + esc(L.archivo) + '</b> · ' + L.res.n + ' puntos' + (L.res.mal ? ' · ' + L.res.mal + ' líneas ignoradas' : '') + '</div>';
-    L.res.capas.forEach(c => { h += '<div class="rl"><div><b>' + esc(c.capa) + '</b><span class="peq mut">' + c.n + ' puntos · cota ' + c.zmin.toFixed(2) + ' a ' + c.zmax.toFixed(2) + ' m</span></div><div><b>' + (c.area ? c.area.toLocaleString('es-CO', { maximumFractionDigits: 1 }) + ' m²' : '—') + '</b></div></div>'; });
-    h += '<button class="btn blk grande" data-a="levSubir" style="margin-top:12px"' + (L.subiendo ? ' disabled' : '') + '>' + (L.subiendo ? 'Subiendo…' : '⬆ Subir levantamiento') + '</button>';
+  const L = S.lev, hoy = hoyISO(), nf = n => n.toLocaleString('es-CO', { maximumFractionDigits: 1 });
+  let h = '<div class="lv"><div class="lv-h"><span class="lv-i">📐</span><div><b>Levantamiento del día</b><small>Sube el TXT de la estación total</small></div></div>';
+  if (!L || !L.res) {
+    h += '<label for="levArchivo" class="lv-drop"><span class="lv-d1">📂</span><b>Toca aquí para elegir el TXT</b><small>Formato: punto, este, norte, cota, descripción</small></label>';
+    if (L && L.err) h += '<div class="error" style="margin-top:10px">' + esc(L.err) + '</div>';
+  } else {
+    h += '<div class="lv-arch"><span>📄</span><div><b>' + esc(L.archivo) + '</b><small>' + L.res.n + ' puntos · ' + L.res.capas.length + ' actividades' + (L.res.mal ? ' · ' + L.res.mal + ' líneas ignoradas' : '') + '</small></div><label for="levArchivo" class="lv-otro">Cambiar</label></div>' +
+      '<label class="f" for="levFecha" style="margin-top:12px">¿De qué día es este levantamiento?</label><input type="date" id="levFecha" value="' + L.fecha + '" max="' + hoy + '" min="' + sumDias(hoy, -60) + '">' +
+      '<div class="lv-caps">';
+    L.res.capas.forEach(c => { h += '<div class="lv-cap"><div><b>' + esc(c.capa) + '</b><small>' + c.n + ' puntos · cota ' + c.zmin.toFixed(2) + ' a ' + c.zmax.toFixed(2) + ' m</small></div><em>' + (c.area ? nf(c.area) + ' m²' : '—') + '</em></div>'; });
+    h += '</div><button class="btn blk grande" data-a="levSubir" style="margin-top:12px"' + (L.subiendo ? ' disabled' : '') + '>' + (L.subiendo ? 'Subiendo…' : '⬆ Subir levantamiento') + '</button>';
   }
-  h += '</div>';
+  h += '<input type="file" id="levArchivo" accept=".txt,.csv,text/plain" style="display:none"></div>';
   const g = {}; S.levLista.forEach(x => { const k = x.fecha + '|' + x.archivo; (g[k] = g[k] || { fecha: x.fecha, archivo: x.archivo, caps: [], area: 0 }); g[k].caps.push(x.capa); g[k].area += x.area; });
   const ks = Object.keys(g).sort().reverse();
-  h += '<div class="card"><h2 style="margin:0 0 8px">Subidos</h2>' + (S.cargLev ? '<div class="peq mut">Actualizando…</div>' : '');
-  if (!ks.length && !S.cargLev) h += '<div class="peq mut">Aún no has subido levantamientos.</div>';
-  ks.forEach(k => { const x = g[k]; h += '<div class="rl"><div><b>' + esc(x.fecha) + ' · ' + esc(x.archivo) + '</b><span class="peq mut">' + esc(x.caps.join(', ')) + ' · ' + x.area.toLocaleString('es-CO', { maximumFractionDigits: 1 }) + ' m²</span></div><button class="btn chico sec" data-a="levAnular" data-v="' + esc(k) + '">Anular</button></div>'; });
-  return h + '</div>';
+  h += '<h2 class="preg" style="margin-top:16px">Subidos' + (S.cargLev ? ' <small class="mut" style="font-size:.75rem;font-weight:600">actualizando…</small>' : '') + '</h2>';
+  if (!ks.length && !S.cargLev) h += '<div class="card peq mut">Aún no has subido levantamientos.</div>';
+  ks.forEach(k => { const x = g[k]; h += '<div class="lv-sub"><span class="lv-ok">✔</span><div><b>' + esc(diaTxt(x.fecha)) + '</b><small>' + esc(x.archivo) + ' · ' + esc(x.caps.join(', ')) + ' · ' + nf(x.area) + ' m²</small></div><button class="btn chico sec" data-a="levAnular" data-v="' + esc(k) + '">Anular</button></div>'; });
+  return h;
 }
 async function levLeer(file) {
   const texto = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result || '')); r.onerror = no; r.readAsText(file); });
@@ -515,7 +526,7 @@ function render() {
   if (!S.ses) { app.innerHTML = vLogin(); return; }
   if (S.f) { app.innerHTML = '<div class="cab">' + vTop() + '</div>' + vBandas() + '<main class="oe conbar">' + vForm() + '</main>' + vSbar(); }
   else {
-    const main = S.tab === 'res' ? vRes() : S.tab === 'lev' ? vLev() : S.tab === 'mis' ? vMis() : (S.hito ? vHito() : vInicio());
+    const main = S.tab === 'res' ? vRes() + vMis() : (S.hito ? vHito() : vInicio());
     app.innerHTML = '<div class="cab">' + vTop() + '</div><div class="lay">' + vArbol() + '<div class="cont">' + vBandas() + '<main class="oe">' + main + '</main></div></div>' + vBarra();
   }
   if (window.pageYOffset !== y) window.scrollTo(0, y);
@@ -611,7 +622,7 @@ document.addEventListener('submit', async ev => {
   S.entrando = true; S.loginErr = ''; render();
   try {
     const r = await llamar({ accion: 'validar', llave: k, app: 'oe' }, 30000);
-    if (r && r.ok) { S.ses = { llave: r.llave || k, nombre: r.nombre }; lsSet(LS, S.ses); S.entrando = false; await cargarCat(); render(); pedirDia(); return; }
+    if (r && r.ok) { S.ses = { llave: r.llave || k, nombre: r.nombre }; lsSet(LS, S.ses); S.entrando = false; await cargarCat(); render(); pedirDia(); pedirLev(); return; }
     S.loginErr = (r && r.mensaje) || 'Llave no válida';
   } catch (e) { S.loginErr = 'Sin conexión: se necesita señal para entrar la primera vez.'; }
   S.entrando = false; render();
@@ -619,11 +630,12 @@ document.addEventListener('submit', async ev => {
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-a]'); if (!b) return;
   const a = b.dataset.a, v = b.dataset.v;
-  if (a === 'tab') { S.tab = v; S.hito = ''; render(); window.scrollTo(0, 0); if (v === 'mis' || v === 'res') pedirMis(); if (v === 'lev' || v === 'res') pedirLev(); return; }
+  if (a === 'tab') { S.tab = v; S.hito = ''; render(); window.scrollTo(0, 0); if (v === 'res') pedirMis(); pedirLev(); return; }
+  if (a === 'sub') { S.sub = v; render(); window.scrollTo(0, 0); if (v === 'lev') pedirLev(); return; }
   if (a === 'excel') { descargarExcel(v); return; }
   if (a === 'editar') { editar(v); return; }
   if (a === 'abrir') { S.abierto[v] = !S.abierto[v]; render(); return; }
-  if (a === 'refrescar') { if (S.tab === 'mis') pedirMis(); sincronizar(); if (!navigator.onLine) pedirDia(); return; }
+  if (a === 'refrescar') { if (S.tab === 'res') pedirMis(); sincronizar(); if (!navigator.onLine) pedirDia(); return; }
   if (a === 'salir') { if (!S.pend.length || confirm('Hay registros sin subir en este equipo. No se pierden, pero no se subirán hasta que entres de nuevo. ¿Salir?')) { salir(); render(); } return; }
   if (a === 'dia') { cambioDia(sumDias(S.fecha, Number(v))); return; }
   if (a === 'hito') { S.hito = v; render(); window.scrollTo(0, 0); return; }
@@ -674,7 +686,7 @@ window.addEventListener('beforeunload', ev => { if (S.f && (S.f.act || S.f.foto)
 (async () => {
   render();            // abre al instante: con sesión guardada muestra la pantalla de inmediato
   await cargarCat(); render();
-  if (S.ses) { S.pend = (await DB.todos().catch(() => [])).filter(x => x.llave === S.ses.llave); render(); sincronizar(); pedirDia(); }
+  if (S.ses) { S.pend = (await DB.todos().catch(() => [])).filter(x => x.llave === S.ses.llave); render(); sincronizar(); pedirDia(); pedirLev(); }
 })();
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {}
 if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hab || rec) return; rec = true; /* versión nueva: no se recarga sola mientras se usa; aviso para actualizar con un toque */ if (!document.getElementById('nuevaVer')) { const d = document.createElement('button'); d.id = 'nuevaVer'; d.textContent = '🔄 Hay una versión nueva de OE · toca aquí para actualizar'; d.style.cssText = 'position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:99999;background:#0a7a32;color:#fff;border:0;border-radius:24px;padding:12px 20px;font-weight:800;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer;width:max-content;max-width:92vw'; d.onclick = () => location.reload(); document.body.appendChild(d); } }); navigator.serviceWorker.register('sw.js').then(reg => { const buscar = () => { try { reg.update(); } catch (e) {} }; setInterval(buscar, 900000); document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar(); }); window.addEventListener('focus', buscar); buscar(); }).catch(() => {}); }
