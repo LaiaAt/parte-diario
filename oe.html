@@ -120,7 +120,7 @@ const paquetesDe = (h, uf) => {
 };
 // Redes (2.11 húmedas, 2.12 secas): primero se elige el tipo de red. CAPEX usa la estructura del proyecto; una subcuenta o ENEL usa su propio catálogo.
 // Revisión de la oficina: el topógrafo ve el color y el motivo; lo revisado ya no se edita
-const REVT = { APROBADO: ['🟢 Aprobado', '#e6f6ee', '#14532d'], CORREGIDO: ['🔵 Corregido por oficina', '#e3eefc', '#0d3c7a'], RECHAZADO: ['🔴 Rechazado', '#fde8e8', '#8a1c1c'] };
+const REVT = { APROBADO: ['🟢 Aprobado', '#e6f6ee', '#14532d'], CORREGIDO: ['🔵 Corregido por oficina', '#e3eefc', '#0d3c7a'], RECHAZADO: ['🔴 Anulado por la oficina', '#fde8e8', '#8a1c1c'] };
 const revTag = x => x.rev && REVT[x.rev] ? '<span class="tag" style="background:' + REVT[x.rev][1] + ';color:' + REVT[x.rev][2] + '">' + REVT[x.rev][0] + '</span>' + (x.rev_motivo ? '<div class="peq" style="color:' + REVT[x.rev][2] + ';margin-top:2px">Oficina: ' + esc(x.rev_motivo) + '</div>' : '') : '';
 const esRed = h => h === '2.11' || h === '2.12';
 const esMant = h => h === 'MANT';
