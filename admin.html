@@ -2440,8 +2440,8 @@ function elegirCapasDxf(porCapa, nombre) { // ventana para escoger las capas del
     document.body.appendChild(fondo);
   });
 }
-let OEALIAS = (() => { try { return JSON.parse(localStorage.getItem('oe_alias') || '{}'); } catch (e) { return {}; } })();
-const oeNom = cp => OEALIAS[cp] || cp; // nombre visible de la actividad (no cambia los datos)
+let OEALIAS = {};
+const oeNom = cp => ((D && D.oealias) || OEALIAS)[cp] || cp; // nombre visible de la actividad (no cambia los datos)
 let OEPLANOS = null; const OEPLANO_COL = ['#d32f2f', '#1565c0', '#6a1b9a', '#ef6c00', '#00838f', '#5d4037', '#c2185b', '#2e7d32'];
 let OEPLOFF = (() => { try { return new Set(JSON.parse(localStorage.getItem('oe_planos_off') || '[]')); } catch (e) { return new Set(); } })();
 async function cargarPlanos() {
@@ -2573,8 +2573,9 @@ async function pintarOeAvance(c) {
     const caja = h('span', { class: 'av-chk' });
     const sg = seg(() => OEDIBC[cp] || OEDIB, v => { OEDIBC[cp] = v; try { localStorage.setItem('oe_dibc', JSON.stringify(OEDIBC)); } catch (e2) {} dibujar(); refrescar(false); });
     modos[cp] = () => sg.sync();
-    const fila = h('div', { class: 'av-fila', title: 'Toca para mostrar u ocultar', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, caja, h('div', { style: 'flex:1;min-width:0' }, h('b', {}, oeNom(cp), OEALIAS[cp] ? h('span', { style: 'font-weight:600;color:#6b7785;font-size:12px' }, ' (' + cp + ')') : null), h('small', {}, n + (n === 1 ? ' archivo' : ' archivos') + (ar ? ' · ' + oeFmt(Math.round(ar)) + ' m²' : ''))),
-      h('button', { type: 'button', class: 'av-lapiz', title: 'Nombre visible de ' + cp + ' (no cambia los TXT)', onclick: ev => { ev.stopPropagation(); const v = prompt('Nombre que se verá para «' + cp + '». Ej: LUMINARIO\nDéjalo vacío para volver a ' + cp + '. Los TXT y los datos guardados no cambian.', OEALIAS[cp] || ''); if (v === null) return; const t = v.trim().toUpperCase().slice(0, 40); if (t && t !== cp) OEALIAS[cp] = t; else delete OEALIAS[cp]; try { localStorage.setItem('oe_alias', JSON.stringify(OEALIAS)); } catch (e2) {} pintarOe(); } }, '✎'), sg);
+    const fila = h('div', { class: 'av-fila', title: 'Toca para mostrar u ocultar', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, caja, h('div', { style: 'flex:1;min-width:0' }, h('b', {}, oeNom(cp), oeNom(cp) !== cp ? h('span', { style: 'font-weight:600;color:#6b7785;font-size:12px' }, ' (' + cp + ')') : null), h('small', {}, n + (n === 1 ? ' archivo' : ' archivos') + (ar ? ' · ' + oeFmt(Math.round(ar)) + ' m²' : ''))),
+      D && D.oealiasEd ? h('button', { type: 'button', class: 'av-lapiz', title: 'Nombre visible de ' + cp + ' para todos (no cambia los TXT)', onclick: async ev => { ev.stopPropagation(); const v = prompt('Nombre que verán todos para «' + cp + '». Ej: LUMINARIO\nDéjalo vacío para volver a ' + cp + '. Los TXT y los datos guardados no cambian.', (D.oealias || {})[cp] || ''); if (v === null) return;
+        try { const r = await api({ accion: 'admin_oe_alias', llave: LLAVE, capa: cp, nombre: v }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar.'); return; } D.oealias = r.alias || {}; banner('Nombre guardado para todos.', 'ok'); pintarOe(); } catch (e2) { banner('No se pudo guardar (sin conexión).'); } } }, '✎') : null, sg);
     chips[cp] = on => { caja.style.background = on ? col(cp) : '#fff'; caja.style.borderColor = col(cp); caja.textContent = on ? '✓' : ''; fila.style.opacity = on ? '1' : '.55'; };
     lista.appendChild(fila);
   });
@@ -2658,7 +2659,7 @@ async function pintarOeAvance(c) {
       const ok = p => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]);
       const g = grupos[x.capa] = grupos[x.capa] || window.L.layerGroup();
       const op = { color: col(x.capa), weight: tipo === 'lin' ? 4 : 3, fillColor: col(x.capa), fillOpacity: .35 };
-      const pop = '<b>' + e(oeNom(x.capa)) + '</b>' + (OEALIAS[x.capa] ? ' (' + e(x.capa) + ')' : '') + '<br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m';
+      const pop = '<b>' + e(oeNom(x.capa)) + '</b>' + (oeNom(x.capa) !== x.capa ? ' (' + e(x.capa) + ')' : '') + '<br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m';
       const verts = (function f(a) { return Array.isArray(a) && a.length && Array.isArray(a[0]) ? (typeof a[0][0] === 'number' ? a : a.flatMap(f)) : []; })(poly);
       if ((OEDIBC[x.capa] || OEDIB) === 'pts' || tipo === 'pts') { verts.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
       if (false) { poly.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
