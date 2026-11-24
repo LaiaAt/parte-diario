@@ -234,7 +234,7 @@ header>span{gap:6px!important;min-width:0}
 .av-panel{border:1px solid #cfd8e3;border-radius:12px;padding:10px;background:#fff;display:flex;flex-direction:column;max-height:min(72vh,660px)}
 .av-ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.av-ph b{font-size:15px}.av-ph a{color:#0a7a32;font-weight:700;font-size:13px}
 .av-lista{overflow:auto;flex:1;display:flex;flex-direction:column;gap:4px;padding-right:2px}
-.av-fila{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:10px;cursor:pointer;user-select:none}.av-fila:hover{background:#f2f5f8}.av-fila b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.av-fila small{display:block;font-size:11.5px;color:#5b6b78}
+.av-fila{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:10px;cursor:pointer;user-select:none}.av-fila:hover{background:#f2f5f8}.av-fila b{display:block;font-size:14px;word-break:break-word}.av-fila small{display:block;font-size:11.5px;color:#5b6b78}
 .av-chk{width:22px;height:22px;flex:none;border:2px solid #999;border-radius:6px;color:#fff;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center}
 .av-seg{display:inline-flex;background:#eef2f5;border-radius:8px;padding:2px;flex:none}.av-seg button{border:0;background:transparent;font-size:11.5px;font-weight:700;padding:4px 7px;border-radius:6px;min-height:0;width:auto;color:#4b5b67;cursor:pointer;box-shadow:none}.av-seg button.on{background:#fff;color:#0a7a32;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .av-pf{display:flex;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid #e3e8ee;margin-top:8px;padding-top:8px;font-size:12.5px;font-weight:700;color:#4b5b67}
@@ -2390,7 +2390,7 @@ async function pintarOeAvance(c) {
   const k = 'ACUM|' + $('hasta').value; // avance acumulado: todo lo ejecutado hasta la fecha final del filtro
   if (!OEAV || OEAV.k !== k) {
     if (!OEAV || OEAV.k !== k) { OEAV = { k: k, cargando: true }; c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); 
-      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: '2000-01-01', hasta: $('hasta').value }); if (OEAV && OEAV.k === k) { OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], anul: r.ok ? (r.anul || []) : [], err: r.ok ? '' : (r.mensaje || 'No se pudo cargar') }; } }
+      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: '2000-01-01', hasta: $('hasta').value }); if (OEAV && OEAV.k === k) { OEOCULTAS = new Set(); OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], anul: r.ok ? (r.anul || []) : [], err: r.ok ? '' : (r.mensaje || 'No se pudo cargar') }; } }
       catch (e) { if (OEAV && OEAV.k === k) OEAV = { k: k, lev: [], err: 'No se pudo conectar.' }; }
       if (OETAB === 'avance') pintarOe();
     }
@@ -2458,7 +2458,7 @@ async function pintarOeAvance(c) {
     const caja = h('span', { class: 'av-chk' });
     const sg = seg(() => OEDIBC[cp] || OEDIB, v => { OEDIBC[cp] = v; try { localStorage.setItem('oe_dibc', JSON.stringify(OEDIBC)); } catch (e2) {} dibujar(); refrescar(false); });
     modos[cp] = () => sg.sync();
-    const fila = h('div', { class: 'av-fila', title: 'Toca para mostrar u ocultar', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, caja, h('div', { style: 'flex:1;min-width:0' }, h('b', {}, cp), h('small', {}, n + (n === 1 ? ' archivo' : ' archivos') + (ar ? ' · ' + oeFmt(ar) + ' m²' : ''))), sg);
+    const fila = h('div', { class: 'av-fila', title: 'Toca para mostrar u ocultar', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, caja, h('div', { style: 'flex:1;min-width:0' }, h('b', {}, cp), h('small', {}, n + (n === 1 ? ' archivo' : ' archivos') + (ar ? ' · ' + oeFmt(Math.round(ar)) + ' m²' : ''))), sg);
     chips[cp] = on => { caja.style.background = on ? col(cp) : '#fff'; caja.style.borderColor = col(cp); caja.textContent = on ? '✓' : ''; fila.style.opacity = on ? '1' : '.55'; };
     lista.appendChild(fila);
   });
@@ -2470,16 +2470,18 @@ async function pintarOeAvance(c) {
     h('button', { class: 'sec', style: 'width:100%;margin-top:8px', onclick: () => refrescar(true) }, '🎯 Centrar mapa'));
   const box = h('div', { class: 'av-mapa' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
   c.appendChild(h('div', { class: 'av-grid' }, panel, box));
-  c.appendChild(h('div', { class: 'tw', style: 'margin-top:12px' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Actividad', 'Topógrafo', 'Archivo', 'Puntos', 'Área m²', 'Cota prom.'].map(t => h('th', {}, t)))), tbody)));
   if (!OEPREV.length) { // archivos TXT cargados por los topógrafos: descargar y, con permiso, anular los erróneos
     const arch = {}; L.forEach(x => { const k = x.fecha + '|' + x.llave + '|' + x.archivo; (arch[k] = arch[k] || { fecha: x.fecha, llave: x.llave, topografo: x.topografo, archivo: x.archivo, txt: x.txt, capas: [] }).capas.push(x.capa); });
     const bajarTxt = async a => { try { const r = await api({ accion: 'admin_oe_lev_txt', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo }); if (!r.ok) { banner(r.mensaje || 'No se pudo descargar.'); return; } const u = URL.createObjectURL(new Blob([r.txt], { type: 'text/plain' })), l = h('a', { href: u, download: r.nombre }); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000); } catch (er) { banner('No se pudo descargar.'); } };
     const anular = async a => { const mot = prompt('Anular el TXT «' + a.archivo + '» del ' + fmtF(a.fecha) + ' (' + (a.topografo || nomDe(a.llave)) + ').\nEl topógrafo deberá subirlo corregido. Queda registrado quién lo anuló y por qué.\n\nMotivo de la anulación (obligatorio):'); if (mot === null) return; if (mot.trim().length < 5) { banner('Escribe el motivo de la anulación (mínimo 5 letras).'); return; } try { const r = await api({ accion: 'admin_oe_lev_anular', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo, motivo: mot.trim() }); if (!r.ok) { banner(r.mensaje || 'No se pudo anular.'); return; } OEAV = null; pintarOe(); } catch (er) { banner('No se pudo anular.'); } };
     const fb = h('tbody', {});
-    Object.keys(arch).map(k => arch[k]).sort((x, y) => y.fecha.localeCompare(x.fecha) || x.archivo.localeCompare(y.archivo)).forEach(a => fb.appendChild(h('tr', {}, h('td', {}, fmtF(a.fecha)), h('td', {}, a.topografo || nomDe(a.llave)), h('td', {}, a.archivo), h('td', {}, a.capas.join(', ')),
-      h('td', {}, h('div', { style: 'display:flex;gap:6px' }, a.txt ? h('button', { class: 'sec', onclick: () => bajarTxt(a) }, '⬇ TXT') : h('span', { class: 'small' }, 'sin TXT'), D.oeed || D.superadm ? h('button', { class: 'sec', style: 'color:#b3261e', onclick: () => anular(a) }, '🗑 Anular') : null)))));
-    c.appendChild(h('h3', { style: 'margin:16px 0 6px' }, 'Archivos TXT cargados'));
-    c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', ''].map(t => h('th', {}, t)))), fb)));
+    const ed = D.oeed || D.superadm;
+    Object.keys(arch).map(k => arch[k]).sort((x, y) => y.fecha.localeCompare(x.fecha) || x.archivo.localeCompare(y.archivo)).forEach(a => fb.appendChild(h('tr', {}, h('td', { style: 'white-space:nowrap' }, fmtF(a.fecha)), h('td', {}, a.topografo || nomDe(a.llave)), h('td', { style: 'word-break:break-all' }, a.archivo), h('td', {}, a.capas.join(', ')),
+      h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px', onclick: () => bajarTxt(a) }, '⬇ TXT')),
+      ed ? h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px;color:#b3261e;border-color:#e6b4b0', onclick: () => anular(a) }, 'Anular')) : null)));
+    c.appendChild(h('h3', { style: 'margin:16px 0 2px' }, 'Archivos TXT cargados (' + Object.keys(arch).length + ')'));
+    c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, '⬇ TXT descarga el archivo original. Anular lo quita del avance (se pide el motivo y queda en el control de cambios).'));
+    c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', 'Descargar'].concat(ed ? ['Anular'] : []).map(t => h('th', {}, t)))), fb)));
     const AN = (OEAV && OEAV.anul) || [];
     c.appendChild(h('h3', { style: 'margin:16px 0 4px' }, 'Control de cambios de TXT'));
     c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, 'Cada anulación o reemplazo queda registrado: qué archivo, quién lo hizo, cuándo y por qué. Solo el super administrador y los administradores con módulo OE o TODOS pueden anular.'));
