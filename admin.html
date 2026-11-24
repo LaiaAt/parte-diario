@@ -2263,7 +2263,7 @@ function vistaOeMapa(c, L) {
 }
 
 /* ---------- OE · Avance: levantamientos TXT de la estación total dibujados en el mapa ---------- */
-let OEAV = null, OEAVF = { top: '' }, OEPREV = [], OEOCULTAS = new Set(), OEDIB = (() => { try { return localStorage.getItem('oe_dib') === 'pts' ? 'pts' : 'pol'; } catch (e) { return 'pol'; } })();
+let OEAV = null, OEAVF = { top: '' }, OEPREV = [], OEOCULTAS = new Set(), OEDIBC = (() => { try { return JSON.parse(localStorage.getItem('oe_dibc') || '{}'); } catch (e) { return {}; } })(), OEDIB = (() => { try { return localStorage.getItem('oe_dib') === 'pts' ? 'pts' : 'pol'; } catch (e) { return 'pol'; } })();
 /* ---------- Levantamientos TXT (estación total) ---------- */
 function tmInv(E, N) { // plano de Bogotá D.C. (IDU, MAGNA GRS80) → [lat, lon]
   const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180;
@@ -2354,7 +2354,7 @@ async function pintarOeAvance(c) {
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
   const e = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-  let mapa = null, dibujar = () => {}; const grupos = {}, chips = {};
+  let mapa = null, dibujar = () => {}; const modos = {}; const grupos = {}, chips = {};
   const vis = x => !OEOCULTAS.has(x.capa);
   const mk = t => { const b = h('b', {}, ''); return { el: h('div', { class: 'kpi' }, b, t), set: v => { b.textContent = v; } }; };
   const kA = mk('Archivos'), kD = mk('Días'), kC = mk('Actividades'), kM = mk('Área levantada (suma)');
@@ -2375,10 +2375,15 @@ async function pintarOeAvance(c) {
   const todas = v => { OEOCULTAS = v ? new Set() : new Set(capas); refrescar(true); };
   c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;align-items:center' }, tops.length > 1 ? (() => { const s2 = h('select', { onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null,
     h('button', { class: 'sec', onclick: () => todas(true) }, '✔ Mostrar todas'), h('button', { class: 'sec', onclick: () => todas(false) }, '✖ Ocultar todas'), h('button', { class: 'sec', onclick: () => refrescar(true) }, '🎯 Ajustar mapa a lo visible'),
-    (() => { const sd = h('select', { 'aria-label': 'Dibujar capas como', onchange: () => { OEDIB = sd.value; try { localStorage.setItem('oe_dib', OEDIB); } catch (e) {} dibujar(); refrescar(false); } }, h('option', { value: 'pol' }, 'Dibujar como: Polígonos'), h('option', { value: 'pts' }, 'Dibujar como: Puntos')); sd.value = OEDIB; return sd; })()));
-  c.appendChild(h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Toca una actividad para mostrarla u ocultarla en el mapa. Puedes dejar varias a la vez.'));
+    (() => { const sd = h('select', { 'aria-label': 'Dibujar capas como', onchange: () => { OEDIB = sd.value; OEDIBC = {}; try { localStorage.setItem('oe_dib', OEDIB); localStorage.setItem('oe_dibc', '{}'); } catch (e) {} Object.keys(modos).forEach(k => modos[k]()); dibujar(); refrescar(false); } }, h('option', { value: 'pol' }, 'Todas como: Polígonos'), h('option', { value: 'pts' }, 'Todas como: Puntos')); sd.value = OEDIB; return sd; })()));
+  c.appendChild(h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Toca una actividad para mostrarla u ocultarla. El botón ▭ / ● junto a cada una cambia cómo se dibuja (polígono o puntos) y se recuerda para todas las fechas.'));
   c.appendChild(h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px' }, capas.map(cp => { const n = L.filter(x => x.capa === cp).length;
-    const b = h('button', { type: 'button', style: 'border:2px solid ' + col(cp) + ';border-radius:999px;padding:5px 12px;font-weight:800;font-size:14px;cursor:pointer;min-height:34px', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, cp + ' · ' + n); chips[cp] = b; return b; })));
+    const b = h('button', { type: 'button', style: 'border:2px solid ' + col(cp) + ';border-radius:999px;padding:5px 12px;font-weight:800;font-size:14px;cursor:pointer;min-height:34px', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, cp + ' · ' + n); chips[cp] = b;
+    const mb = h('button', { type: 'button', style: 'margin-left:4px;border:2px solid #cfd8e3;border-radius:8px;background:#fff;font-size:15px;cursor:pointer;min-height:34px;padding:0 8px' });
+    const pm = () => { const m = OEDIBC[cp] || OEDIB; mb.textContent = m === 'pts' ? '●' : '▭'; mb.title = (m === 'pts' ? 'Dibujada como puntos' : 'Dibujada como polígono') + '. Toca para cambiar'; };
+    mb.onclick = () => { OEDIBC[cp] = (OEDIBC[cp] || OEDIB) === 'pts' ? 'pol' : 'pts'; try { localStorage.setItem('oe_dibc', JSON.stringify(OEDIBC)); } catch (e) {} pm(); dibujar(); refrescar(false); };
+    pm(); modos[cp] = pm;
+    return h('span', { style: 'display:inline-flex;align-items:center' }, b, mb); })));
   c.appendChild(h('div', { class: 'kpis' }, kA.el, kD.el, kC.el, kM.el));
   const box = h('div', { style: 'height:min(70vh,640px);border-radius:12px;border:1px solid #cfd8e3;overflow:hidden;background:#eef2f5' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
   c.appendChild(box);
@@ -2413,7 +2418,7 @@ async function pintarOeAvance(c) {
       const op = { color: col(x.capa), weight: tipo === 'lin' ? 4 : 3, fillColor: col(x.capa), fillOpacity: .35 };
       const pop = '<b>' + e(x.capa) + '</b><br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m';
       const verts = (function f(a) { return Array.isArray(a) && a.length && Array.isArray(a[0]) ? (typeof a[0][0] === 'number' ? a : a.flatMap(f)) : []; })(poly);
-      if (OEDIB === 'pts' || tipo === 'pts') { verts.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
+      if ((OEDIBC[x.capa] || OEDIB) === 'pts' || tipo === 'pts') { verts.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
       if (false) { poly.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
       if (tipo === 'lin') { poly.forEach(seg => { const S = (seg || []).filter(ok); if (S.length > 1) window.L.polyline(S, op).addTo(g).bindPopup(pop); else if (S.length) window.L.circleMarker(S[0], { radius: 4, color: col(x.capa), fillOpacity: .9 }).addTo(g).bindPopup(pop); }); return; }
       const anillos = (poly.length && Array.isArray(poly[0][0])) ? poly : [poly];
