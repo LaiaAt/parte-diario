@@ -2285,6 +2285,41 @@ function levCasco(P) { // envolvente convexa (cadena monótona) de [[x,y,...]]
   q.slice().reverse().forEach(p => { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); });
   lo.pop(); up.pop(); return lo.concat(up);
 }
+
+function dxfTin(P) { // triangulación de Delaunay (Bowyer-Watson) de [[x,y,z]]; devuelve índices de triángulos
+  const n = P.length; if (n < 3) return [];
+  let x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18; P.forEach(p => { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+  const d = Math.max(x1 - x0, y1 - y0, 1) * 20, mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+  const V = P.map(p => [p[0] - mx, p[1] - my]).concat([[-d, -d], [d, -d], [0, d]]);
+  const cc = t => { const A = V[t[0]], B = V[t[1]], C = V[t[2]], D = 2 * (A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1])); if (!D) return { x: 0, y: 0, r: -1 }; const a2 = A[0] * A[0] + A[1] * A[1], b2 = B[0] * B[0] + B[1] * B[1], c2 = C[0] * C[0] + C[1] * C[1], ux = (a2 * (B[1] - C[1]) + b2 * (C[1] - A[1]) + c2 * (A[1] - B[1])) / D, uy = (a2 * (C[0] - B[0]) + b2 * (A[0] - C[0]) + c2 * (B[0] - A[0])) / D; return { x: ux, y: uy, r: (A[0] - ux) * (A[0] - ux) + (A[1] - uy) * (A[1] - uy) }; };
+  let T = [{ v: [n, n + 1, n + 2] }]; T[0].c = cc(T[0].v);
+  for (let i = 0; i < n; i++) {
+    const px = V[i][0], py = V[i][1], mal = [], bien = [];
+    T.forEach(t => { const dx = px - t.c.x, dy = py - t.c.y; (dx * dx + dy * dy < t.c.r * (1 - 1e-12) ? mal : bien).push(t); });
+    const bordes = {}; mal.forEach(t => { for (let k = 0; k < 3; k++) { const a = t.v[k], b = t.v[(k + 1) % 3], key = a < b ? a + '_' + b : b + '_' + a; bordes[key] = bordes[key] ? null : [a, b]; } });
+    T = bien; Object.keys(bordes).forEach(k => { const e = bordes[k]; if (e) { const t = { v: [e[0], e[1], i] }; t.c = cc(t.v); T.push(t); } });
+  }
+  return T.filter(t => t.v.every(v => v < n)).map(t => t.v);
+}
+function dxfNombre(s) { return String(s || 'SIN_NOMBRE').toUpperCase().replace(/[^A-Z0-9_$-]/g, '_').slice(0, 24); }
+function dxfArmar(grupos) { // grupos: { capa: { pts:[[x,y,z]], anillos:[[[x,y,z],...]] } } → texto DXF (AC1009) con puntos, contorno y superficie TIN por capa
+  const f = v => (Math.round(v * 1000) / 1000).toFixed(3), out = [], capas = [], col = [1, 3, 5, 6, 2, 4, 30, 140, 202, 94];
+  const E = (c, v) => out.push(String(c), String(v));
+  const nombres = Object.keys(grupos).sort(); let ci = 0;
+  nombres.forEach(k => { const nb = dxfNombre(k), color = col[ci++ % col.length]; ['PUNTOS', 'CONTORNO', 'SUPERFICIE'].forEach(t => capas.push([nb + '_' + t, color])); });
+  let nTri = 0;
+  nombres.forEach(k => {
+    const g = grupos[k], nb = dxfNombre(k), vistos = {}, P = [];
+    g.pts.forEach(p => { const key = p[0].toFixed(3) + '_' + p[1].toFixed(3); if (!vistos[key]) { vistos[key] = 1; P.push(p); } });
+    P.forEach(p => { E(0, 'POINT'); E(8, nb + '_PUNTOS'); E(10, f(p[0])); E(20, f(p[1])); E(30, f(p[2])); });
+    g.anillos.forEach(r => { if (r.length < 3) return; E(0, 'POLYLINE'); E(8, nb + '_CONTORNO'); E(66, 1); E(10, 0); E(20, 0); E(30, 0); E(70, 9); r.forEach(p => { E(0, 'VERTEX'); E(8, nb + '_CONTORNO'); E(10, f(p[0])); E(20, f(p[1])); E(30, f(p[2])); E(70, 32); }); E(0, 'SEQEND'); E(8, nb + '_CONTORNO'); });
+    if (P.length >= 3 && P.length <= 4000) dxfTin(P).forEach(t => { const A = P[t[0]], B = P[t[1]], C = P[t[2]]; if (Math.max(Math.hypot(A[0] - B[0], A[1] - B[1]), Math.hypot(B[0] - C[0], B[1] - C[1]), Math.hypot(C[0] - A[0], C[1] - A[1])) > 30) return; nTri++; E(0, '3DFACE'); E(8, nb + '_SUPERFICIE'); [A, B, C, C].forEach((p, i) => { E(10 + i, f(p[0])); E(20 + i, f(p[1])); E(30 + i, f(p[2])); }); });
+  });
+  const cab = ['0', 'SECTION', '2', 'HEADER', '9', '$ACADVER', '1', 'AC1009', '0', 'ENDSEC', '0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LTYPE', '70', '1', '0', 'LTYPE', '2', 'CONTINUOUS', '70', '0', '3', 'Solid line', '72', '65', '73', '0', '40', '0.0', '0', 'ENDTAB', '0', 'TABLE', '2', 'LAYER', '70', String(capas.length)];
+  capas.forEach(c => cab.push('0', 'LAYER', '2', c[0], '70', '0', '62', String(c[1]), '6', 'CONTINUOUS'));
+  cab.push('0', 'ENDTAB', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES');
+  return { txt: cab.concat(out, ['0', 'ENDSEC', '0', 'EOF']).join('\r\n') + '\r\n', tri: nTri };
+}
 function levParse(texto) {
   const pts = []; let mal = 0;
   String(texto || '').split(/\r?\n/).forEach(l => {
@@ -2322,9 +2357,9 @@ function levParse(texto) {
     if (L.length < 3) return Object.assign({ capa: k, tipo: 'pts', n: L.length, area: 0, poly: L.map(ll) }, z);
     const comp = [], vis = new Array(L.length).fill(false); // zonas separadas (puntos a menos de 25 m) = un polígono por zona
     for (let i = 0; i < L.length; i++) { if (vis[i]) continue; const q = [i], c = []; vis[i] = true; while (q.length) { const a = q.pop(); c.push(L[a]); for (let j = 0; j < L.length; j++) if (!vis[j] && Math.hypot(L[a].mx - L[j].mx, L[a].my - L[j].my) <= 25) { vis[j] = true; q.push(j); } } comp.push(c); }
-    let area = 0; const rings = comp.filter(c => c.length >= 3).map(c => { const R = anillo(c); let ar = 0; for (let i = 0; i < R.length; i++) { const a = R[i], b = R[(i + 1) % R.length]; ar += a.mx * b.my - b.mx * a.my; } area += Math.abs(ar) / 2; return R.map(ll); });
+    let area = 0; const rings = comp.filter(c => c.length >= 3).map(c => { const R = anillo(c); let ar = 0; for (let i = 0; i < R.length; i++) { const a = R[i], b = R[(i + 1) % R.length]; ar += a.mx * b.my - b.mx * a.my; } area += Math.abs(ar) / 2; const rr = R.map(ll); rr.xyz = R.map(p => [p.x, p.y, p.z]); return rr; });
     if (!rings.length) return Object.assign({ capa: k, tipo: 'pts', n: L.length, area: 0, poly: L.slice(0, 400).map(ll) }, z);
-    return Object.assign({ capa: k, tipo: 'pol', n: L.length, area: Math.round(area * 100) / 100, poly: rings.length === 1 ? rings[0] : rings }, z);
+    return Object.assign({ capa: k, tipo: 'pol', n: L.length, area: Math.round(area * 100) / 100, poly: rings.length === 1 ? rings[0] : rings, rxyz: rings.map(r => r.xyz) }, z);
   });
   return { capas: capas, n: pts.length, mal: mal, geo: geo };
 }
@@ -2338,10 +2373,10 @@ function levFecha(nombre) { // la fecha va en el nombre como dd-mm-aa, ddmmaa o 
 
 const OEAV_COL = ['#0a7a32', '#1565c0', '#b3261e', '#9a6b00', '#6a1b9a', '#00838f', '#c2185b', '#4e342e', '#e65100', '#283593', '#2e7d32', '#ad1457'];
 async function pintarOeAvance(c) {
-  const k = $('desde').value + '|' + $('hasta').value;
+  const k = 'ACUM|' + $('hasta').value; // avance acumulado: todo lo ejecutado hasta la fecha final del filtro
   if (!OEAV || OEAV.k !== k) {
     if (!OEAV || OEAV.k !== k) { OEAV = { k: k, cargando: true }; c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); 
-      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (OEAV && OEAV.k === k) { OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], anul: r.ok ? (r.anul || []) : [], err: r.ok ? '' : (r.mensaje || 'No se pudo cargar') }; } }
+      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: '2000-01-01', hasta: $('hasta').value }); if (OEAV && OEAV.k === k) { OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], anul: r.ok ? (r.anul || []) : [], err: r.ok ? '' : (r.mensaje || 'No se pudo cargar') }; } }
       catch (e) { if (OEAV && OEAV.k === k) OEAV = { k: k, lev: [], err: 'No se pudo conectar.' }; }
       if (OETAB === 'avance') pintarOe();
     }
@@ -2350,6 +2385,7 @@ async function pintarOeAvance(c) {
   if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
   const A = OEAV.lev || [];
+  c.appendChild(h('div', { class: 'small', style: 'margin:0 0 8px;font-weight:700' }, 'AVANCE ACUMULADO: todo lo levantado hasta el ' + fmtF($('hasta').value) + ' (la fecha «Desde» no limita este mapa).'));
   if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados en estas fechas. Cambia el filtro de fechas. Los TXT los cargan los topógrafos desde la app OE.')); return; }
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
@@ -2373,9 +2409,32 @@ async function pintarOeAvance(c) {
       if (ajustar && b.length) mapa.fitBounds(b, { padding: [30, 30], maxZoom: 19 });
     }
   };
+  let dxfOcupado = false;
+  const bajarDxf = async btn => {
+    if (dxfOcupado) return; const V = L.filter(vis); if (!V.length) { banner('No hay actividades visibles para exportar.'); return; }
+    const arch = {}; V.forEach(x => { const k = x.fecha + '|' + x.llave + '|' + x.archivo; (arch[k] = arch[k] || { fecha: x.fecha, llave: x.llave, archivo: x.archivo, capas: new Set() }).capas.add(x.capa); });
+    const ks = Object.keys(arch), txt0 = btn.textContent; dxfOcupado = true; const grupos = {}; let geo = 0, fallo = 0;
+    try {
+      for (let i = 0; i < ks.length; i++) {
+        btn.textContent = '⏳ Preparando ' + (i + 1) + ' de ' + ks.length + '…'; const a = arch[ks[i]];
+        let r; try { r = await api({ accion: 'admin_oe_lev_txt', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo }); } catch (e) { r = null; }
+        if (!r || !r.ok || !r.txt) { fallo++; continue; }
+        const res = levParse(r.txt); if (res.error) { fallo++; continue; }
+        const pts = String(r.txt).split(/\r?\n/).map(l => l.split(',')).filter(c => c.length >= 3);
+        const porD = {}; pts.forEach(c => { const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : 0, d = (c.slice(4).join(',').trim() || 'SIN DESCRIPCION').toUpperCase(); if (isFinite(x) && isFinite(y)) (porD[d] = porD[d] || []).push([x, y, isFinite(z) ? z : 0]); });
+        if (res.geo) { geo++; continue; }
+        Object.keys(porD).forEach(d => { if (!a.capas.has(d)) return; const g = grupos[d] = grupos[d] || { pts: [], anillos: [] }; porD[d].forEach(p => g.pts.push(p)); const cp = res.capas.find(q => q.capa === d); if (cp && cp.rxyz) cp.rxyz.forEach(rg => g.anillos.push(rg)); });
+      }
+      if (!Object.keys(grupos).length) { banner('No se pudo armar el DXF' + (geo ? ': los TXT vienen en latitud/longitud, no en coordenadas planas.' : '.')); return; }
+      const dx = dxfArmar(grupos), fs = V.map(x => x.fecha).sort(), nom = 'SUPERFICIE_OE_' + fs[0] + (fs[fs.length - 1] !== fs[0] ? '_a_' + fs[fs.length - 1] : '') + '.dxf';
+      const u = URL.createObjectURL(new Blob([dx.txt], { type: 'application/dxf' })), l = h('a', { href: u, download: nom }); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+      banner('DXF listo: ' + nom + ' (' + Object.keys(grupos).length + ' actividades, ' + dx.tri + ' triángulos)' + (fallo || geo ? '. ' + (fallo + geo) + ' archivo(s) no se pudieron incluir.' : '.'), 'ok');
+    } finally { dxfOcupado = false; btn.textContent = txt0; }
+  };
   const todas = v => { OEOCULTAS = v ? new Set() : new Set(capas); refrescar(true); };
   c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;align-items:center' }, tops.length > 1 ? (() => { const s2 = h('select', { onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null,
     h('button', { class: 'sec', onclick: () => todas(true) }, '✔ Mostrar todas'), h('button', { class: 'sec', onclick: () => todas(false) }, '✖ Ocultar todas'), h('button', { class: 'sec', onclick: () => refrescar(true) }, '🎯 Ajustar mapa a lo visible'),
+    (() => { const bx = h('button', { class: 'sec', title: 'Puntos, contorno y superficie 3D de lo visible (abre en AutoCAD / Civil 3D)' }, '⬇ DXF superficie'); bx.onclick = () => bajarDxf(bx); return bx; })(),
     (() => { const sd = h('select', { 'aria-label': 'Dibujar capas como', onchange: () => { OEDIB = sd.value; OEDIBC = {}; try { localStorage.setItem('oe_dib', OEDIB); localStorage.setItem('oe_dibc', '{}'); } catch (e) {} Object.keys(modos).forEach(k => modos[k]()); dibujar(); refrescar(false); } }, h('option', { value: 'pol' }, 'Todas como: Polígonos'), h('option', { value: 'pts' }, 'Todas como: Puntos')); sd.value = OEDIB; return sd; })()));
   c.appendChild(h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Toca una actividad para mostrarla u ocultarla. El botón ▭ / ● junto a cada una cambia cómo se dibuja (polígono o puntos) y se recuerda para todas las fechas.'));
   c.appendChild(h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px' }, capas.map(cp => { const n = L.filter(x => x.capa === cp).length;
