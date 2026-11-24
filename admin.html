@@ -227,6 +227,20 @@ header>span{gap:6px!important;min-width:0}
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Dashboard">
+<style>
+.av-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px}.av-top select,.av-top button{width:auto;min-height:40px}
+.av-ks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 10px}.av-k{background:#f3faf5;border:1px solid #cfe8d6;border-radius:12px;padding:8px 12px}.av-k span{font-size:12px;color:#4b5b67;font-weight:600}
+.av-grid{display:grid;grid-template-columns:290px 1fr;gap:10px;align-items:stretch}
+.av-panel{border:1px solid #cfd8e3;border-radius:12px;padding:10px;background:#fff;display:flex;flex-direction:column;max-height:min(72vh,660px)}
+.av-ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.av-ph b{font-size:15px}.av-ph a{color:#0a7a32;font-weight:700;font-size:13px}
+.av-lista{overflow:auto;flex:1;display:flex;flex-direction:column;gap:4px;padding-right:2px}
+.av-fila{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:10px;cursor:pointer;user-select:none}.av-fila:hover{background:#f2f5f8}.av-fila b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.av-fila small{display:block;font-size:11.5px;color:#5b6b78}
+.av-chk{width:22px;height:22px;flex:none;border:2px solid #999;border-radius:6px;color:#fff;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center}
+.av-seg{display:inline-flex;background:#eef2f5;border-radius:8px;padding:2px;flex:none}.av-seg button{border:0;background:transparent;font-size:11.5px;font-weight:700;padding:4px 7px;border-radius:6px;min-height:0;width:auto;color:#4b5b67;cursor:pointer;box-shadow:none}.av-seg button.on{background:#fff;color:#0a7a32;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.av-pf{display:flex;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid #e3e8ee;margin-top:8px;padding-top:8px;font-size:12.5px;font-weight:700;color:#4b5b67}
+.av-mapa{height:min(72vh,660px);border-radius:12px;border:1px solid #cfd8e3;overflow:hidden;background:#eef2f5}
+@media (max-width:760px){.av-grid{grid-template-columns:1fr}.av-panel{max-height:none}.av-lista{max-height:260px}.av-ks{grid-template-columns:repeat(2,1fr)}}
+</style>
 </head>
 <body>
 <header><b><img class="logo" src="logo_ccsn.png" alt="CCSN"><span class="tit">CONTROL PROYECTO CCSN</span></b><span style="display:flex;align-items:center;gap:10px"><span id="quien"></span><button type="button" id="recargar" class="ib" title="Recargar" aria-label="Recargar" onclick="location.reload()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></button><button type="button" id="salirTop" class="ib" hidden title="Cerrar sesión" aria-label="Cerrar sesión"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg></button></span></header>
@@ -2385,7 +2399,6 @@ async function pintarOeAvance(c) {
   if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
   const A = OEAV.lev || [];
-  c.appendChild(h('div', { class: 'small', style: 'margin:0 0 8px;font-weight:700' }, 'AVANCE ACUMULADO: todo lo levantado hasta el ' + fmtF($('hasta').value) + ' (la fecha «Desde» no limita este mapa).'));
   if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados en estas fechas. Cambia el filtro de fechas. Los TXT los cargan los topógrafos desde la app OE.')); return; }
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
@@ -2393,16 +2406,16 @@ async function pintarOeAvance(c) {
   const e = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   let mapa = null, dibujar = () => {}; const modos = {}; const grupos = {}, chips = {};
   const vis = x => !OEOCULTAS.has(x.capa);
-  const mk = t => { const b = h('b', {}, ''); return { el: h('div', { class: 'kpi' }, b, t), set: v => { b.textContent = v; } }; };
-  const kA = mk('Archivos'), kD = mk('Días'), kC = mk('Actividades'), kM = mk('Área levantada (suma)');
+  const mk = t => { const b = h('b', { style: 'font-size:20px;color:#0f172a;display:block;line-height:1.1' }, ''); return { el: h('div', { class: 'av-k' }, b, h('span', {}, t)), set: v => { b.textContent = v; } }; };
+  const kM = mk('m² levantados'), kA = mk('archivos TXT'), kD = mk('días con levantamiento'), kC = mk('actividades');
   const tbody = h('tbody', {});
   const refrescar = ajustar => {
     const V = L.filter(vis);
     kA.set(new Set(V.map(x => x.fecha + x.llave + x.archivo)).size); kD.set(new Set(V.map(x => x.fecha)).size); kC.set(new Set(V.map(x => x.capa)).size); kM.set(oeFmt(V.reduce((s, x) => s + (x.area || 0), 0)) + ' m²');
-    capas.forEach(cp => { const on = !OEOCULTAS.has(cp), b = chips[cp]; if (b) { b.style.background = on ? col(cp) : '#fff'; b.style.color = on ? '#fff' : '#6b7785'; b.style.textDecoration = on ? 'none' : 'line-through'; b.style.opacity = on ? '1' : '.75'; } });
+    capas.forEach(cp => { if (chips[cp]) chips[cp](!OEOCULTAS.has(cp)); });
     tbody.textContent = '';
     V.slice().sort((x, y) => y.fecha.localeCompare(x.fecha) || x.capa.localeCompare(y.capa)).forEach(x => tbody.appendChild(h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, x.capa), h('td', {}, x.topografo || nomDe(x.llave)), h('td', {}, x.archivo), h('td', {}, String(x.n)), h('td', {}, x.area ? oeFmt(x.area) : '—'), h('td', {}, oeR(x.zprom) + ' m'))));
-    if (!V.length) tbody.appendChild(h('tr', {}, h('td', { colspan: 7 }, 'No hay actividades activas. Toca una actividad de arriba para mostrarla.')));
+    if (!V.length) tbody.appendChild(h('tr', {}, h('td', { colspan: 7 }, 'No hay actividades marcadas. Marca una actividad en la lista junto al mapa.')));
     if (mapa) {
       const b = [];
       capas.forEach(cp => { const g = grupos[cp]; if (!g) return; if (OEOCULTAS.has(cp)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); } else { if (!mapa.hasLayer(g)) g.addTo(mapa); g.eachLayer(l => { if (l.getLatLngs) { const ll = l.getLatLngs(); (Array.isArray(ll[0]) ? ll.flat(2) : ll).forEach(p => b.push(p)); } else if (l.getLatLng) b.push(l.getLatLng()); }); } });
@@ -2432,21 +2445,31 @@ async function pintarOeAvance(c) {
     } finally { dxfOcupado = false; btn.textContent = txt0; }
   };
   const todas = v => { OEOCULTAS = v ? new Set() : new Set(capas); refrescar(true); };
-  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;align-items:center' }, tops.length > 1 ? (() => { const s2 = h('select', { onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null,
-    h('button', { class: 'sec', onclick: () => todas(true) }, '✔ Mostrar todas'), h('button', { class: 'sec', onclick: () => todas(false) }, '✖ Ocultar todas'), h('button', { class: 'sec', onclick: () => refrescar(true) }, '🎯 Ajustar mapa a lo visible'),
-    (() => { const bx = h('button', { class: 'sec', title: 'Puntos, contorno y superficie 3D de lo visible (abre en AutoCAD / Civil 3D)' }, '⬇ DXF superficie'); bx.onclick = () => bajarDxf(bx); return bx; })(),
-    (() => { const sd = h('select', { 'aria-label': 'Dibujar capas como', onchange: () => { OEDIB = sd.value; OEDIBC = {}; try { localStorage.setItem('oe_dib', OEDIB); localStorage.setItem('oe_dibc', '{}'); } catch (e) {} Object.keys(modos).forEach(k => modos[k]()); dibujar(); refrescar(false); } }, h('option', { value: 'pol' }, 'Todas como: Polígonos'), h('option', { value: 'pts' }, 'Todas como: Puntos')); sd.value = OEDIB; return sd; })()));
-  c.appendChild(h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Toca una actividad para mostrarla u ocultarla. El botón ▭ / ● junto a cada una cambia cómo se dibuja (polígono o puntos) y se recuerda para todas las fechas.'));
-  c.appendChild(h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px' }, capas.map(cp => { const n = L.filter(x => x.capa === cp).length;
-    const b = h('button', { type: 'button', style: 'border:2px solid ' + col(cp) + ';border-radius:999px;padding:5px 12px;font-weight:800;font-size:14px;cursor:pointer;min-height:34px', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, cp + ' · ' + n); chips[cp] = b;
-    const mb = h('button', { type: 'button', style: 'margin-left:4px;border:2px solid #cfd8e3;border-radius:8px;background:#fff;font-size:15px;cursor:pointer;min-height:34px;padding:0 8px' });
-    const pm = () => { const m = OEDIBC[cp] || OEDIB; mb.textContent = m === 'pts' ? '●' : '▭'; mb.title = (m === 'pts' ? 'Dibujada como puntos' : 'Dibujada como polígono') + '. Toca para cambiar'; };
-    mb.onclick = () => { OEDIBC[cp] = (OEDIBC[cp] || OEDIB) === 'pts' ? 'pol' : 'pts'; try { localStorage.setItem('oe_dibc', JSON.stringify(OEDIBC)); } catch (e) {} pm(); dibujar(); refrescar(false); };
-    pm(); modos[cp] = pm;
-    return h('span', { style: 'display:inline-flex;align-items:center' }, b, mb); })));
-  c.appendChild(h('div', { class: 'kpis' }, kA.el, kD.el, kC.el, kM.el));
-  const box = h('div', { style: 'height:min(70vh,640px);border-radius:12px;border:1px solid #cfd8e3;overflow:hidden;background:#eef2f5' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
-  c.appendChild(box);
+  // barra superior: título acumulado + topógrafo + DXF
+  const selTop = tops.length > 1 ? (() => { const s2 = h('select', { style: 'width:auto;min-width:200px', onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null;
+  const bDxf = h('button', { title: 'Puntos, contorno y superficie 3D de lo marcado. Abre en AutoCAD / Civil 3D' }, '⬇ Descargar DXF'); bDxf.onclick = () => bajarDxf(bDxf);
+  c.appendChild(h('div', { class: 'av-top' }, h('div', { style: 'flex:1;min-width:220px' }, h('div', { style: 'font-size:18px;font-weight:800;color:#0f172a' }, 'Avance acumulado al ' + fmtF($('hasta').value)), h('div', { class: 'small' }, 'Todo lo levantado desde el inicio hasta la fecha «Hasta» del filtro.')), selTop, bDxf));
+  c.appendChild(h('div', { class: 'av-ks' }, kM.el, kA.el, kD.el, kC.el));
+  // panel de actividades (leyenda) + mapa
+  const seg = (val, fn) => { const w = h('div', { class: 'av-seg' }); const bs = [['pol', 'Área'], ['pts', 'Puntos']].map(([v, t]) => { const b = h('button', { type: 'button', class: val() === v ? 'on' : '', onclick: ev => { ev.stopPropagation(); fn(v); bs.forEach(x => x.className = x.dataset.v === val() ? 'on' : ''); } }, t); b.dataset.v = v; return b; }); bs.forEach(b => w.appendChild(b)); w.sync = () => bs.forEach(x => x.className = x.dataset.v === val() ? 'on' : ''); return w; };
+  const lista = h('div', { class: 'av-lista' });
+  capas.forEach(cp => {
+    const n = L.filter(x => x.capa === cp).length, ar = L.filter(x => x.capa === cp).reduce((s2, x) => s2 + (x.area || 0), 0);
+    const caja = h('span', { class: 'av-chk' });
+    const sg = seg(() => OEDIBC[cp] || OEDIB, v => { OEDIBC[cp] = v; try { localStorage.setItem('oe_dibc', JSON.stringify(OEDIBC)); } catch (e2) {} dibujar(); refrescar(false); });
+    modos[cp] = () => sg.sync();
+    const fila = h('div', { class: 'av-fila', title: 'Toca para mostrar u ocultar', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, caja, h('div', { style: 'flex:1;min-width:0' }, h('b', {}, cp), h('small', {}, n + (n === 1 ? ' archivo' : ' archivos') + (ar ? ' · ' + oeFmt(ar) + ' m²' : ''))), sg);
+    chips[cp] = on => { caja.style.background = on ? col(cp) : '#fff'; caja.style.borderColor = col(cp); caja.textContent = on ? '✓' : ''; fila.style.opacity = on ? '1' : '.55'; };
+    lista.appendChild(fila);
+  });
+  const todasSeg = seg(() => OEDIB, v => { OEDIB = v; OEDIBC = {}; try { localStorage.setItem('oe_dib', OEDIB); localStorage.setItem('oe_dibc', '{}'); } catch (e2) {} Object.keys(modos).forEach(k => modos[k]()); dibujar(); refrescar(false); });
+  const panel = h('div', { class: 'av-panel' },
+    h('div', { class: 'av-ph' }, h('b', {}, 'Actividades'), h('span', {}, h('a', { href: '#', onclick: ev => { ev.preventDefault(); todas(true); } }, 'Todas'), ' · ', h('a', { href: '#', onclick: ev => { ev.preventDefault(); todas(false); } }, 'Ninguna'))),
+    lista,
+    h('div', { class: 'av-pf' }, h('span', {}, 'Dibujar todas como'), todasSeg),
+    h('button', { class: 'sec', style: 'width:100%;margin-top:8px', onclick: () => refrescar(true) }, '🎯 Centrar mapa'));
+  const box = h('div', { class: 'av-mapa' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
+  c.appendChild(h('div', { class: 'av-grid' }, panel, box));
   c.appendChild(h('div', { class: 'tw', style: 'margin-top:12px' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Actividad', 'Topógrafo', 'Archivo', 'Puntos', 'Área m²', 'Cota prom.'].map(t => h('th', {}, t)))), tbody)));
   if (!OEPREV.length) { // archivos TXT cargados por los topógrafos: descargar y, con permiso, anular los erróneos
     const arch = {}; L.forEach(x => { const k = x.fecha + '|' + x.llave + '|' + x.archivo; (arch[k] = arch[k] || { fecha: x.fecha, llave: x.llave, topografo: x.topografo, archivo: x.archivo, txt: x.txt, capas: [] }).capas.push(x.capa); });
