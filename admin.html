@@ -2148,12 +2148,14 @@ async function pintarOeResumen(c) {
   }
   if (OEAV && OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando resumen…')); return; }
   const M = {}, ent = (f, l, t) => (M[f + '|' + l] = M[f + '|' + l] || { fecha: f, llave: l, nr: 0, lv: new Set() });
+  const NM = {}; (OE.registros || []).forEach(r => { if (r.topografo && !NM[r.llave]) NM[r.llave] = r.topografo; }); ((OEAV && OEAV.lev) || []).forEach(x => { if (x.topografo && !NM[x.llave]) NM[x.llave] = x.topografo; });
+  const nomT = l => { const n = nomDe(l); return n && n !== l ? n : (NM[l] || l); };
   (OE.registros || []).filter(r => r.rev !== 'RECHAZADO').forEach(r => { ent(r.fecha, r.llave).nr++; });
   ((OEAV && OEAV.lev) || []).forEach(x => { ent(x.fecha, x.llave).lv.add(x.archivo); });
-  const F = Object.keys(M).map(k2 => M[k2]).sort((a, b) => b.fecha.localeCompare(a.fecha) || (nomDe(a.llave) || '').localeCompare(nomDe(b.llave) || ''));
+  const F = Object.keys(M).map(k2 => M[k2]).sort((a, b) => b.fecha.localeCompare(a.fecha) || nomT(a.llave).localeCompare(nomT(b.llave)));
   if (!F.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay actividad de OE en estas fechas')); return; }
   const tb = h('tbody', {}); let tr = 0, tl = 0;
-  F.forEach(x => { tr += x.nr; tl += x.lv.size; tb.appendChild(h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, nomDe(x.llave) || x.llave), h('td', {}, String(x.nr)), h('td', {}, String(x.lv.size)))); });
+  F.forEach(x => { tr += x.nr; tl += x.lv.size; tb.appendChild(h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, nomT(x.llave)), h('td', {}, String(x.nr)), h('td', {}, String(x.lv.size)))); });
   tb.appendChild(h('tr', { style: 'font-weight:800' }, h('td', {}, 'Total'), h('td', {}, ''), h('td', {}, String(tr)), h('td', {}, String(tl))));
   c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Reportes', 'Levantamientos'].map(t => h('th', {}, t)))), tb)));
 }
@@ -2565,7 +2567,7 @@ async function pintarOeAvance(c) {
   };
   const todas = v => { OEOCULTAS = v ? new Set() : new Set(capas); refrescar(true); };
   // barra superior: título acumulado + topógrafo + DXF
-  const selTop = tops.length > 1 ? (() => { const s2 = h('select', { style: 'width:auto;min-width:200px', onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null;
+  const selTop = tops.length > 1 ? (() => { const s2 = h('select', { style: 'width:auto;min-width:200px', onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, (A.find(x => x.llave === l && x.topografo) || {}).topografo || nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null;
   const bDxf = h('button', { title: 'Puntos, contorno y superficie 3D de lo marcado. Abre en AutoCAD / Civil 3D' }, '⬇ Descargar DXF'); bDxf.onclick = () => bajarDxf(bDxf);
   c.appendChild(h('div', { class: 'av-top' }, h('div', { style: 'flex:1;min-width:220px' }, h('div', { style: 'font-size:18px;font-weight:800;color:#0f172a' }, 'Avance acumulado al ' + fmtF($('hasta').value)), h('div', { class: 'small' }, 'Todo lo levantado desde el inicio hasta la fecha «Hasta» del filtro.')), selTop, bDxf));
   c.appendChild(h('div', { class: 'av-ks' }, kM.el, kA.el, kD.el, kC.el));
