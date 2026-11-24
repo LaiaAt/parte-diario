@@ -144,8 +144,7 @@ function bloqueFechas(fecha, c) {
   const d = difDias(fecha, c), cr = txtCreado(c);
   return h('div', { style: 'margin:6px 0' },
     h('div', {}, '📅 Fecha del parte: ', h('b', {}, PD.fechaLarga(fecha))),
-    cr ? h('div', {}, '🕒 Creado: ', h('b', {}, cr)) : null,
-    d > 0 ? h('div', { style: 'margin-top:6px;padding:8px 10px;border-radius:8px;background:#fdecea;color:#b3261e;font-weight:800;border:2px solid #b3261e' }, '⚠ Este parte es del ' + PD.fechaLarga(fecha) + ' pero se creó el ' + PD.fechaLarga(ymdDe(creadoMs(c))) + ' (' + d + (d === 1 ? ' día' : ' días') + ' después).') : null);
+    cr ? h('div', {}, '🕒 Creado: ', h('b', {}, cr)) : null);
 }
 // Fechas permitidas: hoy y los 2 días anteriores; el lunes, 3 (viernes, sábado, domingo y lunes)
 let ABIERTAS = []; try { ABIERTAS = JSON.parse(localStorage.getItem('pd_abiertas') || '[]'); } catch (e) {}
@@ -574,6 +573,7 @@ async function editarHoy(n, existe, fx) {
     }
   }
   P.n = n; P.fecha = fx;
+  if (!P.fechaOrig && ((P.rev || 0) > 0 || existe || cola)) { P.fechaOrig = fx; P.nOrig = n; }
   editando = (P.rev || 0) > 0 || !!cola;
   if (editando && !P.rev) P.rev = 1;
   if (n > 1 && (P.rev || 0) === 0 && !cola) P.encabezado.localizacion = '';
@@ -778,6 +778,22 @@ function llenarListas() {
 function pasoDatos(c) {
   c.appendChild(h('h2', {}, 'Datos del día'));
   c.appendChild(h('p', { class: 'guia' }, 'Dónde trabajaron hoy y si hubo mal clima.'));
+  if (P.fechaOrig) { // al editar se puede corregir la fecha del parte
+    const cf = h('div', { class: 'card' }, h('b', {}, 'Fecha del parte'));
+    const ch = h('div', { class: 'chips' });
+    const fs = fechasPermitidas(); if (fs.indexOf(P.fecha) < 0) fs.push(P.fecha);
+    fs.forEach(fx => ch.appendChild(h('button', { class: 'chip' + (P.fecha === fx ? ' on' : ''), onclick: async () => {
+      if (P.fecha === fx) return;
+      const lb = ((await kv.get('bib_' + user.llave)) || []).filter(x => x.fecha === fx && !(fx === P.fechaOrig && (x.n || 1) === P.nOrig));
+      const sig = lb.reduce((m, x) => Math.max(m, x.n || 1), 0) + 1;
+      if (sig > 9) { aviso('Ya hay muchos informes de ese día.', 'err'); return; }
+      P.fecha = fx; P.n = fx === P.fechaOrig ? P.nOrig : sig;
+      $('fecha').textContent = PD.fechaLarga(fx);
+      { const av = $('avisoFecha'); av.textContent = ''; av.appendChild(bloqueFechas(fx, Date.now())); }
+      mostrar();
+    } }, PD.fechaLarga(fx))));
+    cf.appendChild(ch); c.appendChild(cf);
+  }
   const jor = h('div', { class: 'card' }, h('b', {}, 'Jornada'));
   const jf = h('div', { class: 'chips' });
   [['DIA', '☀️ Día'], ['NOCHE', '🌙 Noche']].forEach(o => jf.appendChild(h('button', { type: 'button', class: 'chip' + (P.encabezado.jornada === o[0] ? ' on' : ''), onclick: () => { P.encabezado.jornada = o[0]; cambio(); mostrar(); } }, o[1])));
@@ -1039,7 +1055,9 @@ async function guardar() {
   const parte = copia(P);
   const idPrev = idP(parte.fecha, user.llave, parte.n || 1);
   const pend = ((await kv.get('cola')) || []).find(x => x.id === idPrev);
-  parte.rev = pend ? (pend.parte.rev || 1) : ((P.rev || 0) + 1);
+  const cambioF = !!P.fechaOrig && P.fechaOrig !== parte.fecha;
+  if (cambioF && !navigator.onLine) { aviso('Para cambiar la fecha del parte necesitas señal.', 'err'); return; }
+  parte.rev = cambioF ? 1 : pend ? (pend.parte.rev || 1) : ((P.rev || 0) + 1);
   P.rev = parte.rev; editando = true;
   parte.actividades.forEach(a => { a.cantidad = PD.cantidadActividad(a); });
   parte.encabezado.pk = PD.formatoPK(parte.encabezado.pk);
@@ -1059,7 +1077,21 @@ async function guardar() {
   aviso('');
   mostrarListo(parte, !!blob, entrada.ts);
   await sincronizar(true, true); // se envía solo, con barra de progreso
+  if (cambioF) await quitarFechaVieja(parte, id);
   pintarEstado();
+}
+// al cambiar la fecha de un parte ya enviado: se borra el de la fecha equivocada
+async function quitarFechaVieja(parte, idNuevo) {
+  const fo = P.fechaOrig, no = P.nOrig || 1;
+  if ((((await kv.get('cola')) || []).some(x => x.id === idNuevo))) { aviso('El parte nuevo aún no se envía; el de la fecha anterior sigue en el sistema.', 'err'); return; }
+  try {
+    const r = await api({ accion: 'eliminar', llave: user.llave, fecha: fo, n: no });
+    if (!r.ok) { aviso(r.mensaje || 'No se pudo quitar el parte de la fecha anterior.', 'err'); return; }
+    await mutarCola(c => c.filter(x => !(x.llave === user.llave && x.parte.fecha === fo && (x.parte.n || 1) === no)));
+    const k = 'bib_' + user.llave;
+    await kv.set(k, ((await kv.get(k)) || []).filter(x => !(x.fecha === fo && (x.n || 1) === no)));
+    P.fechaOrig = parte.fecha; P.nOrig = parte.n || 1;
+  } catch (e) { aviso('No se pudo quitar el parte de la fecha anterior.', 'err'); }
 }
 
 async function mutarCola(fn) { const c = (await kv.get('cola')) || []; await kv.set('cola', fn(c)); }
