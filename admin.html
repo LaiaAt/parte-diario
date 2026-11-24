@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com https://*.basemaps.cartocdn.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Dashboard</title>
 <style>
@@ -2203,6 +2203,21 @@ function cargarLeaflet() {
     const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'; sc.onload = ok; sc.onerror = () => { OE_LF = null; no(new Error('leaflet')); }; document.head.appendChild(sc); });
   return OE_LF;
 }
+
+// Mapas de fondo (calles): Esri Calles, OpenStreetMap y CARTO. La elección queda guardada en este navegador.
+function oeBase(m) {
+  const ref = 'strict-origin-when-cross-origin', T = (u, o) => window.L.tileLayer(u, Object.assign({ maxZoom: 19, referrerPolicy: ref }, o));
+  const B = {
+    'Calles (Esri)': T('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri — HERE, Garmin, OpenStreetMap contributors' }),
+    'Calles (CARTO)': T('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', { subdomains: 'abcd', attribution: '© OpenStreetMap contributors © CARTO' }),
+    'OpenStreetMap': T('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' })
+  };
+  let k = ''; try { k = localStorage.getItem('oe_base') || ''; } catch (e) {}
+  if (!B[k]) k = 'Calles (Esri)';
+  B[k].addTo(m);
+  window.L.control.layers(B, null, { position: 'topright', collapsed: false }).addTo(m);
+  m.on('baselayerchange', e => { try { localStorage.setItem('oe_base', e.name); } catch (x) {} });
+}
 const OE_COLORES = ['#0a7a32', '#1565c0', '#b3261e', '#9a6b00', '#6a1b9a', '#00838f', '#c2185b', '#4e342e', '#455a64', '#e65100', '#2e7d32', '#283593', '#ad1457', '#00695c'];
 function vistaOeMapa(c, L) {
   const P = L.filter(r => isFinite(parseFloat(r.lat)) && isFinite(parseFloat(r.lon)) && Math.abs(parseFloat(r.lat)) > 0.01);
@@ -2215,7 +2230,7 @@ function vistaOeMapa(c, L) {
   cargarLeaflet().then(() => {
     if (!box.isConnected) return; box.textContent = '';
     const m = window.L.map(box, { scrollWheelZoom: true });
-    window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', referrerPolicy: 'strict-origin-when-cross-origin' }).addTo(m);
+    oeBase(m);
     const b = [];
     P.forEach(r => { const la = parseFloat(r.lat), lo = parseFloat(r.lon); b.push([la, lo]);
       const g = 'https://www.google.com/maps/search/?api=1&query=' + la.toFixed(6) + ',' + lo.toFixed(6), e = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -2315,7 +2330,7 @@ async function pintarOeAvance(c) {
   cargarLeaflet().then(() => {
     if (!box.isConnected) return; box.textContent = '';
     const m = window.L.map(box, { scrollWheelZoom: true }), b = [];
-    window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', referrerPolicy: 'strict-origin-when-cross-origin' }).addTo(m);
+    oeBase(m);
     L.slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
       const P = (x.poly || []).filter(p => isFinite(p[0]) && isFinite(p[1])); if (!P.length) return; P.forEach(p => b.push(p));
       const op = { color: col(x.capa), weight: 3, fillColor: col(x.capa), fillOpacity: .5 };
