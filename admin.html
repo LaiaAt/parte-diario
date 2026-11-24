@@ -245,6 +245,8 @@ header>span{gap:6px!important;min-width:0}
 .av-pf2 .av-seg{background:#d6e4da}.av-pf2 .av-seg button{font-size:13px;padding:6px 12px;color:#1f2d27}.av-pf2 .av-seg button.on{background:#0a7a32;color:#fff}
 .av-centrar{width:100%;min-height:38px;background:#0a7a32;color:#fff;border:0;border-radius:10px;font-weight:800;font-size:14.5px;cursor:pointer}.av-centrar:hover{background:#086528}
 .av-dlg-f{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px}.av-dlg{background:#fff;border-radius:16px;padding:18px;width:min(460px,100%);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+#roPill{position:fixed;right:14px;bottom:14px;z-index:9000;background:#111827;color:#fff;font-weight:800;font-size:13px;padding:8px 14px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none}
+.ro [data-m] td input,.ro [data-m] td select,.ro [data-m] td textarea{pointer-events:none;background:#f3f4f6!important}
 .av-full-b{background:#c62828;border:0;border-radius:10px;box-shadow:0 2px 10px rgba(198,40,40,.4);font-weight:800;font-size:13.5px;padding:8px 12px;cursor:pointer;min-height:0;width:auto;color:#fff}.av-full-b:hover{background:#a51d1d}
 .av-esc{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:99999;background:#111827;color:#fff;font-weight:800;font-size:15px;padding:10px 18px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;transition:opacity .6s}.av-esc.fuera{opacity:0}
 .av-sec{border:1px solid #cfd8e3;border-radius:12px;margin-top:12px;background:#fff;overflow:hidden}.av-sec-top{display:flex;align-items:center;gap:8px;padding-right:10px}.av-sec-h{flex:1;display:flex;align-items:center;gap:10px;border:0;background:#fff;padding:12px 14px;cursor:pointer;min-height:0;width:auto;font-size:16px;color:#0f172a;text-align:left;box-shadow:none}.av-sec-h:hover{background:#f5f8fa}
@@ -399,7 +401,21 @@ function avance(txt) {
   AVN = { fin: () => { clearInterval(iv); bar.style.width = '100%'; pc.textContent = '100%'; setTimeout(() => ov.remove(), 250); AVN = null; } };
   return AVN;
 }
+// Permisos del Dashboard: el servidor manda D.edita (módulos que el usuario puede editar). Sin permiso = solo ver.
+const ACC_EDITA = { admin_liberar: 'PARTE', admin_abrir_fecha: 'PARTE', admin_sembrar_parte: 'PARTE', admin_tr_vol: 'TRANSPORTES', admin_tr_dist: 'TRANSPORTES', admin_tr_geo: 'TRANSPORTES', admin_tr_bloq: 'TRANSPORTES', admin_tr_foto_add: 'TRANSPORTES', admin_tr_revisar: 'TRANSPORTES', admin_tr_anular: 'TRANSPORTES', admin_tr_editar: 'TRANSPORTES',
+  admin_mq_maq: 'MAQUINARIA', admin_mq_asig: 'MAQUINARIA', admin_mq_foto_alb: 'MAQUINARIA', admin_oe_rev: 'OE', admin_oe_cc: 'OE', admin_oe_ccnuevo: 'OE', admin_oe_lev_txt: 'OE', admin_oe_lev_txts: 'OE', admin_oe_lev_anular: 'OE', admin_oe_lev_subir: 'OE', admin_oe_alias: 'OE', admin_oe_plano_subir: 'OE', admin_oe_plano_borrar: 'OE' };
+const MOD_NOM = { PARTE: 'Parte diario', TRANSPORTES: 'Transportes', MAQUINARIA: 'Maquinaria', ACERO: 'Acero', OE: 'O. Ejecutada' };
+const modDe = m => ({ transportes: 'TRANSPORTES', acero: 'ACERO', maquinaria: 'MAQUINARIA', oe: 'OE' })[m] || 'PARTE';
+const puedeEd = mod => !(typeof D !== 'undefined' && D && D.edita) || !!D.edita[mod];
+const RX_ED = /(Editar|Anular|Restaurar|Guardar|Subir|Liberar|Agregar|Crear|Eliminar|Quitar|Asignar|Corregir|Validar|Resolver|Marcar|Conservar|Aprobar|Nueva|Nuevo|Cargar (?!m)|✏️|🗑|➕|＋)/;
+function soloVer() { // marca la pantalla como solo lectura y esconde los botones de edición del módulo abierto
+  const ro = !puedeEd(modDe(MOD)); document.body.classList.toggle('ro', ro);
+  let p = $('roPill'); if (!p) { p = h('div', { id: 'roPill' }, '👁 Solo lectura'); document.body.appendChild(p); } p.hidden = !ro;
+  if (ro) document.querySelectorAll('[data-m]:not([hidden]) button').forEach(b => { if (RX_ED.test(b.textContent || '') && !b.closest('#nav,#nav2,#nav3,#nav4,#arbolAdm,.leaflet-control')) b.style.display = 'none'; });
+}
+new MutationObserver(() => { if (document.body.classList.contains('ro')) { clearTimeout(window.__roT); window.__roT = setTimeout(soloVer, 30); } }).observe(document.documentElement, { childList: true, subtree: true });
 async function api(d, ms) {
+  if (d && ACC_EDITA[d.accion] && !puedeEd(ACC_EDITA[d.accion])) { const m = '👁 Solo lectura: tu usuario puede ver ' + MOD_NOM[ACC_EDITA[d.accion]] + ' pero no editar.'; try { banner(m, 'mal'); } catch (e) {} return { ok: false, soloVer: true, mensaje: m }; }
   const esc = ACC_ESC[d && d.accion], av = esc && !AVN ? avance(esc) : null;
   const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms || 90000);
   try { return await (await fetch(API, { method: 'POST', body: JSON.stringify(d), signal: ctrl.signal })).json(); }
@@ -463,7 +479,7 @@ async function cargar(primera) {
     const tenia = !!D; D = r; DT = Date.now(); CDB.set('admin', { llave: LLAVE, t: DT, r: r });
     $('quien').textContent = r.nombre;
     const y = window.scrollY; pintar(); if (tenia) window.scrollTo(0, y); // al actualizar no se mueve la pantalla
-    cargarFotos(); if ($('acFrame')) enviarAc(MOD === 'acero'); return true;
+    cargarFotos(); if ($('acFrame')) enviarAc(MOD === 'acero'); soloVer(); return true;
   } finally { CARGANDO = false; }
 }
 
@@ -514,7 +530,7 @@ function modulo(m) {
   $('nav2').hidden = gt || ga || gm || go; $('nav3').hidden = !gt; $('nav4').hidden = !(ga || gm || go); if (!gt) $('cPer').hidden = false; if (gt) navTr(); if (ga) navAc(); if (gm) navMq(); if (go) navOe();
   { medirHeader(); const t = (headerH() + $('nav').offsetHeight) + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav4').style.top = t; $('nav4').style.marginTop = '0'; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
-  window.scrollTo(0, 0); pintarArbol();
+  window.scrollTo(0, 0); pintarArbol(); soloVer();
   if (m === 'transportes' && !TR) cargarTr();
   if (m === 'acero') abrirAcero();
   if (m === 'maquinaria' && !MQ) cargarMq();
@@ -2016,7 +2032,8 @@ function navegacion() {
 }
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
 const OE_TABS = [['res', '📊 Resumen'], ['reg', '📋 Registros']]; // Mapa de registros oculto por ahora: ['mapa', '🗺️ Mapa']
-const oeTabsSuper = () => { OE_TABS.length = 0; OE_TABS.push(['res', '📊 Resumen']); if (D && (D.oereg || D.superadm)) OE_TABS.push(['reg', '📋 Registros']); if (D && (D.oeed || D.superadm)) OE_TABS.push(['avance', '🏗️ Avance']); if (D && !OE_TABS.some(x => x[0] === OETAB)) OETAB = 'res'; }; // Registros: super y administradores con módulo OE // Avance (levantamientos TXT): solo super administrador mientras se prueba
+const oeEd = () => !!(D && (D.edita ? D.edita.OE : (D.oeed || D.superadm))); // edita O. Ejecutada
+const oeTabsSuper = () => { OE_TABS.length = 0; OE_TABS.push(['res', '📊 Resumen']); if (oeEd()) OE_TABS.push(['reg', '📋 Registros']); OE_TABS.push(['avance', '🏗️ Avance']); if (D && !OE_TABS.some(x => x[0] === OETAB)) OETAB = 'res'; }; // Registros: super y administradores con módulo OE // Avance (levantamientos TXT): solo super administrador mientras se prueba
 const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Aprobado', '#0a7a32'], CORREGIDO: ['🔵', 'Corregido', '#1565c0'], RECHAZADO: ['🔴', 'Anulado', '#b3261e'] };
 const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
 const oeCuenta = r => r.rev !== 'RECHAZADO'; // los anulados (RECHAZADO en la hoja) no suman en cálculos ni controles
@@ -2146,7 +2163,7 @@ function verFotoOe(r) {
 }
 // Resumen por día y topógrafo (reportes y levantamientos) con los filtros globales del Dashboard
 async function pintarOeResumen(c) {
-  const k = $('desde').value + '|' + $('hasta').value, puedeLev = D && (D.oeed || D.superadm);
+  const k = $('desde').value + '|' + $('hasta').value, puedeLev = true; // el conteo de levantamientos lo ve todo administrador
   if (puedeLev && (!OEAV || OEAV.k !== k)) {
     if (!OEAV || OEAV.k !== k) { OEAV = { k: k, cargando: true }; c.appendChild(h('div', { class: 'trok' }, 'Cargando resumen…'));
       try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (OEAV && OEAV.k === k) OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], err: '' }; }
@@ -2599,7 +2616,7 @@ async function pintarOeAvance(c) {
   if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
   const A = OEAV.lev || [];
-  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados hasta esta fecha.')); if (D && (D.oeed || D.superadm)) c.appendChild(h('button', { style: 'width:auto;margin-top:10px', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)')); return; }
+  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados hasta esta fecha.')); if (oeEd()) c.appendChild(h('button', { style: 'width:auto;margin-top:10px', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)')); return; }
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
@@ -2648,8 +2665,8 @@ async function pintarOeAvance(c) {
   // barra superior: título acumulado + topógrafo + DXF
   const selTop = tops.length > 1 ? (() => { const s2 = h('select', { style: 'width:auto;min-width:200px', onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, (A.find(x => x.llave === l && x.topografo) || {}).topografo || nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null;
   const bDxf = h('button', { title: 'Puntos, contorno y superficie 3D de lo marcado. Abre en AutoCAD / Civil 3D' }, '⬇ Descargar DXF'); bDxf.onclick = () => bajarDxf(bDxf);
-  const bLev = (D && (D.oeed || D.superadm)) ? h('button', { style: 'background:#0a7a32', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)') : null;
-  c.appendChild(h('div', { class: 'av-top' }, h('div', { style: 'flex:1;min-width:220px' }, h('div', { style: 'font-size:18px;font-weight:800;color:#0f172a' }, 'Avance acumulado al ' + fmtF($('hasta').value)), h('div', { class: 'small' }, 'Todo lo levantado desde el inicio hasta la fecha «Hasta» del filtro.')), selTop, bLev, bDxf));
+  const bLev = oeEd() ? h('button', { style: 'background:#0a7a32', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)') : null;
+  c.appendChild(h('div', { class: 'av-top' }, h('div', { style: 'flex:1;min-width:220px' }, h('div', { style: 'font-size:18px;font-weight:800;color:#0f172a' }, 'Avance acumulado al ' + fmtF($('hasta').value)), h('div', { class: 'small' }, 'Todo lo levantado desde el inicio hasta la fecha «Hasta» del filtro.')), selTop, bLev, oeEd() ? bDxf : null));
   c.appendChild(h('div', { class: 'av-ks' }, kM.el, kA.el, kD.el, kC.el));
   // panel de actividades (leyenda) + mapa
   const seg = (val, fn) => { const w = h('div', { class: 'av-seg' }); const bs = [['pol', 'Área'], ['pts', 'Puntos']].map(([v, t]) => { const b = h('button', { type: 'button', class: val() === v ? 'on' : '', onclick: ev => { ev.stopPropagation(); fn(v); bs.forEach(x => x.className = x.dataset.v === val() ? 'on' : ''); } }, t); b.dataset.v = v; return b; }); bs.forEach(b => w.appendChild(b)); w.sync = () => bs.forEach(x => x.className = x.dataset.v === val() ? 'on' : ''); return w; };
@@ -2692,11 +2709,10 @@ async function pintarOeAvance(c) {
       const caja = h('span', { class: 'av-chk', style: 'border-color:' + p.color + ';background:' + (on ? p.color : '#fff') }, on ? '✓' : '');
       planoBox.appendChild(h('div', { class: 'av-fila', onclick: () => { if (OEPLOFF.has(p.nombre)) OEPLOFF.delete(p.nombre); else OEPLOFF.add(p.nombre); try { localStorage.setItem('oe_planos_off', JSON.stringify(Array.from(OEPLOFF))); } catch (e) {} pintarPlanos(); verPlanos(); } }, caja,
         h('div', { style: 'flex:1;min-width:0' }, h('b', {}, p.nombre), h('small', {}, p.fijo ? 'Capa base del proyecto' : 'Cargada por ' + (p.quien || '—') + ' · ' + String(p.creado || '').slice(0, 10))),
-        h('button', { type: 'button', class: 'sec', title: 'Descargar esta capa en DXF (coordenadas del plano de Bogotá)', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px;margin-right:4px', onclick: ev => { ev.stopPropagation(); planoBajar(p); } }, '⬇'),
+        oeEd() && h('button', { type: 'button', class: 'sec', title: 'Descargar esta capa en DXF (coordenadas del plano de Bogotá)', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px;margin-right:4px', onclick: ev => { ev.stopPropagation(); planoBajar(p); } }, '⬇'),
         p.fijo || !p.mia ? null : h('button', { type: 'button', class: 'sec', title: 'Quitar esta capa', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px', onclick: async ev => { ev.stopPropagation(); if (!(await avDialogo({ titulo: '¿Quitar la capa «' + p.nombre + '»?', ayuda: 'Deja de verse para todos los usuarios.', ok: 'Quitar', peligro: true }))) return; try { const r = await api({ accion: 'admin_oe_plano_borrar', llave: LLAVE, id: p.id }); if (!r.ok) { banner(r.mensaje || 'No se pudo quitar.'); return; } recargarPlanos(); } catch (e) { banner('No se pudo quitar.'); } } }, '✕')));
     });
-    planoBox.appendChild(h('button', { type: 'button', class: 'sec', style: 'width:100%;margin-top:8px;min-height:36px', onclick: () => fin.click() }, '＋ Cargar plano (KML o DXF)'));
-    planoBox.appendChild(ayudaPl);
+    if (oeEd()) { planoBox.appendChild(h('button', { type: 'button', class: 'sec', style: 'width:100%;margin-top:8px;min-height:36px', onclick: () => fin.click() }, '＋ Cargar plano (KML o DXF)')); planoBox.appendChild(ayudaPl); }
   };
   const recargarPlanos = async () => { if (mapa) Object.keys(grPlano).forEach(k => { if (mapa.hasLayer(grPlano[k])) mapa.removeLayer(grPlano[k]); delete grPlano[k]; }); OEPLANOS = null; pintarPlanos(); await cargarPlanos(); if (planoBox.isConnected) { pintarPlanos(); verPlanos(); } };
   const verPlanos = () => { if (!mapa || !OEPLANOS) return; OEPLANOS.forEach(p => { let g = grPlano[p.id];
@@ -2724,10 +2740,10 @@ async function pintarOeAvance(c) {
     const bajarTxt = async a => { try { const r = await api({ accion: 'admin_oe_lev_txt', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo }); if (!r.ok) { banner(r.mensaje || 'No se pudo descargar.'); return; } const u = URL.createObjectURL(new Blob([r.txt], { type: 'text/plain' })), l = h('a', { href: u, download: r.nombre }); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000); } catch (er) { banner('No se pudo descargar.'); } };
     const anular = async a => { const mot = prompt('Anular el TXT «' + a.archivo + '» del ' + fmtF(a.fecha) + ' (' + (a.topografo || nomDe(a.llave)) + ').\nEl topógrafo deberá subirlo corregido. Queda registrado quién lo anuló y por qué.\n\nMotivo de la anulación (obligatorio):'); if (mot === null) return; if (mot.trim().length < 5) { banner('Escribe el motivo de la anulación (mínimo 5 letras).'); return; } try { const r = await api({ accion: 'admin_oe_lev_anular', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo, motivo: mot.trim() }); if (!r.ok) { banner(r.mensaje || 'No se pudo anular.'); return; } OEAV = null; pintarOe(); } catch (er) { banner('No se pudo anular.'); } };
     const fb = h('tbody', {});
-    const ed = D.oeed || D.superadm;
+    const ed = oeEd();
     Object.keys(arch).map(k => arch[k]).sort((x, y) => y.fecha.localeCompare(x.fecha) || x.archivo.localeCompare(y.archivo)).forEach(a => fb.appendChild(h('tr', {}, h('td', { style: 'white-space:nowrap' }, fmtF(a.fecha)), h('td', {}, a.topografo || nomDe(a.llave)), h('td', { style: 'word-break:break-all' }, a.archivo), h('td', {}, a.capas.map(oeNom).join(', ')),
       h('td', { style: 'text-align:center' }, h('button', { style: 'width:auto;min-height:32px;padding:4px 12px;background:#1565c0', title: 'Ver en el mapa dónde está este levantamiento', onclick: () => verLevMapa(a) }, '📍 Ver')),
-      h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px', onclick: () => bajarTxt(a) }, '⬇ TXT')),
+      ed ? h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px', onclick: () => bajarTxt(a) }, '⬇ TXT')) : null,
       ed ? h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px;color:#b3261e;border-color:#e6b4b0', onclick: () => anular(a) }, 'Anular')) : null)));
     const verLevMapa = a => { // muestra sus actividades, acerca el mapa al levantamiento y lo resalta
       if (!mapa) { banner('El mapa aún está cargando.'); return; } const X = L.filter(x => x.fecha === a.fecha && x.llave === a.llave && x.archivo === a.archivo), pts = [];
@@ -2750,8 +2766,8 @@ async function pintarOeAvance(c) {
         const fs2 = L2.map(a => a.fecha).sort(); bajar(zipear(it), 'TXT_OE_' + fs2[0] + '_a_' + fs2[fs2.length - 1] + '.zip');
         banner('✔ ZIP con ' + it.length + ' TXT descargado' + (mal.length ? '. No se encontraron: ' + mal.join(', ') : '.'), 'ok');
       } catch (e3) { banner('No se pudo armar el ZIP (sin conexión).'); } finally { bZip.disabled = false; bZip.textContent = t0; } };
-    seccion('txt', 'Archivos TXT cargados', nA, h('div', {}, h('div', { class: 'small', style: 'margin:0 0 6px' }, '⬇ TXT descarga el archivo original. Anular lo quita del avance (se pide el motivo y queda en el control de cambios).'),
-      h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', 'Mapa', 'Descargar'].concat(ed ? ['Anular'] : []).map(t => h('th', {}, t)))), fb))), nA ? bZip : null);
+    seccion('txt', 'Archivos TXT cargados', nA, h('div', {}, h('div', { class: 'small', style: 'margin:0 0 6px' }, ed ? '📍 Ver lo ubica en el mapa. ⬇ TXT descarga el archivo original. Anular lo quita del avance (se pide el motivo y queda en el control de cambios).' : '📍 Ver lo ubica en el mapa.'),
+      h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', 'Mapa'].concat(ed ? ['Descargar', 'Anular'] : []).map(t => h('th', {}, t)))), fb))), nA && ed ? bZip : null);
     let cuerpoC;
     if (!AN.length) cuerpoC = h('div', { class: 'trok' }, 'No hay cambios en estas fechas.');
     else { const cb = h('tbody', {}); AN.slice().sort((x, y) => y.cambio.localeCompare(x.cambio)).forEach(x => cb.appendChild(h('tr', {}, h('td', {}, x.cambio.slice(8, 10) + '/' + x.cambio.slice(5, 7) + '/' + x.cambio.slice(0, 4) + ' ' + x.cambio.slice(11, 16)), h('td', {}, fmtF(x.fecha)), h('td', {}, x.topografo), h('td', {}, x.archivo), h('td', { style: 'font-weight:800' }, x.resultado), h('td', {}, x.usuario), h('td', {}, x.motivo))));
