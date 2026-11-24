@@ -1975,7 +1975,7 @@ function navegacion() {
   modulo(MOD);
 }
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
-const OE_TABS = [['reg', '📋 Registros'], ['mapa', '🗺️ Mapa']];
+const OE_TABS = [['reg', '📋 Registros']]; // Mapa oculto por ahora: ['mapa', '🗺️ Mapa']
 const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Aprobado', '#0a7a32'], CORREGIDO: ['🔵', 'Corregido', '#1565c0'], RECHAZADO: ['🔴', 'Rechazado', '#b3261e'] };
 const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
 const oeCuenta = r => r.rev !== 'RECHAZADO'; // los rechazados no suman
