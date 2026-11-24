@@ -2456,6 +2456,21 @@ function elegirCapasDxf(porCapa, nombre) { // ventana para escoger las capas del
 }
 let OEALIAS = {}, OEABIERTO = {}, OEIMG = {};
 const oeNom = cp => ((D && D.oealias) || OEALIAS)[cp] || cp; // nombre visible de la actividad (no cambia los datos)
+function tmDir(lat, lon) { // [lat, lon] → plano de Bogotá (inversa de tmInv)
+  const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180, p = lat * R;
+  const arco = q => a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256) * q - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 * e2 * e2 / 1024) * Math.sin(2 * q) + (15 * e2 * e2 / 256 + 45 * e2 * e2 * e2 / 1024) * Math.sin(4 * q) - (35 * e2 * e2 * e2 / 3072) * Math.sin(6 * q));
+  const N = a / Math.sqrt(1 - e2 * Math.sin(p) ** 2), T = Math.tan(p) ** 2, C = ep2 * Math.cos(p) ** 2, A = (lon + 74.146591667) * R * Math.cos(p);
+  const x = 92334.879 + N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5 / 120);
+  const y = 109320.965 + arco(p) - arco(4.680486111 * R) + N * Math.tan(p) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720);
+  return [x, y];
+}
+function planoBajar(p) { // capa → DXF en coordenadas del plano de Bogotá (abre en AutoCAD / Civil 3D)
+  const f = v => (Math.round(v * 1000) / 1000).toFixed(3), nb = dxfNombre(p.nombre), o = ['0', 'SECTION', '2', 'HEADER', '9', '$ACADVER', '1', 'AC1009', '0', 'ENDSEC', '0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', '1', '0', 'LAYER', '2', nb, '70', '0', '62', '5', '6', 'CONTINUOUS', '0', 'ENDTAB', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES'];
+  (p.geo || []).forEach(P => { if (P.length < 2) return; o.push('0', 'POLYLINE', '8', nb, '66', '1', '10', '0', '20', '0', '30', '0', '70', '0'); P.forEach(q => { const c = tmDir(q[0], q[1]); o.push('0', 'VERTEX', '8', nb, '10', f(c[0]), '20', f(c[1]), '30', '0'); }); o.push('0', 'SEQEND', '8', nb); });
+  (p.textos || []).forEach(t => { const c = tmDir(t.p[0], t.p[1]); o.push('0', 'TEXT', '8', nb, '10', f(c[0]), '20', f(c[1]), '30', '0', '40', '2.5', '1', String(t.t), '50', String(t.r || 0)); });
+  o.push('0', 'ENDSEC', '0', 'EOF');
+  bajar(new Blob([o.join('\r\n') + '\r\n'], { type: 'application/dxf' }), p.nombre.replace(/[^\w\- ]/g, '_') + '.dxf');
+}
 let OEPLANOS = null; const OEPLANO_COL = ['#d32f2f', '#1565c0', '#6a1b9a', '#ef6c00', '#00838f', '#5d4037', '#c2185b', '#2e7d32'];
 let OEPLOFF = (() => { try { return new Set(JSON.parse(localStorage.getItem('oe_planos_off') || '[]')); } catch (e) { return new Set(); } })();
 async function cargarPlanos() {
@@ -2597,11 +2612,8 @@ async function pintarOeAvance(c) {
   const planoBox = h('div', { class: 'av-plano' }), grPlano = {}; let fondoSel = null;
   const pintarPlanos = () => {
     planoBox.textContent = '';
-    const fin = h('input', { type: 'file', accept: '.kml,.dxf,.jpg,.jpeg,.png,.jgw,.pgw,.jpgw,.pngw,.wld', multiple: true, hidden: true });
-    fin.onchange = async () => { const fs3 = Array.from(fin.files || []); fin.value = ''; if (!fs3.length) return;
-      const im = fs3.find(x => /\.(jpe?g|png)$/i.test(x.name)), wf = fs3.find(x => /\.(jgw|pgw|jpgw|pngw|wld)$/i.test(x.name));
-      if (im) { if (!wf) { banner('Para la ortofoto elige juntos la imagen (JPG o PNG) y su archivo de ubicación (JGW, PGW o WLD), con Ctrl.'); return; } await subirOrto(im, wf); return; }
-      const f = fs3[0];
+    const fin = h('input', { type: 'file', accept: '.kml,.dxf', hidden: true });
+    fin.onchange = async () => { const f = fin.files && fin.files[0]; fin.value = ''; if (!f) return;
       banner('Leyendo ' + f.name + '…', 'ok'); let res; try { res = planoLeer(f.name, await f.text()); } catch (e) { res = { error: 'No se pudo leer el archivo.' }; }
       if (res.error) { banner(res.error); return; }
       let nom = f.name.replace(/\.[^.]+$/, '');
@@ -2616,33 +2628,16 @@ async function pintarOeAvance(c) {
     planoBox.appendChild(fin);
     if (!OEPLANOS) { planoBox.appendChild(h('div', { class: 'small' }, 'Cargando capas…')); return; }
     if (!OEPLANOS.length) planoBox.appendChild(h('div', { class: 'small' }, 'Sin capas. Carga un KML o DXF del proyecto.'));
-    const ayudaPl = h('div', { class: 'small', style: 'margin-top:6px;line-height:1.35' }, 'Planos: KML o DXF. Ortofoto: el ECW no se puede subir directo; conviértelo a JPG con su archivo de ubicación (JGW) y elige los dos juntos.');
+    const ayudaPl = h('div', { class: 'small', style: 'margin-top:6px;line-height:1.35' }, 'Las capas que cargues las ven todos. Solo puedes quitar las tuyas.');
     OEPLANOS.forEach(p => { const on = !OEPLOFF.has(p.nombre);
       const caja = h('span', { class: 'av-chk', style: 'border-color:' + p.color + ';background:' + (on ? p.color : '#fff') }, on ? '✓' : '');
       planoBox.appendChild(h('div', { class: 'av-fila', onclick: () => { if (OEPLOFF.has(p.nombre)) OEPLOFF.delete(p.nombre); else OEPLOFF.add(p.nombre); try { localStorage.setItem('oe_planos_off', JSON.stringify(Array.from(OEPLOFF))); } catch (e) {} pintarPlanos(); verPlanos(); } }, caja,
-        h('div', { style: 'flex:1;min-width:0' }, h('b', {}, p.nombre), h('small', {}, p.fijo ? 'Capa base del proyecto' : (p.tipo === 'img' ? '🖼️ Ortofoto · ' : '') + 'Cargada por ' + (p.quien || '—') + ' · ' + String(p.creado || '').slice(0, 10))),
-        p.fijo ? null : h('button', { type: 'button', class: 'sec', title: 'Quitar esta capa', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px', onclick: async ev => { ev.stopPropagation(); if (!confirm('¿Quitar la capa «' + p.nombre + '» para todos los usuarios?')) return; try { const r = await api({ accion: 'admin_oe_plano_borrar', llave: LLAVE, id: p.id }); if (!r.ok) { banner(r.mensaje || 'No se pudo quitar.'); return; } OEPLANOS = null; pintarOe(); } catch (e) { banner('No se pudo quitar.'); } } }, '✕')));
+        h('div', { style: 'flex:1;min-width:0' }, h('b', {}, p.nombre), h('small', {}, p.fijo ? 'Capa base del proyecto' : 'Cargada por ' + (p.quien || '—') + ' · ' + String(p.creado || '').slice(0, 10))),
+        h('button', { type: 'button', class: 'sec', title: 'Descargar esta capa en DXF (coordenadas del plano de Bogotá)', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px;margin-right:4px', onclick: ev => { ev.stopPropagation(); planoBajar(p); } }, '⬇'),
+        p.fijo || !p.mia ? null : h('button', { type: 'button', class: 'sec', title: 'Quitar esta capa', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px', onclick: async ev => { ev.stopPropagation(); if (!confirm('¿Quitar la capa «' + p.nombre + '» para todos los usuarios?')) return; try { const r = await api({ accion: 'admin_oe_plano_borrar', llave: LLAVE, id: p.id }); if (!r.ok) { banner(r.mensaje || 'No se pudo quitar.'); return; } OEPLANOS = null; pintarOe(); } catch (e) { banner('No se pudo quitar.'); } } }, '✕')));
     });
-    planoBox.appendChild(h('button', { type: 'button', class: 'sec', style: 'width:100%;margin-top:8px;min-height:36px', onclick: () => fin.click() }, '＋ Cargar plano u ortofoto'));
+    planoBox.appendChild(h('button', { type: 'button', class: 'sec', style: 'width:100%;margin-top:8px;min-height:36px', onclick: () => fin.click() }, '＋ Cargar plano (KML o DXF)'));
     planoBox.appendChild(ayudaPl);
-  };
-  const subirOrto = async (im, wf) => {
-    try {
-      const w = (await wf.text()).trim().split(/\s+/).map(Number); if (w.length < 6 || w.some(v => !isFinite(v))) { banner('El archivo de ubicación (' + wf.name + ') no es válido.'); return; }
-      banner('Preparando la ortofoto…', 'ok');
-      const url = URL.createObjectURL(im), img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
-      const W = img.naturalWidth, H = img.naturalHeight, px = (c, r) => [w[0] * c + w[2] * r + w[4], w[1] * c + w[3] * r + w[5]];
-      const esq = [px(-0.5, -0.5), px(W - 0.5, -0.5), px(W - 0.5, H - 0.5), px(-0.5, H - 0.5)].map(q => planoXY(q[0], q[1]));
-      if (esq.some(p => !(p[0] > -5 && p[0] < 14 && p[1] > -82 && p[1] < -66))) { banner('La ortofoto no cae en Colombia. Revisa el archivo de ubicación.'); URL.revokeObjectURL(url); return; }
-      const lim = [[Math.min.apply(null, esq.map(p => p[0])), Math.min.apply(null, esq.map(p => p[1]))], [Math.max.apply(null, esq.map(p => p[0])), Math.max.apply(null, esq.map(p => p[1]))]];
-      let k = Math.min(1, 6000 / Math.max(W, H)), dataUrl = '';
-      for (let t = 0; t < 4; t++) { const cv = document.createElement('canvas'); cv.width = Math.round(W * k); cv.height = Math.round(H * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); dataUrl = cv.toDataURL('image/jpeg', 0.78); if (dataUrl.length < 14e6) break; k *= 0.75; }
-      URL.revokeObjectURL(url);
-      const nom = (prompt('Nombre de la ortofoto. Ej: Ortofoto noviembre 2026', im.name.replace(/\.[^.]+$/, '')) || '').trim(); if (!nom) return;
-      banner('Subiendo la ortofoto (' + Math.round(dataUrl.length * 0.75 / 1e6 * 10) / 10 + ' MB)…', 'ok');
-      const r = await api({ accion: 'admin_oe_plano_subir', llave: LLAVE, nombre: nom, img: dataUrl, limites: lim });
-      if (!r.ok) { banner(r.mensaje || 'No se pudo guardar la ortofoto.'); return; } banner('Ortofoto «' + nom + '» guardada.', 'ok'); OEPLANOS = null; pintarOe();
-    } catch (e) { banner('No se pudo cargar la ortofoto (imagen muy grande o sin conexión).'); }
   };
   const verPlanos = () => { if (!mapa || !OEPLANOS) return; OEPLANOS.forEach(p => { let g = grPlano[p.id];
     if (p.tipo === 'img') { if (!g) { g = grPlano[p.id] = window.L.layerGroup(); g.cargada = false; }
