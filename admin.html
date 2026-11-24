@@ -2726,8 +2726,17 @@ async function pintarOeAvance(c) {
     const fb = h('tbody', {});
     const ed = D.oeed || D.superadm;
     Object.keys(arch).map(k => arch[k]).sort((x, y) => y.fecha.localeCompare(x.fecha) || x.archivo.localeCompare(y.archivo)).forEach(a => fb.appendChild(h('tr', {}, h('td', { style: 'white-space:nowrap' }, fmtF(a.fecha)), h('td', {}, a.topografo || nomDe(a.llave)), h('td', { style: 'word-break:break-all' }, a.archivo), h('td', {}, a.capas.map(oeNom).join(', ')),
+      h('td', { style: 'text-align:center' }, h('button', { style: 'width:auto;min-height:32px;padding:4px 12px;background:#1565c0', title: 'Ver en el mapa dónde está este levantamiento', onclick: () => verLevMapa(a) }, '📍 Ver')),
       h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px', onclick: () => bajarTxt(a) }, '⬇ TXT')),
       ed ? h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px;color:#b3261e;border-color:#e6b4b0', onclick: () => anular(a) }, 'Anular')) : null)));
+    const verLevMapa = a => { // muestra sus actividades, acerca el mapa al levantamiento y lo resalta
+      if (!mapa) { banner('El mapa aún está cargando.'); return; } const X = L.filter(x => x.fecha === a.fecha && x.llave === a.llave && x.archivo === a.archivo), pts = [];
+      const plano = v => { if (Array.isArray(v) && typeof v[0] === 'number') pts.push(v); else if (Array.isArray(v)) v.forEach(plano); }; X.forEach(x => plano(x.poly));
+      if (!pts.length) { banner('Este levantamiento no tiene coordenadas para ubicar.'); return; }
+      let cambio = false; a.capas.forEach(cp => { if (OEOCULTAS.has(cp)) { OEOCULTAS.delete(cp); cambio = true; } }); if (cambio) refrescar(false);
+      const b = window.L.latLngBounds(pts); mapa.fitBounds(b.pad(0.6), { maxZoom: 20 });
+      const res = window.L.rectangle(b.pad(0.15), { color: '#1565c0', weight: 3, dashArray: '8 6', fill: false, interactive: false }).addTo(mapa); setTimeout(() => mapa.removeLayer(res), 6000);
+      box.scrollIntoView({ behavior: 'smooth', block: 'center' }); banner('📍 ' + a.archivo + ' · ' + fmtF(a.fecha), 'ok'); };
     const AN = (OEAV && OEAV.anul) || [], nA = Object.keys(arch).length;
     const seccion = (clave, titulo, total, cuerpo, extra) => { const abierto = !!OEABIERTO[clave], caja = h('div', { class: 'av-sec' + (abierto ? ' ab' : '') });
       const cab = h('button', { type: 'button', class: 'av-sec-h', onclick: () => { OEABIERTO[clave] = !OEABIERTO[clave]; caja.classList.toggle('ab'); } }, h('span', { class: 'av-sec-f' }, '▸'), h('b', {}, titulo), h('span', { class: 'av-sec-n' }, String(total)));
@@ -2742,7 +2751,7 @@ async function pintarOeAvance(c) {
         banner('✔ ZIP con ' + it.length + ' TXT descargado' + (mal.length ? '. No se encontraron: ' + mal.join(', ') : '.'), 'ok');
       } catch (e3) { banner('No se pudo armar el ZIP (sin conexión).'); } finally { bZip.disabled = false; bZip.textContent = t0; } };
     seccion('txt', 'Archivos TXT cargados', nA, h('div', {}, h('div', { class: 'small', style: 'margin:0 0 6px' }, '⬇ TXT descarga el archivo original. Anular lo quita del avance (se pide el motivo y queda en el control de cambios).'),
-      h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', 'Descargar'].concat(ed ? ['Anular'] : []).map(t => h('th', {}, t)))), fb))), nA ? bZip : null);
+      h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', 'Mapa', 'Descargar'].concat(ed ? ['Anular'] : []).map(t => h('th', {}, t)))), fb))), nA ? bZip : null);
     let cuerpoC;
     if (!AN.length) cuerpoC = h('div', { class: 'trok' }, 'No hay cambios en estas fechas.');
     else { const cb = h('tbody', {}); AN.slice().sort((x, y) => y.cambio.localeCompare(x.cambio)).forEach(x => cb.appendChild(h('tr', {}, h('td', {}, x.cambio.slice(8, 10) + '/' + x.cambio.slice(5, 7) + '/' + x.cambio.slice(0, 4) + ' ' + x.cambio.slice(11, 16)), h('td', {}, fmtF(x.fecha)), h('td', {}, x.topografo), h('td', {}, x.archivo), h('td', { style: 'font-weight:800' }, x.resultado), h('td', {}, x.usuario), h('td', {}, x.motivo))));
