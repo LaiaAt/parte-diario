@@ -361,8 +361,7 @@ async function abrir(r) {
   ['login', 'listo', 'app', 'barra'].forEach(i => $(i).hidden = true);
   $('biblio').hidden = false;
   $('biblio').textContent = '';
-  $('biblio').appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + (user.nombre || '')), h('br'), h('small', {}, 'Cargando…'), h('br'),
-    h('button', { onclick: salir, style: 'margin-top:8px;background:#fff;color:#b00020;border:2px solid #b00020' }, '🚪 Cerrar sesión (cambiar llave)')));
+  $('biblio').appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + (user.nombre || '')), h('br'), h('small', {}, 'Cargando…')));
   ult = r;
   if (!r && navigator.onLine) {
     actualizando(true);
@@ -378,6 +377,19 @@ async function abrir(r) {
 const ELIM = {};
 const elimKey = (f, n) => f + '|' + (n || 1);
 const estaElim = (f, n) => (ELIM[elimKey(f, n)] || 0) > Date.now();
+// seguimiento visual: 7 días (hoy es el 7.º), ✔ si el parte de ese día ya se envió, ✖ si no
+function semanaPartes(todos, h0) {
+  const DS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'], fila = h('div', { style: 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px' });
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(h0 + 'T12:00:00'); d.setDate(d.getDate() - i);
+    const f = d.toLocaleDateString('sv-SE'), ok = todos.some(x => x.fecha === f && !x.pend && !x.borr);
+    fila.appendChild(h('div', { style: 'text-align:center;padding:6px 0;border-radius:8px;border:2px solid ' + (ok ? '#1b7f3b' : '#b3261e') + ';background:' + (ok ? '#e6f4ea' : '#fdecea') + (i === 0 ? ';box-shadow:0 0 0 2px #14212b' : '') },
+      h('div', { style: 'font-size:11px;font-weight:700;color:#555' }, DS[d.getDay()]),
+      h('div', { style: 'font-size:15px;font-weight:800' }, String(d.getDate())),
+      h('div', { style: 'font-size:18px;font-weight:900;color:' + (ok ? '#1b7f3b' : '#b3261e') }, ok ? '✔' : '✖')));
+  }
+  return fila;
+}
 async function pintarBiblio(lista) {
   lista = lista.filter(x => !estaElim(x.fecha, x.n));
   const cola = ((await kv.get('cola')) || []).filter(e => e.llave === user.llave && !estaElim(e.parte.fecha, e.parte.n));
@@ -390,15 +402,15 @@ async function pintarBiblio(lista) {
     const bn = bo.parte.n || 1, bk = K(bo.fecha, bn);
     por[bk] = Object.assign(por[bk] || { fecha: bo.fecha, n: bn, pdf: false, rev: bo.parte.rev || 1 }, { borr: true });
   }
-  const todos = Object.keys(por).map(k => por[k]);
+  const lim = (() => { const d = new Date(h0 + 'T12:00:00'); d.setDate(d.getDate() - 9); return d.toLocaleDateString('sv-SE'); })();
+  const todos = Object.keys(por).map(k => por[k]).filter(x => x.fecha >= lim); // máximo 10 días
   const deHoy = todos.filter(x => x.fecha === h0).sort((a, b) => a.n - b.n);
   const deAyer = todos.filter(x => x.fecha !== h0 && permit.indexOf(x.fecha) >= 0).sort((a, b) => a.fecha === b.fecha ? a.n - b.n : (a.fecha < b.fecha ? 1 : -1));
   const otros = todos.filter(x => permit.indexOf(x.fecha) < 0).sort((a, b) => a.fecha === b.fecha ? b.n - a.n : (a.fecha < b.fecha ? 1 : -1));
   const sig = deHoy.reduce((m, x) => Math.max(m, x.n), 0) + 1;
   const B = $('biblio');
   B.textContent = '';
-  B.appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + user.nombre), h('br'), h('small', {}, PD.fechaLarga(h0)), h('br'),
-    h('button', { onclick: salir, style: 'margin-top:8px;background:#fff;color:#b00020;border:2px solid #b00020' }, '🚪 Cerrar sesión (cambiar llave)')));
+  B.appendChild(h('div', { class: 'card' }, h('b', {}, 'Hola, ' + user.nombre), h('br'), h('small', {}, PD.fechaLarga(h0)), semanaPartes(todos, h0)));
   B.appendChild(cajaAvisos());
   B.appendChild(h('button', { onclick: () => elegirFecha(todos) }, '➕ Crear parte diario'));
   const card = h('div', { class: 'card', style: 'margin-top:12px' }, h('b', {}, 'Mis partes'));
