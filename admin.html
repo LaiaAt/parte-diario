@@ -240,6 +240,9 @@ header>span{gap:6px!important;min-width:0}
 .av-pf{display:flex;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid #e3e8ee;margin-top:8px;padding-top:8px;font-size:12.5px;font-weight:700;color:#4b5b67}
 .leaflet-pane svg,.leaflet-pane canvas{max-width:none!important}
 .av-abs span{position:absolute;left:0;top:0;white-space:nowrap;font:800 14px/1 system-ui,Segoe UI,Arial;color:#111827;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 2px #fff;pointer-events:none}
+.av-full-b{background:#fff;border:0;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.2);font-weight:800;font-size:13.5px;padding:8px 12px;cursor:pointer;min-height:0;width:auto;color:#0f172a}
+.av-grid.av-full{position:fixed;inset:0;z-index:99990;background:#fff;padding:8px;gap:8px;grid-template-columns:330px 1fr;height:100vh;box-sizing:border-box}
+.av-grid.av-full .av-panel{max-height:none;height:100%;box-sizing:border-box}.av-grid.av-full .av-mapa{height:100%}
 .av-plano{width:270px;max-height:min(60vh,520px);overflow:auto;padding:10px;background:#fff}
 .av-ctl{background:#fff;border-radius:10px!important;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.2)}.av-ctl-b{display:block;width:100%;border:0;background:#fff;font-weight:800;font-size:14px;padding:9px 14px;cursor:pointer;min-height:0;color:#0f172a;text-align:left}
 .av-radio{display:flex;gap:8px;align-items:center;font-size:13.5px;padding:3px 2px;cursor:pointer}.av-radio input{width:16px;height:16px;min-height:0;margin:0}
@@ -2601,7 +2604,7 @@ async function pintarOeAvance(c) {
   };
   const verPlanos = () => { if (!mapa || !OEPLANOS) return; OEPLANOS.forEach(p => { let g = grPlano[p.id]; if (!g) { g = grPlano[p.id] = window.L.layerGroup(); p.geo.forEach(P => window.L.polyline(P, { color: p.color, weight: 1.6, opacity: .9, interactive: false, pane: 'plano' }).addTo(g));
       if (p.textos && p.textos.length) { const gt = window.L.layerGroup(); p.textos.forEach(t => { let r = ((t.r % 360) + 360) % 360; if (r > 90 && r < 270) r -= 180; window.L.marker(t.p, { interactive: false, keyboard: false, pane: 'plano', icon: window.L.divIcon({ className: 'av-abs', iconSize: [0, 0], html: '<span style="transform:translate(-50%,-50%) rotate(' + (-r) + 'deg)">' + String(t.t).replace(/[<&]/g, '') + '</span>' }) }).addTo(gt); });
-        const zv = () => { if (!g.hasLayer(gt) && mapa.getZoom() >= 16) g.addLayer(gt); else if (g.hasLayer(gt) && mapa.getZoom() < 16) g.removeLayer(gt); }; mapa.on('zoomend', zv); zv(); } }
+        const zv = () => { if (!g.hasLayer(gt) && mapa.getZoom() >= 17) g.addLayer(gt); else if (g.hasLayer(gt) && mapa.getZoom() < 17) g.removeLayer(gt); }; mapa.on('zoomend', zv); zv(); } }
     if (OEPLOFF.has(p.nombre)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); } else if (!mapa.hasLayer(g)) g.addTo(mapa); }); };
   pintarPlanos();
   if (!OEPLANOS) cargarPlanos().then(() => { if (planoBox.isConnected) { pintarPlanos(); verPlanos(); } });
@@ -2611,7 +2614,7 @@ async function pintarOeAvance(c) {
     h('div', { class: 'av-pf' }, h('span', {}, 'Dibujar todas como'), todasSeg),
     h('button', { class: 'sec', style: 'width:100%;margin-top:8px', onclick: () => refrescar(true) }, '🎯 Centrar mapa'));
   const box = h('div', { class: 'av-mapa' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
-  c.appendChild(h('div', { class: 'av-grid' }, panel, box));
+  const grid = h('div', { class: 'av-grid' }, panel, box); c.appendChild(grid);
   if (!OEPREV.length) { // archivos TXT cargados por los topógrafos: descargar y, con permiso, anular los erróneos
     const arch = {}; L.forEach(x => { const k = x.fecha + '|' + x.llave + '|' + x.archivo; (arch[k] = arch[k] || { fecha: x.fecha, llave: x.llave, topografo: x.topografo, archivo: x.archivo, txt: x.txt, capas: [] }).capas.push(x.capa); });
     const bajarTxt = async a => { try { const r = await api({ accion: 'admin_oe_lev_txt', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo }); if (!r.ok) { banner(r.mensaje || 'No se pudo descargar.'); return; } const u = URL.createObjectURL(new Blob([r.txt], { type: 'text/plain' })), l = h('a', { href: u, download: r.nombre }); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000); } catch (er) { banner('No se pudo descargar.'); } };
@@ -2639,6 +2642,12 @@ async function pintarOeAvance(c) {
     fondoSel = h('div', {}, h('div', { class: 'av-ph' }, h('b', {}, 'Fondo')), Object.keys(bs.B).map(nm => h('label', { class: 'av-radio' }, (() => { const r = h('input', { type: 'radio', name: 'oefondo' }); r.checked = nm === bs.k; r.onchange = () => { Object.keys(bs.B).forEach(x => { if (m.hasLayer(bs.B[x])) m.removeLayer(bs.B[x]); }); bs.B[nm].addTo(m); bs.k = nm; try { localStorage.setItem('oe_base', nm); } catch (x) {} }; return r; })(), nm)));
     const Ctl = window.L.Control.extend({ options: { position: 'topright' }, onAdd: () => { const d = h('div', { class: 'av-ctl leaflet-bar' }); const bt = h('button', { type: 'button', class: 'av-ctl-b' }, '🗺️ Capas ▾'); let ab = false; bt.onclick = () => { ab = !ab; planoBox.style.display = ab ? 'block' : 'none'; bt.textContent = ab ? '🗺️ Capas ▴' : '🗺️ Capas ▾'; }; planoBox.style.display = 'none'; d.appendChild(bt); d.appendChild(planoBox); window.L.DomEvent.disableClickPropagation(d); window.L.DomEvent.disableScrollPropagation(d); return d; } });
     new Ctl().addTo(m); pintarPlanos();
+    const Full = window.L.Control.extend({ options: { position: 'topleft' }, onAdd: () => { const b = h('button', { type: 'button', class: 'av-full-b', title: 'Pantalla completa: actividades, plano y capas' }, '⛶ Pantalla completa');
+      const poner = on => { grid.classList.toggle('av-full', on); b.textContent = on ? '✕ Salir de pantalla completa' : '⛶ Pantalla completa'; setTimeout(() => m.invalidateSize(), 120); };
+      b.onclick = () => { const on = !grid.classList.contains('av-full'); if (on) { poner(true); try { if (grid.requestFullscreen) grid.requestFullscreen().catch(() => {}); } catch (e2) {} } else { poner(false); try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e2) {} } };
+      document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && grid.classList.contains('av-full')) poner(false); });
+      window.L.DomEvent.disableClickPropagation(b); return b; } });
+    new Full().addTo(m);
     dibujar = () => {
     Object.keys(grupos).forEach(k => grupos[k].clearLayers());
     L.slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
