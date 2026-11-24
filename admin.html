@@ -2241,7 +2241,7 @@ function vistaOeMapa(c, L) {
 }
 
 /* ---------- OE · Avance: levantamientos TXT de la estación total dibujados en el mapa ---------- */
-let OEAV = null, OEAVF = { capa: '', top: '' }, OEPREV = [];
+let OEAV = null, OEAVF = { top: '' }, OEPREV = [], OEOCULTAS = new Set();
 /* ---------- Levantamientos TXT (estación total) ---------- */
 function tmInv(E, N) { // plano de Bogotá D.C. (IDU, MAGNA GRS80) → [lat, lon]
   const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180;
@@ -2309,41 +2309,58 @@ async function pintarOeAvance(c) {
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
   const A = OEPREV.length ? OEPREV : (OEAV.lev || []);
   const fin = h('input', { type: 'file', accept: '.txt,.csv,text/plain', multiple: true, hidden: true });
-  fin.onchange = async () => { const fs = Array.from(fin.files || []); fin.value = ''; const R = [], mal = []; for (const f of fs) { try { const res = levParse(await f.text()); if (res.error) { mal.push(f.name); continue; } const fe = levFecha(f.name) || bogota(); res.capas.forEach(c => R.push(Object.assign({ fecha: fe, llave: 'PREV', topografo: 'Vista previa', archivo: f.name }, c))); } catch (e) { mal.push(f.name); } } OEPREV = R; OEAVF = { capa: '', top: '' }; if (mal.length) banner('No se pudo leer: ' + mal.join(', '), 'mal'); pintarOe(); };
+  fin.onchange = async () => { const fs = Array.from(fin.files || []); fin.value = ''; const R = [], mal = []; for (const f of fs) { try { const res = levParse(await f.text()); if (res.error) { mal.push(f.name); continue; } const fe = levFecha(f.name) || bogota(); res.capas.forEach(c => R.push(Object.assign({ fecha: fe, llave: 'PREV', topografo: 'Vista previa', archivo: f.name }, c))); } catch (e) { mal.push(f.name); } } OEPREV = R; OEAVF = { top: '' }; OEOCULTAS = new Set(); if (mal.length) banner('No se pudo leer: ' + mal.join(', '), 'mal'); pintarOe(); };
   c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;align-items:center' }, h('button', { class: 'sec', onclick: () => fin.click() }, '📂 Cargar TXT (vista previa)'), fin,
-    OEPREV.length ? h('button', { onclick: () => { OEPREV = []; OEAVF = { capa: '', top: '' }; pintarOe(); } }, '✖ Quitar vista previa') : null,
+    OEPREV.length ? h('button', { onclick: () => { OEPREV = []; OEAVF = { top: '' }; OEOCULTAS = new Set(); pintarOe(); } }, '✖ Quitar vista previa') : null,
     OEPREV.length ? h('span', { class: 'small', style: 'font-weight:700;color:#9a6b00' }, 'VISTA PREVIA de ' + new Set(OEPREV.map(x => x.archivo)).size + ' archivo(s): se ven solo aquí, no se guardó nada.') : null));
   if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados en estas fechas. Usa «Cargar TXT (vista previa)» para ver cómo se vería con tus archivos.')); return; }
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
-  const sel = (key, op, def) => { const s = h('select', { onchange: () => { OEAVF[key] = s.value; pintarOe(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = OEAVF[key]; return s; };
-  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, sel('capa', capas.map(x => [x, x]), 'Todas las actividades'), sel('top', tops.map(l => [l, nomDe(l) || l]), 'Todos los topógrafos')));
-  const L = A.filter(x => (!OEAVF.capa || x.capa === OEAVF.capa) && (!OEAVF.top || x.llave === OEAVF.top));
-  if (!L.length) { c.appendChild(h('div', { class: 'trok' }, 'Ningún levantamiento coincide con el filtro')); return; }
-  const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
-  const area = L.reduce((s, x) => s + (x.area || 0), 0);
-  c.appendChild(h('div', { class: 'kpis' }, K('Archivos', new Set(L.map(x => x.fecha + x.llave + x.archivo)).size), K('Días', new Set(L.map(x => x.fecha)).size), K('Actividades', new Set(L.map(x => x.capa)).size), K('Área levantada (suma)', oeFmt(area) + ' m²')));
-  c.appendChild(h('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin:8px 0' }, capas.filter(cp => L.some(x => x.capa === cp)).map(cp => h('span', { class: 'small', style: 'display:flex;align-items:center;gap:5px;font-weight:700' }, h('span', { style: 'width:14px;height:14px;border-radius:3px;background:' + col(cp) + ';border:2px solid #fff;box-shadow:0 0 0 1px #8a97a6' }), cp))));
+  const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
+  const e = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  let mapa = null; const grupos = {}, chips = {};
+  const vis = x => !OEOCULTAS.has(x.capa);
+  const mk = t => { const b = h('b', {}, ''); return { el: h('div', { class: 'kpi' }, b, t), set: v => { b.textContent = v; } }; };
+  const kA = mk('Archivos'), kD = mk('Días'), kC = mk('Actividades'), kM = mk('Área levantada (suma)');
+  const tbody = h('tbody', {});
+  const refrescar = ajustar => {
+    const V = L.filter(vis);
+    kA.set(new Set(V.map(x => x.fecha + x.llave + x.archivo)).size); kD.set(new Set(V.map(x => x.fecha)).size); kC.set(new Set(V.map(x => x.capa)).size); kM.set(oeFmt(V.reduce((s, x) => s + (x.area || 0), 0)) + ' m²');
+    capas.forEach(cp => { const on = !OEOCULTAS.has(cp), b = chips[cp]; if (b) { b.style.background = on ? col(cp) : '#fff'; b.style.color = on ? '#fff' : '#6b7785'; b.style.textDecoration = on ? 'none' : 'line-through'; b.style.opacity = on ? '1' : '.75'; } });
+    tbody.textContent = '';
+    V.slice().sort((x, y) => y.fecha.localeCompare(x.fecha) || x.capa.localeCompare(y.capa)).forEach(x => tbody.appendChild(h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, x.capa), h('td', {}, x.topografo || nomDe(x.llave)), h('td', {}, x.archivo), h('td', {}, String(x.n)), h('td', {}, x.area ? oeFmt(x.area) : '—'), h('td', {}, oeR(x.zprom) + ' m'))));
+    if (!V.length) tbody.appendChild(h('tr', {}, h('td', { colspan: 7 }, 'No hay actividades activas. Toca una actividad de arriba para mostrarla.')));
+    if (mapa) {
+      const b = [];
+      capas.forEach(cp => { const g = grupos[cp]; if (!g) return; if (OEOCULTAS.has(cp)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); } else { if (!mapa.hasLayer(g)) g.addTo(mapa); g.eachLayer(l => { if (l.getLatLngs) { const ll = l.getLatLngs(); (Array.isArray(ll[0]) ? ll.flat(2) : ll).forEach(p => b.push(p)); } else if (l.getLatLng) b.push(l.getLatLng()); }); } });
+      if (ajustar && b.length) mapa.fitBounds(b, { padding: [30, 30], maxZoom: 19 });
+    }
+  };
+  const todas = v => { OEOCULTAS = v ? new Set() : new Set(capas); refrescar(true); };
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;align-items:center' }, tops.length > 1 ? (() => { const s2 = h('select', { onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null,
+    h('button', { class: 'sec', onclick: () => todas(true) }, '✔ Mostrar todas'), h('button', { class: 'sec', onclick: () => todas(false) }, '✖ Ocultar todas'), h('button', { class: 'sec', onclick: () => refrescar(true) }, '🎯 Ajustar mapa a lo visible')));
+  c.appendChild(h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Toca una actividad para mostrarla u ocultarla en el mapa. Puedes dejar varias a la vez.'));
+  c.appendChild(h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px' }, capas.map(cp => { const n = L.filter(x => x.capa === cp).length;
+    const b = h('button', { type: 'button', style: 'border:2px solid ' + col(cp) + ';border-radius:999px;padding:5px 12px;font-weight:800;font-size:14px;cursor:pointer;min-height:34px', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, cp + ' · ' + n); chips[cp] = b; return b; })));
+  c.appendChild(h('div', { class: 'kpis' }, kA.el, kD.el, kC.el, kM.el));
   const box = h('div', { style: 'height:min(70vh,640px);border-radius:12px;border:1px solid #cfd8e3;overflow:hidden;background:#eef2f5' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
   c.appendChild(box);
-  const e = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  c.appendChild(h('div', { class: 'tw', style: 'margin-top:12px' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Actividad', 'Topógrafo', 'Archivo', 'Puntos', 'Área m²', 'Cota prom.'].map(t => h('th', {}, t)))), tbody)));
+  refrescar(false);
   cargarLeaflet().then(() => {
     if (!box.isConnected) return; box.textContent = '';
-    const m = window.L.map(box, { scrollWheelZoom: true }), b = [];
+    const m = window.L.map(box, { scrollWheelZoom: true }); mapa = m;
     oeBase(m);
     L.slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
-      const P = (x.poly || []).filter(p => isFinite(p[0]) && isFinite(p[1])); if (!P.length) return; P.forEach(p => b.push(p));
+      const P = (x.poly || []).filter(p => isFinite(p[0]) && isFinite(p[1])); if (!P.length) return;
+      const g = grupos[x.capa] = grupos[x.capa] || window.L.layerGroup();
       const op = { color: col(x.capa), weight: 3, fillColor: col(x.capa), fillOpacity: .5 };
       const pop = '<b>' + e(x.capa) + '</b><br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m';
-      if (!x.area) { P.forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(m).bindPopup(pop)); return; }
-      const g = P.length >= 3 ? window.L.polygon(P, op) : P.length === 2 ? window.L.polyline(P, op) : window.L.circleMarker(P[0], Object.assign({ radius: 7 }, op));
-      g.addTo(m).bindPopup(pop);
+      if (!x.area) { P.forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
+      (P.length >= 3 ? window.L.polygon(P, op) : P.length === 2 ? window.L.polyline(P, op) : window.L.circleMarker(P[0], Object.assign({ radius: 7 }, op))).addTo(g).bindPopup(pop);
     });
-    if (b.length) m.fitBounds(b, { padding: [30, 30], maxZoom: 19 });
+    refrescar(true);
   }).catch(() => { box.textContent = 'No se pudo cargar el mapa (sin señal).'; });
-  const rows = L.slice().sort((x, y) => y.fecha.localeCompare(x.fecha) || x.capa.localeCompare(y.capa));
-  c.appendChild(h('div', { class: 'tw', style: 'margin-top:12px' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Actividad', 'Topógrafo', 'Archivo', 'Puntos', 'Área m²', 'Cota prom.'].map(t => h('th', {}, t)))),
-    h('tbody', {}, rows.map(x => h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, x.capa), h('td', {}, x.topografo || nomDe(x.llave)), h('td', {}, x.archivo), h('td', {}, String(x.n)), h('td', {}, x.area ? oeFmt(x.area) : '—'), h('td', {}, oeR(x.zprom) + ' m')))))));
 }
 // Centros de costo válidos: catálogo de la app (incluye UF6/UF7 con su código), subcuentas y los creados por la oficina. código → [actividad, und, UF, hito, paquete, origen]
 let OE_CATJ = null;
