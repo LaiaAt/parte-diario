@@ -244,8 +244,12 @@ header>span{gap:6px!important;min-width:0}
 .av-pf2{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:13.5px;font-weight:800;color:#0f172a;margin-bottom:8px}
 .av-pf2 .av-seg{background:#d6e4da}.av-pf2 .av-seg button{font-size:13px;padding:6px 12px;color:#1f2d27}.av-pf2 .av-seg button.on{background:#0a7a32;color:#fff}
 .av-centrar{width:100%;min-height:38px;background:#0a7a32;color:#fff;border:0;border-radius:10px;font-weight:800;font-size:14.5px;cursor:pointer}.av-centrar:hover{background:#086528}
-.av-full-b{background:#fff;border:0;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.2);font-weight:800;font-size:13.5px;padding:8px 12px;cursor:pointer;min-height:0;width:auto;color:#0f172a}
-.av-grid.av-full{position:fixed;inset:0;z-index:99990;background:#fff;padding:8px;gap:8px;grid-template-columns:330px 1fr;height:100vh;box-sizing:border-box}
+.av-full-b{background:#c62828;border:0;border-radius:10px;box-shadow:0 2px 10px rgba(198,40,40,.4);font-weight:800;font-size:13.5px;padding:8px 12px;cursor:pointer;min-height:0;width:auto;color:#fff}.av-full-b:hover{background:#a51d1d}
+.av-esc{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:99999;background:#111827;color:#fff;font-weight:800;font-size:15px;padding:10px 18px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;transition:opacity .6s}.av-esc.fuera{opacity:0}
+.av-sec{border:1px solid #cfd8e3;border-radius:12px;margin-top:12px;background:#fff;overflow:hidden}.av-sec-top{display:flex;align-items:center;gap:8px;padding-right:10px}.av-sec-h{flex:1;display:flex;align-items:center;gap:10px;border:0;background:#fff;padding:12px 14px;cursor:pointer;min-height:0;width:auto;font-size:16px;color:#0f172a;text-align:left;box-shadow:none}.av-sec-h:hover{background:#f5f8fa}
+.av-sec-f{transition:transform .2s;color:#0a7a32;font-size:14px}.av-sec.ab .av-sec-f{transform:rotate(90deg)}.av-sec-n{background:#0a7a32;color:#fff;border-radius:999px;font-size:12.5px;font-weight:800;padding:2px 9px}.av-sec-c{display:none;padding:0 12px 12px}.av-sec.ab .av-sec-c{display:block}
+.av-zip{width:auto;min-height:34px;background:#0a7a32;color:#fff;border:0;border-radius:10px;font-weight:800;font-size:13.5px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+.av-grid{position:relative}.av-grid.av-full{position:fixed;inset:0;z-index:99990;background:#fff;padding:8px;gap:8px;grid-template-columns:330px 1fr;height:100vh;box-sizing:border-box}
 .av-grid.av-full .av-panel{max-height:none;height:100%;box-sizing:border-box}.av-grid.av-full .av-mapa{height:100%}
 .av-plano{width:270px;max-height:min(60vh,520px);overflow:auto;padding:10px;background:#fff}
 .av-ctl{background:#fff;border-radius:10px!important;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.2)}.av-ctl-b{display:block;width:100%;border:0;background:#fff;font-weight:800;font-size:14px;padding:9px 14px;cursor:pointer;min-height:0;color:#0f172a;text-align:left}
@@ -2440,7 +2444,7 @@ function elegirCapasDxf(porCapa, nombre) { // ventana para escoger las capas del
     document.body.appendChild(fondo);
   });
 }
-let OEALIAS = {};
+let OEALIAS = {}, OEABIERTO = {}, OEIMG = {};
 const oeNom = cp => ((D && D.oealias) || OEALIAS)[cp] || cp; // nombre visible de la actividad (no cambia los datos)
 let OEPLANOS = null; const OEPLANO_COL = ['#d32f2f', '#1565c0', '#6a1b9a', '#ef6c00', '#00838f', '#5d4037', '#c2185b', '#2e7d32'];
 let OEPLOFF = (() => { try { return new Set(JSON.parse(localStorage.getItem('oe_planos_off') || '[]')); } catch (e) { return new Set(); } })();
@@ -2583,8 +2587,11 @@ async function pintarOeAvance(c) {
   const planoBox = h('div', { class: 'av-plano' }), grPlano = {}; let fondoSel = null;
   const pintarPlanos = () => {
     planoBox.textContent = '';
-    const fin = h('input', { type: 'file', accept: '.kml,.dxf', hidden: true });
-    fin.onchange = async () => { const f = fin.files && fin.files[0]; fin.value = ''; if (!f) return;
+    const fin = h('input', { type: 'file', accept: '.kml,.dxf,.jpg,.jpeg,.png,.jgw,.pgw,.jpgw,.pngw,.wld', multiple: true, hidden: true });
+    fin.onchange = async () => { const fs3 = Array.from(fin.files || []); fin.value = ''; if (!fs3.length) return;
+      const im = fs3.find(x => /\.(jpe?g|png)$/i.test(x.name)), wf = fs3.find(x => /\.(jgw|pgw|jpgw|pngw|wld)$/i.test(x.name));
+      if (im) { if (!wf) { banner('Para la ortofoto elige juntos la imagen (JPG o PNG) y su archivo de ubicación (JGW, PGW o WLD), con Ctrl.'); return; } await subirOrto(im, wf); return; }
+      const f = fs3[0];
       banner('Leyendo ' + f.name + '…', 'ok'); let res; try { res = planoLeer(f.name, await f.text()); } catch (e) { res = { error: 'No se pudo leer el archivo.' }; }
       if (res.error) { banner(res.error); return; }
       let nom = f.name.replace(/\.[^.]+$/, '');
@@ -2599,15 +2606,42 @@ async function pintarOeAvance(c) {
     planoBox.appendChild(fin);
     if (!OEPLANOS) { planoBox.appendChild(h('div', { class: 'small' }, 'Cargando capas…')); return; }
     if (!OEPLANOS.length) planoBox.appendChild(h('div', { class: 'small' }, 'Sin capas. Carga un KML o DXF del proyecto.'));
+    const ayudaPl = h('div', { class: 'small', style: 'margin-top:6px;line-height:1.35' }, 'Planos: KML o DXF. Ortofoto: el ECW no se puede subir directo; conviértelo a JPG con su archivo de ubicación (JGW) y elige los dos juntos.');
     OEPLANOS.forEach(p => { const on = !OEPLOFF.has(p.nombre);
       const caja = h('span', { class: 'av-chk', style: 'border-color:' + p.color + ';background:' + (on ? p.color : '#fff') }, on ? '✓' : '');
       planoBox.appendChild(h('div', { class: 'av-fila', onclick: () => { if (OEPLOFF.has(p.nombre)) OEPLOFF.delete(p.nombre); else OEPLOFF.add(p.nombre); try { localStorage.setItem('oe_planos_off', JSON.stringify(Array.from(OEPLOFF))); } catch (e) {} pintarPlanos(); verPlanos(); } }, caja,
-        h('div', { style: 'flex:1;min-width:0' }, h('b', {}, p.nombre), h('small', {}, p.fijo ? 'Capa base del proyecto' : 'Cargada por ' + (p.quien || '—') + ' · ' + String(p.creado || '').slice(0, 10))),
+        h('div', { style: 'flex:1;min-width:0' }, h('b', {}, p.nombre), h('small', {}, p.fijo ? 'Capa base del proyecto' : (p.tipo === 'img' ? '🖼️ Ortofoto · ' : '') + 'Cargada por ' + (p.quien || '—') + ' · ' + String(p.creado || '').slice(0, 10))),
         p.fijo ? null : h('button', { type: 'button', class: 'sec', title: 'Quitar esta capa', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px', onclick: async ev => { ev.stopPropagation(); if (!confirm('¿Quitar la capa «' + p.nombre + '» para todos los usuarios?')) return; try { const r = await api({ accion: 'admin_oe_plano_borrar', llave: LLAVE, id: p.id }); if (!r.ok) { banner(r.mensaje || 'No se pudo quitar.'); return; } OEPLANOS = null; pintarOe(); } catch (e) { banner('No se pudo quitar.'); } } }, '✕')));
     });
-    planoBox.appendChild(h('button', { type: 'button', class: 'sec', style: 'width:100%;margin-top:8px;min-height:36px', onclick: () => fin.click() }, '＋ Cargar plano (KML o DXF)'));
+    planoBox.appendChild(h('button', { type: 'button', class: 'sec', style: 'width:100%;margin-top:8px;min-height:36px', onclick: () => fin.click() }, '＋ Cargar plano u ortofoto'));
+    planoBox.appendChild(ayudaPl);
   };
-  const verPlanos = () => { if (!mapa || !OEPLANOS) return; OEPLANOS.forEach(p => { let g = grPlano[p.id]; if (!g) { g = grPlano[p.id] = window.L.layerGroup(); p.geo.forEach(P => window.L.polyline(P, { color: p.color, weight: 1.6, opacity: .9, interactive: false, pane: 'plano' }).addTo(g));
+  const subirOrto = async (im, wf) => {
+    try {
+      const w = (await wf.text()).trim().split(/\s+/).map(Number); if (w.length < 6 || w.some(v => !isFinite(v))) { banner('El archivo de ubicación (' + wf.name + ') no es válido.'); return; }
+      banner('Preparando la ortofoto…', 'ok');
+      const url = URL.createObjectURL(im), img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+      const W = img.naturalWidth, H = img.naturalHeight, px = (c, r) => [w[0] * c + w[2] * r + w[4], w[1] * c + w[3] * r + w[5]];
+      const esq = [px(-0.5, -0.5), px(W - 0.5, -0.5), px(W - 0.5, H - 0.5), px(-0.5, H - 0.5)].map(q => planoXY(q[0], q[1]));
+      if (esq.some(p => !(p[0] > -5 && p[0] < 14 && p[1] > -82 && p[1] < -66))) { banner('La ortofoto no cae en Colombia. Revisa el archivo de ubicación.'); URL.revokeObjectURL(url); return; }
+      const lim = [[Math.min.apply(null, esq.map(p => p[0])), Math.min.apply(null, esq.map(p => p[1]))], [Math.max.apply(null, esq.map(p => p[0])), Math.max.apply(null, esq.map(p => p[1]))]];
+      let k = Math.min(1, 6000 / Math.max(W, H)), dataUrl = '';
+      for (let t = 0; t < 4; t++) { const cv = document.createElement('canvas'); cv.width = Math.round(W * k); cv.height = Math.round(H * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); dataUrl = cv.toDataURL('image/jpeg', 0.78); if (dataUrl.length < 14e6) break; k *= 0.75; }
+      URL.revokeObjectURL(url);
+      const nom = (prompt('Nombre de la ortofoto. Ej: Ortofoto noviembre 2026', im.name.replace(/\.[^.]+$/, '')) || '').trim(); if (!nom) return;
+      banner('Subiendo la ortofoto (' + Math.round(dataUrl.length * 0.75 / 1e6 * 10) / 10 + ' MB)…', 'ok');
+      const r = await api({ accion: 'admin_oe_plano_subir', llave: LLAVE, nombre: nom, img: dataUrl, limites: lim });
+      if (!r.ok) { banner(r.mensaje || 'No se pudo guardar la ortofoto.'); return; } banner('Ortofoto «' + nom + '» guardada.', 'ok'); OEPLANOS = null; pintarOe();
+    } catch (e) { banner('No se pudo cargar la ortofoto (imagen muy grande o sin conexión).'); }
+  };
+  const verPlanos = () => { if (!mapa || !OEPLANOS) return; OEPLANOS.forEach(p => { let g = grPlano[p.id];
+    if (p.tipo === 'img') { if (!g) { g = grPlano[p.id] = window.L.layerGroup(); g.cargada = false; }
+      if (OEPLOFF.has(p.nombre)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); return; }
+      if (!mapa.hasLayer(g)) g.addTo(mapa);
+      if (!g.cargada) { g.cargada = true; const ya = OEIMG[p.id]; const pon = src => window.L.imageOverlay(src, p.limites, { pane: 'orto', opacity: 0.95, interactive: false }).addTo(g);
+        if (ya) pon(ya); else api({ accion: 'admin_oe_plano_img', llave: LLAVE, id: p.id }).then(r => { if (r.ok) { OEIMG[p.id] = r.img; pon(r.img); } else { g.cargada = false; banner(r.mensaje || 'No se pudo cargar la ortofoto.'); } }).catch(() => { g.cargada = false; }); }
+      return; }
+    if (!g) { g = grPlano[p.id] = window.L.layerGroup(); p.geo.forEach(P => window.L.polyline(P, { color: p.color, weight: 1.6, opacity: .9, interactive: false, pane: 'plano' }).addTo(g));
       if (p.textos && p.textos.length) { const gt = window.L.layerGroup(); p.textos.forEach(t => { let r = ((t.r % 360) + 360) % 360; if (r > 90 && r < 270) r -= 180; window.L.marker(t.p, { interactive: false, keyboard: false, pane: 'plano', icon: window.L.divIcon({ className: 'av-abs', iconSize: [0, 0], html: '<span style="transform:translate(-50%,-50%) rotate(' + (-r) + 'deg)">' + String(t.t).replace(/[<&]/g, '') + '</span>' }) }).addTo(gt); });
         const zv = () => { if (!g.hasLayer(gt) && mapa.getZoom() >= 17) g.addLayer(gt); else if (g.hasLayer(gt) && mapa.getZoom() < 17) g.removeLayer(gt); }; mapa.on('zoomend', zv); zv(); } }
     if (OEPLOFF.has(p.nombre)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); } else if (!mapa.hasLayer(g)) g.addTo(mapa); }); };
@@ -2628,28 +2662,42 @@ async function pintarOeAvance(c) {
     Object.keys(arch).map(k => arch[k]).sort((x, y) => y.fecha.localeCompare(x.fecha) || x.archivo.localeCompare(y.archivo)).forEach(a => fb.appendChild(h('tr', {}, h('td', { style: 'white-space:nowrap' }, fmtF(a.fecha)), h('td', {}, a.topografo || nomDe(a.llave)), h('td', { style: 'word-break:break-all' }, a.archivo), h('td', {}, a.capas.map(oeNom).join(', ')),
       h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px', onclick: () => bajarTxt(a) }, '⬇ TXT')),
       ed ? h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px;color:#b3261e;border-color:#e6b4b0', onclick: () => anular(a) }, 'Anular')) : null)));
-    c.appendChild(h('h3', { style: 'margin:16px 0 2px' }, 'Archivos TXT cargados (' + Object.keys(arch).length + ')'));
-    c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, '⬇ TXT descarga el archivo original. Anular lo quita del avance (se pide el motivo y queda en el control de cambios).'));
-    c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', 'Descargar'].concat(ed ? ['Anular'] : []).map(t => h('th', {}, t)))), fb)));
-    const AN = (OEAV && OEAV.anul) || [];
-    c.appendChild(h('h3', { style: 'margin:16px 0 4px' }, 'Control de cambios de TXT'));
-    c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, 'Cada anulación o reemplazo queda registrado: qué archivo, quién lo hizo, cuándo y por qué. Solo el super administrador y los administradores con módulo OE o TODOS pueden anular.'));
-    if (!AN.length) c.appendChild(h('div', { class: 'trok' }, 'No hay cambios en estas fechas.'));
+    const AN = (OEAV && OEAV.anul) || [], nA = Object.keys(arch).length;
+    const seccion = (clave, titulo, total, cuerpo, extra) => { const abierto = !!OEABIERTO[clave], caja = h('div', { class: 'av-sec' + (abierto ? ' ab' : '') });
+      const cab = h('button', { type: 'button', class: 'av-sec-h', onclick: () => { OEABIERTO[clave] = !OEABIERTO[clave]; caja.classList.toggle('ab'); } }, h('span', { class: 'av-sec-f' }, '▸'), h('b', {}, titulo), h('span', { class: 'av-sec-n' }, String(total)));
+      caja.appendChild(h('div', { class: 'av-sec-top' }, cab, extra || null)); caja.appendChild(h('div', { class: 'av-sec-c' }, cuerpo)); c.appendChild(caja); };
+    const bZip = h('button', { type: 'button', class: 'av-zip', title: 'Todos los TXT de la tabla en un solo ZIP, en carpetas por año y mes' }, '⬇ Descargar todos (ZIP)');
+    bZip.onclick = async () => { if (bZip.disabled) return; const L2 = Object.keys(arch).map(k => arch[k]); if (!L2.length) return; bZip.disabled = true; const t0 = bZip.textContent; bZip.textContent = '⏳ Preparando ZIP…';
+      try { const enc = new TextEncoder(), it = [], mal = []; for (let p = 0; p < L2.length; p += 60) { const lote = L2.slice(p, p + 60); bZip.textContent = '⏳ ' + Math.min(p + 60, L2.length) + ' de ' + L2.length + '…';
+          const r = await api({ accion: 'admin_oe_lev_txts', llave: LLAVE, lista: lote.map(a => ({ fecha: a.fecha, top: a.llave, archivo: a.archivo })) }); if (!r.ok) throw new Error(r.mensaje || 'error');
+          (r.archivos || []).forEach((x, i) => { const a = lote[i]; if (!x.ok) { mal.push(a.archivo); return; } it.push({ nombre: a.fecha.slice(0, 4) + '/' + a.fecha.slice(5, 7) + '/' + x.nombre, datos: enc.encode(x.txt), fecha: a.fecha }); }); }
+        if (!it.length) { banner('No se pudo armar el ZIP.'); return; }
+        const fs2 = L2.map(a => a.fecha).sort(); bajar(zipear(it), 'TXT_OE_' + fs2[0] + '_a_' + fs2[fs2.length - 1] + '.zip');
+        banner('✔ ZIP con ' + it.length + ' TXT descargado' + (mal.length ? '. No se encontraron: ' + mal.join(', ') : '.'), 'ok');
+      } catch (e3) { banner('No se pudo armar el ZIP (sin conexión).'); } finally { bZip.disabled = false; bZip.textContent = t0; } };
+    seccion('txt', 'Archivos TXT cargados', nA, h('div', {}, h('div', { class: 'small', style: 'margin:0 0 6px' }, '⬇ TXT descarga el archivo original. Anular lo quita del avance (se pide el motivo y queda en el control de cambios).'),
+      h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', 'Descargar'].concat(ed ? ['Anular'] : []).map(t => h('th', {}, t)))), fb))), nA ? bZip : null);
+    let cuerpoC;
+    if (!AN.length) cuerpoC = h('div', { class: 'trok' }, 'No hay cambios en estas fechas.');
     else { const cb = h('tbody', {}); AN.slice().sort((x, y) => y.cambio.localeCompare(x.cambio)).forEach(x => cb.appendChild(h('tr', {}, h('td', {}, x.cambio.slice(8, 10) + '/' + x.cambio.slice(5, 7) + '/' + x.cambio.slice(0, 4) + ' ' + x.cambio.slice(11, 16)), h('td', {}, fmtF(x.fecha)), h('td', {}, x.topografo), h('td', {}, x.archivo), h('td', { style: 'font-weight:800' }, x.resultado), h('td', {}, x.usuario), h('td', {}, x.motivo))));
-      c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Cuándo', 'Fecha del TXT', 'Topógrafo', 'Archivo', 'Qué se hizo', 'Quién', 'Por qué'].map(t => h('th', {}, t)))), cb))); }
+      cuerpoC = h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Cuándo', 'Fecha del TXT', 'Topógrafo', 'Archivo', 'Qué se hizo', 'Quién', 'Por qué'].map(t => h('th', {}, t)))), cb)); }
+    seccion('camb', 'Control de cambios de TXT', AN.length, h('div', {}, h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Cada anulación o reemplazo queda registrado: qué archivo, quién lo hizo, cuándo y por qué.'), cuerpoC));
   }
   refrescar(false);
   cargarLeaflet().then(() => {
     if (!box.isConnected) return; box.textContent = '';
     const m = window.L.map(box, { scrollWheelZoom: true }); mapa = m;
-    const bs = oeBase(m, true); m.createPane('plano').style.zIndex = 350;
+    const bs = oeBase(m, true); m.createPane('plano').style.zIndex = 350; m.createPane('orto').style.zIndex = 250;
     fondoSel = h('div', {}, h('div', { class: 'av-ph' }, h('b', {}, 'Fondo')), Object.keys(bs.B).map(nm => h('label', { class: 'av-radio' }, (() => { const r = h('input', { type: 'radio', name: 'oefondo' }); r.checked = nm === bs.k; r.onchange = () => { Object.keys(bs.B).forEach(x => { if (m.hasLayer(bs.B[x])) m.removeLayer(bs.B[x]); }); bs.B[nm].addTo(m); bs.k = nm; try { localStorage.setItem('oe_base', nm); } catch (x) {} }; return r; })(), nm)));
     const Ctl = window.L.Control.extend({ options: { position: 'topright' }, onAdd: () => { const d = h('div', { class: 'av-ctl leaflet-bar' }); const bt = h('button', { type: 'button', class: 'av-ctl-b' }, '🗺️ Capas ▾'); let ab = false; bt.onclick = () => { ab = !ab; planoBox.style.display = ab ? 'block' : 'none'; bt.textContent = ab ? '🗺️ Capas ▴' : '🗺️ Capas ▾'; }; planoBox.style.display = 'none'; d.appendChild(bt); d.appendChild(planoBox); window.L.DomEvent.disableClickPropagation(d); window.L.DomEvent.disableScrollPropagation(d); return d; } });
     new Ctl().addTo(m); pintarPlanos();
     const Full = window.L.Control.extend({ options: { position: 'topleft' }, onAdd: () => { const b = h('button', { type: 'button', class: 'av-full-b', title: 'Pantalla completa: actividades, plano y capas' }, '⛶ Pantalla completa');
-      const poner = on => { grid.classList.toggle('av-full', on); b.textContent = on ? '✕ Salir de pantalla completa' : '⛶ Pantalla completa'; setTimeout(() => m.invalidateSize(), 120); };
+      let aviso = null;
+      const poner = on => { grid.classList.toggle('av-full', on); b.textContent = on ? '✕ Salir de pantalla completa' : '⛶ Pantalla completa'; setTimeout(() => m.invalidateSize(), 120);
+        if (aviso) { aviso.remove(); aviso = null; } if (on) { aviso = h('div', { class: 'av-esc' }, 'Presiona la tecla Esc para salir de la pantalla completa'); grid.appendChild(aviso); setTimeout(() => { if (aviso) aviso.classList.add('fuera'); }, 4000); } };
       b.onclick = () => { const on = !grid.classList.contains('av-full'); if (on) { poner(true); try { if (grid.requestFullscreen) grid.requestFullscreen().catch(() => {}); } catch (e2) {} } else { poner(false); try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e2) {} } };
       document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && grid.classList.contains('av-full')) poner(false); });
+      document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && grid.classList.contains('av-full')) poner(false); });
       window.L.DomEvent.disableClickPropagation(b); return b; } });
     new Full().addTo(m);
     dibujar = () => {
