@@ -1975,8 +1975,8 @@ function navegacion() {
   modulo(MOD);
 }
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
-const OE_TABS = [['reg', '📋 Registros']]; // Mapa de registros oculto por ahora: ['mapa', '🗺️ Mapa']
-const oeTabsSuper = () => { if (D && D.superadm && OE_TABS.length < 2) OE_TABS.push(['avance', '🏗️ Avance']); }; // Avance (levantamientos TXT): solo super administrador mientras se prueba
+const OE_TABS = [['reg', '📋 Registros'], ['res', '📊 Resumen']]; // Mapa de registros oculto por ahora: ['mapa', '🗺️ Mapa']
+const oeTabsSuper = () => { if (D && (D.oeed || D.superadm) && OE_TABS.length < 3) OE_TABS.push(['avance', '🏗️ Avance']); }; // Avance (levantamientos TXT): solo super administrador mientras se prueba
 const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Aprobado', '#0a7a32'], CORREGIDO: ['🔵', 'Corregido', '#1565c0'], RECHAZADO: ['🔴', 'Rechazado', '#b3261e'] };
 const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
 const oeCuenta = r => r.rev !== 'RECHAZADO'; // los rechazados no suman
@@ -2104,9 +2104,32 @@ function verFotoOe(r) {
     ov.appendChild(h('div', { style: 'color:#fff' }, 'Toca para cerrar'));
   }).catch(() => { ov.textContent = 'Sin señal'; });
 }
+// Resumen por día y topógrafo (reportes y levantamientos) con los filtros globales del Dashboard
+async function pintarOeResumen(c) {
+  const k = $('desde').value + '|' + $('hasta').value, puedeLev = D && (D.oeed || D.superadm);
+  if (puedeLev && (!OEAV || OEAV.k !== k)) {
+    if (!OEAV || OEAV.k !== k) { OEAV = { k: k, cargando: true }; c.appendChild(h('div', { class: 'trok' }, 'Cargando resumen…'));
+      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (OEAV && OEAV.k === k) OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], err: '' }; }
+      catch (e) { if (OEAV && OEAV.k === k) OEAV = { k: k, lev: [], err: '' }; }
+      if (OETAB === 'res') pintarOe();
+    }
+    return;
+  }
+  if (OEAV && OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando resumen…')); return; }
+  const M = {}, ent = (f, l, t) => (M[f + '|' + l] = M[f + '|' + l] || { fecha: f, llave: l, nr: 0, lv: new Set() });
+  (OE.registros || []).filter(r => r.rev !== 'RECHAZADO').forEach(r => { ent(r.fecha, r.llave).nr++; });
+  ((OEAV && OEAV.lev) || []).forEach(x => { ent(x.fecha, x.llave).lv.add(x.archivo); });
+  const F = Object.keys(M).map(k2 => M[k2]).sort((a, b) => b.fecha.localeCompare(a.fecha) || (nomDe(a.llave) || '').localeCompare(nomDe(b.llave) || ''));
+  if (!F.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay actividad de OE en estas fechas')); return; }
+  const tb = h('tbody', {}); let tr = 0, tl = 0;
+  F.forEach(x => { tr += x.nr; tl += x.lv.size; tb.appendChild(h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, nomDe(x.llave) || x.llave), h('td', {}, String(x.nr)), h('td', {}, String(x.lv.size)))); });
+  tb.appendChild(h('tr', { style: 'font-weight:800' }, h('td', {}, 'Total'), h('td', {}, ''), h('td', {}, String(tr)), h('td', {}, String(tl))));
+  c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Reportes', 'Levantamientos'].map(t => h('th', {}, t)))), tb)));
+}
 function pintarOe() {
   const c = $('oeBody'); if (!OE) return; c.textContent = '';
   if (OETAB === 'avance') { pintarOeAvance(c); return; }
+  if (OETAB === 'res') { pintarOeResumen(c); return; }
   const R = OE.registros || [];
   if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay registros de OE en estas fechas')); return; }
   const tops = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => (nomDe(a) || '').localeCompare(nomDe(b) || '')), hitos = Array.from(new Set(R.map(r => r.hito).filter(Boolean))).sort(), reds = Array.from(new Set(R.map(r => r.red).filter(Boolean))).sort();
@@ -2240,7 +2263,7 @@ function vistaOeMapa(c, L) {
 }
 
 /* ---------- OE · Avance: levantamientos TXT de la estación total dibujados en el mapa ---------- */
-let OEAV = null, OEAVF = { top: '' }, OEPREV = [], OEOCULTAS = new Set();
+let OEAV = null, OEAVF = { top: '' }, OEPREV = [], OEOCULTAS = new Set(), OEDIB = (() => { try { return localStorage.getItem('oe_dib') === 'pts' ? 'pts' : 'pol'; } catch (e) { return 'pol'; } })();
 /* ---------- Levantamientos TXT (estación total) ---------- */
 function tmInv(E, N) { // plano de Bogotá D.C. (IDU, MAGNA GRS80) → [lat, lon]
   const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180;
@@ -2312,7 +2335,7 @@ async function pintarOeAvance(c) {
   const k = $('desde').value + '|' + $('hasta').value;
   if (!OEAV || OEAV.k !== k) {
     if (!OEAV || OEAV.k !== k) { OEAV = { k: k, cargando: true }; c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); 
-      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (OEAV && OEAV.k === k) { OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], err: r.ok ? '' : (r.mensaje || 'No se pudo cargar') }; } }
+      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (OEAV && OEAV.k === k) { OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], anul: r.ok ? (r.anul || []) : [], err: r.ok ? '' : (r.mensaje || 'No se pudo cargar') }; } }
       catch (e) { if (OEAV && OEAV.k === k) OEAV = { k: k, lev: [], err: 'No se pudo conectar.' }; }
       if (OETAB === 'avance') pintarOe();
     }
@@ -2331,7 +2354,7 @@ async function pintarOeAvance(c) {
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
   const e = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-  let mapa = null; const grupos = {}, chips = {};
+  let mapa = null, dibujar = () => {}; const grupos = {}, chips = {};
   const vis = x => !OEOCULTAS.has(x.capa);
   const mk = t => { const b = h('b', {}, ''); return { el: h('div', { class: 'kpi' }, b, t), set: v => { b.textContent = v; } }; };
   const kA = mk('Archivos'), kD = mk('Días'), kC = mk('Actividades'), kM = mk('Área levantada (suma)');
@@ -2351,7 +2374,8 @@ async function pintarOeAvance(c) {
   };
   const todas = v => { OEOCULTAS = v ? new Set() : new Set(capas); refrescar(true); };
   c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;align-items:center' }, tops.length > 1 ? (() => { const s2 = h('select', { onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null,
-    h('button', { class: 'sec', onclick: () => todas(true) }, '✔ Mostrar todas'), h('button', { class: 'sec', onclick: () => todas(false) }, '✖ Ocultar todas'), h('button', { class: 'sec', onclick: () => refrescar(true) }, '🎯 Ajustar mapa a lo visible')));
+    h('button', { class: 'sec', onclick: () => todas(true) }, '✔ Mostrar todas'), h('button', { class: 'sec', onclick: () => todas(false) }, '✖ Ocultar todas'), h('button', { class: 'sec', onclick: () => refrescar(true) }, '🎯 Ajustar mapa a lo visible'),
+    (() => { const sd = h('select', { 'aria-label': 'Dibujar capas como', onchange: () => { OEDIB = sd.value; try { localStorage.setItem('oe_dib', OEDIB); } catch (e) {} dibujar(); refrescar(false); } }, h('option', { value: 'pol' }, 'Dibujar como: Polígonos'), h('option', { value: 'pts' }, 'Dibujar como: Puntos')); sd.value = OEDIB; return sd; })()));
   c.appendChild(h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Toca una actividad para mostrarla u ocultarla en el mapa. Puedes dejar varias a la vez.'));
   c.appendChild(h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px' }, capas.map(cp => { const n = L.filter(x => x.capa === cp).length;
     const b = h('button', { type: 'button', style: 'border:2px solid ' + col(cp) + ';border-radius:999px;padding:5px 12px;font-weight:800;font-size:14px;cursor:pointer;min-height:34px', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, cp + ' · ' + n); chips[cp] = b; return b; })));
@@ -2359,22 +2383,44 @@ async function pintarOeAvance(c) {
   const box = h('div', { style: 'height:min(70vh,640px);border-radius:12px;border:1px solid #cfd8e3;overflow:hidden;background:#eef2f5' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
   c.appendChild(box);
   c.appendChild(h('div', { class: 'tw', style: 'margin-top:12px' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Actividad', 'Topógrafo', 'Archivo', 'Puntos', 'Área m²', 'Cota prom.'].map(t => h('th', {}, t)))), tbody)));
+  if (!OEPREV.length) { // archivos TXT cargados por los topógrafos: descargar y, con permiso, anular los erróneos
+    const arch = {}; L.forEach(x => { const k = x.fecha + '|' + x.llave + '|' + x.archivo; (arch[k] = arch[k] || { fecha: x.fecha, llave: x.llave, topografo: x.topografo, archivo: x.archivo, txt: x.txt, capas: [] }).capas.push(x.capa); });
+    const bajarTxt = async a => { try { const r = await api({ accion: 'admin_oe_lev_txt', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo }); if (!r.ok) { banner(r.mensaje || 'No se pudo descargar.'); return; } const u = URL.createObjectURL(new Blob([r.txt], { type: 'text/plain' })), l = h('a', { href: u, download: r.nombre }); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000); } catch (er) { banner('No se pudo descargar.'); } };
+    const anular = async a => { const mot = prompt('Anular el TXT «' + a.archivo + '» del ' + fmtF(a.fecha) + ' (' + (a.topografo || nomDe(a.llave)) + ').\nEl topógrafo deberá subirlo corregido. Queda registrado quién lo anuló y por qué.\n\nMotivo de la anulación (obligatorio):'); if (mot === null) return; if (mot.trim().length < 5) { banner('Escribe el motivo de la anulación (mínimo 5 letras).'); return; } try { const r = await api({ accion: 'admin_oe_lev_anular', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo, motivo: mot.trim() }); if (!r.ok) { banner(r.mensaje || 'No se pudo anular.'); return; } OEAV = null; pintarOe(); } catch (er) { banner('No se pudo anular.'); } };
+    const fb = h('tbody', {});
+    Object.keys(arch).map(k => arch[k]).sort((x, y) => y.fecha.localeCompare(x.fecha) || x.archivo.localeCompare(y.archivo)).forEach(a => fb.appendChild(h('tr', {}, h('td', {}, fmtF(a.fecha)), h('td', {}, a.topografo || nomDe(a.llave)), h('td', {}, a.archivo), h('td', {}, a.capas.join(', ')),
+      h('td', {}, h('div', { style: 'display:flex;gap:6px' }, a.txt ? h('button', { class: 'sec', onclick: () => bajarTxt(a) }, '⬇ TXT') : h('span', { class: 'small' }, 'sin TXT'), D.oeed || D.superadm ? h('button', { class: 'sec', style: 'color:#b3261e', onclick: () => anular(a) }, '🗑 Anular') : null)))));
+    c.appendChild(h('h3', { style: 'margin:16px 0 6px' }, 'Archivos TXT cargados'));
+    c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', ''].map(t => h('th', {}, t)))), fb)));
+    const AN = (OEAV && OEAV.anul) || [];
+    c.appendChild(h('h3', { style: 'margin:16px 0 4px' }, 'Control de cambios de TXT'));
+    c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, 'Cada anulación o reemplazo queda registrado: qué archivo, quién lo hizo, cuándo y por qué. Solo el super administrador y los administradores con módulo OE o TODOS pueden anular.'));
+    if (!AN.length) c.appendChild(h('div', { class: 'trok' }, 'No hay cambios en estas fechas.'));
+    else { const cb = h('tbody', {}); AN.slice().sort((x, y) => y.cambio.localeCompare(x.cambio)).forEach(x => cb.appendChild(h('tr', {}, h('td', {}, x.cambio.slice(8, 10) + '/' + x.cambio.slice(5, 7) + '/' + x.cambio.slice(0, 4) + ' ' + x.cambio.slice(11, 16)), h('td', {}, fmtF(x.fecha)), h('td', {}, x.topografo), h('td', {}, x.archivo), h('td', { style: 'font-weight:800' }, x.resultado), h('td', {}, x.usuario), h('td', {}, x.motivo))));
+      c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Cuándo', 'Fecha del TXT', 'Topógrafo', 'Archivo', 'Qué se hizo', 'Quién', 'Por qué'].map(t => h('th', {}, t)))), cb))); }
+  }
   refrescar(false);
   cargarLeaflet().then(() => {
     if (!box.isConnected) return; box.textContent = '';
     const m = window.L.map(box, { scrollWheelZoom: true }); mapa = m;
     oeBase(m);
+    dibujar = () => {
+    Object.keys(grupos).forEach(k => grupos[k].clearLayers());
     L.slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
       const tipo = x.tipo || (x.area ? 'pol' : 'pts'), poly = x.poly || [];
       const ok = p => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]);
       const g = grupos[x.capa] = grupos[x.capa] || window.L.layerGroup();
       const op = { color: col(x.capa), weight: tipo === 'lin' ? 4 : 3, fillColor: col(x.capa), fillOpacity: .35 };
       const pop = '<b>' + e(x.capa) + '</b><br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m';
-      if (tipo === 'pts') { poly.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
+      const verts = (function f(a) { return Array.isArray(a) && a.length && Array.isArray(a[0]) ? (typeof a[0][0] === 'number' ? a : a.flatMap(f)) : []; })(poly);
+      if (OEDIB === 'pts' || tipo === 'pts') { verts.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
+      if (false) { poly.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
       if (tipo === 'lin') { poly.forEach(seg => { const S = (seg || []).filter(ok); if (S.length > 1) window.L.polyline(S, op).addTo(g).bindPopup(pop); else if (S.length) window.L.circleMarker(S[0], { radius: 4, color: col(x.capa), fillOpacity: .9 }).addTo(g).bindPopup(pop); }); return; }
       const anillos = (poly.length && Array.isArray(poly[0][0])) ? poly : [poly];
       anillos.forEach(R => { const P = (R || []).filter(ok); if (P.length >= 3) window.L.polygon(P, op).addTo(g).bindPopup(pop); else if (P.length === 2) window.L.polyline(P, op).addTo(g).bindPopup(pop); else if (P.length) window.L.circleMarker(P[0], Object.assign({ radius: 7 }, op)).addTo(g).bindPopup(pop); });
     });
+    };
+    dibujar(); window.__dib = dibujar;
     refrescar(true);
   }).catch(() => { box.textContent = 'No se pudo cargar el mapa (sin señal).'; });
 }

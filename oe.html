@@ -259,8 +259,8 @@ function vMis() {
   });
   return h;
 }
-const LEV_ON = false; // levantamientos TXT: oculto a los topógrafos hasta que Carlos lo active
-const TABS = [['rep', '📝', 'Reporte'], ['mis', '📋', 'Mis reportes']].concat(LEV_ON ? [['lev', '📐', 'Levantamiento']] : []);
+const LEV_ON = true; // levantamientos TXT: el topógrafo sube el TXT del día
+const TABS = [['rep', '📝', 'Reporte'], ['res', '📊', 'Resumen'], ['mis', '📋', 'Mis reportes']].concat(LEV_ON ? [['lev', '📐', 'Levantamiento']] : []);
 /* ---------- Levantamientos TXT (estación total) ---------- */
 function tmInv(E, N) { // plano de Bogotá D.C. (IDU, MAGNA GRS80) → [lat, lon]
   const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180;
@@ -493,12 +493,23 @@ function vSbar() {
   return '<div class="sbar"><button type="button" class="btn sec cnl" data-a="atras">◀ ' + (f.p === 0 ? 'Cancelar' : 'Atrás') + '</button>' +
     (ult ? '<button type="button" class="btn sacar2" data-a="guardar"' + (f.guardando ? ' disabled' : '') + '>' + (f.guardando ? 'Guardando…' : '💾 Guardar') + '</button>' : '<button type="button" class="btn sacar2" data-a="sig">Siguiente ▶</button>') + '</div>';
 }
+// Resumen: por día (7 días, hoy es el último) cuántos reportes y cuántos levantamientos
+function vRes() {
+  const hoy = hoyISO(), DS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'], lev = {};
+  (S.levLista || []).forEach(x => { (lev[x.fecha] = lev[x.fecha] || new Set()).add(x.archivo); });
+  let h = '<h2 class="preg">Resumen de la semana</h2><div class="card">';
+  for (let i = 0; i < 7; i++) {
+    const f = sumDias(hoy, -i), d = new Date(f + 'T12:00:00'), nr = regDe(f).filter(x => x.rev !== 'RECHAZADO').length, nl = lev[f] ? lev[f].size : 0;
+    h += '<div class="rl" style="align-items:center;gap:8px"><div style="flex:1"><b>' + (i === 0 ? 'Hoy' : DS[d.getDay()]) + ' ' + d.getDate() + '</b></div><div style="min-width:84px;text-align:center"><b style="font-size:20px">' + nr + '</b><span class="peq mut" style="display:block">reporte' + (nr === 1 ? '' : 's') + '</span></div><div style="min-width:112px;text-align:center"><b style="font-size:20px">' + nl + '</b><span class="peq mut" style="display:block">levantamiento' + (nl === 1 ? '' : 's') + '</span></div></div>';
+  }
+  return h + '</div>' + (S.cargMis || S.cargLev ? '<div class="peq mut">Actualizando…</div>' : '');
+}
 function render() {
   const app = $('#app'), y = window.pageYOffset;
   if (!S.ses) { app.innerHTML = vLogin(); return; }
   if (S.f) { app.innerHTML = '<div class="cab">' + vTop() + '</div>' + vBandas() + '<main class="oe conbar">' + vForm() + '</main>' + vSbar(); }
   else {
-    const main = S.tab === 'lev' ? vLev() : S.tab === 'mis' ? vMis() : (S.hito ? vHito() : vInicio());
+    const main = S.tab === 'res' ? vRes() : S.tab === 'lev' ? vLev() : S.tab === 'mis' ? vMis() : (S.hito ? vHito() : vInicio());
     app.innerHTML = '<div class="cab">' + vTop() + '</div><div class="lay">' + vArbol() + '<div class="cont">' + vBandas() + '<main class="oe">' + main + '</main></div></div>' + vBarra();
   }
   if (window.pageYOffset !== y) window.scrollTo(0, y);
@@ -602,7 +613,7 @@ document.addEventListener('submit', async ev => {
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-a]'); if (!b) return;
   const a = b.dataset.a, v = b.dataset.v;
-  if (a === 'tab') { S.tab = v; S.hito = ''; render(); window.scrollTo(0, 0); if (v === 'mis') pedirMis(); if (v === 'lev') pedirLev(); return; }
+  if (a === 'tab') { S.tab = v; S.hito = ''; render(); window.scrollTo(0, 0); if (v === 'mis' || v === 'res') pedirMis(); if (v === 'lev' || v === 'res') pedirLev(); return; }
   if (a === 'excel') { descargarExcel(v); return; }
   if (a === 'editar') { editar(v); return; }
   if (a === 'abrir') { S.abierto[v] = !S.abierto[v]; render(); return; }
