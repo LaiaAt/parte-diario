@@ -2284,11 +2284,24 @@ function levParse(texto) {
   const zst = L => { const zs = L.map(p => p.z); return { zmin: Math.min.apply(null, zs), zmax: Math.max.apply(null, zs), zprom: Math.round(zs.reduce((s, v) => s + v, 0) / zs.length * 1000) / 1000 }; };
   const hullArea = L => { const H = levCasco(L.map(p => [p.mx, p.my, p.lat, p.lon])); let ar = 0; for (let i = 0; i < H.length; i++) { const a = H[i], b = H[(i + 1) % H.length]; ar += a[0] * b[1] - b[0] * a[1]; } return { H: H, area: Math.round(Math.abs(ar) / 2 * 100) / 100 }; };
   const claves = Object.keys(por).sort(), compacto = ext(pts) / pts.length <= 20, multi = claves.length > 1 && compacto;
+    const anillo = L => { // polígono que une los puntos: franja (dos bordes) si hay dos líneas, si no envolvente
+      const n = L.length, cx = L.reduce((s, p) => s + p.mx, 0) / n, cy = L.reduce((s, p) => s + p.my, 0) / n; let sxx = 0, syy = 0, sxy = 0;
+      L.forEach(p => { const dx = p.mx - cx, dy = p.my - cy; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; });
+      const th = 0.5 * Math.atan2(2 * sxy, sxx - syy), c = Math.cos(th), s = Math.sin(th);
+      const Q = L.map(p => { const dx = p.mx - cx, dy = p.my - cy; return { p, u: dx * c + dy * s, v: -dx * s + dy * c }; }).sort((a, b) => a.v - b.v);
+      let g = 0, gi = -1; for (let i = 1; i < n; i++) if (Q[i].v - Q[i - 1].v > g) { g = Q[i].v - Q[i - 1].v; gi = i; }
+      const rg = Q[n - 1].v - Q[0].v;
+      if (n >= 4 && rg > 4 && g > 0.4 * rg && gi >= 2 && n - gi >= 2) { const A = Q.slice(0, gi).sort((a, b) => a.u - b.u), B = Q.slice(gi).sort((a, b) => b.u - a.u); return A.concat(B).map(q => q.p); }
+      return levCasco(L.map(p => [p.mx, p.my, p.lat, p.lon])).map(h => L.find(p => p.mx === h[0] && p.my === h[1]));
+    };
   const capas = claves.map(k => {
     const L = por[k], z = zst(L);
-    if (multi) return Object.assign({ capa: k, tipo: 'pts', n: L.length, area: 0, poly: L.slice(0, 400).map(ll) }, z); // puntos de cada descripción sobre el contorno
-    if (L.length < 3 || ext(L) / L.length > 20) return Object.assign({ capa: k, tipo: 'pts', n: L.length, area: 0, poly: L.slice(0, 400).map(ll) }, z); // postes, hitos: puntos sueltos
-    const h = hullArea(L); return Object.assign({ capa: k, tipo: 'pol', n: L.length, area: h.area, poly: h.H.map(p => [r6(p[2]), r6(p[3])]) }, z);
+    if (L.length < 3) return Object.assign({ capa: k, tipo: 'pts', n: L.length, area: 0, poly: L.map(ll) }, z);
+    const comp = [], vis = new Array(L.length).fill(false); // zonas separadas (puntos a menos de 25 m) = un polígono por zona
+    for (let i = 0; i < L.length; i++) { if (vis[i]) continue; const q = [i], c = []; vis[i] = true; while (q.length) { const a = q.pop(); c.push(L[a]); for (let j = 0; j < L.length; j++) if (!vis[j] && Math.hypot(L[a].mx - L[j].mx, L[a].my - L[j].my) <= 25) { vis[j] = true; q.push(j); } } comp.push(c); }
+    let area = 0; const rings = comp.filter(c => c.length >= 3).map(c => { const R = anillo(c); let ar = 0; for (let i = 0; i < R.length; i++) { const a = R[i], b = R[(i + 1) % R.length]; ar += a.mx * b.my - b.mx * a.my; } area += Math.abs(ar) / 2; return R.map(ll); });
+    if (!rings.length) return Object.assign({ capa: k, tipo: 'pts', n: L.length, area: 0, poly: L.slice(0, 400).map(ll) }, z);
+    return Object.assign({ capa: k, tipo: 'pol', n: L.length, area: Math.round(area * 100) / 100, poly: rings.length === 1 ? rings[0] : rings }, z);
   });
   if (multi) { // contorno del levantamiento: un anillo por zona (puntos a menos de 25 m unos de otros)
     const comp = [], vis = new Array(pts.length).fill(false);
