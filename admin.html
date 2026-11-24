@@ -2152,12 +2152,20 @@ async function pintarOeResumen(c) {
   const nomT = l => { const n = nomDe(l); return n && n !== l ? n : (NM[l] || l); };
   (OE.registros || []).filter(r => r.rev !== 'RECHAZADO').forEach(r => { ent(r.fecha, r.llave).nr++; });
   ((OEAV && OEAV.lev) || []).forEach(x => { ent(x.fecha, x.llave).lv.add(x.archivo); });
-  const F = Object.keys(M).map(k2 => M[k2]).sort((a, b) => b.fecha.localeCompare(a.fecha) || nomT(a.llave).localeCompare(nomT(b.llave)));
+  // todos los topógrafos (usuario + módulo OE) en cada día del rango, aunque no hayan reportado
+  const U = (D && D.oeusuarios) || []; U.forEach(u => { NM[u.llave] = u.nombre; });
+  const nomU = l => { const u = U.find(x => x.llave === l); return u ? u.nombre : nomT(l); };
+  const dias = []; for (let f = $('desde').value, hoy = bogota(); f && f <= $('hasta').value && f <= hoy && dias.length < 62; f = sumDias(f, 1)) dias.push(f);
+  let F;
+  if (U.length) { F = []; dias.slice().reverse().forEach(f => U.forEach(u => F.push(M[f + '|' + u.llave] || { fecha: f, llave: u.llave, nr: 0, lv: new Set() }))); F.sort((a, b) => b.fecha.localeCompare(a.fecha) || nomU(a.llave).localeCompare(nomU(b.llave))); }
+  else F = Object.keys(M).map(k2 => M[k2]).sort((a, b) => b.fecha.localeCompare(a.fecha) || nomT(a.llave).localeCompare(nomT(b.llave)));
   if (!F.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay actividad de OE en estas fechas')); return; }
-  const tb = h('tbody', {}); let tr = 0, tl = 0;
-  F.forEach(x => { tr += x.nr; tl += x.lv.size; tb.appendChild(h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, nomT(x.llave)), h('td', {}, String(x.nr)), h('td', {}, String(x.lv.size)))); });
-  tb.appendChild(h('tr', { style: 'font-weight:800' }, h('td', {}, 'Total'), h('td', {}, ''), h('td', {}, String(tr)), h('td', {}, String(tl))));
-  c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Reportes', 'Levantamientos'].map(t => h('th', {}, t)))), tb)));
+  const tb = h('tbody', {}); let tr = 0, tl = 0, ok = 0;
+  F.forEach(x => { tr += x.nr; tl += x.lv.size; const hizo = x.nr > 0 || x.lv.size > 0; if (hizo) ok++;
+    tb.appendChild(h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, nomU(x.llave)), h('td', {}, String(x.nr)), h('td', {}, String(x.lv.size)),
+      h('td', {}, h('span', { style: 'display:inline-block;font-weight:800;border-radius:999px;padding:2px 10px;font-size:12.5px;' + (hizo ? 'background:#e3f4e8;color:#0a7a32' : 'background:#fde7e6;color:#b3261e') }, hizo ? '✔ Reportó' : '✖ Sin reporte')))); });
+  tb.appendChild(h('tr', { style: 'font-weight:800' }, h('td', {}, 'Total'), h('td', {}, ''), h('td', {}, String(tr)), h('td', {}, String(tl)), h('td', {}, ok + ' de ' + F.length + ' reportaron')));
+  c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Reportes', 'Levantamientos', 'Estado'].map(t => h('th', {}, t)))), tb)));
 }
 function pintarOe() {
   const c = $('oeBody'); if (!OE) return; c.textContent = '';
