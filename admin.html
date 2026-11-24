@@ -244,6 +244,7 @@ header>span{gap:6px!important;min-width:0}
 .av-pf2{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:13.5px;font-weight:800;color:#0f172a;margin-bottom:8px}
 .av-pf2 .av-seg{background:#d6e4da}.av-pf2 .av-seg button{font-size:13px;padding:6px 12px;color:#1f2d27}.av-pf2 .av-seg button.on{background:#0a7a32;color:#fff}
 .av-centrar{width:100%;min-height:38px;background:#0a7a32;color:#fff;border:0;border-radius:10px;font-weight:800;font-size:14.5px;cursor:pointer}.av-centrar:hover{background:#086528}
+.av-dlg-f{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px}.av-dlg{background:#fff;border-radius:16px;padding:18px;width:min(460px,100%);box-shadow:0 10px 40px rgba(0,0,0,.3)}
 .av-full-b{background:#c62828;border:0;border-radius:10px;box-shadow:0 2px 10px rgba(198,40,40,.4);font-weight:800;font-size:13.5px;padding:8px 12px;cursor:pointer;min-height:0;width:auto;color:#fff}.av-full-b:hover{background:#a51d1d}
 .av-esc{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:99999;background:#111827;color:#fff;font-weight:800;font-size:15px;padding:10px 18px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;transition:opacity .6s}.av-esc.fuera{opacity:0}
 .av-sec{border:1px solid #cfd8e3;border-radius:12px;margin-top:12px;background:#fff;overflow:hidden}.av-sec-top{display:flex;align-items:center;gap:8px;padding-right:10px}.av-sec-h{flex:1;display:flex;align-items:center;gap:10px;border:0;background:#fff;padding:12px 14px;cursor:pointer;min-height:0;width:auto;font-size:16px;color:#0f172a;text-align:left;box-shadow:none}.av-sec-h:hover{background:#f5f8fa}
@@ -256,7 +257,14 @@ header>span{gap:6px!important;min-width:0}
 .av-radio{display:flex;gap:8px;align-items:center;font-size:13.5px;padding:3px 2px;cursor:pointer}.av-radio input{width:16px;height:16px;min-height:0;margin:0}
 .av-lapiz{border:0;background:transparent;color:#6b7785;font-size:15px;padding:2px 4px;min-height:0;width:auto;cursor:pointer;box-shadow:none;flex:none}.av-lapiz:hover{color:#0a7a32}
 .av-mapa{height:min(72vh,660px);border-radius:12px;border:1px solid #cfd8e3;overflow:hidden;background:#fff}.av-mapa.leaflet-container{background:#fff}
-@media (max-width:760px){.av-grid{grid-template-columns:1fr}.av-panel{max-height:none}.av-lista{max-height:260px}.av-ks{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:760px){.av-grid{grid-template-columns:1fr}.av-mapa{order:-1;height:62vh}.av-panel{max-height:none}.av-lista{max-height:340px}.av-ks{grid-template-columns:repeat(2,1fr);gap:6px}.av-k{padding:6px 10px}.av-k b{font-size:17px!important}
+.av-top{gap:6px}.av-top>div:first-child div:first-child{font-size:16px!important}.av-top select,.av-top button{flex:1}
+.av-plano{width:min(260px,70vw);max-height:55vh}.av-ctl-b{padding:8px 10px;font-size:13px}.av-full-b{font-size:12px;padding:7px 9px}.av-mob-b{display:block!important}
+.av-grid.av-full{grid-template-columns:1fr;grid-template-rows:1fr;padding:0;gap:0}.av-grid.av-full .av-lista{max-height:none}.av-esc{top:auto!important;bottom:36px;font-size:13px!important;width:max-content;max-width:86vw;text-align:center}.av-grid.av-full .av-cerrar-act{display:block!important}.av-grid.av-full .av-mapa{order:0;height:100%;border-radius:0;border:0}
+.av-grid.av-full .av-panel{position:absolute;left:0;top:0;bottom:0;width:min(330px,88vw);z-index:1001;border-radius:0 14px 14px 0;transform:translateX(-105%);transition:transform .25s;box-shadow:4px 0 20px rgba(0,0,0,.25)}
+.av-grid.av-full.ver-act .av-panel{transform:none}}
+.av-cerrar-act{display:none;width:100%;min-height:38px;margin-bottom:8px;background:#111827;color:#fff;border:0;border-radius:10px;font-weight:800}
+.av-mob-b{display:none;background:#0a7a32;color:#fff;border:0;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.25);font-weight:800;font-size:12px;padding:7px 9px;cursor:pointer;min-height:0;width:auto;margin-top:6px}
 </style>
 </head>
 <body>
@@ -2441,7 +2449,7 @@ function planoDxfGeo(porCapa, elegidas) {
 function elegirCapasDxf(porCapa, nombre) { // ventana para escoger las capas del DXF (las de perfiles vienen desmarcadas)
   return new Promise(ok => {
     const ks = Object.keys(porCapa).sort((a, b) => a.localeCompare(b)), malas = /PROF|GRID|TERRENO|GUITARRA|RASANTE|VIEW|TTLB|TICK|PERALT|PEREIZQ|PERDER|ATR0|TXT|COTA|DIM|DEFPOINTS|STAN|TEXTOS-EJE|^C-ROAD$/i, Z = planoZona(), dentro = {}; ks.forEach(k => { let n = 0, t = 0; porCapa[k].forEach(P => P.forEach(p => { t++; if (!Z || Z.en(planoXY(p[0], p[1]))) n++; })); dentro[k] = t ? n / t : 0; }); const sel = new Set(ks.filter(k => !malas.test(k) && dentro[k] >= 0.5));
-    const fondo = h('div', { style: 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px' });
+    const fondo = h('div', { style: 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px' });
     const nom = h('input', { value: nombre, style: 'width:100%;margin:4px 0 10px' });
     const lista = h('div', { style: 'max-height:50vh;overflow:auto;border:1px solid #e3e8ee;border-radius:10px;padding:4px' });
     ks.forEach(k => { const cb = h('input', { type: 'checkbox', style: 'width:18px;height:18px;min-height:0' }); cb.checked = sel.has(k); cb.onchange = () => { if (cb.checked) sel.add(k); else sel.delete(k); };
@@ -2451,7 +2459,7 @@ function elegirCapasDxf(porCapa, nombre) { // ventana para escoger las capas del
       h('div', { style: 'font-size:18px;font-weight:800;margin-bottom:6px' }, 'Capas del DXF'), h('div', { class: 'small' }, 'Nombre de la capa en el mapa. Ej: Diseño geométrico'), nom,
       h('div', { class: 'small', style: 'margin-bottom:6px' }, 'Marca solo lo que es planta. Vienen desmarcadas las capas de perfiles (cuadrículas, terreno, rasante, guitarra) y las que quedan fuera del área del proyecto.'), lista,
       h('div', { style: 'display:flex;gap:8px;margin-top:12px;justify-content:flex-end' }, h('button', { class: 'sec', style: 'width:auto', onclick: () => cerrar(null) }, 'Cancelar'), h('button', { style: 'width:auto', onclick: () => { if (!sel.size || !nom.value.trim()) return; cerrar({ nombre: nom.value.trim(), capas: Array.from(sel) }); } }, 'Cargar al mapa'))));
-    document.body.appendChild(fondo);
+    (document.querySelector('.av-grid.av-full') || document.body).appendChild(fondo);
   });
 }
 let OEALIAS = {}, OEABIERTO = {}, OEIMG = {};
@@ -2470,6 +2478,17 @@ function planoBajar(p) { // capa → DXF en coordenadas del plano de Bogotá (ab
   (p.textos || []).forEach(t => { const c = tmDir(t.p[0], t.p[1]); o.push('0', 'TEXT', '8', nb, '10', f(c[0]), '20', f(c[1]), '30', '0', '40', '2.5', '1', String(t.t), '50', String(t.r || 0)); });
   o.push('0', 'ENDSEC', '0', 'EOF');
   bajar(new Blob([o.join('\r\n') + '\r\n'], { type: 'application/dxf' }), p.nombre.replace(/[^\w\- ]/g, '_') + '.dxf');
+}
+function avDialogo(o) { // diálogo dentro de la página (no saca de la pantalla completa). o: { titulo, ayuda, valor, campo, ok, peligro }
+  return new Promise(fin => {
+    const cont = document.querySelector('.av-grid.av-full') || document.body, inp = o.campo ? h('input', { value: o.valor || '', style: 'width:100%;margin:8px 0 4px;font-size:16px' }) : null;
+    const fondo = h('div', { class: 'av-dlg-f' }), cerrar = v => { fondo.remove(); fin(v); };
+    const bOk = h('button', { style: 'width:auto;min-height:40px;padding:0 18px' + (o.peligro ? ';background:#b3261e' : ''), onclick: () => cerrar(inp ? inp.value : true) }, o.ok || 'Aceptar');
+    fondo.appendChild(h('div', { class: 'av-dlg' }, h('div', { style: 'font-size:17px;font-weight:800;margin-bottom:4px' }, o.titulo), o.ayuda ? h('div', { class: 'small', style: 'white-space:pre-line' }, o.ayuda) : null, inp,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:12px' }, h('button', { class: 'sec', style: 'width:auto;min-height:40px;padding:0 16px', onclick: () => cerrar(null) }, 'Cancelar'), bOk)));
+    fondo.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); bOk.click(); } if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); cerrar(null); } });
+    cont.appendChild(fondo); setTimeout(() => (inp || bOk).focus(), 30);
+  });
 }
 let OEPLANOS = null; const OEPLANO_COL = ['#d32f2f', '#1565c0', '#6a1b9a', '#ef6c00', '#00838f', '#5d4037', '#c2185b', '#2e7d32'];
 let OEPLOFF = (() => { try { return new Set(JSON.parse(localStorage.getItem('oe_planos_off') || '[]')); } catch (e) { return new Set(); } })();
@@ -2602,9 +2621,11 @@ async function pintarOeAvance(c) {
     const caja = h('span', { class: 'av-chk' });
     const sg = seg(() => OEDIBC[cp] || OEDIB, v => { OEDIBC[cp] = v; try { localStorage.setItem('oe_dibc', JSON.stringify(OEDIBC)); } catch (e2) {} dibujar(); refrescar(false); });
     modos[cp] = () => sg.sync();
-    const fila = h('div', { class: 'av-fila', title: 'Toca para mostrar u ocultar', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, caja, h('div', { style: 'flex:1;min-width:0' }, h('b', {}, oeNom(cp), oeNom(cp) !== cp ? h('span', { style: 'font-weight:600;color:#6b7785;font-size:12px' }, ' (' + cp + ')') : null), h('small', {}, n + (n === 1 ? ' archivo' : ' archivos') + (ar ? ' · ' + oeFmt(Math.round(ar)) + ' m²' : ''))),
-      D && D.oealiasEd ? h('button', { type: 'button', class: 'av-lapiz', title: 'Nombre visible de ' + cp + ' para todos (no cambia los TXT)', onclick: async ev => { ev.stopPropagation(); const v = prompt('Nombre que verán todos para «' + cp + '». Ej: LUMINARIO\nDéjalo vacío para volver a ' + cp + '. Los TXT y los datos guardados no cambian.', (D.oealias || {})[cp] || ''); if (v === null) return;
-        try { const r = await api({ accion: 'admin_oe_alias', llave: LLAVE, capa: cp, nombre: v }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar.'); return; } D.oealias = r.alias || {}; banner('Nombre guardado para todos.', 'ok'); pintarOe(); } catch (e2) { banner('No se pudo guardar (sin conexión).'); } } }, '✎') : null, sg);
+    const nomEl = h('b', {}, oeNom(cp), oeNom(cp) !== cp ? h('span', { style: 'font-weight:600;color:#6b7785;font-size:12px' }, ' (' + cp + ')') : null);
+    const fila = h('div', { class: 'av-fila', title: 'Toca para mostrar u ocultar', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, caja, h('div', { style: 'flex:1;min-width:0' }, nomEl, h('small', {}, n + (n === 1 ? ' archivo' : ' archivos') + (ar ? ' · ' + oeFmt(Math.round(ar)) + ' m²' : ''))),
+      D && D.oealiasEd ? h('button', { type: 'button', class: 'av-lapiz', title: 'Nombre visible de ' + cp + ' para todos (no cambia los TXT)', onclick: async ev => { ev.stopPropagation();
+        const v = await avDialogo({ titulo: 'Nombre visible de «' + cp + '»', ayuda: 'Lo verán todos los usuarios. Ej: LUMINARIO\nDéjalo vacío para volver a ' + cp + '. Los TXT y los datos guardados no cambian.', campo: true, valor: (D.oealias || {})[cp] || '', ok: 'Guardar' }); if (v === null) return;
+        try { const r = await api({ accion: 'admin_oe_alias', llave: LLAVE, capa: cp, nombre: v }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar.'); return; } D.oealias = r.alias || {}; nomEl.textContent = ''; nomEl.appendChild(document.createTextNode(oeNom(cp))); if (oeNom(cp) !== cp) nomEl.appendChild(h('span', { style: 'font-weight:600;color:#6b7785;font-size:12px' }, ' (' + cp + ')')); dibujar(); refrescar(false); banner('Nombre guardado para todos.', 'ok'); } catch (e2) { banner('No se pudo guardar (sin conexión).'); } } }, '✎') : null, sg);
     chips[cp] = on => { caja.style.background = on ? col(cp) : '#fff'; caja.style.borderColor = col(cp); caja.textContent = on ? '✓' : ''; fila.style.opacity = on ? '1' : '.55'; };
     lista.appendChild(fila);
   });
@@ -2618,11 +2639,11 @@ async function pintarOeAvance(c) {
       if (res.error) { banner(res.error); return; }
       let nom = f.name.replace(/\.[^.]+$/, '');
       if (res.capas) { const el = await elegirCapasDxf(res.capas, nom); if (!el) return; nom = el.nombre; res = planoDxfGeo(res.capas, el.capas); if (res.error) { banner(res.error); return; } }
-      else { nom = (prompt('Nombre de la capa (' + res.geo.length + ' líneas). Ej: Área de licencia', nom) || '').trim(); if (!nom) return; }
+      else { const v = await avDialogo({ titulo: 'Nombre de la capa', ayuda: res.geo.length + ' líneas. Ej: Área de licencia', campo: true, valor: nom, ok: 'Cargar al mapa' }); nom = (v || '').trim(); if (!nom) return; }
       const tam = JSON.stringify(res.geo).length; if (tam > 20e6) { banner('La capa es muy grande (' + Math.round(tam / 1e6) + ' MB). Desmarca capas que no necesites.'); return; }
       banner('Guardando capa «' + nom + '»…', 'ok');
       const color = OEPLANO_COL[(OEPLANOS || []).length % OEPLANO_COL.length];
-      try { const r = await api({ accion: 'admin_oe_plano_subir', llave: LLAVE, nombre: nom, color: color, geo: res.geo }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar la capa.'); return; } banner('Capa «' + nom + '» guardada.', 'ok'); OEPLANOS = null; pintarOe(); } catch (e) { banner('No se pudo guardar la capa (sin conexión o archivo muy grande).'); } };
+      try { const r = await api({ accion: 'admin_oe_plano_subir', llave: LLAVE, nombre: nom, color: color, geo: res.geo }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar la capa.'); return; } banner('Capa «' + nom + '» guardada.', 'ok'); recargarPlanos(); } catch (e) { banner('No se pudo guardar la capa (sin conexión o archivo muy grande).'); } };
     if (fondoSel) planoBox.appendChild(fondoSel);
     planoBox.appendChild(h('div', { class: 'av-ph', style: 'margin-top:10px' }, h('b', {}, 'Capas del plano')));
     planoBox.appendChild(fin);
@@ -2634,11 +2655,12 @@ async function pintarOeAvance(c) {
       planoBox.appendChild(h('div', { class: 'av-fila', onclick: () => { if (OEPLOFF.has(p.nombre)) OEPLOFF.delete(p.nombre); else OEPLOFF.add(p.nombre); try { localStorage.setItem('oe_planos_off', JSON.stringify(Array.from(OEPLOFF))); } catch (e) {} pintarPlanos(); verPlanos(); } }, caja,
         h('div', { style: 'flex:1;min-width:0' }, h('b', {}, p.nombre), h('small', {}, p.fijo ? 'Capa base del proyecto' : 'Cargada por ' + (p.quien || '—') + ' · ' + String(p.creado || '').slice(0, 10))),
         h('button', { type: 'button', class: 'sec', title: 'Descargar esta capa en DXF (coordenadas del plano de Bogotá)', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px;margin-right:4px', onclick: ev => { ev.stopPropagation(); planoBajar(p); } }, '⬇'),
-        p.fijo || !p.mia ? null : h('button', { type: 'button', class: 'sec', title: 'Quitar esta capa', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px', onclick: async ev => { ev.stopPropagation(); if (!confirm('¿Quitar la capa «' + p.nombre + '» para todos los usuarios?')) return; try { const r = await api({ accion: 'admin_oe_plano_borrar', llave: LLAVE, id: p.id }); if (!r.ok) { banner(r.mensaje || 'No se pudo quitar.'); return; } OEPLANOS = null; pintarOe(); } catch (e) { banner('No se pudo quitar.'); } } }, '✕')));
+        p.fijo || !p.mia ? null : h('button', { type: 'button', class: 'sec', title: 'Quitar esta capa', style: 'width:auto;min-height:28px;padding:2px 8px;font-size:12px', onclick: async ev => { ev.stopPropagation(); if (!(await avDialogo({ titulo: '¿Quitar la capa «' + p.nombre + '»?', ayuda: 'Deja de verse para todos los usuarios.', ok: 'Quitar', peligro: true }))) return; try { const r = await api({ accion: 'admin_oe_plano_borrar', llave: LLAVE, id: p.id }); if (!r.ok) { banner(r.mensaje || 'No se pudo quitar.'); return; } recargarPlanos(); } catch (e) { banner('No se pudo quitar.'); } } }, '✕')));
     });
     planoBox.appendChild(h('button', { type: 'button', class: 'sec', style: 'width:100%;margin-top:8px;min-height:36px', onclick: () => fin.click() }, '＋ Cargar plano (KML o DXF)'));
     planoBox.appendChild(ayudaPl);
   };
+  const recargarPlanos = async () => { if (mapa) Object.keys(grPlano).forEach(k => { if (mapa.hasLayer(grPlano[k])) mapa.removeLayer(grPlano[k]); delete grPlano[k]; }); OEPLANOS = null; pintarPlanos(); await cargarPlanos(); if (planoBox.isConnected) { pintarPlanos(); verPlanos(); } };
   const verPlanos = () => { if (!mapa || !OEPLANOS) return; OEPLANOS.forEach(p => { let g = grPlano[p.id];
     if (p.tipo === 'img') { if (!g) { g = grPlano[p.id] = window.L.layerGroup(); g.cargada = false; }
       if (OEPLOFF.has(p.nombre)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); return; }
@@ -2653,6 +2675,7 @@ async function pintarOeAvance(c) {
   pintarPlanos();
   if (!OEPLANOS) cargarPlanos().then(() => { if (planoBox.isConnected) { pintarPlanos(); verPlanos(); } });
   const panel = h('div', { class: 'av-panel' },
+    h('button', { type: 'button', class: 'av-cerrar-act', onclick: () => { grid.classList.remove('ver-act'); const mb = grid.querySelector('.av-mob-b'); if (mb) mb.textContent = '☰ Actividades'; } }, '✕ Cerrar actividades'),
     h('div', { class: 'av-top2' }, h('div', { class: 'av-pf2' }, h('span', {}, 'Dibujar todas como'), todasSeg), h('button', { class: 'av-centrar', onclick: () => refrescar(true) }, '🎯 Centrar mapa')),
     h('div', { class: 'av-ph' }, h('b', {}, 'Actividades'), h('span', {}, h('a', { href: '#', onclick: ev => { ev.preventDefault(); todas(true); } }, 'Todas'), ' · ', h('a', { href: '#', onclick: ev => { ev.preventDefault(); todas(false); } }, 'Ninguna'))),
     lista);
@@ -2699,12 +2722,14 @@ async function pintarOeAvance(c) {
     const Full = window.L.Control.extend({ options: { position: 'topleft' }, onAdd: () => { const b = h('button', { type: 'button', class: 'av-full-b', title: 'Pantalla completa: actividades, plano y capas' }, '⛶ Pantalla completa');
       let aviso = null;
       const poner = on => { grid.classList.toggle('av-full', on); b.textContent = on ? '✕ Salir de pantalla completa' : '⛶ Pantalla completa'; setTimeout(() => m.invalidateSize(), 120);
-        if (aviso) { aviso.remove(); aviso = null; } if (on) { aviso = h('div', { class: 'av-esc' }, 'Presiona la tecla Esc para salir de la pantalla completa'); grid.appendChild(aviso); setTimeout(() => { if (aviso) aviso.classList.add('fuera'); }, 4000); } };
+        if (aviso) { aviso.remove(); aviso = null; } if (on) { aviso = h('div', { class: 'av-esc' }, window.matchMedia('(pointer:coarse)').matches ? 'Para salir toca «✕ Salir de pantalla completa»' : 'Presiona la tecla Esc para salir de la pantalla completa'); grid.appendChild(aviso); setTimeout(() => { if (aviso) aviso.classList.add('fuera'); }, 4000); } };
       b.onclick = () => { const on = !grid.classList.contains('av-full'); if (on) { poner(true); try { if (grid.requestFullscreen) grid.requestFullscreen().catch(() => {}); } catch (e2) {} } else { poner(false); try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e2) {} } };
       document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && grid.classList.contains('av-full')) poner(false); });
       document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && grid.classList.contains('av-full')) poner(false); });
       window.L.DomEvent.disableClickPropagation(b); return b; } });
     new Full().addTo(m);
+    const Mob = window.L.Control.extend({ options: { position: 'topleft' }, onAdd: () => { const b = h('button', { type: 'button', class: 'av-mob-b' }, '☰ Actividades'); b.onclick = () => { grid.classList.toggle('ver-act'); b.textContent = grid.classList.contains('ver-act') ? '✕ Cerrar actividades' : '☰ Actividades'; }; window.L.DomEvent.disableClickPropagation(b); return b; } });
+    if (window.matchMedia('(max-width:760px)').matches) new Mob().addTo(m);
     dibujar = () => {
     Object.keys(grupos).forEach(k => grupos[k].clearLayers());
     L.slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
@@ -3302,6 +3327,7 @@ let bnT;
 function banner(txt, tipo) {
   let b = $('bannerCarga');
   if (!b) { b = h('div', { id: 'bannerCarga', role: 'status', style: 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9998;max-width:92vw;padding:12px 18px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px' }); document.body.appendChild(b); }
+  { const cont = document.querySelector('.av-grid.av-full') || document.body; if (b.parentNode !== cont) cont.appendChild(b); b.style.zIndex = '100000'; }
   clearTimeout(bnT); b.textContent = '';
   const ok = tipo === 'ok', mal = tipo === 'mal';
   b.style.background = mal ? '#b3261e' : ok ? '#1b7a3a' : '#0d3b66'; b.style.color = '#fff'; b.hidden = false;
