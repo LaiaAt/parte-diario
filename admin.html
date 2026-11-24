@@ -1975,7 +1975,7 @@ function navegacion() {
   modulo(MOD);
 }
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
-const OE_TABS = [['reg', '📋 Registros']]; // Mapa oculto por ahora: ['mapa', '🗺️ Mapa']
+const OE_TABS = [['reg', '📋 Registros'], ['avance', '🏗️ Avance']]; // Mapa de registros oculto por ahora: ['mapa', '🗺️ Mapa']
 const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Aprobado', '#0a7a32'], CORREGIDO: ['🔵', 'Corregido', '#1565c0'], RECHAZADO: ['🔴', 'Rechazado', '#b3261e'] };
 const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
 const oeCuenta = r => r.rev !== 'RECHAZADO'; // los rechazados no suman
@@ -1992,6 +1992,7 @@ function navOe() {
   pintarArbol();
 }
 async function cargarOe() {
+  OEAV = null;
   let desdeCopia = false;
   if (!OE) { const c = await CDB.get('admin_oe'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === $('desde').value && c.hh === $('hasta').value) { OE = c.r; desdeCopia = true; pintarOe(); avisoDatos('Actualizando OE… (datos de ' + horaTxt(c.t) + ')'); } }
   if (!desdeCopia) { $('oeBody').textContent = ''; banner('Cargando datos de OE…'); }
@@ -2104,6 +2105,7 @@ function verFotoOe(r) {
 }
 function pintarOe() {
   const c = $('oeBody'); if (!OE) return; c.textContent = '';
+  if (OETAB === 'avance') { pintarOeAvance(c); return; }
   const R = OE.registros || [];
   if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay registros de OE en estas fechas')); return; }
   const tops = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => (nomDe(a) || '').localeCompare(nomDe(b) || '')), hitos = Array.from(new Set(R.map(r => r.hito).filter(Boolean))).sort(), reds = Array.from(new Set(R.map(r => r.red).filter(Boolean))).sort();
@@ -2220,6 +2222,53 @@ function vistaOeMapa(c, L) {
         .bindPopup('<b>' + e(r.actividad) + '</b><br>' + e(fmtF(r.fecha)) + ' · ' + e(r.topografo || nomDe(r.llave)) + '<br>' + e(oeHitoTxt(r.hito)) + (r.red ? ' · ' + e(r.red) : '') + '<br>' + e([r.uf, r.costado].filter(Boolean).join(' · ')) + ' · ' + e(oeAbs(r)) + '<br><b>' + e(oeFmt(oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad))) + ' ' + e(r.und) + '</b><br><a href="' + g + '" target="_blank" rel="noopener">📍 Abrir en Google Maps</a>'); });
     m.fitBounds(b, { padding: [30, 30], maxZoom: 17 });
   }).catch(() => { box.textContent = 'No se pudo cargar el mapa (sin señal).'; });
+}
+
+/* ---------- OE · Avance: levantamientos TXT de la estación total dibujados en el mapa ---------- */
+let OEAV = null, OEAVF = { capa: '', top: '' };
+const OEAV_COL = ['#0a7a32', '#1565c0', '#b3261e', '#9a6b00', '#6a1b9a', '#00838f', '#c2185b', '#4e342e', '#e65100', '#283593', '#2e7d32', '#ad1457'];
+async function pintarOeAvance(c) {
+  const k = $('desde').value + '|' + $('hasta').value;
+  if (!OEAV || OEAV.k !== k) {
+    if (!OEAV || OEAV.k !== k) { OEAV = { k: k, cargando: true }; c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); 
+      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); if (OEAV && OEAV.k === k) { OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], err: r.ok ? '' : (r.mensaje || 'No se pudo cargar') }; } }
+      catch (e) { if (OEAV && OEAV.k === k) OEAV = { k: k, lev: [], err: 'No se pudo conectar.' }; }
+      if (OETAB === 'avance') pintarOe();
+    }
+    return;
+  }
+  if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
+  if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
+  const A = OEAV.lev || [];
+  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay levantamientos topográficos en estas fechas. Los topógrafos los suben desde la app OE, pestaña Levantamiento.')); return; }
+  const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
+  const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
+  const sel = (key, op, def) => { const s = h('select', { onchange: () => { OEAVF[key] = s.value; pintarOe(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = OEAVF[key]; return s; };
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, sel('capa', capas.map(x => [x, x]), 'Todas las actividades'), sel('top', tops.map(l => [l, nomDe(l) || l]), 'Todos los topógrafos')));
+  const L = A.filter(x => (!OEAVF.capa || x.capa === OEAVF.capa) && (!OEAVF.top || x.llave === OEAVF.top));
+  if (!L.length) { c.appendChild(h('div', { class: 'trok' }, 'Ningún levantamiento coincide con el filtro')); return; }
+  const K = (t, v) => h('div', { class: 'kpi' }, h('b', {}, v), t);
+  const area = L.reduce((s, x) => s + (x.area || 0), 0);
+  c.appendChild(h('div', { class: 'kpis' }, K('Archivos', new Set(L.map(x => x.fecha + x.llave + x.archivo)).size), K('Días', new Set(L.map(x => x.fecha)).size), K('Actividades', new Set(L.map(x => x.capa)).size), K('Área levantada (suma)', oeFmt(area) + ' m²')));
+  c.appendChild(h('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin:8px 0' }, capas.filter(cp => L.some(x => x.capa === cp)).map(cp => h('span', { class: 'small', style: 'display:flex;align-items:center;gap:5px;font-weight:700' }, h('span', { style: 'width:14px;height:14px;border-radius:3px;background:' + col(cp) + ';border:2px solid #fff;box-shadow:0 0 0 1px #8a97a6' }), cp))));
+  const box = h('div', { style: 'height:min(70vh,640px);border-radius:12px;border:1px solid #cfd8e3;overflow:hidden;background:#eef2f5' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
+  c.appendChild(box);
+  const e = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  cargarLeaflet().then(() => {
+    if (!box.isConnected) return; box.textContent = '';
+    const m = window.L.map(box, { scrollWheelZoom: true }), b = [];
+    window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', referrerPolicy: 'strict-origin-when-cross-origin' }).addTo(m);
+    L.slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
+      const P = (x.poly || []).filter(p => isFinite(p[0]) && isFinite(p[1])); if (!P.length) return; P.forEach(p => b.push(p));
+      const op = { color: col(x.capa), weight: 2, fillColor: col(x.capa), fillOpacity: .45 };
+      const g = P.length >= 3 ? window.L.polygon(P, op) : P.length === 2 ? window.L.polyline(P, op) : window.L.circleMarker(P[0], Object.assign({ radius: 7 }, op));
+      g.addTo(m).bindPopup('<b>' + e(x.capa) + '</b><br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m');
+    });
+    if (b.length) m.fitBounds(b, { padding: [30, 30], maxZoom: 19 });
+  }).catch(() => { box.textContent = 'No se pudo cargar el mapa (sin señal).'; });
+  const rows = L.slice().sort((x, y) => y.fecha.localeCompare(x.fecha) || x.capa.localeCompare(y.capa));
+  c.appendChild(h('div', { class: 'tw', style: 'margin-top:12px' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Actividad', 'Topógrafo', 'Archivo', 'Puntos', 'Área m²', 'Cota prom.'].map(t => h('th', {}, t)))),
+    h('tbody', {}, rows.map(x => h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, x.capa), h('td', {}, x.topografo || nomDe(x.llave)), h('td', {}, x.archivo), h('td', {}, String(x.n)), h('td', {}, x.area ? oeFmt(x.area) : '—'), h('td', {}, oeR(x.zprom) + ' m')))))));
 }
 // Centros de costo válidos: catálogo de la app (incluye UF6/UF7 con su código), subcuentas y los creados por la oficina. código → [actividad, und, UF, hito, paquete, origen]
 let OE_CATJ = null;
