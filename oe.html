@@ -49,7 +49,7 @@ img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;backg
 .lv-arch{display:flex;gap:10px;align-items:center;background:#f3faf5;border:1px solid #bfe3c9;border-radius:14px;padding:10px 12px}.lv-arch>span{font-size:1.6rem}.lv-arch>div{flex:1;min-width:0}.lv-arch b{display:block;word-break:break-all;font-size:.95rem}.lv-otro{font-weight:800;color:#0a7f2e;padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #0a7f2e;font-size:.85rem;cursor:pointer}
 .lv-caps{margin-top:12px;display:grid;gap:6px}.lv-cap{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#f6f8fa;border-radius:12px;padding:9px 12px}.lv-cap b{display:block;font-size:.95rem}.lv-cap em{font-style:normal;font-weight:800;color:#0a7f2e;white-space:nowrap}
 .lv-sub{display:flex;gap:10px;align-items:center;background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 6px rgba(15,23,42,.07)}.lv-sub>div{flex:1;min-width:0}.lv-sub b{font-size:.95rem}.lv-sub small{word-break:break-word}.lv-ok{width:30px;height:30px;border-radius:50%;background:#0a7f2e;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
-.ini .preg{font-size:1rem;margin:4px 2px 6px}.ini .hs{grid-auto-rows:clamp(50px,calc((100dvh - 330px) / 5),80px)}.ini .hs .bg{height:100%;overflow:hidden;justify-content:center}.ini .hs{gap:6px;margin:0}.ini .hs .bg{padding:6px 3px 5px}.ini .hs .bg-i{font-size:1.3rem}.ini .hs .bg b{font-size:.74rem}
+.ini .preg{font-size:1rem;margin:4px 2px 6px}.ini .hs{grid-auto-rows:clamp(50px,calc((100dvh - 262px) / 5),80px)}.ini .hs .bg{height:100%;overflow:hidden;justify-content:center}.ini .hs{gap:6px;margin:0}.ini .hs .bg{padding:6px 3px 5px}.ini .hs .bg-i{font-size:1.3rem}.ini .hs .bg b{font-size:.74rem}
 main.oe:has(.ini){padding-top:8px;padding-bottom:12px}
 .act small.est{color:#0d5c2e;font-weight:700}
 </style>
@@ -268,7 +268,7 @@ function vMis() {
   });
   return h;
 }
-const LEV_ON = true; // levantamientos TXT: el topógrafo sube el TXT del día
+const LEV_ON = false; // los levantamientos TXT se cargan desde el Dashboard (OE → Avance); aquí solo se cuentan en Resumen
 const TABS = [['rep', '📝', 'Reporte'], ['res', '📊', 'Resumen']]; // solo dos vistas; Reporte trae «Qué se hizo hoy» y «Levantamientos»; los reportes de la semana van dentro de Resumen
 /* ---------- Levantamientos TXT (estación total) ---------- */
 function tmInv(E, N) { // plano de Bogotá D.C. (IDU, MAGNA GRS80) → [lat, lon]

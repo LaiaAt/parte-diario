@@ -2498,6 +2498,35 @@ function avDialogo(o) { // diálogo dentro de la página (no saca de la pantalla
     cont.appendChild(fondo); setTimeout(() => (inp || bOk).focus(), 30);
   });
 }
+function cargarLevDash() { // el Dashboard carga los TXT a nombre del topógrafo (la app OE ya no los sube)
+  const U = (D && D.oeusuarios) || []; if (!U.length) { banner('No hay topógrafos con módulo OE activos.'); return; }
+  const cont = document.querySelector('.av-grid.av-full') || document.body, fondo = h('div', { class: 'av-dlg-f' }), hoy = bogota();
+  const selT = h('select', { style: 'width:100%;margin:4px 0 10px' }, h('option', { value: '' }, 'Elige el topógrafo…'), U.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(u => h('option', { value: u.llave }, u.nombre)));
+  const fec = h('input', { type: 'date', value: hoy, max: hoy, style: 'width:100%;margin:4px 0 10px' });
+  const fin = h('input', { type: 'file', accept: '.txt,.csv,text/plain', multiple: true, hidden: true });
+  const lista = h('div', { style: 'max-height:38vh;overflow:auto;margin-top:8px' }); let A = [];
+  const bSub = h('button', { style: 'width:auto;min-height:40px;padding:0 18px', disabled: true }, '⬆ Subir');
+  const pinta = () => { lista.textContent = ''; A.forEach(a => lista.appendChild(h('div', { class: 'lv-row', style: 'display:flex;gap:8px;align-items:center;padding:7px 8px;border-radius:10px;margin-bottom:4px;background:' + (a.err ? '#fde7e6' : a.ok ? '#e3f4e8' : '#f3f6f9') },
+      h('span', { style: 'font-size:18px' }, a.err ? '⚠️' : a.ok ? '✔' : '📄'), h('div', { style: 'flex:1;min-width:0' }, h('b', { style: 'display:block;word-break:break-all;font-size:14px' }, a.f.name),
+        h('small', { style: 'color:#4b5b67' }, a.err ? a.err : (a.res.capas.length + ' actividades · ' + a.res.n + ' puntos · fecha ' + fmtF(a.fecha || fec.value) + (a.fecha ? ' (del nombre)' : '') + (a.ok ? ' · subido' : '')))))));
+    bSub.disabled = !A.some(a => !a.err && !a.ok); };
+  fin.onchange = async () => { A = []; for (const f of Array.from(fin.files || [])) { const t = await f.text(), res = levParse(t); A.push({ f: f, txt: t, res: res, err: res.error || (res.geo ? 'El TXT viene en latitud/longitud; se necesita en coordenadas planas.' : ''), fecha: levFecha(f.name) }); } fin.value = ''; pinta(); };
+  fec.onchange = pinta;
+  const cerrar = () => fondo.remove();
+  bSub.onclick = async () => { if (!selT.value) { banner('Elige el topógrafo.'); return; } bSub.disabled = true; let n = 0, mal = 0;
+    for (const a of A) { if (a.err || a.ok) continue; bSub.textContent = '⏳ ' + (n + mal + 1) + ' de ' + A.filter(x => !x.err).length + '…';
+      try { const r = await api({ accion: 'admin_oe_lev_subir', llave: LLAVE, top: selT.value, fecha: a.fecha || fec.value, archivo: a.f.name, capas: a.res.capas.map(c => { const o = Object.assign({}, c); delete o.rxyz; return o; }), txt: a.txt });
+        if (r.ok) { a.ok = true; n++; } else { a.err = r.mensaje || 'No se pudo subir'; mal++; } } catch (e) { a.err = 'Sin conexión'; mal++; } pinta(); }
+    bSub.textContent = '⬆ Subir'; banner('✔ ' + n + ' levantamiento(s) cargados' + (mal ? ' · ' + mal + ' con error' : '') + '. Quedan en el control de cambios.', mal ? 'mal' : 'ok');
+    if (n) { OEAV = null; CDB.del('admin_oe'); if (!mal) { cerrar(); } pintarOe(); } };
+  fondo.appendChild(h('div', { class: 'av-dlg', style: 'width:min(560px,100%)' },
+    h('div', { style: 'font-size:18px;font-weight:800;margin-bottom:6px' }, '⬆ Cargar levantamientos (TXT)'),
+    h('div', { class: 'small' }, 'Topógrafo que hizo el levantamiento'), selT,
+    h('div', { class: 'small' }, 'Fecha del levantamiento (se usa si el nombre del archivo no trae la fecha. Ej: 191126 = 19/11/2026)'), fec,
+    h('button', { type: 'button', class: 'sec', style: 'width:100%;min-height:44px', onclick: () => fin.click() }, '📂 Elegir uno o varios TXT'), fin, lista,
+    h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:12px' }, h('button', { class: 'sec', style: 'width:auto;min-height:40px;padding:0 16px', onclick: cerrar }, 'Cerrar'), bSub)));
+  cont.appendChild(fondo);
+}
 let OEPLANOS = null; const OEPLANO_COL = ['#d32f2f', '#1565c0', '#6a1b9a', '#ef6c00', '#00838f', '#5d4037', '#c2185b', '#2e7d32'];
 let OEPLOFF = (() => { try { return new Set(JSON.parse(localStorage.getItem('oe_planos_off') || '[]')); } catch (e) { return new Set(); } })();
 async function cargarPlanos() {
@@ -2570,7 +2599,7 @@ async function pintarOeAvance(c) {
   if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
   const A = OEAV.lev || [];
-  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados en estas fechas. Cambia el filtro de fechas. Los TXT los cargan los topógrafos desde la app OE.')); return; }
+  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados hasta esta fecha.')); if (D && (D.oeed || D.superadm)) c.appendChild(h('button', { style: 'width:auto;margin-top:10px', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)')); return; }
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
@@ -2619,7 +2648,8 @@ async function pintarOeAvance(c) {
   // barra superior: título acumulado + topógrafo + DXF
   const selTop = tops.length > 1 ? (() => { const s2 = h('select', { style: 'width:auto;min-width:200px', onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, (A.find(x => x.llave === l && x.topografo) || {}).topografo || nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null;
   const bDxf = h('button', { title: 'Puntos, contorno y superficie 3D de lo marcado. Abre en AutoCAD / Civil 3D' }, '⬇ Descargar DXF'); bDxf.onclick = () => bajarDxf(bDxf);
-  c.appendChild(h('div', { class: 'av-top' }, h('div', { style: 'flex:1;min-width:220px' }, h('div', { style: 'font-size:18px;font-weight:800;color:#0f172a' }, 'Avance acumulado al ' + fmtF($('hasta').value)), h('div', { class: 'small' }, 'Todo lo levantado desde el inicio hasta la fecha «Hasta» del filtro.')), selTop, bDxf));
+  const bLev = (D && (D.oeed || D.superadm)) ? h('button', { style: 'background:#0a7a32', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)') : null;
+  c.appendChild(h('div', { class: 'av-top' }, h('div', { style: 'flex:1;min-width:220px' }, h('div', { style: 'font-size:18px;font-weight:800;color:#0f172a' }, 'Avance acumulado al ' + fmtF($('hasta').value)), h('div', { class: 'small' }, 'Todo lo levantado desde el inicio hasta la fecha «Hasta» del filtro.')), selTop, bLev, bDxf));
   c.appendChild(h('div', { class: 'av-ks' }, kM.el, kA.el, kD.el, kC.el));
   // panel de actividades (leyenda) + mapa
   const seg = (val, fn) => { const w = h('div', { class: 'av-seg' }); const bs = [['pol', 'Área'], ['pts', 'Puntos']].map(([v, t]) => { const b = h('button', { type: 'button', class: val() === v ? 'on' : '', onclick: ev => { ev.stopPropagation(); fn(v); bs.forEach(x => x.className = x.dataset.v === val() ? 'on' : ''); } }, t); b.dataset.v = v; return b; }); bs.forEach(b => w.appendChild(b)); w.sync = () => bs.forEach(x => x.className = x.dataset.v === val() ? 'on' : ''); return w; };
