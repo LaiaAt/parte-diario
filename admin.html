@@ -2349,13 +2349,8 @@ async function pintarOeAvance(c) {
   }
   if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
-  const A = OEPREV.length ? OEPREV : (OEAV.lev || []);
-  const fin = h('input', { type: 'file', accept: '.txt,.csv,text/plain', multiple: true, hidden: true });
-  fin.onchange = async () => { const fs = Array.from(fin.files || []); fin.value = ''; const R = [], mal = []; for (const f of fs) { try { const res = levParse(await f.text()); if (res.error) { mal.push(f.name); continue; } const fe = levFecha(f.name) || bogota(); res.capas.forEach(c => R.push(Object.assign({ fecha: fe, llave: 'PREV', topografo: 'Vista previa', archivo: f.name }, c))); } catch (e) { mal.push(f.name); } } OEPREV = R; OEAVF = { top: '' }; OEOCULTAS = new Set(); if (mal.length) banner('No se pudo leer: ' + mal.join(', '), 'mal'); pintarOe(); };
-  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;align-items:center' }, h('button', { class: 'sec', onclick: () => fin.click() }, '📂 Cargar TXT (vista previa)'), fin,
-    OEPREV.length ? h('button', { onclick: () => { OEPREV = []; OEAVF = { top: '' }; OEOCULTAS = new Set(); pintarOe(); } }, '✖ Quitar vista previa') : null,
-    OEPREV.length ? h('span', { class: 'small', style: 'font-weight:700;color:#9a6b00' }, 'VISTA PREVIA de ' + new Set(OEPREV.map(x => x.archivo)).size + ' archivo(s): se ven solo aquí, no se guardó nada.') : null));
-  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados en estas fechas. Usa «Cargar TXT (vista previa)» para ver cómo se vería con tus archivos.')); return; }
+  const A = OEAV.lev || [];
+  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados en estas fechas. Cambia el filtro de fechas. Los TXT los cargan los topógrafos desde la app OE.')); return; }
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
