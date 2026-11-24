@@ -224,7 +224,7 @@ function vDia() {
   const hoy = hoyISO();
   return '<div class="dia"><button class="btn sec" data-a="dia" data-v="-1"' + (S.fecha <= sumDias(hoy, -7) ? ' disabled' : '') + '>◀</button><input type="date" id="fecha" value="' + S.fecha + '" min="' + sumDias(hoy, -7) + '" max="' + hoy + '"><button class="btn sec" data-a="dia" data-v="1"' + (S.fecha >= hoy ? ' disabled' : '') + '>▶</button></div>';
 }
-const vSeg = () => LEV_ON ? '<div class="seg"><button type="button" class="' + (S.sub !== 'lev' ? 'on' : '') + '" data-a="sub" data-v="hoy">📝 Qué hice hoy</button><button type="button" class="' + (S.sub === 'lev' ? 'on' : '') + '" data-a="sub" data-v="lev">📐 Levantamientos</button></div>' : '';
+const vSeg = () => LEV_ON ? '<div class="seg"><button type="button" class="' + (S.sub !== 'lev' ? 'on' : '') + '" data-a="sub" data-v="hoy">📝 Qué se hizo hoy</button><button type="button" class="' + (S.sub === 'lev' ? 'on' : '') + '" data-a="sub" data-v="lev">📐 Levantamientos</button></div>' : '';
 function vInicio() {
   const reg = todosDia(), por = {}; reg.forEach(x => { por[x.hito] = (por[x.hito] || 0) + 1; });
   if (LEV_ON && S.sub === 'lev') return vSeg() + vLev();
@@ -269,7 +269,7 @@ function vMis() {
   return h;
 }
 const LEV_ON = true; // levantamientos TXT: el topógrafo sube el TXT del día
-const TABS = [['rep', '📝', 'Reporte'], ['res', '📊', 'Resumen']]; // solo dos vistas; Reporte trae «Qué hice hoy» y «Levantamientos»; los reportes de la semana van dentro de Resumen
+const TABS = [['rep', '📝', 'Reporte'], ['res', '📊', 'Resumen']]; // solo dos vistas; Reporte trae «Qué se hizo hoy» y «Levantamientos»; los reportes de la semana van dentro de Resumen
 /* ---------- Levantamientos TXT (estación total) ---------- */
 function tmInv(E, N) { // plano de Bogotá D.C. (IDU, MAGNA GRS80) → [lat, lon]
   const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180;
