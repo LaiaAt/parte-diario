@@ -1975,13 +1975,13 @@ function navegacion() {
   modulo(MOD);
 }
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
-const OE_TABS = [['reg', '📋 Registros'], ['res', '📊 Resumen']]; // Mapa de registros oculto por ahora: ['mapa', '🗺️ Mapa']
+const OE_TABS = [['res', '📊 Resumen'], ['reg', '📋 Registros']]; // Mapa de registros oculto por ahora: ['mapa', '🗺️ Mapa']
 const oeTabsSuper = () => { if (D && (D.oeed || D.superadm) && OE_TABS.length < 3) OE_TABS.push(['avance', '🏗️ Avance']); }; // Avance (levantamientos TXT): solo super administrador mientras se prueba
 const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Aprobado', '#0a7a32'], CORREGIDO: ['🔵', 'Corregido', '#1565c0'], RECHAZADO: ['🔴', 'Rechazado', '#b3261e'] };
 const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
 const oeCuenta = r => r.rev !== 'RECHAZADO'; // los rechazados no suman
 const oeSinCc = r => !String(r.cc || '').trim() || String(r.cc).toUpperCase() === 'NUEVA';
-let OE = null, OETAB = selGet('oe', 'reg', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', red: '', rev: '', q: '' }, OEN = 60;
+let OE = null, OETAB = selGet('oe', 'res', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', red: '', rev: '', q: '' }, OEN = 60;
 const oeNum = x => { const n = Number(String(x == null ? '' : x).replace(',', '.')); return isFinite(n) ? n : 0; };
 const oeR = n => Math.round(n * 100) / 100;
 const oeFmt = n => oeR(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
