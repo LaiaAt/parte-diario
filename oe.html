@@ -291,16 +291,21 @@ function levCasco(P) { // envolvente convexa (cadena monótona) de [[x,y,...]]
   q.slice().reverse().forEach(p => { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); });
   lo.pop(); up.pop(); return lo.concat(up);
 }
+// Una línea del TXT de estación total: punto, este, norte, cota, descripción. Separador: comas, punto y coma, tabulador o espacios.
+function levCampos(l) {
+  const t = String(l).trim(), sep = t.indexOf(',') >= 0 ? ',' : t.indexOf(';') >= 0 ? ';' : t.indexOf('\t') >= 0 ? '\t' : ' ';
+  const c = (sep === ' ' ? t.split(/\s+/) : t.split(sep)).map(x => x.trim()); c.sep = sep === ' ' ? ' ' : sep; return c;
+}
 function levParse(texto) {
   const pts = []; let mal = 0;
   String(texto || '').split(/\r?\n/).forEach(l => {
     if (!l.trim()) return;
-    const c = l.split(','); if (c.length < 3) { mal++; return; }
-    const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : NaN, d = (c.slice(4).join(',').trim() || 'SIN DESCRIPCION').toUpperCase();
+    const c = levCampos(l); if (c.length < 3) { mal++; return; }
+    const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : NaN, d = (c.slice(4).join(c.sep).trim() || 'SIN DESCRIPCION').toUpperCase();
     if (!isFinite(x) || !isFinite(y)) { mal++; return; }
     pts.push({ x: x, y: y, z: isFinite(z) ? z : 0, d: d });
   });
-  if (!pts.length) return { error: 'El archivo no tiene puntos. Debe ser: punto, este, norte, cota, descripción.' };
+  if (!pts.length) return { error: 'El archivo no tiene puntos. Cada línea debe ser: punto, este, norte, cota, descripción (separados por comas o espacios).' };
   const geo = pts.every(p => Math.abs(p.x) <= 180 && Math.abs(p.y) <= 90);
   pts.forEach(p => {
     if (geo) { const a = Math.abs(p.x) < Math.abs(p.y) ? [p.x, p.y] : [p.y, p.x]; p.lat = a[0]; p.lon = a[1]; p.mx = p.lon * 111320 * Math.cos(p.lat * Math.PI / 180); p.my = p.lat * 110574; }

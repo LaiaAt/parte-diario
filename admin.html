@@ -2561,16 +2561,21 @@ async function cargarPlanos() {
   try { const r = await api({ accion: 'admin_oe_planos', llave: LLAVE }); if (r.ok) (r.capas || []).forEach(c => L.push(c)); } catch (e) {}
   OEPLANOS = L; return L;
 }
+// Una línea del TXT de estación total: punto, este, norte, cota, descripción. Separador: comas, punto y coma, tabulador o espacios.
+function levCampos(l) {
+  const t = String(l).trim(), sep = t.indexOf(',') >= 0 ? ',' : t.indexOf(';') >= 0 ? ';' : t.indexOf('\t') >= 0 ? '\t' : ' ';
+  const c = (sep === ' ' ? t.split(/\s+/) : t.split(sep)).map(x => x.trim()); c.sep = sep === ' ' ? ' ' : sep; return c;
+}
 function levParse(texto) {
   const pts = []; let mal = 0;
   String(texto || '').split(/\r?\n/).forEach(l => {
     if (!l.trim()) return;
-    const c = l.split(','); if (c.length < 3) { mal++; return; }
-    const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : NaN, d = (c.slice(4).join(',').trim() || 'SIN DESCRIPCION').toUpperCase();
+    const c = levCampos(l); if (c.length < 3) { mal++; return; }
+    const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : NaN, d = (c.slice(4).join(c.sep).trim() || 'SIN DESCRIPCION').toUpperCase();
     if (!isFinite(x) || !isFinite(y)) { mal++; return; }
     pts.push({ x: x, y: y, z: isFinite(z) ? z : 0, d: d });
   });
-  if (!pts.length) return { error: 'El archivo no tiene puntos. Debe ser: punto, este, norte, cota, descripción.' };
+  if (!pts.length) return { error: 'El archivo no tiene puntos. Cada línea debe ser: punto, este, norte, cota, descripción (separados por comas o espacios).' };
   const geo = pts.every(p => Math.abs(p.x) <= 180 && Math.abs(p.y) <= 90);
   pts.forEach(p => {
     if (geo) { const a = Math.abs(p.x) < Math.abs(p.y) ? [p.x, p.y] : [p.y, p.x]; p.lat = a[0]; p.lon = a[1]; p.mx = p.lon * 111320 * Math.cos(p.lat * Math.PI / 180); p.my = p.lat * 110574; }
@@ -2661,8 +2666,8 @@ async function pintarOeAvance(c) {
         let r; try { r = await api({ accion: 'admin_oe_lev_txt', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo }); } catch (e) { r = null; }
         if (!r || !r.ok || !r.txt) { fallo++; continue; }
         const res = levParse(r.txt); if (res.error) { fallo++; continue; }
-        const pts = String(r.txt).split(/\r?\n/).map(l => l.split(',')).filter(c => c.length >= 3);
-        const porD = {}; pts.forEach(c => { const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : 0, d = (c.slice(4).join(',').trim() || 'SIN DESCRIPCION').toUpperCase(); if (isFinite(x) && isFinite(y)) (porD[d] = porD[d] || []).push([x, y, isFinite(z) ? z : 0]); });
+        const pts = String(r.txt).split(/\r?\n/).filter(l => l.trim()).map(levCampos).filter(c => c.length >= 3);
+        const porD = {}; pts.forEach(c => { const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : 0, d = (c.slice(4).join(c.sep).trim() || 'SIN DESCRIPCION').toUpperCase(); if (isFinite(x) && isFinite(y)) (porD[d] = porD[d] || []).push([x, y, isFinite(z) ? z : 0]); });
         if (res.geo) { geo++; continue; }
         Object.keys(porD).forEach(d => { if (!a.capas.has(d)) return; const nd = oeNom(d), g = grupos[nd] = grupos[nd] || { pts: [], anillos: [] }; porD[d].forEach(p => g.pts.push(p)); const cp = res.capas.find(q => q.capa === d); if (cp && cp.rxyz) cp.rxyz.forEach(rg => g.anillos.push(rg)); });
       }
