@@ -247,6 +247,7 @@ header>span{gap:6px!important;min-width:0}
 .av-dlg-f{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px}.av-dlg{background:#fff;border-radius:16px;padding:18px;width:min(460px,100%);box-shadow:0 10px 40px rgba(0,0,0,.3)}
 #roPill{position:fixed;right:14px;bottom:14px;z-index:9000;background:#111827;color:#fff;font-weight:800;font-size:13px;padding:8px 14px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none}
 .ro [data-m] td input,.ro [data-m] td select,.ro [data-m] td textarea{pointer-events:none;background:#f3f4f6!important}
+.av-foco{display:flex;gap:10px;align-items:center;justify-content:space-between;background:#e8f0fe;border:2px solid #1565c0;border-radius:12px;padding:8px 12px;margin:0 0 10px;font-size:14px;color:#0f172a}.av-foco button{width:auto;min-height:34px;background:#1565c0;color:#fff;border:0;border-radius:10px;font-weight:800;padding:4px 14px;cursor:pointer}
 .av-full-b{background:#c62828;border:0;border-radius:10px;box-shadow:0 2px 10px rgba(198,40,40,.4);font-weight:800;font-size:13.5px;padding:8px 12px;cursor:pointer;min-height:0;width:auto;color:#fff}.av-full-b:hover{background:#a51d1d}
 .av-esc{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:99999;background:#111827;color:#fff;font-weight:800;font-size:15px;padding:10px 18px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;transition:opacity .6s}.av-esc.fuera{opacity:0}
 .av-sec{border:1px solid #cfd8e3;border-radius:12px;margin-top:12px;background:#fff;overflow:hidden}.av-sec-top{display:flex;align-items:center;gap:8px;padding-right:10px}.av-sec-h{flex:1;display:flex;align-items:center;gap:10px;border:0;background:#fff;padding:12px 14px;cursor:pointer;min-height:0;width:auto;font-size:16px;color:#0f172a;text-align:left;box-shadow:none}.av-sec-h:hover{background:#f5f8fa}
@@ -2487,7 +2488,7 @@ function elegirCapasDxf(porCapa, nombre) { // ventana para escoger las capas del
     (document.querySelector('.av-grid.av-full') || document.body).appendChild(fondo);
   });
 }
-let OEALIAS = {}, OEABIERTO = {}, OEIMG = {};
+let OEALIAS = {}, OEABIERTO = {}, OEIMG = {}, OEFOCO = null, OEFULL = false;
 const oeNom = cp => ((D && D.oealias) || OEALIAS)[cp] || cp; // nombre visible de la actividad (no cambia los datos)
 function tmDir(lat, lon) { // [lat, lon] → plano de Bogotá (inversa de tmInv)
   const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180, p = lat * R;
@@ -2516,9 +2517,7 @@ function avDialogo(o) { // diálogo dentro de la página (no saca de la pantalla
   });
 }
 function cargarLevDash() { // el Dashboard carga los TXT a nombre del topógrafo (la app OE ya no los sube)
-  const U = (D && D.oeusuarios) || []; if (!U.length) { banner('No hay topógrafos con módulo OE activos.'); return; }
   const cont = document.querySelector('.av-grid.av-full') || document.body, fondo = h('div', { class: 'av-dlg-f' }), hoy = bogota();
-  const selT = h('select', { style: 'width:100%;margin:4px 0 10px' }, h('option', { value: '' }, 'Elige el topógrafo…'), U.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(u => h('option', { value: u.llave }, u.nombre)));
   const fec = h('input', { type: 'date', value: hoy, max: hoy, style: 'width:100%;margin:4px 0 10px' });
   const fin = h('input', { type: 'file', accept: '.txt,.csv,text/plain', multiple: true, hidden: true });
   const lista = h('div', { style: 'max-height:38vh;overflow:auto;margin-top:8px' }); let A = [];
@@ -2530,15 +2529,15 @@ function cargarLevDash() { // el Dashboard carga los TXT a nombre del topógrafo
   fin.onchange = async () => { A = []; for (const f of Array.from(fin.files || [])) { const t = await f.text(), res = levParse(t); A.push({ f: f, txt: t, res: res, err: res.error || (res.geo ? 'El TXT viene en latitud/longitud; se necesita en coordenadas planas.' : ''), fecha: levFecha(f.name) }); } fin.value = ''; pinta(); };
   fec.onchange = pinta;
   const cerrar = () => fondo.remove();
-  bSub.onclick = async () => { if (!selT.value) { banner('Elige el topógrafo.'); return; } bSub.disabled = true; let n = 0, mal = 0;
+  bSub.onclick = async () => { bSub.disabled = true; let n = 0, mal = 0;
     for (const a of A) { if (a.err || a.ok) continue; bSub.textContent = '⏳ ' + (n + mal + 1) + ' de ' + A.filter(x => !x.err).length + '…';
-      try { const r = await api({ accion: 'admin_oe_lev_subir', llave: LLAVE, top: selT.value, fecha: a.fecha || fec.value, archivo: a.f.name, capas: a.res.capas.map(c => { const o = Object.assign({}, c); delete o.rxyz; return o; }), txt: a.txt });
+      try { const r = await api({ accion: 'admin_oe_lev_subir', llave: LLAVE, fecha: a.fecha || fec.value, archivo: a.f.name, capas: a.res.capas.map(c => { const o = Object.assign({}, c); delete o.rxyz; return o; }), txt: a.txt });
         if (r.ok) { a.ok = true; n++; } else { a.err = r.mensaje || 'No se pudo subir'; mal++; } } catch (e) { a.err = 'Sin conexión'; mal++; } pinta(); }
     bSub.textContent = '⬆ Subir'; banner('✔ ' + n + ' levantamiento(s) cargados' + (mal ? ' · ' + mal + ' con error' : '') + '. Quedan en el control de cambios.', mal ? 'mal' : 'ok');
     if (n) { OEAV = null; CDB.del('admin_oe'); if (!mal) { cerrar(); } pintarOe(); } };
   fondo.appendChild(h('div', { class: 'av-dlg', style: 'width:min(560px,100%)' },
     h('div', { style: 'font-size:18px;font-weight:800;margin-bottom:6px' }, '⬆ Cargar levantamientos (TXT)'),
-    h('div', { class: 'small' }, 'Topógrafo que hizo el levantamiento'), selT,
+    h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Queda cargado a nombre de ' + ((D && D.nombre) || 'tu usuario') + ', con fecha y hora en el control de cambios.'),
     h('div', { class: 'small' }, 'Fecha del levantamiento (se usa si el nombre del archivo no trae la fecha. Ej: 191126 = 19/11/2026)'), fec,
     h('button', { type: 'button', class: 'sec', style: 'width:100%;min-height:44px', onclick: () => fin.click() }, '📂 Elegir uno o varios TXT'), fin, lista,
     h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:12px' }, h('button', { class: 'sec', style: 'width:auto;min-height:40px;padding:0 16px', onclick: cerrar }, 'Cerrar'), bSub)));
@@ -2615,14 +2614,15 @@ async function pintarOeAvance(c) {
   }
   if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
-  const A = OEAV.lev || [];
+  const A = (OEAV.lev || []).map(x => Object.assign({}, x, { cod: x.capa, capa: oeNom(x.capa) })); // capa = nombre estándar (equivalencias); cod = como viene en el TXT
   if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados hasta esta fecha.')); if (oeEd()) c.appendChild(h('button', { style: 'width:auto;margin-top:10px', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)')); return; }
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
   const e = x => String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   let mapa = null, dibujar = () => {}; const modos = {}; const grupos = {}, chips = {};
-  const vis = x => !OEOCULTAS.has(x.capa);
+  const enFoco = x => !OEFOCO || (x.fecha + '|' + x.llave + '|' + x.archivo) === OEFOCO;
+  const vis = x => !OEOCULTAS.has(x.capa) && enFoco(x);
   const mk = t => { const b = h('b', { style: 'font-size:20px;color:#0f172a;display:block;line-height:1.1' }, ''); return { el: h('div', { class: 'av-k' }, b, h('span', {}, t)), set: v => { b.textContent = v; } }; };
   const kM = mk('m² levantados'), kA = mk('archivos TXT'), kD = mk('días con levantamiento'), kC = mk('actividades');
   const tbody = h('tbody', {});
@@ -2642,7 +2642,7 @@ async function pintarOeAvance(c) {
   let dxfOcupado = false;
   const bajarDxf = async btn => {
     if (dxfOcupado) return; const V = L.filter(vis); if (!V.length) { banner('No hay actividades visibles para exportar.'); return; }
-    const arch = {}; V.forEach(x => { const k = x.fecha + '|' + x.llave + '|' + x.archivo; (arch[k] = arch[k] || { fecha: x.fecha, llave: x.llave, archivo: x.archivo, capas: new Set() }).capas.add(x.capa); });
+    const arch = {}; V.forEach(x => { const k = x.fecha + '|' + x.llave + '|' + x.archivo; (arch[k] = arch[k] || { fecha: x.fecha, llave: x.llave, archivo: x.archivo, capas: new Set() }).capas.add(x.cod); });
     const ks = Object.keys(arch), txt0 = btn.textContent; dxfOcupado = true; const grupos = {}; let geo = 0, fallo = 0;
     try {
       for (let i = 0; i < ks.length; i++) {
@@ -2653,7 +2653,7 @@ async function pintarOeAvance(c) {
         const pts = String(r.txt).split(/\r?\n/).map(l => l.split(',')).filter(c => c.length >= 3);
         const porD = {}; pts.forEach(c => { const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : 0, d = (c.slice(4).join(',').trim() || 'SIN DESCRIPCION').toUpperCase(); if (isFinite(x) && isFinite(y)) (porD[d] = porD[d] || []).push([x, y, isFinite(z) ? z : 0]); });
         if (res.geo) { geo++; continue; }
-        Object.keys(porD).forEach(d => { if (!a.capas.has(d)) return; const g = grupos[d] = grupos[d] || { pts: [], anillos: [] }; porD[d].forEach(p => g.pts.push(p)); const cp = res.capas.find(q => q.capa === d); if (cp && cp.rxyz) cp.rxyz.forEach(rg => g.anillos.push(rg)); });
+        Object.keys(porD).forEach(d => { if (!a.capas.has(d)) return; const nd = oeNom(d), g = grupos[nd] = grupos[nd] || { pts: [], anillos: [] }; porD[d].forEach(p => g.pts.push(p)); const cp = res.capas.find(q => q.capa === d); if (cp && cp.rxyz) cp.rxyz.forEach(rg => g.anillos.push(rg)); });
       }
       if (!Object.keys(grupos).length) { banner('No se pudo armar el DXF' + (geo ? ': los TXT vienen en latitud/longitud, no en coordenadas planas.' : '.')); return; }
       const dx = dxfArmar(grupos), fs = V.map(x => x.fecha).sort(), nom = 'SUPERFICIE_OE_' + fs[0] + (fs[fs.length - 1] !== fs[0] ? '_a_' + fs[fs.length - 1] : '') + '.dxf';
@@ -2663,10 +2663,11 @@ async function pintarOeAvance(c) {
   };
   const todas = v => { OEOCULTAS = v ? new Set() : new Set(capas); refrescar(true); };
   // barra superior: título acumulado + topógrafo + DXF
-  const selTop = tops.length > 1 ? (() => { const s2 = h('select', { style: 'width:auto;min-width:200px', onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Todos los topógrafos'), tops.map(l => h('option', { value: l }, (A.find(x => x.llave === l && x.topografo) || {}).topografo || nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null;
+  const selTop = tops.length > 1 ? (() => { const s2 = h('select', { style: 'width:auto;min-width:200px', onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Cargado por: todos'), tops.map(l => h('option', { value: l }, (A.find(x => x.llave === l && x.topografo) || {}).topografo || nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null;
   const bDxf = h('button', { title: 'Puntos, contorno y superficie 3D de lo marcado. Abre en AutoCAD / Civil 3D' }, '⬇ Descargar DXF'); bDxf.onclick = () => bajarDxf(bDxf);
   const bLev = oeEd() ? h('button', { style: 'background:#0a7a32', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)') : null;
   c.appendChild(h('div', { class: 'av-top' }, h('div', { style: 'flex:1;min-width:220px' }, h('div', { style: 'font-size:18px;font-weight:800;color:#0f172a' }, 'Avance acumulado al ' + fmtF($('hasta').value)), h('div', { class: 'small' }, 'Todo lo levantado desde el inicio hasta la fecha «Hasta» del filtro.')), selTop, bLev, oeEd() ? bDxf : null));
+  if (OEFOCO) { const [ff, fl, fa] = OEFOCO.split('|'); c.appendChild(h('div', { class: 'av-foco' }, h('span', {}, '📍 Viendo solo el TXT ', h('b', {}, fa), ' · ' + fmtF(ff) + ' · ' + ((A.find(x => x.llave === fl && x.topografo) || {}).topografo || nomDe(fl) || fl)), h('button', { type: 'button', onclick: () => { OEFOCO = null; OEOCULTAS = new Set(); pintarOe(); } }, '✕ Ver todo'))); }
   c.appendChild(h('div', { class: 'av-ks' }, kM.el, kA.el, kD.el, kC.el));
   // panel de actividades (leyenda) + mapa
   const seg = (val, fn) => { const w = h('div', { class: 'av-seg' }); const bs = [['pol', 'Área'], ['pts', 'Puntos']].map(([v, t]) => { const b = h('button', { type: 'button', class: val() === v ? 'on' : '', onclick: ev => { ev.stopPropagation(); fn(v); bs.forEach(x => x.className = x.dataset.v === val() ? 'on' : ''); } }, t); b.dataset.v = v; return b; }); bs.forEach(b => w.appendChild(b)); w.sync = () => bs.forEach(x => x.className = x.dataset.v === val() ? 'on' : ''); return w; };
@@ -2676,11 +2677,10 @@ async function pintarOeAvance(c) {
     const caja = h('span', { class: 'av-chk' });
     const sg = seg(() => OEDIBC[cp] || OEDIB, v => { OEDIBC[cp] = v; try { localStorage.setItem('oe_dibc', JSON.stringify(OEDIBC)); } catch (e2) {} dibujar(); refrescar(false); });
     modos[cp] = () => sg.sync();
-    const nomEl = h('b', {}, oeNom(cp), oeNom(cp) !== cp ? h('span', { style: 'font-weight:600;color:#6b7785;font-size:12px' }, ' (' + cp + ')') : null);
+    const cods = Array.from(new Set(A.filter(x => x.capa === cp).map(x => x.cod))).sort(), otros = cods.filter(k => k !== cp);
+    const nomEl = h('b', {}, cp, otros.length ? h('span', { style: 'font-weight:600;color:#6b7785;font-size:12px' }, ' (' + cods.join(', ') + ')') : null);
     const fila = h('div', { class: 'av-fila', title: 'Toca para mostrar u ocultar', onclick: () => { if (OEOCULTAS.has(cp)) OEOCULTAS.delete(cp); else OEOCULTAS.add(cp); refrescar(false); } }, caja, h('div', { style: 'flex:1;min-width:0' }, nomEl, h('small', {}, n + (n === 1 ? ' archivo' : ' archivos') + (ar ? ' · ' + oeFmt(Math.round(ar)) + ' m²' : ''))),
-      D && D.oealiasEd ? h('button', { type: 'button', class: 'av-lapiz', title: 'Nombre visible de ' + cp + ' para todos (no cambia los TXT)', onclick: async ev => { ev.stopPropagation();
-        const v = await avDialogo({ titulo: 'Nombre visible de «' + cp + '»', ayuda: 'Lo verán todos los usuarios. Ej: LUMINARIO\nDéjalo vacío para volver a ' + cp + '. Los TXT y los datos guardados no cambian.', campo: true, valor: (D.oealias || {})[cp] || '', ok: 'Guardar' }); if (v === null) return;
-        try { const r = await api({ accion: 'admin_oe_alias', llave: LLAVE, capa: cp, nombre: v }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar.'); return; } D.oealias = r.alias || {}; nomEl.textContent = ''; nomEl.appendChild(document.createTextNode(oeNom(cp))); if (oeNom(cp) !== cp) nomEl.appendChild(h('span', { style: 'font-weight:600;color:#6b7785;font-size:12px' }, ' (' + cp + ')')); dibujar(); refrescar(false); banner('Nombre guardado para todos.', 'ok'); } catch (e2) { banner('No se pudo guardar (sin conexión).'); } } }, '✎') : null, sg);
+      D && D.oealiasEd ? h('button', { type: 'button', class: 'av-lapiz', title: 'Equivalencias de ' + cp + ' (no cambia los TXT)', onclick: ev => { ev.stopPropagation(); editarEquiv(cp, cods); } }, '✎') : null, sg);
     chips[cp] = on => { caja.style.background = on ? col(cp) : '#fff'; caja.style.borderColor = col(cp); caja.textContent = on ? '✓' : ''; fila.style.opacity = on ? '1' : '.55'; };
     lista.appendChild(fila);
   });
@@ -2728,13 +2728,33 @@ async function pintarOeAvance(c) {
     if (OEPLOFF.has(p.nombre)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); } else if (!mapa.hasLayer(g)) g.addTo(mapa); }); };
   pintarPlanos();
   if (!OEPLANOS) cargarPlanos().then(() => { if (planoBox.isConnected) { pintarPlanos(); verPlanos(); } });
+  const editarEquiv = (cp, cods) => { // códigos del TXT → nombre estándar. Ej: PAT, PT y PATA = PATA
+    const cont = document.querySelector('.av-grid.av-full') || document.body, fondo = h('div', { class: 'av-dlg-f' }), filas = {};
+    const todos = Array.from(new Set(A.map(x => x.cod))).sort();
+    const lista = h('div', { style: 'max-height:46vh;overflow:auto;margin:8px 0' });
+    const fila = k => { const inp = h('input', { value: oeNom(k), style: 'flex:1;min-width:0;font-weight:700' }); filas[k] = inp; lista.appendChild(h('div', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:6px' }, h('span', { style: 'width:110px;font-weight:800;color:#334155' }, k), h('span', {}, '='), inp)); };
+    cods.forEach(fila);
+    const otro = h('select', { style: 'width:100%' }, h('option', { value: '' }, '＋ Agregar otro código del TXT a este grupo…'), todos.filter(k => cods.indexOf(k) < 0).map(k => h('option', { value: k }, k + (oeNom(k) !== k ? ' (hoy: ' + oeNom(k) + ')' : ''))));
+    otro.onchange = () => { const k = otro.value; if (!k || filas[k]) return; fila(k); filas[k].value = cp; otro.querySelector('option[value="' + k + '"]').remove(); otro.value = ''; };
+    const cerrar = () => fondo.remove();
+    const bOk = h('button', { style: 'width:auto;min-height:40px;padding:0 18px', onclick: async () => {
+      bOk.disabled = true; bOk.textContent = 'Guardando…'; let n = 0;
+      for (const k of Object.keys(filas)) { const v = filas[k].value.trim().toUpperCase(); if ((v || k) === oeNom(k)) continue;
+        try { const r = await api({ accion: 'admin_oe_alias', llave: LLAVE, capa: k, nombre: v }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar.'); bOk.disabled = false; bOk.textContent = 'Guardar'; return; } D.oealias = r.alias || {}; n++; } catch (e2) { banner('No se pudo guardar (sin conexión).'); bOk.disabled = false; bOk.textContent = 'Guardar'; return; } }
+      cerrar(); if (n) { banner('✔ Equivalencias guardadas para todos. Quedan en el control de cambios.', 'ok'); pintarOe(); } } }, 'Guardar');
+    fondo.appendChild(h('div', { class: 'av-dlg', style: 'width:min(520px,100%)' },
+      h('div', { style: 'font-size:18px;font-weight:800' }, 'Equivalencias de actividad'),
+      h('div', { class: 'small', style: 'margin-top:4px' }, 'A la izquierda, el código tal como viene en el TXT. A la derecha, el nombre estándar con el que se agrupa en toda la plataforma. Ej: PAT = PATA, PT = PATA. Vacío = vuelve a su código. Los TXT no cambian.'),
+      lista, otro,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:12px' }, h('button', { class: 'sec', style: 'width:auto;min-height:40px;padding:0 16px', onclick: cerrar }, 'Cancelar'), bOk)));
+    cont.appendChild(fondo); };
   const panel = h('div', { class: 'av-panel' },
     h('button', { type: 'button', class: 'av-cerrar-act', onclick: () => { grid.classList.remove('ver-act'); const mb = grid.querySelector('.av-mob-b'); if (mb) mb.textContent = '☰ Actividades'; } }, '✕ Cerrar actividades'),
     h('div', { class: 'av-top2' }, h('div', { class: 'av-pf2' }, h('span', {}, 'Dibujar todas como'), todasSeg), h('button', { class: 'av-centrar', onclick: () => refrescar(true) }, '🎯 Centrar mapa')),
     h('div', { class: 'av-ph' }, h('b', {}, 'Actividades'), h('span', {}, h('a', { href: '#', onclick: ev => { ev.preventDefault(); todas(true); } }, 'Todas'), ' · ', h('a', { href: '#', onclick: ev => { ev.preventDefault(); todas(false); } }, 'Ninguna'))),
     lista);
   const box = h('div', { class: 'av-mapa' }, h('div', { style: 'padding:20px' }, 'Cargando mapa…'));
-  const grid = h('div', { class: 'av-grid' }, panel, box); c.appendChild(grid);
+  const grid = h('div', { class: 'av-grid' + (OEFULL ? ' av-full' : '') }, panel, box); c.appendChild(grid);
   if (!OEPREV.length) { // archivos TXT cargados por los topógrafos: descargar y, con permiso, anular los erróneos
     const arch = {}; L.forEach(x => { const k = x.fecha + '|' + x.llave + '|' + x.archivo; (arch[k] = arch[k] || { fecha: x.fecha, llave: x.llave, topografo: x.topografo, archivo: x.archivo, txt: x.txt, capas: [] }).capas.push(x.capa); });
     const bajarTxt = async a => { try { const r = await api({ accion: 'admin_oe_lev_txt', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo }); if (!r.ok) { banner(r.mensaje || 'No se pudo descargar.'); return; } const u = URL.createObjectURL(new Blob([r.txt], { type: 'text/plain' })), l = h('a', { href: u, download: r.nombre }); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000); } catch (er) { banner('No se pudo descargar.'); } };
@@ -2745,14 +2765,10 @@ async function pintarOeAvance(c) {
       h('td', { style: 'text-align:center' }, h('button', { style: 'width:auto;min-height:32px;padding:4px 12px;background:#1565c0', title: 'Ver en el mapa dónde está este levantamiento', onclick: () => verLevMapa(a) }, '📍 Ver')),
       ed ? h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px', onclick: () => bajarTxt(a) }, '⬇ TXT')) : null,
       ed ? h('td', { style: 'text-align:center' }, h('button', { class: 'sec', style: 'width:auto;min-height:32px;padding:4px 12px;color:#b3261e;border-color:#e6b4b0', onclick: () => anular(a) }, 'Anular')) : null)));
-    const verLevMapa = a => { // muestra sus actividades, acerca el mapa al levantamiento y lo resalta
-      if (!mapa) { banner('El mapa aún está cargando.'); return; } const X = L.filter(x => x.fecha === a.fecha && x.llave === a.llave && x.archivo === a.archivo), pts = [];
-      const plano = v => { if (Array.isArray(v) && typeof v[0] === 'number') pts.push(v); else if (Array.isArray(v)) v.forEach(plano); }; X.forEach(x => plano(x.poly));
-      if (!pts.length) { banner('Este levantamiento no tiene coordenadas para ubicar.'); return; }
-      let cambio = false; a.capas.forEach(cp => { if (OEOCULTAS.has(cp)) { OEOCULTAS.delete(cp); cambio = true; } }); if (cambio) refrescar(false);
-      const b = window.L.latLngBounds(pts); mapa.fitBounds(b.pad(0.6), { maxZoom: 20 });
-      const res = window.L.rectangle(b.pad(0.15), { color: '#1565c0', weight: 3, dashArray: '8 6', fill: false, interactive: false }).addTo(mapa); setTimeout(() => mapa.removeLayer(res), 6000);
-      box.scrollIntoView({ behavior: 'smooth', block: 'center' }); banner('📍 ' + a.archivo + ' · ' + fmtF(a.fecha), 'ok'); };
+    const verLevMapa = a => { // deja visible SOLO ese TXT (sus actividades) y acerca el mapa
+      if (!mapa) { banner('El mapa aún está cargando.'); return; }
+      OEFOCO = a.fecha + '|' + a.llave + '|' + a.archivo; OEOCULTAS = new Set(capas.filter(cp => a.capas.indexOf(cp) < 0));
+      pintarOe(); setTimeout(() => { const bx = document.querySelector('.av-mapa'); if (bx) bx.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300); };
     const AN = (OEAV && OEAV.anul) || [], nA = Object.keys(arch).length;
     const seccion = (clave, titulo, total, cuerpo, extra) => { const abierto = !!OEABIERTO[clave], caja = h('div', { class: 'av-sec' + (abierto ? ' ab' : '') });
       const cab = h('button', { type: 'button', class: 'av-sec-h', onclick: () => { OEABIERTO[clave] = !OEABIERTO[clave]; caja.classList.toggle('ab'); } }, h('span', { class: 'av-sec-f' }, '▸'), h('b', {}, titulo), h('span', { class: 'av-sec-n' }, String(total)));
@@ -2784,7 +2800,7 @@ async function pintarOeAvance(c) {
     new Ctl().addTo(m); pintarPlanos();
     const Full = window.L.Control.extend({ options: { position: 'topleft' }, onAdd: () => { const b = h('button', { type: 'button', class: 'av-full-b', title: 'Pantalla completa: actividades, plano y capas' }, '⛶ Pantalla completa');
       let aviso = null;
-      const poner = on => { grid.classList.toggle('av-full', on); b.textContent = on ? '✕ Salir de pantalla completa' : '⛶ Pantalla completa'; setTimeout(() => m.invalidateSize(), 120);
+      const poner = on => { OEFULL = on; grid.classList.toggle('av-full', on); b.textContent = on ? '✕ Salir de pantalla completa' : '⛶ Pantalla completa'; setTimeout(() => m.invalidateSize(), 120);
         if (aviso) { aviso.remove(); aviso = null; } if (on) { aviso = h('div', { class: 'av-esc' }, window.matchMedia('(pointer:coarse)').matches ? 'Para salir toca «✕ Salir de pantalla completa»' : 'Presiona la tecla Esc para salir de la pantalla completa'); grid.appendChild(aviso); setTimeout(() => { if (aviso) aviso.classList.add('fuera'); }, 4000); } };
       b.onclick = () => { const on = !grid.classList.contains('av-full'); if (on) { poner(true); try { if (grid.requestFullscreen) grid.requestFullscreen().catch(() => {}); } catch (e2) {} } else { poner(false); try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e2) {} } };
       document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && grid.classList.contains('av-full')) poner(false); });
@@ -2795,12 +2811,12 @@ async function pintarOeAvance(c) {
     if (window.matchMedia('(max-width:760px)').matches) new Mob().addTo(m);
     dibujar = () => {
     Object.keys(grupos).forEach(k => grupos[k].clearLayers());
-    L.slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
+    L.filter(enFoco).slice().sort((x, y) => x.fecha.localeCompare(y.fecha)).forEach(x => {
       const tipo = x.tipo || (x.area ? 'pol' : 'pts'), poly = x.poly || [];
       const ok = p => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]);
       const g = grupos[x.capa] = grupos[x.capa] || window.L.layerGroup();
       const op = { color: col(x.capa), weight: tipo === 'lin' ? 4 : 3, fillColor: col(x.capa), fillOpacity: .35 };
-      const pop = '<b>' + e(oeNom(x.capa)) + '</b>' + (oeNom(x.capa) !== x.capa ? ' (' + e(x.capa) + ')' : '') + '<br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m';
+      const pop = '<b>' + e(oeNom(x.capa)) + '</b>' + (x.cod && x.cod !== x.capa ? ' (' + e(x.cod) + ')' : '') + '<br>' + e(fmtF(x.fecha)) + ' · ' + e(x.topografo || nomDe(x.llave)) + '<br>' + e(x.archivo) + '<br>' + (x.area ? '<b>' + e(oeFmt(x.area)) + ' m²</b> · ' : '') + x.n + ' puntos<br>Cota ' + oeR(x.zmin) + ' a ' + oeR(x.zmax) + ' m';
       const verts = (function f(a) { return Array.isArray(a) && a.length && Array.isArray(a[0]) ? (typeof a[0][0] === 'number' ? a : a.flatMap(f)) : []; })(poly);
       if ((OEDIBC[x.capa] || OEDIB) === 'pts' || tipo === 'pts') { verts.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
       if (false) { poly.filter(ok).forEach(q => window.L.circleMarker(q, { radius: 5, color: '#fff', weight: 1.5, fillColor: col(x.capa), fillOpacity: .95 }).addTo(g).bindPopup(pop)); return; }
