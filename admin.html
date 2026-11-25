@@ -463,7 +463,7 @@ async function cargar(primera) {
   if (CARGANDO) return !!D; CARGANDO = true;
   try {
     if (!D) $('estado').textContent = 'Cargando…'; $('err').textContent = '';
-    if (primera && !TR) TRP = api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }).then(x => { if (x && x.ok) CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: x, d: $('desde').value, hh: $('hasta').value }); return x; }).catch(() => null); // se pide a la vez para que Transportes abra ya cargado
+    if (primera && !TR) { const d0 = $('desde').value, h0 = $('hasta').value; TRP = { rg: d0 + '|' + h0, p: api({ accion: 'admin_tr', llave: LLAVE, desde: d0, hasta: h0 }).then(x => { if (x && x.ok) CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: x, d: d0, hh: h0 }); return x; }).catch(() => null) }; } // se pide a la vez para que Transportes abra ya cargado
     let r;
     try { r = await api({ accion: 'admin', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value }); }
     catch (e) { // sin señal: se queda con lo guardado
@@ -520,6 +520,8 @@ function pintarArbol() {
   });
   a.hidden = false;
 }
+const rngAct = () => $('desde').value + '|' + $('hasta').value; // rango del filtro: cada módulo recuerda con qué rango cargó
+let TRRG = '', MQRG = '', OERG = '';
 function modulo(m) {
   if (m !== MOD && !puedeSalir()) return;
   if (m === 'acero' && !(D && D.acero)) m = 'resumen';
@@ -532,23 +534,26 @@ function modulo(m) {
   { medirHeader(); const t = (headerH() + $('nav').offsetHeight) + 'px'; $('nav2').style.top = t; $('nav3').style.top = t; $('nav4').style.top = t; $('nav4').style.marginTop = '0'; $('nav2').style.marginTop = '0'; $('nav3').style.marginTop = '0'; }
   document.querySelectorAll('#nav2 button').forEach(b => b.classList.toggle('on', b.dataset.mod === m));
   window.scrollTo(0, 0); pintarArbol(); soloVer();
-  if (m === 'transportes' && !TR) cargarTr();
+  if (m === 'transportes' && (!TR || TRRG !== rngAct())) { TR = null; cargarTr(); }
   if (m === 'acero') abrirAcero();
-  if (m === 'maquinaria' && !MQ) cargarMq();
-  if (m === 'oe' && !OE) cargarOe();
+  if (m === 'maquinaria' && (!MQ || MQRG !== rngAct())) { MQ = null; cargarMq(); }
+  if (m === 'oe' && (!OE || OERG !== rngAct())) { OE = null; cargarOe(); }
 }
 let TRP = null, TRVM = 'alb', TR = null, TRTAB = selGet('tr', 'resumen', v => TR_TABS.some(x => x[0] === v)), TRVOL = 'pend', TRFIL = '', TRQ = '', TRDIA = '', TRSOSP = '', ALB = { q: '', r: null, f: {}, n: 0, opc: null };
 async function cargarTr() {
+  const d0 = $('desde').value, h0 = $('hasta').value, rg = d0 + '|' + h0;
   let desdeCopia = false;
-  if (!TR) { const c = await CDB.get('admin_tr'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === $('desde').value && c.hh === $('hasta').value) { TR = c.r; desdeCopia = true; pintarTr(); avisoDatos('Actualizando viajes… (datos de ' + horaTxt(c.t) + ')'); } }
-  if (!desdeCopia) { $('trBody').textContent = ''; banner('Cargando datos de Transportes…'); }
+  if (!TR) { const c = await CDB.get('admin_tr'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === d0 && c.hh === h0) { TR = c.r; TRRG = rg; desdeCopia = true; pintarTr(); avisoDatos('Actualizando viajes… (datos de ' + horaTxt(c.t) + ')'); } }
+  if (!desdeCopia) $('trBody').textContent = '';
+  banner(desdeCopia ? 'Actualizando datos de Transportes…' : 'Cargando datos de Transportes…');
   try {
-    let r = TRP ? await TRP : null; TRP = null;
-    if (!r || !r.ok) r = await api({ accion: 'admin_tr', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
+    let r = TRP && TRP.rg === rg ? await TRP.p : null; TRP = null; // la carga anticipada solo sirve si es del mismo rango
+    if (!r || !r.ok) r = await api({ accion: 'admin_tr', llave: LLAVE, desde: d0, hasta: h0 });
+    if (rg !== rngAct()) return; // el filtro cambió mientras cargaba: esta respuesta ya no aplica
     if (!r.ok) { if (!desdeCopia) $('trBody').textContent = r.mensaje || 'No se pudo cargar'; finBanner(false); return; }
-    CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: r, d: $('desde').value, hh: $('hasta').value });
-    if (desdeCopia && typeof nPend === 'function' && nPend() > 0) return; // hay cambios sin guardar en pantalla: no se repinta
-    const y = window.scrollY; TR = r; pintarTr(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
+    CDB.set('admin_tr', { llave: LLAVE, t: Date.now(), r: r, d: d0, hh: h0 });
+    if (desdeCopia && typeof nPend === 'function' && nPend() > 0) { finBanner(true); return; } // hay cambios sin guardar en pantalla: no se repinta
+    const y = window.scrollY; TR = r; TRRG = rg; pintarTr(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
   } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · viajes guardados'); else $('trBody').textContent = 'No se pudo conectar.'; finBanner(false); }
 }
 const nf = x => (Math.round((Number(x) || 0) * 100) / 100).toLocaleString('es-CO');
@@ -1674,7 +1679,7 @@ function enviarAc(recargar) {
 function abrirAcero() {
   let f = $('acFrame');
   if (!f) { banner('Cargando datos de Acero…'); ACINI = true; setTimeout(() => { if (ACINI) { ACINI = false; const b = $('bannerCarga'); if (b) b.hidden = true; } }, 20000); f = h('iframe', { id: 'acFrame', src: 'acero-embed.html', title: 'Acero', scrolling: 'no', style: 'width:100%;border:0;display:block;min-height:70vh;background:transparent' }); $('acHost').appendChild(f); }
-  else enviarAc(true);
+  else { banner('Cargando datos de Acero…'); ACINI = true; setTimeout(() => { if (ACINI) { ACINI = false; const b = $('bannerCarga'); if (b) b.hidden = true; } }, 20000); enviarAc(true); }
 }
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data) return;
@@ -1698,14 +1703,17 @@ function navMq() {
   pintarArbol();
 }
 async function cargarMq() {
+  const d0 = $('desde').value, h0 = $('hasta').value, rg = d0 + '|' + h0;
   let desdeCopia = false;
-  if (!MQ) { const c = await CDB.get('admin_mq'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === $('desde').value && c.hh === $('hasta').value) { MQ = c.r; desdeCopia = true; pintarMq(); avisoDatos('Actualizando maquinaria… (datos de ' + horaTxt(c.t) + ')'); } }
-  if (!desdeCopia) { $('mqBody').textContent = ''; banner('Cargando datos de Maquinaria…'); }
+  if (!MQ) { const c = await CDB.get('admin_mq'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === d0 && c.hh === h0) { MQ = c.r; MQRG = rg; desdeCopia = true; pintarMq(); avisoDatos('Actualizando maquinaria… (datos de ' + horaTxt(c.t) + ')'); } }
+  if (!desdeCopia) $('mqBody').textContent = '';
+  banner(desdeCopia ? 'Actualizando datos de Maquinaria…' : 'Cargando datos de Maquinaria…');
   try {
-    const r = await api({ accion: 'admin_mq', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
+    const r = await api({ accion: 'admin_mq', llave: LLAVE, desde: d0, hasta: h0 });
+    if (rg !== rngAct()) return; // el filtro cambió mientras cargaba
     if (!r.ok) { if (!desdeCopia) $('mqBody').textContent = r.mensaje || 'No se pudo cargar'; finBanner(false); return; }
-    CDB.set('admin_mq', { llave: LLAVE, t: Date.now(), r: r, d: $('desde').value, hh: $('hasta').value });
-    const y = window.scrollY; MQ = r; pintarMq(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
+    CDB.set('admin_mq', { llave: LLAVE, t: Date.now(), r: r, d: d0, hh: h0 });
+    const y = window.scrollY; MQ = r; MQRG = rg; pintarMq(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
   } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · maquinaria guardada'); else $('mqBody').textContent = 'No se pudo conectar.'; finBanner(false); }
 }
 // Máquinas del proyecto: se edita en la tabla y se guarda TODO con un solo botón. Si cambias de vista sin guardar, avisa.
@@ -2052,14 +2060,17 @@ function navOe() {
 }
 async function cargarOe() {
   OEAV = null;
+  const d0 = $('desde').value, h0 = $('hasta').value, rg = d0 + '|' + h0;
   let desdeCopia = false;
-  if (!OE) { const c = await CDB.get('admin_oe'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === $('desde').value && c.hh === $('hasta').value) { OE = c.r; desdeCopia = true; pintarOe(); avisoDatos('Actualizando OE… (datos de ' + horaTxt(c.t) + ')'); } }
-  if (!desdeCopia) { $('oeBody').textContent = ''; banner('Cargando datos de OE…'); }
+  if (!OE) { const c = await CDB.get('admin_oe'); if (c && c.llave === LLAVE && c.r && c.r.ok && c.d === d0 && c.hh === h0) { OE = c.r; OERG = rg; desdeCopia = true; pintarOe(); avisoDatos('Actualizando OE… (datos de ' + horaTxt(c.t) + ')'); } }
+  if (!desdeCopia) $('oeBody').textContent = '';
+  banner(desdeCopia ? 'Actualizando datos de O. Ejecutada…' : 'Cargando datos de O. Ejecutada…');
   try {
-    const r = await api({ accion: 'admin_oe', llave: LLAVE, desde: $('desde').value, hasta: $('hasta').value });
+    const r = await api({ accion: 'admin_oe', llave: LLAVE, desde: d0, hasta: h0 });
+    if (rg !== rngAct()) return; // el filtro cambió mientras cargaba
     if (!r.ok) { if (!desdeCopia) $('oeBody').textContent = r.mensaje || 'No se pudo cargar'; finBanner(false); return; }
-    CDB.set('admin_oe', { llave: LLAVE, t: Date.now(), r: r, d: $('desde').value, hh: $('hasta').value });
-    const y = window.scrollY; OE = r; pintarOe(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
+    CDB.set('admin_oe', { llave: LLAVE, t: Date.now(), r: r, d: d0, hh: h0 });
+    const y = window.scrollY; OE = r; OERG = rg; pintarOe(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
   } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · OE guardada'); else $('oeBody').textContent = 'No se pudo conectar.'; finBanner(false); }
 }
 function oeFiltrados() {
