@@ -2619,10 +2619,10 @@ function levFecha(nombre) { // la fecha va en el nombre como dd-mm-aa, ddmmaa o 
 
 const OEAV_COL = ['#0a7a32', '#1565c0', '#b3261e', '#9a6b00', '#6a1b9a', '#00838f', '#c2185b', '#4e342e', '#e65100', '#283593', '#2e7d32', '#ad1457'];
 async function pintarOeAvance(c) {
-  const k = 'ACUM|' + $('hasta').value; // avance acumulado: todo lo ejecutado hasta la fecha final del filtro
+  const dA = $('desde').value, hA = $('hasta').value, k = dA + '|' + hA; // avance del rango del filtro (Desde – Hasta), igual que los demás módulos
   if (!OEAV || OEAV.k !== k) {
     if (!OEAV || OEAV.k !== k) { OEAV = { k: k, cargando: true }; c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); 
-      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: '2000-01-01', hasta: $('hasta').value }); if (OEAV && OEAV.k === k) { OEOCULTAS = new Set(); OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], anul: r.ok ? (r.anul || []) : [], err: r.ok ? '' : (r.mensaje || 'No se pudo cargar') }; } }
+      try { const r = await api({ accion: 'admin_oe_lev', llave: LLAVE, desde: dA, hasta: hA }); if (OEAV && OEAV.k === k) { OEOCULTAS = new Set(); OEAV = { k: k, lev: r.ok ? (r.lev || []) : [], anul: r.ok ? (r.anul || []) : [], err: r.ok ? '' : (r.mensaje || 'No se pudo cargar') }; } }
       catch (e) { if (OEAV && OEAV.k === k) OEAV = { k: k, lev: [], err: 'No se pudo conectar.' }; }
       if (OETAB === 'avance') pintarOe();
     }
@@ -2631,7 +2631,7 @@ async function pintarOeAvance(c) {
   if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
   const A = (OEAV.lev || []).map(x => Object.assign({}, x, { cod: x.capa, capa: oeNom(x.capa) })); // capa = nombre estándar (equivalencias); cod = como viene en el TXT
-  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'Aún no hay levantamientos guardados hasta esta fecha.')); if (oeEd()) c.appendChild(h('button', { style: 'width:auto;margin-top:10px', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)')); return; }
+  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay levantamientos en el rango del filtro.')); if (oeEd()) c.appendChild(h('button', { style: 'width:auto;margin-top:10px', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)')); return; }
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
@@ -2678,11 +2678,11 @@ async function pintarOeAvance(c) {
     } finally { dxfOcupado = false; btn.textContent = txt0; }
   };
   const todas = v => { OEOCULTAS = v ? new Set() : new Set(capas); refrescar(true); };
-  // barra superior: título acumulado + topógrafo + DXF
+  // barra superior: título con el rango + cargado por + DXF
   const selTop = tops.length > 1 ? (() => { const s2 = h('select', { style: 'width:auto;min-width:200px', onchange: () => { OEAVF.top = s2.value; pintarOe(); } }, h('option', { value: '' }, 'Cargado por: todos'), tops.map(l => h('option', { value: l }, (A.find(x => x.llave === l && x.topografo) || {}).topografo || nomDe(l) || l))); s2.value = OEAVF.top; return s2; })() : null;
   const bDxf = h('button', { title: 'Puntos, contorno y superficie 3D de lo marcado. Abre en AutoCAD / Civil 3D' }, '⬇ Descargar DXF'); bDxf.onclick = () => bajarDxf(bDxf);
   const bLev = oeEd() ? h('button', { style: 'background:#0a7a32', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)') : null;
-  c.appendChild(h('div', { class: 'av-top' }, h('div', { style: 'flex:1;min-width:220px' }, h('div', { style: 'font-size:18px;font-weight:800;color:#0f172a' }, 'Avance acumulado al ' + fmtF($('hasta').value)), h('div', { class: 'small' }, 'Todo lo levantado desde el inicio hasta la fecha «Hasta» del filtro.')), selTop, bLev, oeEd() ? bDxf : null));
+  c.appendChild(h('div', { class: 'av-top' }, h('div', { style: 'flex:1;min-width:220px' }, h('div', { style: 'font-size:18px;font-weight:800;color:#0f172a' }, $('desde').value === $('hasta').value ? 'Avance del ' + fmtF($('hasta').value) : 'Avance del ' + fmtF($('desde').value) + ' al ' + fmtF($('hasta').value)), h('div', { class: 'small' }, 'Lo levantado en el rango del filtro (Desde – Hasta).')), selTop, bLev, oeEd() ? bDxf : null));
   if (OEFOCO) { const [ff, fl, fa] = OEFOCO.split('|'); c.appendChild(h('div', { class: 'av-foco' }, h('span', {}, '📍 Viendo solo el TXT ', h('b', {}, fa), ' · ' + fmtF(ff) + ' · ' + ((A.find(x => x.llave === fl && x.topografo) || {}).topografo || nomDe(fl) || fl)), h('button', { type: 'button', onclick: () => { OEFOCO = null; OEOCULTAS = new Set(); pintarOe(); } }, '✕ Ver todo'))); }
   c.appendChild(h('div', { class: 'av-ks' }, kM.el, kA.el, kD.el, kC.el));
   // panel de actividades (leyenda) + mapa
