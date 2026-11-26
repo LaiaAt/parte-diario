@@ -917,7 +917,7 @@ async function histAlb(v, pan) {
     if (!r.ok) { pan.textContent = r.mensaje || 'No se pudo cargar'; return; }
     const caja = h('div', { style: 'border:1px solid #bbb;border-radius:8px;padding:8px;background:#fafafa' }, h('b', {}, '🕘 Historial de ' + rotulo(v)));
     if (!r.filas.length) caja.appendChild(h('div', { class: 'small' }, 'Sin movimientos registrados.'));
-    r.filas.forEach(x => caja.appendChild(h('div', { class: 'small', style: 'margin-top:6px;border-top:1px solid #ddd;padding-top:4px' }, h('b', {}, x.accion), ' · ' + fmtTs(x.ts) + ' · ' + (x.usuario || x.llave), h('div', {}, sinVT(x.detalle)))));
+    r.filas.forEach(x => caja.appendChild(h('div', { class: 'small', style: 'margin-top:6px;border-top:1px solid #ddd;padding-top:4px' }, h('b', {}, x.accion), ' · ' + fmtTs(x.ts) + ' · ' + sinLlaveTxt(x.usuario || nomDe(x.llave)), h('div', {}, sinVT(x.detalle)))));
     caja.appendChild(h('div', { class: 'acc', style: 'margin-top:6px' }, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cerrar')));
     pan.appendChild(caja);
   } catch (e) { pan.textContent = 'No se pudo conectar.'; }
@@ -1834,7 +1834,7 @@ function vistaMqAsig() {
     sel.value = a ? a.maq : '';
     const fd = h('input', { type: 'date', value: hoyS, style: 'font-size:15px;padding:6px' });
     tb.appendChild(h('tr', { style: o.estado !== 'ACTIVO' ? 'opacity:.55' : '' },
-      h('td', { style: 'padding:6px' }, h('b', {}, o.nombre), h('div', { class: 'small' }, o.llave + (o.estado !== 'ACTIVO' ? ' · ' + o.estado : ''))),
+      h('td', { style: 'padding:6px' }, h('b', {}, o.nombre), o.estado !== 'ACTIVO' ? h('div', { class: 'small' }, o.estado) : null),
       h('td', { style: 'padding:6px' }, a ? h('span', {}, '🚜 ' + vis(a.maq), h('div', { class: 'small' }, 'desde ' + fmtF(a.desde))) : h('span', { style: 'color:#b3261e;font-weight:700' }, 'Sin máquina')),
       h('td', { style: 'padding:6px' }, sel), h('td', { style: 'padding:6px' }, fd),
       h('td', { style: 'padding:6px;white-space:nowrap' }, h('button', { style: 'padding:8px 12px;background:#0a7a32;color:#fff;border:0', onclick: () => { if (!sel.value) { sel.focus(); return; } envia({ op: 'asignar', op_llave: o.llave, maquina: sel.value, desde: fd.value }, o.nombre + ' asignado a ' + vis(sel.value)); } }, '✔ Asignar'),
@@ -2187,7 +2187,7 @@ async function pintarOeResumen(c) {
   if (OEAV && OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando resumen…')); return; }
   const M = {}, ent = (f, l, t) => (M[f + '|' + l] = M[f + '|' + l] || { fecha: f, llave: l, nr: 0, lv: new Set() });
   const NM = {}; (OE.registros || []).forEach(r => { if (r.topografo && !NM[r.llave]) NM[r.llave] = r.topografo; }); ((OEAV && OEAV.lev) || []).forEach(x => { if (x.topografo && !NM[x.llave]) NM[x.llave] = x.topografo; });
-  const nomT = l => { const n = nomDe(l); return n && n !== l ? n : (NM[l] || l); };
+  const nomT = l => { const n = nomDe(l); return n && n !== 'Usuario sin nombre' ? n : (NM[l] || n); };
   (OE.registros || []).filter(r => r.rev !== 'RECHAZADO').forEach(r => { ent(r.fecha, r.llave).nr++; });
   ((OEAV && OEAV.lev) || []).forEach(x => { ent(x.fecha, x.llave).lv.add(x.archivo); });
   // todos los topógrafos (usuario + módulo OE) en cada día del rango, aunque no hayan reportado
@@ -2802,7 +2802,7 @@ async function pintarOeAvance(c) {
       h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', 'Mapa'].concat(ed ? ['Descargar', 'Anular'] : []).map(t => h('th', {}, t)))), fb))), nA && ed ? bZip : null);
     let cuerpoC;
     if (!AN.length) cuerpoC = h('div', { class: 'trok' }, 'No hay cambios en estas fechas.');
-    else { const cb = h('tbody', {}); AN.slice().sort((x, y) => y.cambio.localeCompare(x.cambio)).forEach(x => cb.appendChild(h('tr', {}, h('td', {}, x.cambio.slice(8, 10) + '/' + x.cambio.slice(5, 7) + '/' + x.cambio.slice(0, 4) + ' ' + x.cambio.slice(11, 16)), h('td', {}, fmtF(x.fecha)), h('td', {}, x.topografo), h('td', {}, x.archivo), h('td', { style: 'font-weight:800' }, x.resultado), h('td', {}, x.usuario), h('td', {}, x.motivo))));
+    else { const cb = h('tbody', {}); AN.slice().sort((x, y) => y.cambio.localeCompare(x.cambio)).forEach(x => cb.appendChild(h('tr', {}, h('td', {}, /^\d{4}-\d{2}-\d{2}/.test(x.cambio) ? x.cambio.slice(8, 10) + '/' + x.cambio.slice(5, 7) + '/' + x.cambio.slice(0, 4) + ' ' + x.cambio.slice(11, 16) : '—'), h('td', {}, fmtF(x.fecha)), h('td', {}, x.topografo), h('td', {}, x.archivo), h('td', { style: 'font-weight:800' }, x.resultado), h('td', {}, sinLlaveTxt(x.usuario)), h('td', {}, x.motivo))));
       cuerpoC = h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Cuándo', 'Fecha del TXT', 'Topógrafo', 'Archivo', 'Qué se hizo', 'Quién', 'Por qué'].map(t => h('th', {}, t)))), cb)); }
     seccion('camb', 'Control de cambios de TXT', AN.length, h('div', {}, h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Cada anulación o reemplazo queda registrado: qué archivo, quién lo hizo, cuándo y por qué.'), cuerpoC));
   }
@@ -2912,10 +2912,11 @@ async function subirXlsOe(file) {
 function llaves() { return D.usuarios.map(u => u.llave); }
 // En el Dashboard solo se ven nombres de usuario; la llave (clave de acceso) no se muestra
 let _nm = null, _nmD = null, _nmT = null;
+const sinLlaveTxt = t => String(t || '').replace(/\s*\([^()]*\)\s*$/, ''); // «NOMBRE (LLAVE)» → «NOMBRE»
 function nomDe(l) {
   if (!l) return '';
   if (_nm === null || _nmD !== D || _nmT !== TR) { _nm = {}; ((TR && TR.viajes) || []).forEach(v => { if (v.llave && v.usuario && !_nm[v.llave]) _nm[v.llave] = v.usuario; }); ((D && D.usuarios) || []).forEach(u => { _nm[u.llave] = u.nombre; }); _nmD = D; _nmT = TR; }
-  return _nm[l] || (String(l).toUpperCase() === 'HISTORICO' ? 'Histórico' : String(l));
+  return _nm[l] || (/^HISTORICO/i.test(String(l)) ? 'Histórico' : 'Usuario sin nombre'); // las llaves nunca se muestran
 }
 function llenarSel(id, conTodas) {
   const s = $(id), v = s.value; s.textContent = '';
