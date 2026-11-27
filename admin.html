@@ -488,7 +488,7 @@ async function cargar(primera) {
 const MODS = [['resumen', '🏠 Resumen'], ['pedidos', '📋 Pedidos'], ['partes', '📄 Partes'], ['fotos', '📷 Fotos'], ['transportes', '🚛 Transportes']];
 function selGet(k, def, ok) { try { const v = sessionStorage.getItem('adm_sel_' + k); return v && ok(v) ? v : def; } catch (e) { return def; } }
 function selSet(k, v) { try { sessionStorage.setItem('adm_sel_' + k, v); } catch (e) {} }
-let MOD = selGet('mod', 'resumen', v => v === 'acero' || MODS.some(x => x[0] === v));
+let MOD = selGet('mod', 'resumen', v => v === 'acero' || v === 'maquinaria' || v === 'oe' || MODS.some(x => x[0] === v));
 const TR_TABS = [['resumen', '📊 Resumen'], ['viajes', '📋 Viajes'], ['albaran', '🔎 Búsquedas'], ['sosp', '⚠️ Alertas'], ['volquetas', '🚛 Volquetas'], ['geo', '📏 Distancias y sitios'], ['planillas', '📑 Cierre y planillas']];
 function navTr() {
   const tb = $('nav3'); tb.textContent = ''; $('trTabs').hidden = true;

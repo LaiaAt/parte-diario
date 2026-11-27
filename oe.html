@@ -497,6 +497,10 @@ document.addEventListener('submit', async ev => {
   try {
     const r = await llamar({ accion: 'validar', llave: k, app: 'oe' }, 30000);
     if (r && r.ok) { S.ses = { llave: r.llave || k, nombre: r.nombre }; lsSet(LS, S.ses); S.entrando = false; await cargarCat(); render(); pedirDia(); return; }
+    if (r && r.admin) { // llave de administrador: entra directo al Dashboard, en O. Ejecutada (la llave queda solo en esta pestaña)
+      try { sessionStorage.setItem('adm', k); sessionStorage.setItem('adm_sel_mod', 'oe'); } catch (e) {}
+      toast('Eres administrador: te llevo al Dashboard…'); setTimeout(() => { location.href = 'admin.html'; }, 900); return;
+    }
     S.loginErr = (r && r.mensaje) || 'Llave no válida';
   } catch (e) { S.loginErr = 'Sin conexión: se necesita señal para entrar la primera vez.'; }
   S.entrando = false; render();
