@@ -404,7 +404,7 @@ function avance(txt) {
   return AVN;
 }
 // Permisos del Dashboard: el servidor manda D.edita (módulos que el usuario puede editar). Sin permiso = solo ver.
-const ACC_EDITA = { admin_liberar: 'PARTE', admin_abrir_fecha: 'PARTE', admin_sembrar_parte: 'PARTE', admin_tr_vol: 'TRANSPORTES', admin_tr_dist: 'TRANSPORTES', admin_tr_geo: 'TRANSPORTES', admin_tr_bloq: 'TRANSPORTES', admin_tr_foto_add: 'TRANSPORTES', admin_tr_revisar: 'TRANSPORTES', admin_tr_anular: 'TRANSPORTES', admin_tr_editar: 'TRANSPORTES',
+const ACC_EDITA = { admin_oe_cuad_guardar: 'OE', admin_liberar: 'PARTE', admin_abrir_fecha: 'PARTE', admin_sembrar_parte: 'PARTE', admin_tr_vol: 'TRANSPORTES', admin_tr_dist: 'TRANSPORTES', admin_tr_geo: 'TRANSPORTES', admin_tr_bloq: 'TRANSPORTES', admin_tr_foto_add: 'TRANSPORTES', admin_tr_revisar: 'TRANSPORTES', admin_tr_anular: 'TRANSPORTES', admin_tr_editar: 'TRANSPORTES',
   admin_mq_maq: 'MAQUINARIA', admin_mq_asig: 'MAQUINARIA', admin_mq_foto_alb: 'MAQUINARIA', admin_oe_rev: 'OE', admin_oe_cc: 'OE', admin_oe_ccnuevo: 'OE', admin_oe_lev_txt: 'OE', admin_oe_lev_txts: 'OE', admin_oe_lev_anular: 'OE', admin_oe_lev_subir: 'OE', admin_oe_alias: 'OE', admin_oe_plano_subir: 'OE', admin_oe_plano_borrar: 'OE' };
 const MOD_NOM = { PARTE: 'Parte diario', TRANSPORTES: 'Transportes', MAQUINARIA: 'Maquinaria', ACERO: 'Acero', OE: 'O. Ejecutada' };
 const modDe = m => ({ transportes: 'TRANSPORTES', acero: 'ACERO', maquinaria: 'MAQUINARIA', oe: 'OE' })[m] || 'PARTE';
@@ -528,7 +528,7 @@ function modulo(m) {
   if (m === 'acero' && !(D && D.acero)) m = 'resumen';
   MOD = m; selSet('mod', m);
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
-  $('fTopW').hidden = m !== 'oe' || OETAB === 'avance'; if (m === 'oe') llenarFTop(); // en Avance no aplica: los TXT se cargan desde oficina (allí está «Cargado por»)
+  $('fTopW').hidden = m !== 'oe' || OETAB === 'avance' || OETAB === 'cuad'; if (m === 'oe') llenarFTop(); // en Avance no aplica: los TXT se cargan desde oficina (allí está «Cargado por»)
   const gt = m === 'transportes', ga = m === 'acero', gm = m === 'maquinaria', go = m === 'oe', grp = gt ? 't' : ga ? 'a' : gm ? 'm' : go ? 'o' : 'p';
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g === grp));
   $('infSem').hidden = ga || gm || go; // el Informe solo existe para Parte diario y Transportes
@@ -2044,7 +2044,7 @@ function navegacion() {
 /* ---------- OE: obra ejecutada (topógrafos). Todo depende de las fechas del Dashboard ---------- */
 const OE_TABS = [['res', '📊 Resumen'], ['reg', '📋 Registros']]; // Mapa de registros oculto por ahora: ['mapa', '🗺️ Mapa']
 const oeEd = () => !!(D && (D.edita ? D.edita.OE : (D.oeed || D.superadm))); // edita O. Ejecutada
-const oeTabsSuper = () => { OE_TABS.length = 0; OE_TABS.push(['res', '📊 Resumen']); if (oeEd()) OE_TABS.push(['reg', '📋 Registros']); OE_TABS.push(['avance', '🏗️ Avance']); if (D && !OE_TABS.some(x => x[0] === OETAB)) OETAB = 'res'; }; // Registros: super y administradores con módulo OE // Avance (levantamientos TXT): solo super administrador mientras se prueba
+const oeTabsSuper = () => { OE_TABS.length = 0; OE_TABS.push(['res', '📊 Resumen']); if (oeEd()) OE_TABS.push(['reg', '📋 Registros']); OE_TABS.push(['avance', '🏗️ Avance']); OE_TABS.push(['cuad', '👷 Cuadrillas']); if (D && !OE_TABS.some(x => x[0] === OETAB)) OETAB = 'res'; }; // Registros: super y administradores con módulo OE // Avance (levantamientos TXT): solo super administrador mientras se prueba
 const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Aprobado', '#0a7a32'], CORREGIDO: ['🔵', 'Corregido', '#1565c0'], RECHAZADO: ['🔴', 'Anulado', '#b3261e'] };
 const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
 const oeCuenta = r => r.rev !== 'RECHAZADO'; // los anulados (RECHAZADO en la hoja) no suman en cálculos ni controles
@@ -2067,7 +2067,7 @@ const oeFmt = n => oeR(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
 const oeHitoTxt = k => k ? (((OE && OE.hitos) || {})[k] || k) : ''; // sin numeración del hito
 const oeAbs = r => (r.abIni || '') + (r.abFin ? ' → ' + r.abFin : '');
 function navOe() {
-  oeTabsSuper(); const tb = $('nav4'); tb.textContent = ''; if (MOD === 'oe') $('fTopW').hidden = OETAB === 'avance';
+  oeTabsSuper(); const tb = $('nav4'); tb.textContent = ''; if (MOD === 'oe') $('fTopW').hidden = OETAB === 'avance' || OETAB === 'cuad';
   OE_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: OETAB === k ? 'on' : '', onclick: () => { OETAB = k; selSet('oe', k); navOe(); if (OE) pintarOe(); else cargarOe(); } }, t)));
   pintarArbol();
 }
@@ -2212,6 +2212,9 @@ async function pintarOeResumen(c) {
   }
   if (OEAV && OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando resumen…')); return; }
   oeAlertaLev(c, OEAV && OEAV.lev);
+  const seg = h('div', { style: 'display:inline-flex;gap:4px;background:#e7ebef;border-radius:12px;padding:4px;margin:0 0 10px' }, [['usr', '👤 Por usuario'], ['cuad', '👷 Por cuadrilla']].map(([k, t]) => h('button', { type: 'button', style: 'width:auto;min-height:34px;padding:0 14px;border:0;border-radius:9px;font-weight:800;' + (OERESV === k ? 'background:#0a7a32;color:#fff' : 'background:transparent;color:#334'), onclick: () => { OERESV = k; selSet('oeresv', k); const y = window.scrollY; pintarOe(); window.scrollTo(0, y); } }, t)));
+  c.appendChild(seg);
+  if (OERESV === 'cuad') { oeResumenCuad(c); return; }
   const M = {}, ent = (f, l, t) => (M[f + '|' + l] = M[f + '|' + l] || { fecha: f, llave: l, nr: 0 });
   const NM = {}; (OE.registros || []).forEach(r => { if (r.topografo && !NM[r.llave]) NM[r.llave] = r.topografo; }); ((OEAV && OEAV.lev) || []).forEach(x => { if (x.topografo && !NM[x.llave]) NM[x.llave] = x.topografo; });
   const nomT = l => { const n = nomDe(l); return n && n !== 'Usuario sin nombre' ? n : (NM[l] || n); };
@@ -2255,10 +2258,61 @@ function oeHistorialTop(c, nombre) {
   c.appendChild(h('div', { class: 'small', style: 'margin:12px 0 4px' }, 'Día a día (los anulados no se incluyen)'));
   c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Hito', 'Actividad', 'UF · Costado', 'Abscisas', 'Und', 'Cantidad', 'Registros'].map((t, i) => h('th', i > 4 ? { style: 'text-align:right' } : {}, t)))), td)));
 }
+let OERESV = selGet('oeresv', 'usr', v => v === 'usr' || v === 'cuad');
+// Control por cuadrilla: un día la cuadrilla cumple si cualquiera de sus miembros reportó (los anulados no cuentan)
+function oeResumenCuad(c) {
+  const CU = ((OE.cuadrillas || {}).lista) || [], U = (D && D.oeusuarios) || [], nomU = l => { const u = U.find(x => x.llave === l); return u ? u.nombre : nomDe(l); };
+  const en = {}; CU.forEach(q => q.miembros.forEach(m => { en[m.llave] = q.nombre; }));
+  let G = CU.filter(q => q.miembros.length).map(q => ({ nombre: q.nombre, llaves: q.miembros.map(m => m.llave), sola: false }));
+  U.filter(u => !en[u.llave]).forEach(u => G.push({ nombre: u.nombre, llaves: [u.llave], sola: true }));
+  if (OEF.top) G = G.filter(g => g.llaves.indexOf(OEF.top) >= 0);
+  const dias = []; for (let f = $('desde').value, hoy = bogota(); f && f <= $('hasta').value && f <= hoy && dias.length < 62; f = sumDias(f, 1)) dias.push(f);
+  if (!CU.length) c.appendChild(h('div', { class: 'small', style: 'margin:0 0 8px' }, 'Aún no hay cuadrillas armadas: cada usuario cuenta como su propia cuadrilla. Se arman en la pestaña 👷 Cuadrillas.'));
+  if (!G.length || !dias.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay cuadrillas para mostrar en estas fechas')); return; }
+  const R = (OE.registros || []).filter(oeCuenta), tb = h('tbody', {}); let ok = 0, n = 0, tr = 0;
+  dias.slice().reverse().forEach(f => G.forEach(g => {
+    const rs = R.filter(r => r.fecha === f && g.llaves.indexOf(r.llave) >= 0), quien = Array.from(new Set(rs.map(r => nomU(r.llave)))), hizo = rs.length > 0; n++; tr += rs.length; if (hizo) ok++;
+    tb.appendChild(h('tr', {}, h('td', {}, fmtF(f)), h('td', { style: 'font-weight:700' }, g.nombre, g.sola ? h('span', { class: 'small', style: 'font-weight:400' }, ' (sin cuadrilla)') : null), h('td', {}, String(rs.length)), h('td', { class: 'small' }, quien.join(', ') || '—'),
+      h('td', {}, h('span', { style: 'display:inline-block;font-weight:800;border-radius:999px;padding:2px 10px;font-size:12.5px;' + (hizo ? 'background:#e3f4e8;color:#0a7a32' : 'background:#fde7e6;color:#b3261e') }, hizo ? '✔ Cumplió' : '✖ Sin reporte'))));
+  }));
+  tb.appendChild(h('tr', { style: 'font-weight:800' }, h('td', {}, 'Total'), h('td', {}, ''), h('td', {}, String(tr)), h('td', {}, ''), h('td', {}, ok + ' de ' + n + ' cumplieron')));
+  c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Cuadrilla', 'Reportes', 'Quién reportó', 'Estado'].map(t => h('th', {}, t)))), tb)));
+  if (OEF.top) oeHistorialTop(c, nomU(OEF.top));
+}
+// Vista Cuadrillas: los administradores con edición de OE arman las cuadrillas (varios usuarios + su cargo); los demás solo las ven
+function pintarOeCuad(c) {
+  const ed = oeEd(), CU = JSON.parse(JSON.stringify(((OE.cuadrillas || {}).lista) || [])), CARGOS = ((OE.cuadrillas || {}).cargos) || ['Topógrafo', 'Cadenero primero', 'Cadenero segundo'];
+  const U = ((D && D.oeusuarios) || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre)), nomU = l => { const u = U.find(x => x.llave === l); return u ? u.nombre : nomDe(l); };
+  const libres = () => { const en = new Set(); CU.forEach(q => q.miembros.forEach(m => en.add(m.llave))); return U.filter(u => !en.has(u.llave)); };
+  const guardar = async () => { const y = window.scrollY; banner('Guardando cuadrillas…');
+    try { const r = await api({ accion: 'admin_oe_cuad_guardar', llave: LLAVE, cuadrillas: CU }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar', 'mal'); pintarOe(); return; } OE.cuadrillas = r.cuadrillas; finBanner(true); }
+    catch (e) { banner('Sin conexión: no se guardó', 'mal'); }
+    pintarOe(); window.scrollTo(0, y); };
+  c.appendChild(h('div', { class: 'small', style: 'margin:0 0 10px' }, 'Cada cuadrilla agrupa varios usuarios de la app de O. Ejecutada. Un día la cuadrilla cumple si cualquiera de sus miembros reporta (Resumen → 👷 Por cuadrilla).' + (ed ? '' : ' Solo los administradores con edición de O. Ejecutada pueden cambiarlas.')));
+  if (ed) c.appendChild(h('button', { style: 'width:auto;margin:0 0 12px', onclick: async () => { const n = await avDialogo({ titulo: 'Nueva cuadrilla', ayuda: 'Nombre de la cuadrilla. Ej: Cuadrilla 1', campo: true, ok: 'Crear' }); if (!n || !n.trim()) return; CU.push({ nombre: n.trim(), miembros: [] }); guardar(); } }, '＋ Nueva cuadrilla'));
+  if (!CU.length) c.appendChild(h('div', { class: 'trok' }, 'Aún no hay cuadrillas.'));
+  const grid = h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px' }); c.appendChild(grid);
+  CU.forEach((q, qi) => {
+    const tb = h('tbody', {});
+    q.miembros.forEach((m, mi) => {
+      const sel = ed ? h('select', { style: 'min-height:34px;padding:4px 6px;width:auto;max-width:170px', onchange: () => { m.cargo = sel.value; guardar(); } }, h('option', { value: '' }, '— Cargo —'), CARGOS.map(k => h('option', { value: k }, k))) : null; if (sel) sel.value = m.cargo || '';
+      tb.appendChild(h('tr', {}, h('td', { style: 'font-weight:700' }, nomU(m.llave)), h('td', {}, sel || (m.cargo || '—')), ed ? h('td', { style: 'width:1%' }, h('button', { class: 'sec', title: 'Quitar de la cuadrilla', style: 'width:auto;min-height:30px;padding:0 9px', onclick: () => { q.miembros.splice(mi, 1); guardar(); } }, '✕')) : null));
+    });
+    if (!q.miembros.length) tb.appendChild(h('tr', {}, h('td', { colspan: 3, class: 'small' }, 'Sin integrantes.')));
+    const L = libres(), add = ed && L.length ? h('select', { style: 'min-height:36px;margin-top:8px', onchange: () => { if (!add.value) return; q.miembros.push({ llave: add.value, cargo: '' }); guardar(); } }, h('option', { value: '' }, '＋ Agregar integrante…'), L.map(u => h('option', { value: u.llave }, u.nombre))) : null;
+    grid.appendChild(h('div', { style: 'border:1px solid #d5dde3;border-radius:12px;padding:12px;background:#fff' },
+      h('div', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:6px' }, h('b', { style: 'flex:1;font-size:16px' }, '👷 ' + q.nombre, h('span', { class: 'small', style: 'font-weight:500' }, ' · ' + q.miembros.length + (q.miembros.length === 1 ? ' integrante' : ' integrantes'))),
+        ed ? h('button', { class: 'sec', title: 'Cambiar nombre', style: 'width:auto;min-height:30px;padding:0 9px', onclick: async () => { const n = await avDialogo({ titulo: 'Nombre de la cuadrilla', campo: true, valor: q.nombre, ok: 'Guardar' }); if (!n || !n.trim()) return; q.nombre = n.trim(); guardar(); } }, '✎') : null,
+        ed ? h('button', { class: 'sec', title: 'Eliminar cuadrilla', style: 'width:auto;min-height:30px;padding:0 9px;color:#b3261e', onclick: async () => { if (!(await avDialogo({ titulo: '¿Eliminar «' + q.nombre + '»?', ayuda: 'Sus integrantes quedan sin cuadrilla. Los reportes no se tocan.', ok: 'Eliminar', peligro: true }))) return; CU.splice(qi, 1); guardar(); } }, '🗑') : null),
+      h('div', { class: 'tw' }, h('table', {}, h('tbody', {}, tb.childNodes.length ? Array.from(tb.childNodes) : []))), add));
+  });
+  const L = libres(); if (L.length) c.appendChild(h('div', { style: 'margin-top:14px' }, h('b', {}, 'Sin cuadrilla (' + L.length + '): '), h('span', { class: 'small' }, L.map(u => u.nombre).join(', '))));
+}
 function pintarOe() {
   const c = $('oeBody'); if (!OE) return; c.textContent = '';
   if (OETAB === 'avance') { pintarOeAvance(c); return; }
   if (OETAB === 'res') { pintarOeResumen(c); return; }
+  if (OETAB === 'cuad') { pintarOeCuad(c); return; }
   const R = OE.registros || [];
   if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay registros de OE en estas fechas')); return; }
   const tops = Array.from(new Set(R.map(r => r.llave))).sort((a, b) => (nomDe(a) || '').localeCompare(nomDe(b) || '')), hitos = Array.from(new Set(R.map(r => r.hito).filter(Boolean))).sort(), reds = Array.from(new Set(R.map(r => r.red).filter(Boolean))).sort();
