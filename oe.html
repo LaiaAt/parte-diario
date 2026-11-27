@@ -42,13 +42,6 @@ img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;backg
 .sbar .sres{display:none}.sbar{gap:12px}.sbar .btn,.sbar .btn.sacar2,.sbar .btn.cnl{flex:1 1 0;width:0;min-width:0;box-sizing:border-box;margin:0;padding:0 8px;min-height:56px;font-size:1.1rem}.sbar .btn{white-space:nowrap}.btn.blk{box-sizing:border-box}
 .redg{display:grid;grid-template-columns:1fr 1fr;gap:6px}.redg .act{width:auto;min-width:0;box-sizing:border-box;margin-top:6px;padding:10px 8px;font-size:.85rem;min-height:52px}
 .ini .dia{gap:6px;margin:0 0 6px}.ini .dia .btn{min-width:44px;height:38px;min-height:0;padding:0;font-size:1rem}.ini .dia input{height:38px;min-height:0;padding:0 8px;font-size:1rem;font-weight:700;flex:1}
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#dfe7e2;padding:5px;border-radius:16px;margin:0 0 10px}.seg button{border:0;border-radius:12px;padding:11px 6px;font-weight:800;font-size:1rem;background:transparent;color:#3f5547;min-height:0;box-shadow:none}.seg button.on{background:#0a7f2e;color:#fff;box-shadow:0 3px 10px rgba(10,127,46,.35)}
-.seg button.on::before,.seg button.on::after{content:none!important}.lv input[type=date]{width:100%;box-sizing:border-box}
-.lv{background:#fff;border-radius:18px;padding:14px;box-shadow:0 2px 12px rgba(15,23,42,.08)}.lv-h{display:flex;gap:12px;align-items:center;margin-bottom:12px}.lv-i{font-size:2rem;background:#e8f5ec;border-radius:14px;width:52px;height:52px;display:flex;align-items:center;justify-content:center}.lv-h b{display:block;font-size:1.15rem;color:#0f172a}.lv small,.lv-sub small{display:block;color:#5b6b78;font-size:.8rem;font-weight:500;margin-top:2px}
-.lv-drop{display:flex;flex-direction:column;align-items:center;gap:6px;border:2.5px dashed #0a7f2e;background:#f3faf5;border-radius:18px;padding:26px 12px;text-align:center;cursor:pointer;color:#0a5a22}.lv-drop b{font-size:1.1rem}.lv-d1{font-size:2.6rem;line-height:1}
-.lv-arch{display:flex;gap:10px;align-items:center;background:#f3faf5;border:1px solid #bfe3c9;border-radius:14px;padding:10px 12px}.lv-arch>span{font-size:1.6rem}.lv-arch>div{flex:1;min-width:0}.lv-arch b{display:block;word-break:break-all;font-size:.95rem}.lv-otro{font-weight:800;color:#0a7f2e;padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #0a7f2e;font-size:.85rem;cursor:pointer}
-.lv-caps{margin-top:12px;display:grid;gap:6px}.lv-cap{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#f6f8fa;border-radius:12px;padding:9px 12px}.lv-cap b{display:block;font-size:.95rem}.lv-cap em{font-style:normal;font-weight:800;color:#0a7f2e;white-space:nowrap}
-.lv-sub{display:flex;gap:10px;align-items:center;background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 6px rgba(15,23,42,.07)}.lv-sub>div{flex:1;min-width:0}.lv-sub b{font-size:.95rem}.lv-sub small{word-break:break-word}.lv-ok{width:30px;height:30px;border-radius:50%;background:#0a7f2e;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
 .ini .preg{font-size:1rem;margin:4px 2px 6px}.ini .hs{grid-auto-rows:clamp(50px,calc((100dvh - 262px) / 5),80px)}.ini .hs .bg{height:100%;overflow:hidden;justify-content:center}.ini .hs{gap:6px;margin:0}.ini .hs .bg{padding:6px 3px 5px}.ini .hs .bg-i{font-size:1.3rem}.ini .hs .bg b{font-size:.74rem}
 main.oe:has(.ini){padding-top:8px;padding-bottom:12px}
 .act small.est{color:#0d5c2e;font-weight:700}
@@ -84,7 +77,7 @@ const NDIM = ['Largo (m)', 'Ancho (m)', 'Alto / espesor (m)'];
 const undTxt = u => ({ 'M3': 'm³', 'M2': 'm²', 'ML': 'm', 'UN': 'und', 'KG': 'kg', 'M3-KM': 'm³·km', 'TON-M': 'ton·m' }[u] || u);
 
 const LSM = 'oe_mis_v1';
-let S = { ses: lsGet(LS), cat: null, tab: 'rep', sub: 'hoy', abierto: {}, mis: {}, cargMis: false, fecha: hoyISO(), hito: '', srv: [], pend: [], f: null, busy: false, cargando: false, offline: false, loginErr: '', q: '', lev: null, levLista: [], cargLev: false };
+let S = { ses: lsGet(LS), cat: null, tab: 'rep', abierto: {}, mis: {}, cargMis: false, fecha: hoyISO(), hito: '', srv: [], pend: [], f: null, busy: false, cargando: false, offline: false, loginErr: '', q: '', cargLev: false };
 
 /* ---------- Cola local (IndexedDB): los registros con foto esperan aquí hasta que haya señal ---------- */
 const DB = (() => {
@@ -224,11 +217,9 @@ function vDia() {
   const hoy = hoyISO();
   return '<div class="dia"><button class="btn sec" data-a="dia" data-v="-1"' + (S.fecha <= sumDias(hoy, -7) ? ' disabled' : '') + '>◀</button><input type="date" id="fecha" value="' + S.fecha + '" min="' + sumDias(hoy, -7) + '" max="' + hoy + '"><button class="btn sec" data-a="dia" data-v="1"' + (S.fecha >= hoy ? ' disabled' : '') + '>▶</button></div>';
 }
-const vSeg = () => LEV_ON ? '<div class="seg"><button type="button" class="' + (S.sub !== 'lev' ? 'on' : '') + '" data-a="sub" data-v="hoy">📝 Qué se hizo hoy</button><button type="button" class="' + (S.sub === 'lev' ? 'on' : '') + '" data-a="sub" data-v="lev">📐 Levantamientos</button></div>' : '';
 function vInicio() {
   const reg = todosDia(), por = {}; reg.forEach(x => { por[x.hito] = (por[x.hito] || 0) + 1; });
-  if (LEV_ON && S.sub === 'lev') return vSeg() + vLev();
-  let h = vSeg() + '<div class="ini">' + vDia() + '<h2 class="preg">¿En qué hito trabajaste?</h2><div class="hs">';
+  let h = '<div class="ini">' + vDia() + '<h2 class="preg">¿En qué hito trabajaste?</h2><div class="hs">';
   (S.cat ? S.cat.hitos : []).forEach(x => { const n = por[x[0]] || 0; h += '<button type="button" class="bg" data-a="hito" data-v="' + x[0] + '"><span class="bg-i">' + (ICO[x[0]] || '📍') + '</span><b>' + esc(x[1]) + '</b><small>' + (n ? n + (n === 1 ? ' registro' : ' registros') : '&nbsp;') + '</small>' + (n ? '<i class="n">' + n + '</i>' : '') + '</button>'; });
   h += '</div>';
   h += '</div>';
@@ -268,128 +259,7 @@ function vMis() {
   });
   return h;
 }
-const LEV_ON = false; // los levantamientos TXT se cargan desde el Dashboard (OE → Avance); aquí solo se cuentan en Resumen
-const TABS = [['rep', '📝', 'Reporte'], ['res', '📊', 'Resumen']]; // solo dos vistas; Reporte trae «Qué se hizo hoy» y «Levantamientos»; los reportes de la semana van dentro de Resumen
-/* ---------- Levantamientos TXT (estación total) ---------- */
-function tmInv(E, N) { // plano de Bogotá D.C. (IDU, MAGNA GRS80) → [lat, lon]
-  const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, ep2 = e2 / (1 - e2), R = Math.PI / 180;
-  const arco = p => a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256) * p - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 * e2 * e2 / 1024) * Math.sin(2 * p) + (15 * e2 * e2 / 256 + 45 * e2 * e2 * e2 / 1024) * Math.sin(4 * p) - (35 * e2 * e2 * e2 / 3072) * Math.sin(6 * p));
-  const M = arco(4.680486111 * R) + (N - 109320.965);
-  const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256)), s = Math.sqrt(1 - e2), e1 = (1 - s) / (1 + s);
-  const p1 = mu + (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu) + (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu) + (1097 * Math.pow(e1, 4) / 512) * Math.sin(8 * mu);
-  const sn = Math.sin(p1), cs = Math.cos(p1), tn = Math.tan(p1), C1 = ep2 * cs * cs, T1 = tn * tn, N1 = a / Math.sqrt(1 - e2 * sn * sn), R1 = a * (1 - e2) / Math.pow(1 - e2 * sn * sn, 1.5), D = (E - 92334.879) / N1;
-  const lat = p1 - (N1 * tn / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * Math.pow(D, 4) / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * Math.pow(D, 6) / 720);
-  const lon = -74.146591667 * R + (D - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * Math.pow(D, 5) / 120) / cs;
-  return [lat / R, lon / R];
-}
-function levCasco(P) { // envolvente convexa (cadena monótona) de [[x,y,...]]
-  const q = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  if (q.length < 3) return q;
-  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const lo = [], up = [];
-  q.forEach(p => { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); });
-  q.slice().reverse().forEach(p => { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); });
-  lo.pop(); up.pop(); return lo.concat(up);
-}
-// Una línea del TXT de estación total: punto, este, norte, cota, descripción. Separador: comas, punto y coma, tabulador o espacios.
-function levCampos(l) {
-  const t = String(l).trim(), sep = t.indexOf(',') >= 0 ? ',' : t.indexOf(';') >= 0 ? ';' : t.indexOf('\t') >= 0 ? '\t' : ' ';
-  const c = (sep === ' ' ? t.split(/\s+/) : t.split(sep)).map(x => x.trim()); c.sep = sep === ' ' ? ' ' : sep; return c;
-}
-function levParse(texto) {
-  const pts = []; let mal = 0;
-  String(texto || '').split(/\r?\n/).forEach(l => {
-    if (!l.trim()) return;
-    const c = levCampos(l); if (c.length < 3) { mal++; return; }
-    const x = parseFloat(c[1]), y = parseFloat(c[2]), z = c.length > 3 ? parseFloat(c[3]) : NaN, d = (c.slice(4).join(c.sep).trim() || 'SIN DESCRIPCION').toUpperCase();
-    if (!isFinite(x) || !isFinite(y)) { mal++; return; }
-    pts.push({ x: x, y: y, z: isFinite(z) ? z : 0, d: d });
-  });
-  if (!pts.length) return { error: 'El archivo no tiene puntos. Cada línea debe ser: punto, este, norte, cota, descripción (separados por comas o espacios).' };
-  const geo = pts.every(p => Math.abs(p.x) <= 180 && Math.abs(p.y) <= 90);
-  pts.forEach(p => {
-    if (geo) { const a = Math.abs(p.x) < Math.abs(p.y) ? [p.x, p.y] : [p.y, p.x]; p.lat = a[0]; p.lon = a[1]; p.mx = p.lon * 111320 * Math.cos(p.lat * Math.PI / 180); p.my = p.lat * 110574; }
-    else { const g = tmInv(p.x, p.y); p.lat = g[0]; p.lon = g[1]; p.mx = p.x; p.my = p.y; }
-  });
-  if (pts.some(p => !(p.lat > -5 && p.lat < 14 && p.lon > -82 && p.lon < -66))) return { error: 'Las coordenadas no caen en Colombia. Revisa el sistema de coordenadas del archivo.' };
-  const por = {}; pts.forEach(p => { (por[p.d] = por[p.d] || []).push(p); });
-  const r6 = v => Math.round(v * 1e6) / 1e6, ll = p => [r6(p.lat), r6(p.lon)];
-  const ext = L => { const xs = L.map(p => p.mx), ys = L.map(p => p.my); return Math.hypot(Math.max.apply(null, xs) - Math.min.apply(null, xs), Math.max.apply(null, ys) - Math.min.apply(null, ys)); };
-  const zst = L => { const zs = L.map(p => p.z); return { zmin: Math.min.apply(null, zs), zmax: Math.max.apply(null, zs), zprom: Math.round(zs.reduce((s, v) => s + v, 0) / zs.length * 1000) / 1000 }; };
-  const hullArea = L => { const H = levCasco(L.map(p => [p.mx, p.my, p.lat, p.lon])); let ar = 0; for (let i = 0; i < H.length; i++) { const a = H[i], b = H[(i + 1) % H.length]; ar += a[0] * b[1] - b[0] * a[1]; } return { H: H, area: Math.round(Math.abs(ar) / 2 * 100) / 100 }; };
-  const claves = Object.keys(por).sort(), compacto = ext(pts) / pts.length <= 20, multi = claves.length > 1 && compacto;
-    const anillo = L => { // polígono que une los puntos: franja (dos bordes) si hay dos líneas, si no envolvente
-      const n = L.length, cx = L.reduce((s, p) => s + p.mx, 0) / n, cy = L.reduce((s, p) => s + p.my, 0) / n; let sxx = 0, syy = 0, sxy = 0;
-      L.forEach(p => { const dx = p.mx - cx, dy = p.my - cy; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; });
-      const th = 0.5 * Math.atan2(2 * sxy, sxx - syy), c = Math.cos(th), s = Math.sin(th);
-      const Q = L.map(p => { const dx = p.mx - cx, dy = p.my - cy; return { p, u: dx * c + dy * s, v: -dx * s + dy * c }; }).sort((a, b) => a.v - b.v);
-      let g = 0, gi = -1; for (let i = 1; i < n; i++) if (Q[i].v - Q[i - 1].v > g) { g = Q[i].v - Q[i - 1].v; gi = i; }
-      const rg = Q[n - 1].v - Q[0].v;
-      if (n >= 4 && rg > 4 && g > 0.4 * rg && gi >= 2 && n - gi >= 2) { const A = Q.slice(0, gi).sort((a, b) => a.u - b.u), B = Q.slice(gi).sort((a, b) => b.u - a.u); return A.concat(B).map(q => q.p); }
-      return levCasco(L.map(p => [p.mx, p.my, p.lat, p.lon])).map(h => L.find(p => p.mx === h[0] && p.my === h[1]));
-    };
-  const capas = claves.map(k => {
-    const L = por[k], z = zst(L);
-    if (L.length < 3) return Object.assign({ capa: k, tipo: 'pts', n: L.length, area: 0, poly: L.map(ll) }, z);
-    const comp = [], vis = new Array(L.length).fill(false); // zonas separadas (puntos a menos de 25 m) = un polígono por zona
-    for (let i = 0; i < L.length; i++) { if (vis[i]) continue; const q = [i], c = []; vis[i] = true; while (q.length) { const a = q.pop(); c.push(L[a]); for (let j = 0; j < L.length; j++) if (!vis[j] && Math.hypot(L[a].mx - L[j].mx, L[a].my - L[j].my) <= 25) { vis[j] = true; q.push(j); } } comp.push(c); }
-    let area = 0; const rings = comp.filter(c => c.length >= 3).map(c => { const R = anillo(c); let ar = 0; for (let i = 0; i < R.length; i++) { const a = R[i], b = R[(i + 1) % R.length]; ar += a.mx * b.my - b.mx * a.my; } area += Math.abs(ar) / 2; return R.map(ll); });
-    if (!rings.length) return Object.assign({ capa: k, tipo: 'pts', n: L.length, area: 0, poly: L.slice(0, 400).map(ll) }, z);
-    return Object.assign({ capa: k, tipo: 'pol', n: L.length, area: Math.round(area * 100) / 100, poly: rings.length === 1 ? rings[0] : rings }, z);
-  });
-  return { capas: capas, n: pts.length, mal: mal, geo: geo };
-}
-function levFecha(nombre) { // la fecha va en el nombre como dd-mm-aa, ddmmaa o aamm dd (ej. 191126 = 19/11/2026, 261104 = 04/11/2026); solo vale si es de los últimos 120 días
-  const n = String(nombre || ''), hoy = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10), lim = new Date(Date.now() - 5 * 3600e3 - 120 * 86400e3).toISOString().slice(0, 10), cand = [];
-  const ok = (y, m, d) => { y = String(y).length === 2 ? '20' + y : String(y); const f = y + '-' + m + '-' + d; return /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(f) && f >= lim && f <= hoy ? f : ''; };
-  let m; const re = /(?<!\d)(\d{2})[-_.](\d{2})[-_.](\d{4}|\d{2})(?!\d)/g; while ((m = re.exec(n))) cand.push(ok(m[3], m[2], m[1]));
-  const q = n.match(/(?<!\d)(\d{2})(\d{2})(\d{2})(?!\d)/); if (q) { cand.push(ok(q[3], q[2], q[1])); cand.push(ok(q[1], q[2], q[3])); }
-  return cand.find(Boolean) || '';
-}
-
-async function pedirLev() {
-  if (!S.ses) return; S.cargLev = true; render();
-  try { const r = await llamar({ accion: 'oe_lev_lista', llave: S.ses.llave }); if (r.ok) S.levLista = r.lista || []; } catch (e) {}
-  S.cargLev = false; render();
-}
-function vLev() {
-  const L = S.lev, hoy = hoyISO(), nf = n => n.toLocaleString('es-CO', { maximumFractionDigits: 1 });
-  let h = '<div class="lv"><div class="lv-h"><span class="lv-i">📐</span><div><b>Levantamiento del día</b><small>Sube el TXT de la estación total</small></div></div>';
-  if (!L || !L.res) {
-    h += '<label for="levArchivo" class="lv-drop"><span class="lv-d1">📂</span><b>Toca aquí para elegir el TXT</b><small>Formato: punto, este, norte, cota, descripción</small></label>';
-    if (L && L.err) h += '<div class="error" style="margin-top:10px">' + esc(L.err) + '</div>';
-  } else {
-    h += '<div class="lv-arch"><span>📄</span><div><b>' + esc(L.archivo) + '</b><small>' + L.res.n + ' puntos · ' + L.res.capas.length + ' actividades' + (L.res.mal ? ' · ' + L.res.mal + ' líneas ignoradas' : '') + '</small></div><label for="levArchivo" class="lv-otro">Cambiar</label></div>' +
-      '<label class="f" for="levFecha" style="margin-top:12px">¿De qué día es este levantamiento?</label><input type="date" id="levFecha" value="' + L.fecha + '" max="' + hoy + '" min="' + sumDias(hoy, -60) + '">' +
-      '<div class="lv-caps">';
-    L.res.capas.forEach(c => { h += '<div class="lv-cap"><div><b>' + esc(c.capa) + '</b><small>' + c.n + ' puntos · cota ' + c.zmin.toFixed(2) + ' a ' + c.zmax.toFixed(2) + ' m</small></div><em>' + (c.area ? nf(c.area) + ' m²' : '—') + '</em></div>'; });
-    h += '</div><button class="btn blk grande" data-a="levSubir" style="margin-top:12px"' + (L.subiendo ? ' disabled' : '') + '>' + (L.subiendo ? 'Subiendo…' : '⬆ Subir levantamiento') + '</button>';
-  }
-  h += '<input type="file" id="levArchivo" accept=".txt,.csv,text/plain" style="display:none"></div>';
-  const g = {}; S.levLista.forEach(x => { const k = x.fecha + '|' + x.archivo; (g[k] = g[k] || { fecha: x.fecha, archivo: x.archivo, caps: [], area: 0 }); g[k].caps.push(x.capa); g[k].area += x.area; });
-  const ks = Object.keys(g).sort().reverse();
-  h += '<h2 class="preg" style="margin-top:16px">Subidos' + (S.cargLev ? ' <small class="mut" style="font-size:.75rem;font-weight:600">actualizando…</small>' : '') + '</h2>';
-  if (!ks.length && !S.cargLev) h += '<div class="card peq mut">Aún no has subido levantamientos.</div>';
-  ks.forEach(k => { const x = g[k]; h += '<div class="lv-sub"><span class="lv-ok">✔</span><div><b>' + esc(diaTxt(x.fecha)) + '</b><small>' + esc(x.archivo) + ' · ' + esc(x.caps.join(', ')) + ' · ' + nf(x.area) + ' m²</small></div><button class="btn chico sec" data-a="levAnular" data-v="' + esc(k) + '">Anular</button></div>'; });
-  return h;
-}
-async function levLeer(file) {
-  const texto = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result || '')); r.onerror = no; r.readAsText(file); });
-  const res = levParse(texto), hoy = hoyISO();
-  if (res.error) { S.lev = { err: res.error }; render(); return; }
-  let f = levFecha(file.name); if (!f || f > hoy || f < sumDias(hoy, -60)) f = hoy;
-  S.lev = { archivo: file.name.slice(0, 80), texto: texto, fecha: f, res: res }; render();
-}
-async function levSubir() {
-  const L = S.lev; if (!L || !L.res || L.subiendo) return;
-  L.subiendo = true; render();
-  try {
-    const r = await llamar({ accion: 'oe_lev_subir', llave: S.ses.llave, fecha: L.fecha, archivo: L.archivo, capas: L.res.capas, txt: L.texto }, 90000);
-    if (r.ok) { toast('Levantamiento subido'); S.lev = null; pedirLev(); return; }
-    L.subiendo = false; L.err = r.mensaje || 'No se pudo subir'; toast(L.err);
-  } catch (e) { L.subiendo = false; toast('Sin conexión. Intenta de nuevo con señal.'); }
-  render();
-}
+const TABS = [['rep', '📝', 'Reporte'], ['res', '📊', 'Resumen']]; // solo dos vistas; los levantamientos TXT se cargan en la oficina desde el Dashboard
 const vArbol = () => '<nav class="arbol">' + TABS.map(t => '<button class="ar-g' + (t[0] === S.tab ? ' on' : '') + '" data-a="tab" data-v="' + t[0] + '"><span>' + t[1] + '</span><em>' + t[2] + '</em></button>').join('') + '</nav>';
 const vBarra = () => '<nav class="mbar" style="grid-template-columns:repeat(' + TABS.length + ',1fr)">' + TABS.map(t => '<button class="' + (t[0] === S.tab ? 'on' : '') + '" data-a="tab" data-v="' + t[0] + '"><span>' + t[1] + '</span><em>' + t[2] + '</em></button>').join('') + '</nav>';
 function excelDia(f) {
@@ -515,16 +385,15 @@ function vSbar() {
   return '<div class="sbar"><button type="button" class="btn sec cnl" data-a="atras">◀ ' + (f.p === 0 ? 'Cancelar' : 'Atrás') + '</button>' +
     (ult ? '<button type="button" class="btn sacar2" data-a="guardar"' + (f.guardando ? ' disabled' : '') + '>' + (f.guardando ? 'Guardando…' : '💾 Guardar') + '</button>' : '<button type="button" class="btn sacar2" data-a="sig">Siguiente ▶</button>') + '</div>';
 }
-// Resumen: por día (7 días, hoy es el último) cuántos reportes y cuántos levantamientos
+// Resumen: por día (7 días, hoy es el último) cuántos reportes
 function vRes() {
-  const hoy = hoyISO(), DS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'], lev = {};
-  (S.levLista || []).forEach(x => { (lev[x.fecha] = lev[x.fecha] || new Set()).add(x.archivo); });
+  const hoy = hoyISO(), DS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   let h = '<h2 class="preg">Resumen de la semana</h2><div class="card">';
   for (let i = 0; i < 7; i++) {
-    const f = sumDias(hoy, -i), d = new Date(f + 'T12:00:00'), nr = regDe(f).filter(x => x.rev !== 'RECHAZADO').length, nl = lev[f] ? lev[f].size : 0;
-    h += '<div class="rl" style="align-items:center;gap:8px"><div style="flex:1"><b>' + (i === 0 ? 'Hoy' : DS[d.getDay()]) + ' ' + d.getDate() + '</b></div><div style="min-width:84px;text-align:center"><b style="font-size:20px">' + nr + '</b><span class="peq mut" style="display:block">reporte' + (nr === 1 ? '' : 's') + '</span></div><div style="min-width:112px;text-align:center"><b style="font-size:20px">' + nl + '</b><span class="peq mut" style="display:block">levantamiento' + (nl === 1 ? '' : 's') + '</span></div></div>';
+    const f = sumDias(hoy, -i), d = new Date(f + 'T12:00:00'), nr = regDe(f).filter(x => x.rev !== 'RECHAZADO').length;
+    h += '<div class="rl" style="align-items:center;gap:8px"><div style="flex:1"><b>' + (i === 0 ? 'Hoy' : DS[d.getDay()]) + ' ' + d.getDate() + '</b></div><div style="min-width:84px;text-align:center"><b style="font-size:20px">' + nr + '</b><span class="peq mut" style="display:block">reporte' + (nr === 1 ? '' : 's') + '</span></div></div>';
   }
-  return h + '</div>' + (S.cargMis || S.cargLev ? '<div class="peq mut">Actualizando…</div>' : '');
+  return h + '</div>' + (S.cargMis ? '<div class="peq mut">Actualizando…</div>' : '');
 }
 function render() {
   const app = $('#app'), y = window.pageYOffset;
@@ -627,7 +496,7 @@ document.addEventListener('submit', async ev => {
   S.entrando = true; S.loginErr = ''; render();
   try {
     const r = await llamar({ accion: 'validar', llave: k, app: 'oe' }, 30000);
-    if (r && r.ok) { S.ses = { llave: r.llave || k, nombre: r.nombre }; lsSet(LS, S.ses); S.entrando = false; await cargarCat(); render(); pedirDia(); pedirLev(); return; }
+    if (r && r.ok) { S.ses = { llave: r.llave || k, nombre: r.nombre }; lsSet(LS, S.ses); S.entrando = false; await cargarCat(); render(); pedirDia(); return; }
     S.loginErr = (r && r.mensaje) || 'Llave no válida';
   } catch (e) { S.loginErr = 'Sin conexión: se necesita señal para entrar la primera vez.'; }
   S.entrando = false; render();
@@ -635,8 +504,7 @@ document.addEventListener('submit', async ev => {
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-a]'); if (!b) return;
   const a = b.dataset.a, v = b.dataset.v;
-  if (a === 'tab') { S.tab = v; S.hito = ''; render(); window.scrollTo(0, 0); if (v === 'res') pedirMis(); pedirLev(); return; }
-  if (a === 'sub') { S.sub = v; render(); window.scrollTo(0, 0); if (v === 'lev') pedirLev(); return; }
+  if (a === 'tab') { S.tab = v; S.hito = ''; render(); window.scrollTo(0, 0); if (v === 'res') pedirMis(); return; }
   if (a === 'excel') { descargarExcel(v); return; }
   if (a === 'editar') { editar(v); return; }
   if (a === 'abrir') { S.abierto[v] = !S.abierto[v]; render(); return; }
@@ -665,8 +533,6 @@ document.addEventListener('click', async ev => {
   if (a === 'usarOtra') { usarOtra(); return; }
   if (a === 'guardar') { guardar(); return; }
   if (a === 'sync') { sincronizar(); return; }
-  if (a === 'levSubir') { levSubir(); return; }
-  if (a === 'levAnular') { if (!confirm('¿Anular este levantamiento?')) return; const p = v.split('|'); S.cargLev = true; render(); try { const r = await llamar({ accion: 'oe_lev_anular', llave: S.ses.llave, fecha: p[0], archivo: p.slice(1).join('|') }); if (!r.ok) toast(r.mensaje || 'No se pudo anular'); } catch (e) { toast('Sin conexión'); } pedirLev(); return; }
   if (a === 'anular') { if (!confirm('¿Anular este registro?')) return; S.cargando = true; render(); try { const r = await llamar({ accion: 'oe_eliminar', llave: S.ses.llave, id: v }); if (!r.ok) toast(r.mensaje || 'No se pudo anular'); } catch (e) { toast('Sin conexión: no se pudo anular.'); } pedirDia(); return; }
 });
 document.addEventListener('input', ev => {
@@ -680,8 +546,6 @@ document.addEventListener('input', ev => {
 });
 document.addEventListener('change', async ev => {
   const t = ev.target;
-  if (t.id === 'levArchivo' && t.files && t.files[0]) { try { await levLeer(t.files[0]); } catch (e) { S.lev = { err: 'No se pudo leer el archivo.' }; render(); } return; }
-  if (t.id === 'levFecha') { if (S.lev) { const hoy = hoyISO(); if (t.value && t.value <= hoy && t.value >= sumDias(hoy, -60)) S.lev.fecha = t.value; else t.value = S.lev.fecha; } return; }
   if (t.id === 'fecha') { const hoy = hoyISO(); if (t.value && t.value <= hoy && t.value >= sumDias(hoy, -7)) cambioDia(t.value); else t.value = S.fecha; return; }
   if (t.dataset && t.dataset.foto !== undefined && t.files && t.files[0]) { try { S.f.foto = await reducirFoto(t.files[0]); S.f.msg = ''; } catch (e) { toast('No se pudo leer la foto.'); } render(); }
 });
@@ -691,7 +555,7 @@ window.addEventListener('beforeunload', ev => { if (S.f && (S.f.act || S.f.foto)
 (async () => {
   render();            // abre al instante: con sesión guardada muestra la pantalla de inmediato
   await cargarCat(); render();
-  if (S.ses) { S.pend = (await DB.todos().catch(() => [])).filter(x => x.llave === S.ses.llave); render(); sincronizar(); pedirDia(); pedirLev(); }
+  if (S.ses) { S.pend = (await DB.todos().catch(() => [])).filter(x => x.llave === S.ses.llave); render(); sincronizar(); pedirDia(); }
 })();
 try { if (navigator.onLine) fetch(API, { method: 'POST', body: JSON.stringify({ accion: 'ping' }) }).catch(() => {}); } catch (e) {}
 if ('serviceWorker' in navigator) { const hab = !!navigator.serviceWorker.controller; let rec = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hab || rec) return; rec = true; /* versión nueva: no se recarga sola mientras se usa; aviso para actualizar con un toque */ if (!document.getElementById('nuevaVer')) { const d = document.createElement('button'); d.id = 'nuevaVer'; d.textContent = '🔄 Hay una versión nueva de OE · toca aquí para actualizar'; d.style.cssText = 'position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:99999;background:#0a7a32;color:#fff;border:0;border-radius:24px;padding:12px 20px;font-weight:800;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer;width:max-content;max-width:92vw'; d.onclick = () => location.reload(); document.body.appendChild(d); } }); navigator.serviceWorker.register('sw.js').then(reg => { const buscar = () => { try { reg.update(); } catch (e) {} }; setInterval(buscar, 900000); document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar(); }); window.addEventListener('focus', buscar); buscar(); }).catch(() => {}); }
