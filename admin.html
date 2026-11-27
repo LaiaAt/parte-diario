@@ -2218,6 +2218,29 @@ async function pintarOeResumen(c) {
       h('td', {}, h('span', { style: 'display:inline-block;font-weight:800;border-radius:999px;padding:2px 10px;font-size:12.5px;' + (hizo ? 'background:#e3f4e8;color:#0a7a32' : 'background:#fde7e6;color:#b3261e') }, hizo ? '✔ Reportó' : '✖ Sin reporte')))); });
   tb.appendChild(h('tr', { style: 'font-weight:800' }, h('td', {}, 'Total'), h('td', {}, ''), h('td', {}, String(tr)), h('td', {}, String(tl)), h('td', {}, ok + ' de ' + F.length + ' reportaron')));
   c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Reportes', 'Levantamientos', 'Estado'].map(t => h('th', {}, t)))), tb)));
+  if (OEF.top) oeHistorialTop(c, nomU(OEF.top));
+}
+// Historial del topógrafo filtrado: qué hizo cada día, por actividad (sin anulados), dentro del rango de fechas
+function oeHistorialTop(c, nombre) {
+  const R = (OE.registros || []).filter(r => r.llave === OEF.top && oeCuenta(r));
+  c.appendChild(h('h3', { style: 'margin:18px 0 6px' }, '📋 Historial de ' + nombre));
+  if (!R.length) { c.appendChild(h('div', { class: 'trok' }, 'Sin registros aprobados en estas fechas.')); return; }
+  const cant = r => oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad);
+  // 1) totales del periodo por actividad
+  const A = {}; R.forEach(r => { const k = (r.actividad || '—') + '|' + (r.und || '—'); const x = A[k] = A[k] || { act: r.actividad || '—', und: r.und || '—', n: 0, t: 0, dias: new Set() }; x.n++; x.t += cant(r); x.dias.add(r.fecha); });
+  const ta = h('tbody', {}); Object.keys(A).map(k => A[k]).sort((x, y) => x.act.localeCompare(y.act)).forEach(x => ta.appendChild(h('tr', {}, h('td', {}, x.act), h('td', {}, x.und), h('td', { style: 'text-align:right;font-weight:800' }, oeFmt(x.t)), h('td', { style: 'text-align:right' }, String(x.n)), h('td', { style: 'text-align:right' }, String(x.dias.size)))));
+  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0' }, 'Total del periodo por actividad'));
+  c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Actividad', 'Und', 'Cantidad', 'Registros', 'Días'].map((t, i) => h('th', i > 1 ? { style: 'text-align:right' } : {}, t)))), ta)));
+  // 2) día a día
+  const Dd = {}; R.forEach(r => { const k = r.fecha + '|' + (r.hito || '') + '|' + (r.actividad || '—') + '|' + (r.und || '—'); const x = Dd[k] = Dd[k] || { f: r.fecha, hito: r.hito || '', act: r.actividad || '—', und: r.und || '—', uf: new Set(), ab: [], n: 0, t: 0 }; x.n++; x.t += cant(r); if (r.uf) x.uf.add(r.uf + (r.costado ? ' · ' + r.costado : '')); if (r.abIni || r.abFin) x.ab.push((r.abIni || '') + ' → ' + (r.abFin || '')); });
+  const L = Object.keys(Dd).map(k => Dd[k]).sort((x, y) => y.f.localeCompare(x.f) || x.act.localeCompare(y.act));
+  const td = h('tbody', {}); let fAnt = '';
+  L.forEach(x => {
+    if (x.f !== fAnt) { fAnt = x.f; const nDia = L.filter(y => y.f === x.f).reduce((s2, y) => s2 + y.n, 0); td.appendChild(h('tr', { style: 'background:#eef5ef' }, h('td', { colspan: 7, style: 'font-weight:800' }, '📅 ' + fmtF(x.f) + ' · ' + nDia + ' registro' + (nDia === 1 ? '' : 's')))); }
+    td.appendChild(h('tr', {}, h('td', {}, oeHitoTxt(x.hito)), h('td', {}, x.act), h('td', {}, Array.from(x.uf).join(', ')), h('td', { class: 'small' }, Array.from(new Set(x.ab)).join(' · ')), h('td', {}, x.und), h('td', { style: 'text-align:right;font-weight:800' }, oeFmt(x.t)), h('td', { style: 'text-align:right' }, String(x.n))));
+  });
+  c.appendChild(h('div', { class: 'small', style: 'margin:12px 0 4px' }, 'Día a día (los anulados no se incluyen)'));
+  c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Hito', 'Actividad', 'UF · Costado', 'Abscisas', 'Und', 'Cantidad', 'Registros'].map((t, i) => h('th', i > 4 ? { style: 'text-align:right' } : {}, t)))), td)));
 }
 function pintarOe() {
   const c = $('oeBody'); if (!OE) return; c.textContent = '';
