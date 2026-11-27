@@ -294,6 +294,7 @@ header>span{gap:6px!important;min-width:0}
       <div><label>Mes</label><select id="mes"></select></div>
       <div><label>Desde</label><input type="date" id="desde"></div>
       <div><label>Hasta</label><input type="date" id="hasta"></div>
+      <div id="fTopW" hidden><label>Topógrafo</label><select id="fTop"></select></div>
       <div class="acts"><button id="act">Actualizar</button>
       <button id="infSem" style="background:#0d3b66;color:#fff;border:2px solid #0d3b66;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.35)">📄 Informe</button></div>
       <span id="estado" class="small"></span>
@@ -527,6 +528,7 @@ function modulo(m) {
   if (m === 'acero' && !(D && D.acero)) m = 'resumen';
   MOD = m; selSet('mod', m);
   document.querySelectorAll('[data-m]').forEach(e => { e.hidden = e.dataset.m !== m; });
+  $('fTopW').hidden = m !== 'oe' || OETAB === 'avance'; if (m === 'oe') llenarFTop(); // en Avance no aplica: los TXT se cargan desde oficina (allí está «Cargado por»)
   const gt = m === 'transportes', ga = m === 'acero', gm = m === 'maquinaria', go = m === 'oe', grp = gt ? 't' : ga ? 'a' : gm ? 'm' : go ? 'o' : 'p';
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.g === grp));
   $('infSem').hidden = ga || gm || go; // el Informe solo existe para Parte diario y Transportes
@@ -2047,14 +2049,25 @@ const OE_REV = { '': ['🟡', 'Por revisar', '#9a6b00'], APROBADO: ['🟢', 'Apr
 const oeRev = r => OE_REV[r.rev || ''] || OE_REV[''];
 const oeCuenta = r => r.rev !== 'RECHAZADO'; // los anulados (RECHAZADO en la hoja) no suman en cálculos ni controles
 const oeSinCc = r => !String(r.cc || '').trim() || String(r.cc).toUpperCase() === 'NUEVA';
-let OE = null, OETAB = selGet('oe', 'res', v => OE_TABS.some(x => x[0] === v)), OEF = { top: '', hito: '', red: '', rev: '', q: '' }, OEN = 60;
+let OE = null, OETAB = selGet('oe', 'res', v => OE_TABS.some(x => x[0] === v)), OEF = { top: selGet('oetop', '', () => true), hito: '', red: '', rev: '', q: '' }, OEN = 60;
+// Filtro de topógrafo de O. Ejecutada: va junto a las fechas (arriba) y aplica a Resumen y Registros
+function llenarFTop() {
+  const s = $('fTop'); if (!s) return; const M = {};
+  ((D && D.oeusuarios) || []).forEach(u => { M[u.llave] = u.nombre; });
+  ((OE && OE.registros) || []).forEach(r => { if (r.llave && !M[r.llave]) M[r.llave] = r.topografo || nomDe(r.llave); });
+  if (OEF.top && !M[OEF.top]) M[OEF.top] = nomDe(OEF.top);
+  s.textContent = ''; s.appendChild(h('option', { value: '' }, 'Todos los topógrafos'));
+  Object.keys(M).sort((a, b) => M[a].localeCompare(M[b])).forEach(l => s.appendChild(h('option', { value: l }, M[l])));
+  s.value = OEF.top;
+  s.onchange = () => { OEF.top = s.value; selSet('oetop', s.value); OEN = 60; banner('Cargando datos…'); const y = window.scrollY; pintarOe(); window.scrollTo(0, y); finBanner(true); };
+}
 const oeNum = x => { const n = Number(String(x == null ? '' : x).replace(',', '.')); return isFinite(n) ? n : 0; };
 const oeR = n => Math.round(n * 100) / 100;
 const oeFmt = n => oeR(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
 const oeHitoTxt = k => k ? (((OE && OE.hitos) || {})[k] || k) : ''; // sin numeración del hito
 const oeAbs = r => (r.abIni || '') + (r.abFin ? ' → ' + r.abFin : '');
 function navOe() {
-  oeTabsSuper(); const tb = $('nav4'); tb.textContent = '';
+  oeTabsSuper(); const tb = $('nav4'); tb.textContent = ''; if (MOD === 'oe') $('fTopW').hidden = OETAB === 'avance';
   OE_TABS.forEach(([k, t]) => tb.appendChild(h('button', { class: OETAB === k ? 'on' : '', onclick: () => { OETAB = k; selSet('oe', k); navOe(); if (OE) pintarOe(); else cargarOe(); } }, t)));
   pintarArbol();
 }
@@ -2070,7 +2083,7 @@ async function cargarOe() {
     if (rg !== rngAct()) return; // el filtro cambió mientras cargaba
     if (!r.ok) { if (!desdeCopia) $('oeBody').textContent = r.mensaje || 'No se pudo cargar'; finBanner(false); return; }
     CDB.set('admin_oe', { llave: LLAVE, t: Date.now(), r: r, d: d0, hh: h0 });
-    const y = window.scrollY; OE = r; OERG = rg; pintarOe(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
+    const y = window.scrollY; OE = r; OERG = rg; llenarFTop(); pintarOe(); if (desdeCopia) { window.scrollTo(0, y); avisoDatos(''); } finBanner(true);
   } catch (e) { if (desdeCopia) avisoDatos('📴 Sin señal · OE guardada'); else $('oeBody').textContent = 'No se pudo conectar.'; finBanner(false); }
 }
 function oeFiltrados() {
@@ -2197,7 +2210,8 @@ async function pintarOeResumen(c) {
   let F;
   if (U.length) { F = []; dias.slice().reverse().forEach(f => U.forEach(u => F.push(M[f + '|' + u.llave] || { fecha: f, llave: u.llave, nr: 0, lv: new Set() }))); F.sort((a, b) => b.fecha.localeCompare(a.fecha) || nomU(a.llave).localeCompare(nomU(b.llave))); }
   else F = Object.keys(M).map(k2 => M[k2]).sort((a, b) => b.fecha.localeCompare(a.fecha) || nomT(a.llave).localeCompare(nomT(b.llave)));
-  if (!F.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay actividad de OE en estas fechas')); return; }
+  if (OEF.top) F = F.filter(x => x.llave === OEF.top);
+  if (!F.length) { c.appendChild(h('div', { class: 'trok' }, OEF.top ? 'No hay actividad de OE de ' + nomU(OEF.top) + ' en estas fechas' : 'No hay actividad de OE en estas fechas')); return; }
   const tb = h('tbody', {}); let tr = 0, tl = 0, ok = 0;
   F.forEach(x => { tr += x.nr; tl += x.lv.size; const hizo = x.nr > 0 || x.lv.size > 0; if (hizo) ok++;
     tb.appendChild(h('tr', {}, h('td', {}, fmtF(x.fecha)), h('td', {}, nomU(x.llave)), h('td', {}, String(x.nr)), h('td', {}, String(x.lv.size)),
@@ -2215,7 +2229,7 @@ function pintarOe() {
   const sel = (k, op, def) => { const s = h('select', { onchange: () => { OEF[k] = s.value; OEN = 60; pintarOe(); } }, h('option', { value: '' }, def), op.map(o => h('option', { value: o[0] }, o[1]))); s.value = OEF[k]; return s; };
   const q = h('input', { type: 'search', placeholder: '🔎 Buscar actividad, UF, costado, paquete…', value: OEF.q, style: 'font-size:17px;padding:10px;min-width:220px;flex:2' });
   let tq; q.oninput = () => { OEF.q = q.value; clearTimeout(tq); tq = setTimeout(() => { OEN = 60; const y = window.scrollY; pintarOe(); const n = $('oeBody').querySelector('input[type=search]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } window.scrollTo(0, y); }, 300); };
-  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, OETAB === 'kpi' ? null : q, sel('top', tops.map(l => [l, nomDe(l)]), 'Todos los topógrafos'), sel('hito', hitos.map(k => [k, oeHitoTxt(k)]), 'Todos los hitos'), reds.length ? sel('red', reds.map(k => [k, k]), 'Todas las redes') : null, OETAB === 'reg' ? null : h('button', { onclick: xlsxOe }, '⬇ Excel')));
+  c.appendChild(h('div', { class: 'row', style: 'margin-bottom:10px;align-items:end' }, OETAB === 'kpi' ? null : q, sel('hito', hitos.map(k => [k, oeHitoTxt(k)]), 'Todos los hitos'), reds.length ? sel('red', reds.map(k => [k, k]), 'Todas las redes') : null, OETAB === 'reg' ? null : h('button', { onclick: xlsxOe }, '⬇ Excel')));
   const L = oeFiltrados();
   if (!L.length) { c.appendChild(h('div', { class: 'trok' }, 'Ningún registro coincide con el filtro')); return; }
   const T = oeTablas(L);
