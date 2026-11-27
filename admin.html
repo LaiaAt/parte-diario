@@ -2099,12 +2099,15 @@ function oeTablas(L) {
     act: { nombre: 'Por actividad', cols: ['Hito', 'Paquete', 'Actividad', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [oeHitoTxt(r.hito), r.paquete || '', r.actividad || '', r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
     red: { nombre: 'Por tipo de red', cols: ['Tipo de red', 'Hito', 'Actividad', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L.filter(r => r.red), r => [r.red, oeHitoTxt(r.hito), r.actividad || '', r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
     top: { nombre: 'Por topógrafo', cols: ['Topógrafo', 'Und', 'Registros', 'Cantidad total'], rows: oeGrupos(L, r => [r.topografo || nomDe(r.llave), r.und || '']).map(a => a.k.concat([a.n, oeR(a.t)])) },
-    dia: { nombre: 'Por día', cols: ['Fecha', 'Registros', 'Topógrafos'], rows: Object.keys(L.reduce((o, r) => { (o[r.fecha] = o[r.fecha] || []).push(r); return o; }, {})).sort().map(f => { const x = L.filter(r => r.fecha === f); return [fmtF(f), x.length, new Set(x.map(r => r.llave)).size]; }) }
+    dia: { nombre: 'Por día', cols: ['Fecha de ejecución', 'Registros', 'Topógrafos'], rows: Object.keys(L.reduce((o, r) => { (o[r.fecha] = o[r.fecha] || []).push(r); return o; }, {})).sort().map(f => { const x = L.filter(r => r.fecha === f); return [fmtF(f), x.length, new Set(x.map(r => r.llave)).size]; }) }
   };
 }
 // Columnas del Excel de O. Ejecutada: [título, campo, ancho]. Campo null = bloqueado (ID, topógrafo, GPS); Total es fórmula.
-const OE_XL = [['ID', null, 17], ['Fecha', 'fecha', 11], ['Topógrafo', null, 20], ['Hito', 'hito', 17], ['Tipo de red', 'red', 14], ['UF', 'uf', 6], ['Costado', 'costado', 12], ['Abscisa inicial', 'abIni', 13], ['Abscisa final', 'abFin', 13], ['Paquete', 'paquete', 34], ['C. costos', 'cc', 12], ['Actividad', 'actividad', 46], ['Und', 'und', 6], ['Largo', 'largo', 8], ['Ancho', 'ancho', 8], ['Alto', 'alto', 8], ['Cantidad', 'cantidad', 10], ['Descuento', 'descuento', 10], ['Total', null, 10], ['Latitud', null, 11], ['Longitud', null, 12], ['Observaciones', 'obs', 30], ['Estado', null, 12]];
-const OE_CAMPO_TXT = { fecha: 'Fecha', hito: 'Hito', red: 'Tipo de red', uf: 'UF', costado: 'Costado', abIni: 'Abscisa inicial', abFin: 'Abscisa final', paquete: 'Paquete', cc: 'C. costos', actividad: 'Actividad', und: 'Und', largo: 'Largo', ancho: 'Ancho', alto: 'Alto', cantidad: 'Cantidad', descuento: 'Descuento', obs: 'Observaciones', total: 'Total' };
+const OE_XL = [['ID', null, 17], ['Fecha de ejecución', 'fecha', 12], ['Fecha de registro', null, 17], ['Topógrafo', null, 20], ['Hito', 'hito', 17], ['Tipo de red', 'red', 14], ['UF', 'uf', 6], ['Costado', 'costado', 12], ['Abscisa inicial', 'abIni', 13], ['Abscisa final', 'abFin', 13], ['Paquete', 'paquete', 34], ['C. costos', 'cc', 12], ['Actividad', 'actividad', 46], ['Und', 'und', 6], ['Largo', 'largo', 8], ['Ancho', 'ancho', 8], ['Alto', 'alto', 8], ['Cantidad', 'cantidad', 10], ['Descuento', 'descuento', 10], ['Total', null, 10], ['Latitud', null, 11], ['Longitud', null, 12], ['Observaciones', 'obs', 30], ['Estado', null, 12]];
+// Dos fechas por registro: «fecha» = día en que se ejecutó la obra (la elige el topógrafo); «creado» = fecha y hora reales en que se guardó (la pone el servidor y nunca se edita)
+const oeRegTxt = r => { const c = String(r.creado || ''); return /^\d{4}-\d{2}-\d{2}/.test(c) ? c.slice(8, 10) + '/' + c.slice(5, 7) + '/' + c.slice(0, 4) + (c.length > 10 ? ' ' + c.slice(11, 16) : '') : '—'; };
+const oeTarde = r => { const c = String(r.creado || '').slice(0, 10), f = String(r.fecha || ''); if (!/^\d{4}-\d{2}-\d{2}$/.test(c) || !/^\d{4}-\d{2}-\d{2}$/.test(f)) return 0; const d = Math.round((Date.parse(c) - Date.parse(f)) / 864e5); return d > 0 ? d : 0; };
+const OE_CAMPO_TXT = { fecha: 'Fecha de ejecución', hito: 'Hito', red: 'Tipo de red', uf: 'UF', costado: 'Costado', abIni: 'Abscisa inicial', abFin: 'Abscisa final', paquete: 'Paquete', cc: 'C. costos', actividad: 'Actividad', und: 'Und', largo: 'Largo', ancho: 'Ancho', alto: 'Alto', cantidad: 'Cantidad', descuento: 'Descuento', obs: 'Observaciones', total: 'Total' };
 async function xlsxOe() {
   const L = oeFiltrados(); if (!L.length) { avisoDatos('No hay registros con este filtro'); return; }
   banner('Preparando Excel…');
@@ -2127,10 +2130,10 @@ async function xlsxOe() {
   const R = L.slice().sort((a, b) => (oeSinCc(b) - oeSinCc(a)) || (a.fecha + a.creado).localeCompare(b.fecha + b.creado));
   R.forEach((r, k) => {
     const n = k + 2, p = String(r.fecha).split('-'), dims = [r.largo, r.ancho, r.alto].some(v => v !== '' && v !== null && v !== undefined);
-    const row = ws.addRow([r.id, p.length === 3 ? new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])) : r.fecha, r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.red || '', r.uf || '', r.costado || '', r.abIni || '', r.abFin || '', r.paquete || '', r.cc || '', r.actividad || '', r.und || '', num(r.largo), num(r.ancho), num(r.alto),
+    const row = ws.addRow([r.id, p.length === 3 ? new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])) : r.fecha, oeRegTxt(r), r.topografo || nomDe(r.llave), oeHitoTxt(r.hito), r.red || '', r.uf || '', r.costado || '', r.abIni || '', r.abFin || '', r.paquete || '', r.cc || '', r.actividad || '', r.und || '', num(r.largo), num(r.ancho), num(r.alto),
       dims ? { formula: 'PRODUCT(' + col('Largo') + n + ':' + col('Alto') + n + ')', result: num(r.cantidad) } : num(r.cantidad), num(r.descuento) || 0,
       { formula: col('Cantidad') + n + '-' + col('Descuento') + n, result: num(r.total) }, num(r.lat), num(r.lon), r.obs || '', r.rev === 'RECHAZADO' ? 'ANULADO' : 'APROBADO']);
-    row.getCell(ix('Fecha')).numFmt = 'dd/mm/yyyy';
+    row.getCell(ix('Fecha de ejecución')).numFmt = 'dd/mm/yyyy'; row.getCell(ix('Fecha de registro')).font = { color: { argb: 'FF5B6B78' } };
     OE_XL.forEach(([t, campo], c) => { const ce = row.getCell(c + 1); const libre = campo && !(t === 'Cantidad' && dims); ce.protection = { locked: !libre }; if (!libre) ce.fill = gris; });
     row.getCell(ix('Hito')).dataValidation = { type: 'list', allowBlank: false, formulae: ['Listas!$A$1:$A$' + HI.length], showErrorMessage: true, errorTitle: 'Hito', error: 'Elige un hito de la lista' };
     row.getCell(ix('UF')).dataValidation = { type: 'list', allowBlank: false, formulae: ['Listas!$B$1:$B$8'], showErrorMessage: true, errorTitle: 'UF', error: 'Elige UF0 a UF7' };
@@ -2283,7 +2286,7 @@ function pintarOe() {
       h('button', { onclick: xlsxOe }, '⬇ Descargar Excel (' + L.length + ')'),
       OE.editor ? h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: () => file.click() }, '⬆ Subir Excel modificado') : null, file,
       h('span', { class: 'small' }, (nS ? '🟠 ' + nS + ' sin centro de costo. ' : '') + (OE.editor ? 'Modifica las celdas en el Excel (menos el ID) y súbelo: verás los cambios antes de aplicar y queda el control de cambios.' : 'Solo el administrador de O. Ejecutada puede subir cambios.')))); }
-  const th = ['Fecha', 'Topógrafo', 'Hito', 'Red', 'UF · Costado', 'Abscisas', 'Actividad', 'Und', 'Total', 'Estado', ''];
+  const th = ['Ejecutada', 'Registrada', 'Topógrafo', 'Hito', 'Red', 'UF · Costado', 'Abscisas', 'Actividad', 'Und', 'Total', 'Estado', ''];
   const estadoOe = r => { const an = r.rev === 'RECHAZADO', txt = an ? '🔴 Anulado' : '🟢 Aprobado', tit = an ? 'Anulado por ' + (r.rev_por || '—') + (r.rev_motivo ? ': ' + r.rev_motivo : '') : (r.rev_por ? 'Revisado por ' + r.rev_por : 'Cuenta en los cálculos');
     if (!OE.editor) return h('span', { title: tit, style: 'font-weight:800;white-space:nowrap;color:' + (an ? '#b3261e' : '#0a7a32') }, txt);
     const sel = h('select', { title: tit, style: 'width:auto;min-height:32px;padding:2px 6px;font-weight:800;border-radius:8px;border:2px solid ' + (an ? '#b3261e' : '#0a7a32') + ';color:' + (an ? '#b3261e' : '#0a7a32') + ';background:' + (an ? '#fde7e6' : '#e3f4e8') }, h('option', { value: 'APROBADO' }, '🟢 Aprobado'), h('option', { value: 'RECHAZADO' }, '🔴 Anulado'));
@@ -2292,7 +2295,7 @@ function pintarOe() {
     return sel; };
   c.appendChild(h('div', { class: 'small', style: 'margin-bottom:6px' }, L.length + ' registros' + (L.length > vis.length ? ' · se muestran ' + vis.length + ', el Excel trae todos' : '')));
   c.appendChild(h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, th.map(t => h('th', {}, t)))), h('tbody', {}, vis.map(r => h('tr', { style: r.rev === 'RECHAZADO' ? 'opacity:.55;text-decoration:line-through' : '' },
-    h('td', {}, fmtF(r.fecha)), h('td', {}, r.topografo || nomDe(r.llave)), h('td', {}, oeHitoTxt(r.hito)), h('td', {}, r.red || ''), h('td', {}, [r.uf, r.costado].filter(Boolean).join(' · ')), h('td', {}, oeAbs(r)), h('td', {}, r.actividad || '', r.rev === 'CORREGIDO' ? h('div', { class: 'small', style: 'color:#1565c0' }, '🔵 Corregido' + (r.rev_motivo ? ': ' + r.rev_motivo : '')) : null, oeSinCc(r) ? h('div', { class: 'small', style: 'color:#b35c00' }, '🟠 Sin centro de costo') : null), h('td', {}, r.und || ''),
+    h('td', {}, fmtF(r.fecha)), h('td', { class: 'small', style: 'white-space:nowrap' }, oeRegTxt(r), oeTarde(r) ? h('span', { title: 'Registrada ' + oeTarde(r) + ' día(s) después de ejecutada', style: 'display:inline-block;margin-left:4px;background:#fff1e0;color:#9a4a00;border-radius:8px;padding:0 6px;font-weight:800' }, '+' + oeTarde(r) + ' d') : null), h('td', {}, r.topografo || nomDe(r.llave)), h('td', {}, oeHitoTxt(r.hito)), h('td', {}, r.red || ''), h('td', {}, [r.uf, r.costado].filter(Boolean).join(' · ')), h('td', {}, oeAbs(r)), h('td', {}, r.actividad || '', r.rev === 'CORREGIDO' ? h('div', { class: 'small', style: 'color:#1565c0' }, '🔵 Corregido' + (r.rev_motivo ? ': ' + r.rev_motivo : '')) : null, oeSinCc(r) ? h('div', { class: 'small', style: 'color:#b35c00' }, '🟠 Sin centro de costo') : null), h('td', {}, r.und || ''),
     h('td', { style: 'text-align:right;font-weight:700' }, oeFmt(oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad))),
     h('td', {}, estadoOe(r)),
     h('td', { style: 'white-space:nowrap' }, r.foto ? h('button', { class: 'sec sm', title: (r.nfotos || 1) + ' foto(s)', onclick: () => verFotoOe(r) }, '📷' + (r.nfotos > 1 ? ' ' + r.nfotos : '')) : null,
@@ -2963,7 +2966,8 @@ async function subirXlsOe(file) {
     const id = nrm(f['ID']).toUpperCase(); if (!id) return;
     const r = por[id]; if (!r) { errores.push('Fila ' + (i + 2) + ': el ID ' + id + ' no existe en las fechas filtradas (no se toca)'); return; }
     const campos = {}, dif = [];
-    OE_XL.forEach(([t, k]) => {
+    OE_XL.forEach(([t0, k]) => { let t = t0;
+      if (k === 'fecha' && !(t in f) && 'Fecha' in f) t = 'Fecha'; // Excel descargados antes del cambio de nombre
       if (!k || !(t in f)) return;
       let nv = f[t], ant = r[k];
       if (k === 'fecha') { nv = fecha(nv); ant = r.fecha; }
