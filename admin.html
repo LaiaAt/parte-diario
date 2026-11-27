@@ -2602,6 +2602,36 @@ function cargarLevDash() { // el Dashboard carga los TXT a nombre del topógrafo
 }
 let OEPLANOS = null; const OEPLANO_COL = ['#d32f2f', '#1565c0', '#6a1b9a', '#ef6c00', '#00838f', '#5d4037', '#c2185b', '#2e7d32'];
 let OEPLOFF = (() => { try { return new Set(JSON.parse(localStorage.getItem('oe_planos_off') || '[]')); } catch (e) { return new Set(); } })();
+/* ---------- 📍 Mi ubicación: un botón en el mapa de Avance marca dónde está el equipo según su GPS.
+   La posición solo se usa en este equipo: no se guarda ni se envía al servidor. ---------- */
+const OEGPS = { on: false, id: null, pos: null, seguir: true, m: null, lyr: null, btn: null, visto: 0 };
+function gpsPintar(centrar) {
+  const m = OEGPS.m; if (!m || !document.body.contains(m.getContainer())) return; OEGPS.visto = Date.now();
+  if (OEGPS.btn) { OEGPS.btn.textContent = !OEGPS.on ? '📍 Mi ubicación' : OEGPS.seguir ? '✕ Quitar mi ubicación' : '🎯 Centrar en mí'; OEGPS.btn.style.background = OEGPS.on ? '#1565c0' : '#0a7a32'; }
+  if (!OEGPS.lyr) OEGPS.lyr = window.L.layerGroup(); OEGPS.lyr.clearLayers(); if (!m.hasLayer(OEGPS.lyr)) OEGPS.lyr.addTo(m);
+  const P = OEGPS.pos; if (!OEGPS.on || !P) return;
+  window.L.circle([P.lat, P.lon], { radius: P.acc, color: '#1565c0', weight: 1, fillColor: '#1565c0', fillOpacity: .12, interactive: false }).addTo(OEGPS.lyr);
+  window.L.circleMarker([P.lat, P.lon], { radius: 9, color: '#fff', weight: 3, fillColor: '#1565c0', fillOpacity: 1 }).addTo(OEGPS.lyr).bindTooltip('Estás aquí · precisión ±' + Math.round(P.acc) + ' m', { direction: 'top', offset: [0, -10] });
+  if (centrar || OEGPS.seguir) m.setView([P.lat, P.lon], Math.max(m.getZoom(), 18), { animate: true });
+}
+function gpsParar() { if (OEGPS.id != null) try { navigator.geolocation.clearWatch(OEGPS.id); } catch (e) {} OEGPS.id = null; OEGPS.on = false; OEGPS.pos = null; gpsPintar(); }
+function gpsIniciar() {
+  if (!navigator.geolocation) { banner('Este navegador no permite usar la ubicación.'); return; }
+  OEGPS.on = true; OEGPS.seguir = true; OEGPS.pos = null; let primera = true; gpsPintar(); banner('Buscando tu ubicación…');
+  OEGPS.id = navigator.geolocation.watchPosition(p => {
+    if (!OEGPS.m || !document.body.contains(OEGPS.m.getContainer())) { if (Date.now() - OEGPS.visto > 30000) gpsParar(); return; } // salió del mapa: se apaga el GPS
+    OEGPS.pos = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy || 0 }; if (primera) finBanner(true); gpsPintar(primera); primera = false;
+  }, err => { banner(err.code === 1 ? 'Activa el permiso de ubicación del navegador para usar 📍 Mi ubicación.' : err.code === 3 ? 'El GPS tardó demasiado. Intenta de nuevo a cielo abierto.' : 'No se pudo obtener la ubicación.'); if (err.code === 1) gpsParar(); },
+  { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+}
+function gpsMontar(m) {
+  OEGPS.m = m; OEGPS.lyr = null;
+  const Btn = window.L.Control.extend({ options: { position: 'topleft' }, onAdd: () => { const b = h('button', { type: 'button', class: 'av-full-b', style: 'background:#0a7a32;display:block;margin-top:6px', title: 'Marca en el mapa dónde estás, con el GPS de este equipo. La ubicación no se guarda.' }, '📍 Mi ubicación');
+    b.onclick = () => { if (!OEGPS.on) gpsIniciar(); else if (!OEGPS.seguir) { OEGPS.seguir = true; gpsPintar(true); } else gpsParar(); }; window.L.DomEvent.disableClickPropagation(b); OEGPS.btn = b; return b; } });
+  new Btn().addTo(m);
+  m.on('dragstart', () => { if (OEGPS.on && OEGPS.seguir) { OEGPS.seguir = false; gpsPintar(); } });
+  gpsPintar();
+}
 async function cargarPlanos() {
   const L = []; try { const r = await fetch('oe/planos.json', { cache: 'no-cache' }); const o = await r.json(); (o.capas || []).forEach((c, i) => L.push({ id: 'fijo' + i, nombre: c.nombre, color: c.color, geo: c.geo, textos: c.textos, fijo: true })); } catch (e) {}
   try { const r = await api({ accion: 'admin_oe_planos', llave: LLAVE }); if (r.ok) (r.capas || []).forEach(c => L.push(c)); } catch (e) {}
@@ -2678,7 +2708,7 @@ async function pintarOeAvance(c) {
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
   oeAlertaLev(c, OEAV.lev);
   const A = (OEAV.lev || []).map(x => Object.assign({}, x, { cod: x.capa, capa: oeNom(x.capa) })); // capa = nombre estándar (equivalencias); cod = como viene en el TXT
-  if (!A.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay levantamientos en el rango del filtro.')); if (oeEd()) c.appendChild(h('button', { style: 'width:auto;margin-top:10px', onclick: cargarLevDash }, '⬆ Cargar levantamientos (TXT)')); return; }
+  if (!A.length) c.appendChild(h('div', { class: 'trok', style: 'margin-bottom:8px' }, 'No hay levantamientos en el rango del filtro. El plano y el botón 📍 Mi ubicación siguen disponibles.')); // el mapa se muestra igual (plano base y ubicación en obra)
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
@@ -2700,6 +2730,7 @@ async function pintarOeAvance(c) {
       const b = [];
       capas.forEach(cp => { const g = grupos[cp]; if (!g) return; if (OEOCULTAS.has(cp)) { if (mapa.hasLayer(g)) mapa.removeLayer(g); } else { if (!mapa.hasLayer(g)) g.addTo(mapa); g.eachLayer(l => { if (l.getLatLngs) { const ll = l.getLatLngs(); (Array.isArray(ll[0]) ? ll.flat(2) : ll).forEach(p => b.push(p)); } else if (l.getLatLng) b.push(l.getLatLng()); }); } });
       if (ajustar && b.length) mapa.fitBounds(b, { padding: [30, 30], maxZoom: 19 });
+      else if (!mapa._loaded) mapa.setView([4.7952, -74.0395], 15); // sin levantamientos: vista general de la obra (K0 a K5+770)
     }
   };
   let dxfOcupado = false;
@@ -2869,7 +2900,7 @@ async function pintarOeAvance(c) {
       document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && grid.classList.contains('av-full')) poner(false); });
       document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && grid.classList.contains('av-full')) poner(false); });
       window.L.DomEvent.disableClickPropagation(b); return b; } });
-    new Full().addTo(m);
+    new Full().addTo(m); gpsMontar(m);
     const Mob = window.L.Control.extend({ options: { position: 'topleft' }, onAdd: () => { const b = h('button', { type: 'button', class: 'av-mob-b' }, '☰ Actividades'); b.onclick = () => { grid.classList.toggle('ver-act'); b.textContent = grid.classList.contains('ver-act') ? '✕ Cerrar actividades' : '☰ Actividades'; }; window.L.DomEvent.disableClickPropagation(b); return b; } });
     if (window.matchMedia('(max-width:760px)').matches) new Mob().addTo(m);
     dibujar = () => {
