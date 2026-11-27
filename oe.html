@@ -36,6 +36,8 @@ main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padd
 .sel{background:#e3f6ea;border:2px solid #0a7f2e;border-radius:12px;padding:9px 11px;font-weight:700}.sel small{display:block;color:#475569;font-weight:400}
 .tot{background:#e3f6ea;border:2px solid #0a7f2e;border-radius:12px;padding:10px 12px;font-size:1.5rem;font-weight:800;margin-top:12px}.tot small{display:block;font-weight:400;color:#475569;font-size:.8rem}
 .reg{border-top:1px solid var(--line);padding:9px 0}.reg:first-child{border-top:0}.reg b{display:block}.reg .tt{color:#0a7f2e;display:inline}
+
+.fts{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:8px}.ft{position:relative}.ft img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block;background:#000}.ft button{position:absolute;top:4px;right:4px;width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:rgba(179,38,30,.92);color:#fff;font-weight:900;box-shadow:0 1px 4px rgba(0,0,0,.35)}
 img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:#000;margin-top:10px}
 .lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
 .dcard{padding:0;overflow:hidden}.dcard>*:not(.dh){margin-left:14px;margin-right:14px}.dcard>.btn.blk{width:calc(100% - 28px)}.dcard>.rt{margin-bottom:14px}.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:14px;font-size:1.05rem;color:#0f172a;text-align:left;cursor:pointer;margin-bottom:0}.dh b{flex:1}.dh i{font-style:normal;color:#0a7f2e;font-size:1.1rem}.dh.vac{cursor:default;opacity:.7}.dcard>.hh:first-of-type,.dcard>.btn+.hh{margin-top:12px}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}.rr .btn{min-height:34px;padding:4px 10px}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.uch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.uch button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:12px;min-height:54px;font-weight:700;font-size:.98rem;cursor:pointer;padding:6px}.uch button.on{background:#0a7f2e;border-color:#0a7f2e;color:#fff}.otro{margin:10px 0 4px;min-height:48px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
@@ -174,7 +176,7 @@ async function sincronizar() {
 const normH = h => { const t = String(h == null ? '' : h).trim(); return /^\d\.\d$/.test(t) ? t + '0' : t; };
 const regDe = f => {
   const base = f === S.fecha ? S.srv : (S.mis[f] || []), pf = S.pend.filter(x => x.fecha === f), pid = new Set(pf.map(x => x.id));
-  return base.filter(x => !pid.has(x.id)).map(x => ({ ...x, hito: normH(x.hito), _ok: true })).concat(pf.map(x => ({ ...x, foto: !!x.foto, _ok: false })));
+  return base.filter(x => !pid.has(x.id)).map(x => ({ ...x, hito: normH(x.hito), _ok: true })).concat(pf.map(x => ({ ...x, foto: !!(x.foto || (x.fotos && x.fotos.length)), nfotos: (x.fotos || []).length || (x.foto ? 1 : 0), _ok: false })));
 };
 const todosDia = () => regDe(S.fecha);
 const ultimosDias = () => [0, 1, 2, 3, 4, 5, 6, 7].map(n => sumDias(hoyISO(), -n));
@@ -288,8 +290,9 @@ function descargarExcel(f) {
 
 /* ---- Formulario: un paso por pantalla ---- */
 function idNuevo() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', d = new Date(); let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * a.length)]; return 'OE-' + String(d.getFullYear()).slice(2) + z2(d.getMonth() + 1) + z2(d.getDate()) + '-' + s; }
-function nuevoForm() { return { id: idNuevo(), p: 0, uf: '', costado: '', aI: '', aF: '', pq: '', act: null, otra: false, on: '', ou: '', ot: '', ond: '', largo: '', ancho: '', alto: '', cant: '', desc: '', fac: '1', foto: '', gps: null, gpsMsg: 'Buscando ubicación…', msg: '', guardando: false }; }
-const PASOS = [['uf', '¿En qué UF?'], ['costado', '¿En qué costado?'], ['abs', '¿Entre qué abscisas?'], ['paquete', '¿Qué paquete de trabajo?'], ['act', '¿Qué actividad hiciste?'], ['med', 'Medidas'], ['foto', 'Foto y ubicación']];
+const OE_MAXF = 5; // fotos por actividad
+function nuevoForm() { return { id: idNuevo(), p: 0, uf: '', costado: '', aI: '', aF: '', pq: '', act: null, otra: false, on: '', ou: '', ot: '', ond: '', largo: '', ancho: '', alto: '', cant: '', desc: '', fac: '1', fotos: [], gps: null, gpsMsg: 'Buscando ubicación…', msg: '', guardando: false }; }
+const PASOS = [['uf', '¿En qué UF?'], ['costado', '¿En qué costado?'], ['abs', '¿Entre qué abscisas?'], ['paquete', '¿Qué paquete de trabajo?'], ['act', '¿Qué actividad hiciste?'], ['med', 'Medidas'], ['foto', 'Fotos y ubicación']];
 /* Abscisa en una sola celda: "12+340" o "12340" → K12+340 */
 const UNID = [['UN', 'Unidad (UND)'], ['ML', 'Metro lineal (m)'], ['M2', 'Metro cuadrado (m²)'], ['M3', 'Metro cúbico (m³)'], ['KG', 'Kilo (kg)'], ['GL', 'Global (GL)']];
 const abTxt = v => { let t = String(v == null ? '' : v).toUpperCase().replace(/[K\s]/g, '').replace(',', '.'); if (!t) return ''; let dec = ''; const i = t.indexOf('.'); if (i >= 0) { dec = t.slice(i + 1); t = t.slice(0, i); if (!/^\d{1,2}$/.test(dec)) return ''; } let k, m; if (t.includes('+')) { [k, m] = t.split('+'); } else { m = t.slice(-3); k = t.slice(0, -3) || '0'; } if (!/^\d+$/.test(k) || !/^\d{1,3}$/.test(m || '')) return ''; return 'K' + k.padStart(2, '0') + '+' + m.padStart(3, '0') + (dec ? '.' + dec : ''); }; // admite hasta 2 decimales: 12340.5 = K12+340.5
@@ -369,8 +372,11 @@ function vPaso() {
     h += '<div class="fila"><div><label class="f">Descuento</label><input type="text" inputmode="decimal" data-f="desc" value="' + esc(f.desc) + '" placeholder="0"></div><div></div></div>' +
       '<div class="tot" id="tot">' + totHtml(K, u) + '</div><div class="peq mut" style="margin-top:6px">Total = cantidad − descuento</div>';
   } else if (k === 'foto') {
-    h = '<div class="fila"><label class="lb">📷 Cámara<input type="file" accept="image/*" capture="environment" data-foto style="display:none"></label><label class="lb">🖼 Galería<input type="file" accept="image/*" data-foto style="display:none"></label></div>' +
-      (f.foto ? '<img class="prev" src="' + f.foto + '" alt="Foto">' : (f.tieneFoto ? '<div class="sel" style="margin-top:10px">✔ Ya tiene foto guardada<small>Si quieres cambiarla, toma o elige otra.</small></div>' : '')) + '<div id="gps" class="gpsl">' + gpsHtml() + '</div>';
+    const n = f.fotos.length, lleno = n >= OE_MAXF;
+    h = (lleno ? '<div class="peq mut" style="text-align:center">Máximo ' + OE_MAXF + ' fotos. Quita una para agregar otra.</div>' : '<div class="fila"><label class="lb">📷 Cámara<input type="file" accept="image/*" capture="environment" data-foto style="display:none"></label><label class="lb">🖼 Galería<input type="file" accept="image/*" multiple data-foto style="display:none"></label></div>') +
+      (n ? '<div class="peq mut" style="margin-top:8px">' + n + ' de ' + OE_MAXF + ' fotos · se guardan comprimidas</div><div class="fts">' + f.fotos.map((d, i) => '<div class="ft"><img src="' + d + '" alt="Foto ' + (i + 1) + '"><button type="button" data-a="fotoQuitar" data-v="' + i + '" aria-label="Quitar foto">✕</button></div>').join('') + '</div>'
+        : (f.tieneFoto ? '<div class="sel" style="margin-top:10px">✔ Ya tiene ' + (f.tieneFoto > 1 ? f.tieneFoto + ' fotos guardadas' : 'foto guardada') + '<small>Las fotos nuevas reemplazan a las guardadas.</small></div>' : '<div class="peq mut" style="margin-top:8px;text-align:center">Hasta ' + OE_MAXF + ' fotos. Se guardan comprimidas.</div>')) +
+      '<div id="gps" class="gpsl">' + gpsHtml() + '</div>';
   }
   return h;
 }
@@ -435,7 +441,7 @@ function validarPaso() {
   if (k === 'paquete' && f.pq === '') return pqs().length ? 'Elige el paquete.' : 'Toca «Escribir la actividad».';
   if (k === 'act' && !f.act) return 'Elige la actividad.';
   if (k === 'med') { const K = calc(); if (isNaN(K.c) || K.c <= 0) return 'Escribe las medidas (mayores que cero).'; if (K.d < 0 || K.d > K.c) return 'El descuento no puede ser mayor que la cantidad.'; if (!(K.fa > 0)) return 'El factor debe ser mayor que cero.'; }
-  if (k === 'foto' && !f.foto && !f.tieneFoto) return 'Falta la foto de la actividad.';
+  if (k === 'foto' && !f.fotos.length && !f.tieneFoto) return 'Falta al menos una foto de la actividad.';
   return '';
 }
 function editar(id) {
@@ -453,7 +459,7 @@ function editar(id) {
   if (x.cc === 'NUEVA') { f.otra = true; f.on = x.actividad; f.ou = UNID.some(u => u[0] === x.und) ? x.und : 'OTRA'; f.ot = f.ou === 'OTRA' ? x.und : ''; f.ond = n; }
   f.largo = s0(x.largo); f.ancho = s0(x.ancho); f.alto = s0(x.alto); f.cant = n === 0 ? s0(x.cantidad) : '';
   f.desc = Number(x.descuento) ? s0(x.descuento) : ''; f.fac = s0(x.factor) || '1';
-  f.tieneFoto = !!x.foto; f.foto = '';
+  f.tieneFoto = Number(x.nfotos) || (x.foto ? 1 : 0); f.fotos = [];
   if (x.lat !== '' && x.lat != null) f.gps = { lat: Number(x.lat), lon: Number(x.lon), prec: Number(x.prec) || 0 };
   S.f = f; S.q = ''; render(); window.scrollTo(0, 0);
 }
@@ -481,7 +487,7 @@ async function guardar() {
   const K = calc(), n = nd();
   const reg = { id: f.id, fecha: f.fecha || S.fecha, hito: S.hito, uf: f.uf, costado: f.costado, abIni: abTxt(f.aI), abFin: abTxt(f.aF), paquete: f.pq === 'L' ? 'Sin paquete' : f.pq === 'O' ? 'OTRO: ' + String(f.pqOtro || '').trim().toUpperCase() : (pqs()[f.pq] || ['Sin paquete'])[0], red: f.red || '', cc: f.act.c, actividad: f.act.d, und: f.act.u, nd: n,
     largo: n >= 1 ? num(f.largo) : '', ancho: n >= 2 ? num(f.ancho) : '', alto: n >= 3 ? num(f.alto) : '', cantidad: K.c, descuento: K.d, factor: K.fa, total: r3(K.t),
-    lat: f.gps ? f.gps.lat : '', lon: f.gps ? f.gps.lon : '', prec: f.gps ? f.gps.prec : '', foto: f.foto, obs: '', llave: S.ses.llave, creado: new Date().toISOString().slice(0, 19).replace('T', ' ') };
+    lat: f.gps ? f.gps.lat : '', lon: f.gps ? f.gps.lon : '', prec: f.gps ? f.gps.prec : '', fotos: f.fotos, obs: '', llave: S.ses.llave, creado: new Date().toISOString().slice(0, 19).replace('T', ' ') };
   f.guardando = true; render();
   await DB.poner(reg);               // primero queda guardado en el equipo; luego sube en segundo plano
   S.pend = (await DB.todos()).filter(x => x.llave === S.ses.llave);
@@ -524,7 +530,8 @@ document.addEventListener('click', async ev => {
   if (a === 'pqLista') { S.f.pqEsc = false; S.f.msg = ''; render(); return; }
   if (a === 'pqOtroOk') { const t = String(S.f.pqOtro || '').trim(); if (t.length < 3) { S.f.msg = 'Escribe en qué paquete estás trabajando.'; render(); return; } if (S.f.pq !== 'O') { S.f.act = null; S.f.otra = false; } S.f.pq = 'O'; S.f.pqEsc = false; ir(ix('act')); return; }
   if (a === 'pqLibre') { S.f.pq = 'L'; S.f.act = null; S.f.otra = true; ir(ix('act')); return; }
-  if (a === 'atras') { if (S.f.p > 0) { ir(S.f.p - 1); return; } if ((!S.f.uf && !S.f.foto) || confirm(S.f.edit ? '¿Descartar los cambios?' : '¿Descartar este registro?')) { cerrarForm(); render(); } return; }
+  if (a === 'fotoQuitar') { S.f.fotos.splice(Number(v), 1); render(); return; }
+  if (a === 'atras') { if (S.f.p > 0) { ir(S.f.p - 1); return; } if ((!S.f.uf && !S.f.fotos.length) || confirm(S.f.edit ? '¿Descartar los cambios?' : '¿Descartar este registro?')) { cerrarForm(); render(); } return; }
   if (a === 'sig') { sig(); return; }
   if (a === 'uf') { if (S.f.uf !== v) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.uf = v; ir(ix('costado')); return; }
   if (a === 'costado') { S.f.costado = v; ir(ix('abs')); return; }
@@ -551,10 +558,14 @@ document.addEventListener('input', ev => {
 document.addEventListener('change', async ev => {
   const t = ev.target;
   if (t.id === 'fecha') { const hoy = hoyISO(); if (t.value && t.value <= hoy && t.value >= sumDias(hoy, -7)) cambioDia(t.value); else t.value = S.fecha; return; }
-  if (t.dataset && t.dataset.foto !== undefined && t.files && t.files[0]) { try { S.f.foto = await reducirFoto(t.files[0]); S.f.msg = ''; } catch (e) { toast('No se pudo leer la foto.'); } render(); }
+  if (t.dataset && t.dataset.foto !== undefined && t.files && t.files[0]) { // cada foto se comprime (1280 px, menos de 1 MB) antes de guardarse
+    const L = Array.from(t.files).slice(0, OE_MAXF - S.f.fotos.length); let mal = 0;
+    for (const fl of L) { try { S.f.fotos.push(await reducirFoto(fl)); } catch (e) { mal++; } }
+    if (t.files.length > L.length) toast('Máximo ' + OE_MAXF + ' fotos por actividad.'); else if (mal) toast('No se pudo leer ' + (mal === 1 ? 'una foto' : mal + ' fotos') + '.');
+    S.f.msg = ''; t.value = ''; render(); }
 });
 window.addEventListener('online', sincronizar);
-window.addEventListener('beforeunload', ev => { if (S.f && (S.f.act || S.f.foto)) { ev.preventDefault(); ev.returnValue = ''; } });
+window.addEventListener('beforeunload', ev => { if (S.f && (S.f.act || S.f.fotos.length)) { ev.preventDefault(); ev.returnValue = ''; } });
 
 (async () => {
   render();            // abre al instante: con sesión guardada muestra la pantalla de inmediato

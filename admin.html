@@ -2177,12 +2177,13 @@ function dashOe(L) {
   return { nombre: 'Dashboard', aoa: aoa, cols: [{ wch: 44 }, { wch: 40 }], merges: [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }] };
 }
 function verFotoOe(r) {
-  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px', onclick: () => ov.remove() }, h('div', { style: 'color:#fff' }, 'Cargando foto…'));
+  const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:10px;padding:10px;overflow:auto', onclick: () => ov.remove() }, h('div', { style: 'color:#fff' }, (r.nfotos > 1 ? 'Cargando ' + r.nfotos + ' fotos…' : 'Cargando foto…')));
   document.body.appendChild(ov);
   api({ accion: 'admin_oe_foto', llave: LLAVE, id: r.id }).then(x => {
     ov.textContent = '';
     if (!x.ok) { ov.appendChild(h('div', { style: 'color:#fff' }, x.mensaje || 'No se pudo cargar')); return; }
-    x.datas.forEach(d => ov.appendChild(h('img', { src: d, style: 'max-width:96vw;max-height:70vh;border-radius:6px' })));
+    if (x.datas.length > 1) ov.appendChild(h('div', { style: 'color:#fff;font-weight:700' }, x.datas.length + ' fotos · desplázate para verlas'));
+    x.datas.forEach(d => ov.appendChild(h('img', { src: d, style: 'max-width:96vw;max-height:' + (x.datas.length > 1 ? '60vh' : '80vh') + ';border-radius:6px;flex:none' })));
     ov.appendChild(h('div', { style: 'color:#fff' }, 'Toca para cerrar'));
   }).catch(() => { ov.textContent = 'Sin señal'; });
 }
@@ -2294,7 +2295,7 @@ function pintarOe() {
     h('td', {}, fmtF(r.fecha)), h('td', {}, r.topografo || nomDe(r.llave)), h('td', {}, oeHitoTxt(r.hito)), h('td', {}, r.red || ''), h('td', {}, [r.uf, r.costado].filter(Boolean).join(' · ')), h('td', {}, oeAbs(r)), h('td', {}, r.actividad || '', r.rev === 'CORREGIDO' ? h('div', { class: 'small', style: 'color:#1565c0' }, '🔵 Corregido' + (r.rev_motivo ? ': ' + r.rev_motivo : '')) : null, oeSinCc(r) ? h('div', { class: 'small', style: 'color:#b35c00' }, '🟠 Sin centro de costo') : null), h('td', {}, r.und || ''),
     h('td', { style: 'text-align:right;font-weight:700' }, oeFmt(oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad))),
     h('td', {}, estadoOe(r)),
-    h('td', { style: 'white-space:nowrap' }, r.foto ? h('button', { class: 'sec sm', onclick: () => verFotoOe(r) }, '📷') : null,
+    h('td', { style: 'white-space:nowrap' }, r.foto ? h('button', { class: 'sec sm', title: (r.nfotos || 1) + ' foto(s)', onclick: () => verFotoOe(r) }, '📷' + (r.nfotos > 1 ? ' ' + r.nfotos : '')) : null,
       OE.editor ? h('button', { class: 'sec sm', title: 'Corregir', onclick: () => editarOe(r) }, '✏️') : null)))))));
   if (L.length > vis.length) c.appendChild(h('button', { class: 'sec', style: 'margin-top:8px', onclick: () => { OEN += 60; const y = window.scrollY; pintarOe(); window.scrollTo(0, y); } }, 'Ver más'));
 }
