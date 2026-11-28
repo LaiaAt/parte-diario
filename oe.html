@@ -38,6 +38,8 @@ main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padd
 .reg{border-top:1px solid var(--line);padding:9px 0}.reg:first-child{border-top:0}.reg b{display:block}.reg .tt{color:#0a7f2e;display:inline}
 
 .fts{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:8px}.ft{position:relative}.ft img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block;background:#000}.ft button{position:absolute;top:4px;right:4px;width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:rgba(179,38,30,.92);color:#fff;font-weight:900;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+
+.ag{border:1.5px solid #d6dde3;border-radius:14px;padding:10px 12px;margin:0 0 8px;background:#fff}.ag>b{display:block;font-size:15px}.ag>small{display:block;color:#5b6b78;margin-bottom:6px}.agb{display:block;width:100%;text-align:left;margin-top:6px;padding:9px 12px;border-radius:10px;border:1.5px solid #0a7a32;background:#eef8f1;color:#0a4d22;font-weight:800;font-size:14px}.agb small{display:block;font-weight:500;color:#4a5a66;font-size:12px}
 img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:#000;margin-top:10px}
 .lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
 .dcard{padding:0;overflow:hidden}.dcard>*:not(.dh){margin-left:14px;margin-right:14px}.dcard>.btn.blk{width:calc(100% - 28px)}.dcard>.rt{margin-bottom:14px}.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:14px;font-size:1.05rem;color:#0f172a;text-align:left;cursor:pointer;margin-bottom:0}.dh b{flex:1}.dh i{font-style:normal;color:#0a7f2e;font-size:1.1rem}.dh.vac{cursor:default;opacity:.7}.dcard>.hh:first-of-type,.dcard>.btn+.hh{margin-top:12px}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}.rr .btn{min-height:34px;padding:4px 10px}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.uch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.uch button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:12px;min-height:54px;font-weight:700;font-size:.98rem;cursor:pointer;padding:6px}.uch button.on{background:#0a7f2e;border-color:#0a7f2e;color:#fff}.otro{margin:10px 0 4px;min-height:48px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
@@ -141,6 +143,8 @@ const P = () => { let L = PASOS.slice(); if (esMant(S.hito)) L = L.filter(x => x
 const ix = k => P().findIndex(x => x[0] === k);
 // Estructura a la que pertenece una actividad (por el prefijo del código: 1M06.1 → Muro 6, 1S05.17 → Sifón 5, 1MC7 → muros en concreto)
 const estDe = c => { c = String(c || ''); const p = c.includes('.') ? c.split('.')[0] : ((c.match(/^\d*[A-Z]+/) || [''])[0]); return (S.cat && S.cat.est && S.cat.est[p]) || ''; };
+const nEst = a => actsPq().filter(y => y[1].trim().toUpperCase() === a[1].trim().toUpperCase() && y[2] === a[2]).length;
+function elegirAct(c) { S.f.otra = false; const x = actsPq().find(y => y[0] === c); if (!x) return; if (!S.f.act || S.f.act.c !== x[0]) { S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; } S.f.act = { c: x[0], d: x[1], u: x[2] }; ir(ix('med')); }
 const nomHito = c => { const x = S.cat && S.cat.hitos.find(y => y[0] === c); return x ? x[1] : ''; };
 
 /* ---------- Datos del día: se abre al instante con lo guardado y se actualiza por detrás ---------- */
@@ -344,9 +348,18 @@ function vPaso() {
     else if (PQ.length) {
       const q = S.q.trim().toLowerCase(), sinT = t => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
       const V = PQ.map((p, i) => [p, i]).filter(x => !q || sinT(x[0][0]).includes(sinT(q)));
-      h = '<input type="search" id="buscar" placeholder="🔍 Buscar paquete…" value="' + esc(S.q) + '">' +
+      // Buscador de actividad: con 3 letras o más muestra las actividades que coinciden y en qué paquete / estructura está cada una; un toque la deja elegida
+      let GA = '';
+      if (q.length >= 3) {
+        const G = {}; PQ.forEach((p, i) => p[1].forEach(a => { if (!sinT(a[1]).includes(sinT(q))) return; const k = a[1].trim().toUpperCase() + '|' + a[2]; (G[k] = G[k] || { d: a[1], u: a[2], op: [] }).op.push([i, a[0], p[0]]); }));
+        const GL = Object.keys(G).map(k => G[k]).slice(0, 12);
+        if (GL.length) GA = '<div class="peq mut" style="margin:12px 2px 6px;font-weight:800">Actividades que coinciden · toca dónde la hiciste</div>' + GL.map(g => '<div class="ag"><b>' + esc(g.d) + '</b><small>' + undTxt(g.u) + '</small>' +
+          g.op.map(o => '<button type="button" class="agb" data-a="actG" data-v="' + o[0] + '|' + esc(o[1]) + '">' + esc(o[2]) + (g.op.filter(z => z[0] === o[0]).length > 1 || estDe(o[1]) ? '<small>' + esc(estDe(o[1]) || o[1]) + '</small>' : '') + '</button>').join('') + '</div>').join('') +
+          (Object.keys(G).length > 12 ? '<div class="peq mut">Hay más: escribe más letras.</div>' : '') + '<div class="peq mut" style="margin:12px 2px 6px;font-weight:800">Paquetes</div>';
+      }
+      h = '<input type="search" id="buscar" placeholder="🔍 Buscar paquete o actividad…" value="' + esc(S.q) + '">' + GA +
         V.map(([p, i]) => '<button type="button" class="act' + (String(f.pq) === String(i) ? ' on' : '') + '" data-a="pq" data-v="' + i + '">' + esc(p[0]) + '<small>' + new Set(p[1].map(x => x[1].trim().toUpperCase() + '|' + x[2])).size + ' actividades</small></button>').join('') +
-        (!V.length ? '<div class="peq mut" style="margin:10px 2px 4px">No hay un paquete con ese nombre.</div>' : '') +
+        (!V.length && !GA ? '<div class="peq mut" style="margin:10px 2px 4px">No hay un paquete ni una actividad con ese nombre.</div>' : '') +
         '<button type="button" class="act otro' + (f.pq === 'O' ? ' on' : '') + '" data-a="pqOtro">➕ Otro paquete' + (f.pq === 'O' && f.pqOtro ? ': ' + esc(f.pqOtro) : '') + '<small>No está el paquete: escríbelo y verás todas las actividades</small></button>';
     } else h = (esRed(S.hito) && f.red !== 'CAPEX' ? '<div class="aviso">La red ' + esc(f.red) + ' no tiene lista de actividades. Escribe la actividad que hiciste.</div><button type="button" class="btn blk" style="margin-top:10px" data-a="pqLibre">✍ Escribir la actividad</button>' : '<div class="aviso">Aún no está cargada la lista de actividades de este hito en la ' + esc(f.uf) + '. Escribe la actividad que hiciste.</div><button type="button" class="btn blk" style="margin-top:10px" data-a="pqLibre">✍ Escribir la actividad</button>');
   } else if (k === 'act') {
@@ -355,12 +368,17 @@ function vPaso() {
         '<label class="f">¿Cómo se mide?</label><div class="uch">' + UNID.concat([['OTRA', 'Otra unidad…']]).map(u => '<button type="button" class="' + (f.ou === u[0] ? 'on' : '') + '" data-a="ou" data-v="' + u[0] + '">' + u[1] + '</button>').join('') + '</div>' +
         (f.ou === 'OTRA' ? '<label class="f">¿Cuál unidad? (ej: km, jornal, punto)</label><input type="text" data-f="ot" value="' + esc(f.ot) + '" maxlength="12" placeholder="Escribe la unidad"><label class="f">¿Cuántas medidas necesita?</label><div class="uch">' + [[0, 'Solo cantidad'], [1, '1 · Largo'], [2, '2 · Largo y ancho'], [3, '3 · Largo, ancho y alto']].map(m => '<button type="button" class="' + (f.ond === m[0] ? 'on' : '') + '" data-a="ond" data-v="' + m[0] + '">' + m[1] + '</button>').join('') + '</div><div class="peq mut" style="margin-top:6px">Descuento y factor siempre se piden.</div>' : '') +
         '<button type="button" class="btn blk" style="margin-top:14px" data-a="usarOtra">✔ Usar esta actividad</button><button type="button" class="btn sec blk" style="margin-top:10px" data-a="lista">◀ Volver a la lista</button>';
+    } else if (f.estOpc) {
+      // la actividad existe en varias estructuras de este paquete: el topógrafo elige cuál (cada una tiene su centro de costo)
+      h = '<div class="sel" style="margin:0 0 12px">' + esc(f.estOpc.d) + '<small>unidad ' + undTxt(f.estOpc.u) + '</small></div><label class="f" style="margin-top:0">¿Para qué estructura?</label>' +
+        f.estOpc.L.map(c => '<button type="button" class="act' + (f.act && f.act.c === c ? ' on' : '') + '" data-a="actE" data-v="' + esc(c) + '">' + esc(estDe(c) || 'Centro de costo ' + c) + '<small>Centro de costo ' + esc(c) + '</small></button>').join('') +
+        '<button type="button" class="btn sec blk" style="margin-top:10px" data-a="estVolver">◀ Volver a la lista</button>';
     } else {
-      // cada actividad aparece una sola vez (la misma actividad de distintas estructuras se muestra una vez)
+      // cada actividad aparece una sola vez; si existe en varias estructuras, al tocarla se pregunta cuál
       const vis = {}, T = actsPq().filter(a => { const k = a[1].trim().toUpperCase() + '|' + a[2]; if (vis[k]) return false; vis[k] = 1; return true; });
       const q = S.q.toLowerCase(), L = T.filter(a => !q || (a[0] + ' ' + a[1]).toLowerCase().includes(q));
       h = '<input type="search" id="buscar" placeholder="🔍 Buscar actividad…" value="' + esc(S.q) + '">' +
-        L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.c === a[0] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + '</small></button>').join('') +
+        L.slice(0, 40).map(a => '<button type="button" class="act' + (f.act && f.act.d.trim().toUpperCase() === a[1].trim().toUpperCase() && f.act.u === a[2] ? ' on' : '') + '" data-a="act" data-v="' + esc(a[0]) + '">' + esc(a[1]) + '<small>' + undTxt(a[2]) + (nEst(a) > 1 ? ' · en ' + nEst(a) + ' estructuras' : '') + '</small></button>').join('') +
         (L.length > 40 ? '<div class="peq mut" style="margin-top:6px">Hay ' + (L.length - 40) + ' más: escribe para filtrar.</div>' : '') +
         (!L.length && q ? '<div class="peq mut" style="margin:10px 0 4px">No hay actividades con ese nombre.</div>' : '') + '<button type="button" class="btn sec blk otro" style="margin-top:10px" data-a="otra">➕ No está en la lista: escribirla</button>';
     }
@@ -535,7 +553,12 @@ document.addEventListener('click', async ev => {
   if (a === 'sig') { sig(); return; }
   if (a === 'uf') { if (S.f.uf !== v) { S.f.pq = ''; S.f.act = null; S.f.otra = false; } S.f.uf = v; ir(ix('costado')); return; }
   if (a === 'costado') { S.f.costado = v; ir(ix('abs')); return; }
-  if (a === 'pq') { if (String(S.f.pq) !== String(v)) { S.f.act = null; S.f.otra = false; } S.f.pqEsc = false; S.f.pq = v; ir(ix('act')); return; }
+  if (a === 'pq') { S.f.estOpc = null; if (String(S.f.pq) !== String(v)) { S.f.act = null; S.f.otra = false; } S.f.pqEsc = false; S.f.pq = v; ir(ix('act')); return; }
+  if (a === 'act') { const x0 = actsPq().find(y => y[0] === v), igual = actsPq().filter(y => y[1].trim().toUpperCase() === x0[1].trim().toUpperCase() && y[2] === x0[2]);
+    if (igual.length > 1) { S.f.estOpc = { d: x0[1], u: x0[2], L: igual.map(y => y[0]) }; S.f.msg = ''; render(); window.scrollTo(0, 0); return; } }
+  if (a === 'actE') { S.f.estOpc = null; elegirAct(v); return; }
+  if (a === 'estVolver') { S.f.estOpc = null; render(); return; }
+  if (a === 'actG') { const i = v.indexOf('|'), pq = v.slice(0, i), c = v.slice(i + 1); if (String(S.f.pq) !== pq) { S.f.act = null; S.f.otra = false; } S.f.pqEsc = false; S.f.pq = pq; S.f.estOpc = null; S.q = ''; elegirAct(c); return; }
   if (a === 'act') { S.f.otra = false; const x = actsPq().find(y => y[0] === v); if (!S.f.act || S.f.act.c !== x[0]) { S.f.largo = S.f.ancho = S.f.alto = S.f.cant = S.f.desc = ''; S.f.fac = '1'; } S.f.act = { c: x[0], d: x[1], u: x[2] }; ir(ix('med')); return; }
   if (a === 'otra') { S.f.otra = true; if (!S.f.on) S.f.on = S.q.trim(); S.f.msg = ''; render(); window.scrollTo(0, 0); return; }
   if (a === 'lista') { S.f.otra = false; S.f.msg = ''; render(); return; }
