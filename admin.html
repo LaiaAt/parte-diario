@@ -289,7 +289,7 @@ header>span{gap:6px!important;min-width:0}
 
 <section id="panel" hidden>
   <div class="card" id="cPer">
-    <div class="small" style="margin-bottom:6px"><b>Periodo</b> (aplica a todos los módulos)</div>
+    <div class="small" style="margin-bottom:6px"><b>Periodo</b></div>
     <div class="row">
       <div><label>Mes</label><select id="mes"></select></div>
       <div><label>Desde</label><input type="date" id="desde"></div>
@@ -309,7 +309,7 @@ header>span{gap:6px!important;min-width:0}
 
   <div class="card" data-m="resumen"><h2>¿Quién no ha creado el parte?</h2><div id="faltan"></div>
     <h2 style="margin-top:14px">Control por llave y día</h2>
-    <div class="small">✔ = parte creado (toca para bajar el PDF) · ✖ = falta · el borde verde es hoy</div>
+    <div class="small">✔ creado (toca = PDF) · ✖ falta · verde = hoy</div>
     <div id="matNota" class="small"></div>
     <div class="tw" style="margin-top:8px"><table class="mx" id="matriz"></table></div>
   </div>
@@ -320,7 +320,7 @@ header>span{gap:6px!important;min-width:0}
       <div><label>Usuario</label><select id="fSolLlave"></select></div>
       <div><label>Qué piden</label><select id="fSolTipo"></select></div>
       <button class="sec sm" id="libTodos">Liberar todos los visibles</button></div>
-    <div class="small" style="margin-top:6px">Rojo = ya venció (era para hoy o antes) · amarillo = es para hoy</div>
+    <div class="small" style="margin-top:6px">Rojo = vencida · amarillo = hoy</div>
     <div class="tw" style="margin-top:8px"><table id="tSol"></table></div>
   </div>
 
@@ -339,7 +339,7 @@ header>span{gap:6px!important;min-width:0}
 
   <div class="card" id="cFoto" data-m="fotos"><h2>Fotos <span id="nFoto" class="small"></span></h2>
     <div class="buscar"><input id="qFot" type="search" placeholder="🔍 Buscar en fotos (código del parte, actividad…)…"><button class="sec sm" data-limpiar>Limpiar</button></div>
-    <div class="small">Cada foto lleva la llave, el código del parte y las actividades con que se etiquetó. Solo se ven y se descargan: aquí no se puede borrar ni cambiar nada.</div>
+    <div class="small">Solo ver y descargar.</div>
     <div class="row" style="margin-top:8px"><div><label>Usuario</label><select id="fFotoLlave"></select></div>
       <div><label>Actividad</label><select id="fFotoAct"></select></div>
       <div><label>Tipo</label><select id="fFotoTipo"><option value="">Todas</option><option value="GENERAL">Del trabajo</option><option value="ALBARAN">Albaranes</option></select></div>
@@ -658,7 +658,7 @@ function formAnular(v, pan) {
     catch (e) { msg.textContent = 'No se pudo conectar. Intenta de nuevo.'; ok.disabled = false; }
   } }, 'Sí, anular este viaje');
   pan.appendChild(h('div', { style: 'border:2px solid #b3261e;border-radius:8px;padding:10px;background:#fff5f4;margin-top:8px' }, h('b', {}, '🚫 Anular viaje ' + rotulo(v)),
-    h('div', { class: 'small', style: 'margin:6px 0' }, 'Deja de contar en viajes, m³ y reportes. Se conserva con sus fotos y el motivo, y se puede restaurar.'), mot,
+    h('div', { class: 'small', style: 'margin:6px 0' }, 'No cuenta en totales. Se puede restaurar.'), mot,
     h('div', { class: 'acc', style: 'margin-top:8px' }, ok, h('button', { class: 'sec', onclick: () => { pan.textContent = ''; } }, 'Cancelar')), msg));
 }
 async function recargaTr() {
@@ -720,14 +720,14 @@ function vistaDups(c) {
   c.appendChild(h('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px' },
     h('button', { class: 'sec', onclick: () => { TRTAB = 'resumen'; pintarTr(); window.scrollTo(0, 0); } }, '← Volver'),
     h('h3', { style: 'margin:0' }, '🚫 Viajes duplicados por resolver (' + L.length + ')')));
-  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Compara las dos fotos y elige: conservar el 1, conservar el 2 o conservar ambos si son viajes distintos.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Compara las fotos y elige cuál conservar.'));
   if (!L.length) { c.appendChild(h('div', { class: 'trok' }, '✅ No hay viajes duplicados por resolver')); return; }
   L.forEach(x => c.appendChild(cardBloq(x)));
 }
 function cardRepetido(x) {
   const caja = h('div', { class: 'tcard', style: 'border:3px solid #b3261e;background:#fff5f4' },
     h('div', { class: 'big', style: 'color:#b3261e' }, '🚨 Albarán N° ' + x.vs[0].n_valera + ' repetido en ' + x.vs.length + ' viajes' + (x.vs.some(v => String(v.llave).toUpperCase() === 'HISTORICO') && x.vs.some(v => String(v.llave).toUpperCase() !== 'HISTORICO') ? ' · ACTUAL vs serie HISTÓRICA' : '')),
-    h('div', { class: 'small' }, 'Compara las fotos y decide cuál es el correcto. Si fue un error de digitación, edita el número; si el viaje está registrado dos veces, anula el que sobra.'));
+    h('div', { class: 'small' }, 'Corrige el número o anula el repetido.'));
   x.vs.forEach(v => {
     const pan = h('div', {});
     caja.appendChild(h('div', { style: 'background:#fff;border:1px solid #e0b4b0;border-radius:8px;padding:8px;margin-top:8px' },
@@ -741,7 +741,7 @@ function cardRepetido(x) {
 }
 function vistaSosp(c) {
   const todos = sospechosos(), sf = x => x.tipo === 'Sin foto de albarán', S = todos.filter(x => !x.rev || sf(x)), R = todos.filter(x => x.rev && !sf(x)), tipos = Array.from(new Set(S.map(x => x.tipo))).sort();
-  c.appendChild(h('div', { class: 'small' }, 'Revisa casos raros con los datos del formulario. Cuando ya lo verificaste, marca la casilla «Ya lo revisé» y deja de salir como sospechoso.'));
+  c.appendChild(h('div', { class: 'small' }, 'Revísalos y marca «Ya lo revisé».'));
   c.appendChild(chips([['', 'Pendientes (' + S.length + ')']].concat(tipos.map(t => [t, t + ' (' + S.filter(x => x.tipo === t).length + ')'])).concat([['__rev', '✔ Revisados (' + R.length + ')'], ['__anu', '🚫 Anulados (' + (TR.anulados || []).length + ')']]), TRSOSP, k => { TRSOSP = k; pintarTr(); }));
   if (TRSOSP === '__anu') {
     (TR.anulados || []).forEach(v => c.appendChild(h('div', { class: 'tcard', style: 'border-left:6px solid #b3261e;background:#faf3f2' }, h('div', { class: 'big' }, '🚫 ' + v.placa + ' · albarán ' + (v.n_valera || '—') + ' · ' + fmtF(v.fecha)),
@@ -860,7 +860,7 @@ function formEditAlb(v, i, pan) {
     ['uf', 'UF'], ['km', 'Km'], ['vol_albaran', 'm³ del albarán'], ['hora_salida', 'Hora de salida'], ['hora_llegada', 'Hora de llegada'], ['obs', 'Observaciones']];
   const el = {}, msg = h('div', { class: 'small', style: 'color:#b3261e;margin-top:6px' });
   const caja = h('div', { style: 'border:2px solid #12202b;border-radius:8px;padding:10px;background:#fffdf3' }, h('b', {}, '✏️ Editar viaje ' + rotulo(v)));
-  caja.appendChild(h('div', { class: 'small', style: 'margin-top:4px' }, 'Parte de origen: ' + fmtF(v.fecha_reporte || v.fecha) + ' · si cambias la fecha, el viaje conserva su parte y su N° de origen: no cambia la numeración de ningún día.'));
+  caja.appendChild(h('div', { class: 'small', style: 'margin-top:4px' }, 'Parte de origen: ' + fmtF(v.fecha_reporte || v.fecha) + ' · cambiar la fecha no altera la numeración.'));
   caja.appendChild(fotosEdit(v, pan));
   // Listas desplegables iguales a las de la app de Transportes (con «Otro» para escribir)
   const MAT_BASE = ['Material de excavación', 'Escombro', 'Material de relleno seleccionado', 'Recebo', 'Subbase granular', 'Base granular tipo A', 'Base granular tipo B', 'Base granular tipo C', 'Base PA', 'Rajón', 'Rajoncillo', 'Arena', 'Arena de trituración', 'Arena de peña', 'Gravilla', 'Triturado', 'Mezcla asfáltica', 'Descapote', 'RCD (demolición)'];
@@ -895,7 +895,7 @@ function formEditAlb(v, i, pan) {
   el.mov = h('select', { style: 'width:100%' }, [['ENTREGA', 'Sale de la obra'], ['RECIBE', 'Llega a la obra']].map(o => h('option', Object.assign({ value: o[0] }, (v.mov || 'ENTREGA') === o[0] ? { selected: 'selected' } : {}), o[1])));
   caja.appendChild(h('div', { style: 'margin-top:6px' }, h('label', { class: 'small' }, 'Valera de'), el.valera_de));
   caja.appendChild(h('div', { style: 'margin-top:6px' }, h('label', { class: 'small' }, 'Movimiento'), el.mov));
-  caja.appendChild(h('div', { class: 'small', style: 'margin-top:8px' }, 'Quedará registrado en el control de cambios: quién lo modificó, cuándo y qué cambió (antes → después).'));
+  caja.appendChild(h('div', { class: 'small', style: 'margin-top:8px' }, 'Queda en el control de cambios.'));
   const ok = h('button', { onclick: async () => {
     const cambios = {}; Object.keys(el).forEach(k => { const x = el[k].value.trim(), o = v[k] === undefined || v[k] === null ? '' : String(v[k]); if (x !== o.trim()) cambios[k] = x; });
     if (!Object.keys(cambios).length) { msg.textContent = 'No cambiaste nada.'; return; }
@@ -1008,7 +1008,7 @@ function vistaMapa(c) {
     L[a] = L[a] || { n: a, v: 0, va: 0, vc: 0, t: 0, uf: /^UF \d/.test(a) }; R[b] = R[b] || { n: b, v: 0, va: 0, vc: 0, t: 0, uf: /^UF \d/.test(b) }; E[k] = E[k] || { a: a, b: b, v: 0, va: 0, vc: 0, t: 0 };
     [L[a], R[b], E[k]].forEach(x => { x.v += w; x.va += wa; x.vc += wc; x.t++; });
   });
-  c.appendChild(h('div', { class: 'small', style: 'margin:8px 0' }, '📖 Cómo leerlo: a la izquierda está de dónde SALE el material y a la derecha adónde LLEGA. Las franjas son los viajes: entre más ancha, más m³. Verde = UF de la obra · otros colores = sitios externos.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin:8px 0' }, 'Sale ⬅ · ➡ Llega · más ancho = más m³ · verde = UF de la obra'));
   if (!V.length) { c.appendChild(h('div', { class: 'tcard' }, 'No hay viajes en ese periodo.')); return; }
   const wt = x => x.v > 0 ? x.v : 0.5 * x.t; // viajes sin volumen pesan poco pero se ven
   const ls = Object.keys(L).map(k => L[k]).sort((x, y) => (x.uf === y.uf ? 0 : x.uf ? -1 : 1) || String(x.n).localeCompare(String(y.n), 'es', { numeric: true }));
@@ -1138,7 +1138,7 @@ function vistaVol(c) {
   tipoAuto('nv');
   c.appendChild(chips([['pend', 'Por validar'], ['act', 'Activas'], ['inact', 'Inactivas'], ['todas', 'Todas']], TRVOL, k => { TRVOL = k; pintarTr(); }));
   const L = TR.volquetas.filter(x => TRVOL === 'pend' ? esPend(x) : TRVOL === 'act' ? !esIn(x) : TRVOL === 'inact' ? esIn(x) : true);
-  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Escribe la comprobación CCSN solo después de conciliar con el proveedor y adjunta la memoria de cálculo (📎, foto o escáner). Al guardar, se recalculan automáticamente todos los viajes de esa volqueta. Mientras esté vacía, el volumen confirmado queda vacío.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin:4px 0 8px' }, 'Tras conciliar con el proveedor, con memoria de cálculo 📎. Recalcula los viajes de la volqueta.'));
   const gb = h('button', { id: 'btnVolTodos', style: 'width:100%;padding:12px;font-size:17px;margin:6px 0', onclick: guardarVolTodos }, '💾 Guardar todos los cambios'); c.appendChild(gb); setTimeout(contarVol, 0);
   const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;position:sticky;top:0;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
   const tb = h('table', { style: 'width:100%;border-collapse:collapse;font-size:15px' }, h('tr', {}, ['Placa', 'Empresa', 'Tipo', 'Conductor', 'Comprobación CCSN (m³)', 'Viajes', 'Estado', ''].map(th)));
@@ -1473,9 +1473,9 @@ function vistaPlan(c) {
     h('div', { style: 'font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px' }, 'Filtrar por llave'), sel,
     h('div', { class: 'small', style: 'margin-top:8px' }, '📅 Periodo filtrado arriba: ' + rango() + ' · pulsa Actualizar si lo cambias')));
   c.appendChild(h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px' },
-    card('#0a7d32', '📄', 'Planilla diaria', 'Formato de calidad con los datos actuales de los viajes. En un rango sale una hoja por cada día. Se descarga al instante y no se guarda.',
+    card('#0a7d32', '📄', 'Planilla diaria', 'Formato de calidad · una hoja por día.',
       'Planilla de hoy', 'Rango filtrado · ' + rango(), () => planillasRango(bogota(), bogota(), sel.value, msg), () => planillasRango($('desde').value, $('hasta').value, sel.value, msg)),
-    card('#0d3b66', '📊', 'Reporte consolidado', 'KPIs, ranking, UF, destinos, carga baja, alertas y detalle, con volumen de albarán. Se descarga al instante y no se guarda.',
+    card('#0d3b66', '📊', 'Reporte consolidado', 'KPIs, ranking, destinos y alertas.',
       'Consolidado de hoy', 'Rango filtrado · ' + rango(), () => crearCierre(bogota(), bogota(), sel.value, msg), () => crearCierre($('desde').value, $('hasta').value, sel.value, msg))));
   c.appendChild(msg);
 }
@@ -1537,7 +1537,7 @@ function vistaGeo(c0) {
   const inp = (v, w, extra) => h('input', Object.assign({ type: 'text', inputmode: 'decimal', value: v === undefined || v === null ? '' : v, style: 'width:' + (w || 84) + 'px;font-size:15px;padding:6px' }, extra || {}));
   const th = t => h('th', { style: 'text-align:left;padding:6px;white-space:nowrap;background:#eee' }, t), td = (...x) => h('td', { style: 'padding:4px 6px;border-top:1px solid #ddd;vertical-align:middle' }, ...x);
   const mapa = (la, lo) => (la !== '' && lo !== '' && la !== undefined) ? h('a', { href: 'https://www.google.com/maps/search/?api=1&query=' + la + ',' + lo, target: '_blank', rel: 'noopener', title: 'Ver en el mapa' }, '📍') : null;
-  c.appendChild(h('div', { class: 'small', style: 'margin:6px 0' }, 'Aquí creas y corriges los orígenes (UF) y destinos, sus coordenadas y las distancias en km. Haz todos los cambios que necesites y al final toca «Guardar todos los cambios». Cada cambio queda en el control de cambios. Los transportistas lo usan desde su próximo viaje.'));
+  c.appendChild(h('div', { class: 'small', style: 'margin:6px 0' }, 'Haz los cambios y al final toca «Guardar todos los cambios».'));
   const bx = h('button', { class: 'sec sm', style: 'margin:0 0 8px' }, '⬇ Descargar Excel (sitios, UF y distancias)');
   bx.onclick = () => {
     if (!window.XLSX) { alert('No cargó el módulo de Excel. Revisa tu conexión e intenta de nuevo.'); return; }
@@ -1567,7 +1567,7 @@ function vistaGeo(c0) {
     });
     tm.appendChild(r);
   });
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📏 Distancias UF → destino (km)'), h('div', { class: 'small' }, 'Escribe el km. Vacía = se borra al guardar. Amarillo = ingresada por un usuario, falta validar (al editarla queda validada).'), h('div', { class: 'tw', style: 'max-height:none' }, tm)));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📏 Distancias UF → destino (km)'), h('div', { class: 'small' }, 'Vacía = se borra · amarillo = por validar.'), h('div', { class: 'tw', style: 'max-height:none' }, tm)));
   const otras = G.dist.filter(x => !G.ufs.some(u => 'UF' + String(u.uf).toUpperCase() === x.uf) || !G.sitios.some(s => nrm(s.n) === nrm(x.d)));
   if (otras.length) c.appendChild(h('div', { class: 'tcard warn' }, h('div', { class: 'big' }, '⚠️ Distancias con UF o destino que no está en las listas'), h('div', { class: 'small' }, 'Créalos abajo (sitio o UF) para verlos en la tabla, o bórralos aquí.'),
     otras.map(x => h('div', { style: 'margin:4px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, h('span', {}, x.uf + ' → ' + x.d + ': ' + x.km + ' km' + (x.pv ? ' (por validar)' : '')), h('button', { class: 'sec', onclick: ev => { stage('o|' + x.uf + '|' + x.d, 'Borrar distancia ' + x.uf + ' → ' + x.d, () => ({ tabla: 'dist', uf: x.uf.replace(/^UF/, ''), destino: x.d, op: 'eliminar' }), ev.target.parentNode); ev.target.disabled = true; } }, '🗑 Borrar al guardar')))));
@@ -1588,7 +1588,7 @@ function vistaGeo(c0) {
   };
   const ts = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['Destino / origen externo', 'Latitud', 'Longitud', 'Radio (m)', 'Qué recibe', 'Notas', '', ''].map(th)));
   ts.appendChild(filaSitio({ n: '', lat: '', lon: '', radio: '', recibe: '', notas: '' }, true)); G.sitios.forEach(x => ts.appendChild(filaSitio(x, false)));
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📍 Destinos y orígenes externos (sitios)'), h('div', { class: 'small' }, 'El nombre no se cambia después de creado (para no romper los viajes). Coordenadas en grados decimales, ej. 4.8123 y -74.0345. Radio = qué tan cerca debe estar un camión para considerarse "en el sitio".'), h('div', { class: 'tw', style: 'max-height:none' }, ts)));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '📍 Destinos y orígenes externos (sitios)'), h('div', { class: 'small' }, 'Coordenadas decimales. Ej: 4.8123, -74.0345 · el nombre no se cambia después.'), h('div', { class: 'tw', style: 'max-height:none' }, ts)));
   // 3) UF
   const filaUF = (x, nuevo) => {
     const n = nuevo ? h('input', { type: 'text', placeholder: 'N° UF', style: 'width:70px;font-size:15px;padding:6px' }) : h('b', {}, 'UF ' + x.uf);
@@ -1601,7 +1601,7 @@ function vistaGeo(c0) {
   };
   const tu = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['UF', 'Lat inicio', 'Lon inicio', 'Lat fin', 'Lon fin', 'Lat centro', 'Lon centro', 'Notas', ''].map(th)));
   tu.appendChild(filaUF({}, true)); G.ufs.forEach(x => tu.appendChild(filaUF(x, false)));
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🛣 Unidades funcionales (orígenes en la obra)'), h('div', { class: 'small' }, 'Inicio y fin del tramo. Si dejas el centro vacío se calcula como el punto medio.'), h('div', { class: 'tw', style: 'max-height:none' }, tu)));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🛣 Unidades funcionales (orígenes en la obra)'), h('div', { class: 'small' }, 'Centro vacío = punto medio.'), h('div', { class: 'tw', style: 'max-height:none' }, tu)));
   // 4) máquinas que cargan las volquetas
   const filaMaq = (x, nuevo) => {
     const mo = inp(x.movil, 70, { placeholder: x.pv ? 'Asigna móvil' : 'Móvil', inputmode: 'text' }), ti = h('input', { type: 'text', value: x.tipo || '', placeholder: 'Tipo de máquina (ej. EXCAVADORA 20 TN)', style: 'width:340px;max-width:100%;font-size:15px;padding:6px' });
@@ -1615,7 +1615,7 @@ function vistaGeo(c0) {
   };
   const tq = h('table', { style: 'border-collapse:collapse;font-size:14px;width:100%' }, h('tr', {}, ['Móvil', 'Tipo de máquina', 'Estado', ''].map(th)));
   tq.appendChild(filaMaq({ movil: '', tipo: '' }, true)); (G.maquinas || []).forEach(x => tq.appendChild(filaMaq(x, false)));
-  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🏗️ Máquinas que cargan las volquetas'), h('div', { class: 'small' }, 'Es la lista desplegable «Máquina que cargó» del formulario de viajes. Agrega, corrige o retira; los transportistas la ven desde su próxima carga de la app. Los viajes ya registrados conservan el nombre con que se guardaron.'), h('div', { class: 'tw', style: 'max-height:none' }, tq)));
+  c.appendChild(h('div', { class: 'tcard' }, h('div', { class: 'big' }, '🏗️ Máquinas que cargan las volquetas'), h('div', { class: 'small' }, 'Lista «Máquina que cargó» de la app de viajes.'), h('div', { class: 'tw', style: 'max-height:none' }, tq)));
 }
 // El volumen aún no está confirmado: no se muestran alertas de volumen (albarán vs tolva ni capacidad distinta)
 function sinAlertasVol() {
@@ -1827,7 +1827,7 @@ function vistaMqAsig() {
       MQ.asignaciones = r.asignaciones; MQ.operadores = r.operadores; const y = window.scrollY; pintarMq(); window.scrollTo(0, y); banner('✔ ' + ok, 'ok');
     } catch (e) { msg.style.color = '#b3261e'; msg.textContent = '⚠ Sin señal. Intenta de nuevo.'; } };
   box.appendChild(h('h3', { style: 'margin:0 0 4px' }, '👷 Operadores y máquina asignada'));
-  box.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'El operador se crea en AppSheet con su NOMBRE y el módulo MAQUINARIA. Aquí le asignas la máquina desde una fecha; al cambiarla, la anterior se cierra sola y queda en el historial.'));
+  box.appendChild(h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Asigna la máquina desde una fecha; la anterior se cierra sola.'));
   if (!OPS.length) box.appendChild(h('div', { class: 'aviso err' }, 'Aún no hay operadores: en AppSheet marca MAQUINARIA en el usuario del operador.'));
   const tb = h('tbody', {});
   OPS.forEach(o => {
@@ -1913,7 +1913,7 @@ function vistaMqPend(c) {
   const P = MQ.pend_foto || [];
   if (!P.length) { c.appendChild(h('div', { class: 'trok' }, '✔ No hay pendientes: todos los albaranes tienen su foto.')); return; }
   const nHis = P.filter(r => r.llave === 'HISTORICO').length;
-  c.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700;margin-bottom:10px' }, '📷 Faltan ' + P.length + ' fotos de albarán' + (nHis ? ' (' + nHis + ' del registro histórico del Excel)' : '') + '. La foto del albarán es obligatoria: súbelas una a una con el botón verde. Las fotos del horómetro de esos registros ya no se pueden tomar y no se piden.'));
+  c.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700;margin-bottom:10px' }, '📷 Faltan ' + P.length + ' fotos de albarán' + (nHis ? ' (' + nHis + ' del registro histórico del Excel)' : '') + '. Sube la foto del albarán de cada uno (botón verde).'));
   const lista = h('div', {}); c.appendChild(lista);
   let n = 60;
   const pinta = () => { lista.textContent = ''; P.slice(0, n).forEach(r => lista.appendChild(h('div', { class: 'tcard', style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px' },
@@ -2197,7 +2197,7 @@ function oeAlertaLev(c, lev) {
   for (let f = $('desde').value; f && f <= $('hasta').value && f <= ayer && F.length < 120; f = sumDias(f, 1)) { const d = new Date(f + 'T12:00:00').getDay(); if (d !== 0 && !con.has(f)) F.push(DS[d] + ' ' + fmtF(f).slice(0, 5)); }
   if (!F.length) return;
   c.appendChild(h('div', { style: 'font-weight:700;margin:0 0 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff1e0;border:2px solid #e08a1e;color:#7a3e00;border-radius:10px;padding:10px 12px' },
-    h('span', { style: 'flex:1;min-width:240px' }, '⚠ ' + F.length + (F.length === 1 ? ' día sin levantamiento cargado: ' : ' días sin levantamiento cargado: ') + F.join(', ') + '. ', h('span', { style: 'font-weight:500' }, 'Lo carga un administrador con edición de O. Ejecutada en Avance → ⬆ Cargar levantamientos.')),
+    h('span', { style: 'flex:1;min-width:240px' }, '⚠ ' + F.length + (F.length === 1 ? ' día sin levantamiento cargado: ' : ' días sin levantamiento cargado: ') + F.join(', ') + '. ', h('span', { style: 'font-weight:500' }, 'Lo carga un editor de OE en Avance.')),
     oeEd() && OETAB !== 'avance' ? h('button', { style: 'width:auto', onclick: () => { OETAB = 'avance'; selSet('oe', 'avance'); navOe(); pintarOe(); window.scrollTo(0, 0); } }, '⬆ Ir a cargar') : null));
 }
 async function pintarOeResumen(c) {
@@ -2267,7 +2267,7 @@ function oeResumenCuad(c) {
   U.filter(u => !en[u.llave]).forEach(u => G.push({ nombre: u.nombre, llaves: [u.llave], sola: true }));
   if (OEF.top) G = G.filter(g => g.llaves.indexOf(OEF.top) >= 0);
   const dias = []; for (let f = $('desde').value, hoy = bogota(); f && f <= $('hasta').value && f <= hoy && dias.length < 62; f = sumDias(f, 1)) dias.push(f);
-  if (!CU.length) c.appendChild(h('div', { class: 'small', style: 'margin:0 0 8px' }, 'Aún no hay cuadrillas armadas: cada usuario cuenta como su propia cuadrilla. Se arman en la pestaña 👷 Cuadrillas.'));
+  if (!CU.length) c.appendChild(h('div', { class: 'small', style: 'margin:0 0 8px' }, 'Sin cuadrillas: cada usuario cuenta solo.'));
   if (!G.length || !dias.length) { c.appendChild(h('div', { class: 'trok' }, 'No hay cuadrillas para mostrar en estas fechas')); return; }
   const R = (OE.registros || []).filter(oeCuenta), tb = h('tbody', {}); let ok = 0, n = 0, tr = 0;
   dias.slice().reverse().forEach(f => G.forEach(g => {
@@ -2288,7 +2288,7 @@ function pintarOeCuad(c) {
     try { const r = await api({ accion: 'admin_oe_cuad_guardar', llave: LLAVE, cuadrillas: CU }); if (!r.ok) { banner(r.mensaje || 'No se pudo guardar', 'mal'); pintarOe(); return; } OE.cuadrillas = r.cuadrillas; finBanner(true); }
     catch (e) { banner('Sin conexión: no se guardó', 'mal'); }
     pintarOe(); window.scrollTo(0, y); };
-  c.appendChild(h('div', { class: 'small', style: 'margin:0 0 10px' }, 'Cada cuadrilla agrupa varios usuarios de la app de O. Ejecutada. Un día la cuadrilla cumple si cualquiera de sus miembros reporta (Resumen → 👷 Por cuadrilla).' + (ed ? '' : ' Solo los administradores con edición de O. Ejecutada pueden cambiarlas.')));
+  c.appendChild(h('div', { class: 'small', style: 'margin:0 0 10px' }, 'La cuadrilla cumple el día si cualquiera reporta.' + (ed ? '' : ' Solo las cambian los editores de OE.')));
   if (ed) c.appendChild(h('button', { style: 'width:auto;margin:0 0 12px', onclick: async () => { const n = await avDialogo({ titulo: 'Nueva cuadrilla', ayuda: 'Nombre de la cuadrilla. Ej: Cuadrilla 1', campo: true, ok: 'Crear' }); if (!n || !n.trim()) return; CU.push({ nombre: n.trim(), miembros: [] }); guardar(); } }, '＋ Nueva cuadrilla'));
   if (!CU.length) c.appendChild(h('div', { class: 'trok' }, 'Aún no hay cuadrillas.'));
   const grid = h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px' }); c.appendChild(grid);
@@ -2328,7 +2328,7 @@ function pintarOe() {
     const und = {}; L.filter(oeCuenta).forEach(r => { const u = r.und || '—'; und[u] = (und[u] || 0) + oeNum(r.total !== '' && r.total != null ? r.total : r.cantidad); });
     c.appendChild(h('div', { class: 'kpis' }, K('Registros', L.length), K('Topógrafos', new Set(L.map(r => r.llave)).size), K('Días con OE', new Set(L.map(r => r.fecha)).size), K('Hitos', new Set(L.map(r => r.hito)).size), K('Actividades', new Set(L.map(r => r.actividad)).size), K('Sin centro de costo', L.filter(oeSinCc).length)));
     const nN = L.filter(oeSinCc).length;
-    if (nN) c.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700;margin:8px 0' }, '🟠 ' + nN + ' registro(s) sin centro de costo. En «Registros» descarga el Excel, llena la columna REASIGNAR CENTRO DE COSTO y súbelo.'));
+    if (nN) c.appendChild(h('div', { class: 'aviso err', style: 'font-weight:700;margin:8px 0' }, '🟠 ' + nN + ' registro(s) sin centro de costo: reasígnalo con el Excel de Registros.'));
     c.appendChild(h('div', { class: 'kpis' }, Object.keys(und).sort().map(u => K('Total en ' + u, oeFmt(und[u])))));
     return;
   }
@@ -2339,7 +2339,7 @@ function pintarOe() {
     c.appendChild(h('div', { class: 'row', style: 'margin-bottom:8px;gap:8px;align-items:center;flex-wrap:wrap' },
       h('button', { onclick: xlsxOe }, '⬇ Descargar Excel (' + L.length + ')'),
       OE.editor ? h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: () => file.click() }, '⬆ Subir Excel modificado') : null, file,
-      h('span', { class: 'small' }, (nS ? '🟠 ' + nS + ' sin centro de costo. ' : '') + (OE.editor ? 'Modifica las celdas en el Excel (menos el ID) y súbelo: verás los cambios antes de aplicar y queda el control de cambios.' : 'Solo el administrador de O. Ejecutada puede subir cambios.')))); }
+      h('span', { class: 'small' }, (nS ? '🟠 ' + nS + ' sin centro de costo. ' : '') + (OE.editor ? 'Edita el Excel (menos el ID) y súbelo: verás los cambios antes de aplicar.' : 'Solo el administrador de O. Ejecutada puede subir cambios.')))); }
   const th = ['Ejecutada', 'Registrada', 'Topógrafo', 'Hito', 'Red', 'UF · Costado', 'Abscisas', 'Actividad', 'Und', 'Total', 'Estado', ''];
   const estadoOe = r => { const an = r.rev === 'RECHAZADO', txt = an ? '🔴 Anulado' : '🟢 Aprobado', tit = an ? 'Anulado por ' + (r.rev_por || '—') + (r.rev_motivo ? ': ' + r.rev_motivo : '') : (r.rev_por ? 'Revisado por ' + r.rev_por : 'Cuenta en los cálculos');
     if (!OE.editor) return h('span', { title: tit, style: 'font-weight:800;white-space:nowrap;color:' + (an ? '#b3261e' : '#0a7a32') }, txt);
@@ -2598,7 +2598,7 @@ function elegirCapasDxf(porCapa, nombre) { // ventana para escoger las capas del
     const cerrar = v => { fondo.remove(); ok(v); };
     fondo.appendChild(h('div', { style: 'background:#fff;border-radius:16px;padding:16px;width:min(520px,100%);box-shadow:0 10px 40px rgba(0,0,0,.3)' },
       h('div', { style: 'font-size:18px;font-weight:800;margin-bottom:6px' }, 'Capas del DXF'), h('div', { class: 'small' }, 'Nombre de la capa en el mapa. Ej: Diseño geométrico'), nom,
-      h('div', { class: 'small', style: 'margin-bottom:6px' }, 'Marca solo lo que es planta. Vienen desmarcadas las capas de perfiles (cuadrículas, terreno, rasante, guitarra) y las que quedan fuera del área del proyecto.'), lista,
+      h('div', { class: 'small', style: 'margin-bottom:6px' }, 'Marca solo las capas de planta.'), lista,
       h('div', { style: 'display:flex;gap:8px;margin-top:12px;justify-content:flex-end' }, h('button', { class: 'sec', style: 'width:auto', onclick: () => cerrar(null) }, 'Cancelar'), h('button', { style: 'width:auto', onclick: () => { if (!sel.size || !nom.value.trim()) return; cerrar({ nombre: nom.value.trim(), capas: Array.from(sel) }); } }, 'Cargar al mapa'))));
     (document.querySelector('.av-grid.av-full') || document.body).appendChild(fondo);
   });
@@ -2653,7 +2653,7 @@ function cargarLevDash() { // el Dashboard carga los TXT a nombre del topógrafo
   fondo.appendChild(h('div', { class: 'av-dlg', style: 'width:min(560px,100%)' },
     h('div', { style: 'font-size:18px;font-weight:800;margin-bottom:6px' }, '⬆ Cargar levantamientos (TXT)'),
     h('div', { class: 'small', style: 'margin-bottom:8px' }, 'Queda cargado a nombre de ' + ((D && D.nombre) || 'tu usuario') + ', con fecha y hora en el control de cambios.'),
-    h('div', { class: 'small' }, 'Fecha del levantamiento (se usa si el nombre del archivo no trae la fecha. Ej: 191126 = 19/11/2026)'), fec,
+    h('div', { class: 'small' }, 'Fecha (si el nombre del archivo no la trae)'), fec,
     h('button', { type: 'button', class: 'sec', style: 'width:100%;min-height:44px', onclick: () => fin.click() }, '📂 Elegir uno o varios TXT'), fin, lista,
     h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:12px' }, h('button', { class: 'sec', style: 'width:auto;min-height:40px;padding:0 16px', onclick: cerrar }, 'Cerrar'), bSub)));
   cont.appendChild(fondo);
@@ -2766,7 +2766,7 @@ async function pintarOeAvance(c) {
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
   oeAlertaLev(c, OEAV.lev);
   const A = (OEAV.lev || []).map(x => Object.assign({}, x, { cod: x.capa, capa: oeNom(x.capa) })); // capa = nombre estándar (equivalencias); cod = como viene en el TXT
-  if (!A.length) c.appendChild(h('div', { class: 'trok', style: 'margin-bottom:8px' }, 'No hay levantamientos en el rango del filtro. El plano y el botón 📍 Mi ubicación siguen disponibles.')); // el mapa se muestra igual (plano base y ubicación en obra)
+  if (!A.length) c.appendChild(h('div', { class: 'trok', style: 'margin-bottom:8px' }, 'Sin levantamientos en estas fechas.')); // el mapa se muestra igual (plano base y ubicación en obra)
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
   const col = cp => OEAV_COL[capas.indexOf(cp) % OEAV_COL.length];
   const L = A.filter(x => !OEAVF.top || x.llave === OEAVF.top);
@@ -2856,7 +2856,7 @@ async function pintarOeAvance(c) {
     planoBox.appendChild(fin);
     if (!OEPLANOS) { planoBox.appendChild(h('div', { class: 'small' }, 'Cargando capas…')); return; }
     if (!OEPLANOS.length) planoBox.appendChild(h('div', { class: 'small' }, 'Sin capas. Carga un KML o DXF del proyecto.'));
-    const ayudaPl = h('div', { class: 'small', style: 'margin-top:6px;line-height:1.35' }, 'Las capas que cargues las ven todos. Solo puedes quitar las tuyas.');
+    const ayudaPl = h('div', { class: 'small', style: 'margin-top:6px;line-height:1.35' }, 'Las ven todos; solo quitas las tuyas.');
     OEPLANOS.forEach(p => { const on = !OEPLOFF.has(p.nombre);
       const caja = h('span', { class: 'av-chk', style: 'border-color:' + p.color + ';background:' + (on ? p.color : '#fff') }, on ? '✓' : '');
       planoBox.appendChild(h('div', { class: 'av-fila', onclick: () => { if (OEPLOFF.has(p.nombre)) OEPLOFF.delete(p.nombre); else OEPLOFF.add(p.nombre); try { localStorage.setItem('oe_planos_off', JSON.stringify(Array.from(OEPLOFF))); } catch (e) {} pintarPlanos(); verPlanos(); } }, caja,
@@ -2896,7 +2896,7 @@ async function pintarOeAvance(c) {
       cerrar(); if (n) { banner('✔ Equivalencias guardadas para todos. Quedan en el control de cambios.', 'ok'); pintarOe(); } } }, 'Guardar');
     fondo.appendChild(h('div', { class: 'av-dlg', style: 'width:min(520px,100%)' },
       h('div', { style: 'font-size:18px;font-weight:800' }, 'Equivalencias de actividad'),
-      h('div', { class: 'small', style: 'margin-top:4px' }, 'A la izquierda, el código tal como viene en el TXT. A la derecha, el nombre estándar con el que se agrupa en toda la plataforma. Ej: PAT = PATA, PT = PATA. Vacío = vuelve a su código. Los TXT no cambian.'),
+      h('div', { class: 'small', style: 'margin-top:4px' }, 'Código del TXT → nombre estándar. Ej: PT = PATA. Vacío = vuelve a su código. Los TXT no cambian.'),
       lista, otro,
       h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:12px' }, h('button', { class: 'sec', style: 'width:auto;min-height:40px;padding:0 16px', onclick: cerrar }, 'Cancelar'), bOk)));
     cont.appendChild(fondo); };
@@ -2910,7 +2910,7 @@ async function pintarOeAvance(c) {
   if (!OEPREV.length) { // archivos TXT cargados por los topógrafos: descargar y, con permiso, anular los erróneos
     const arch = {}; L.forEach(x => { const k = x.fecha + '|' + x.llave + '|' + x.archivo; (arch[k] = arch[k] || { fecha: x.fecha, llave: x.llave, topografo: x.topografo, archivo: x.archivo, txt: x.txt, capas: [] }).capas.push(x.capa); });
     const bajarTxt = async a => { try { const r = await api({ accion: 'admin_oe_lev_txt', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo }); if (!r.ok) { banner(r.mensaje || 'No se pudo descargar.'); return; } const u = URL.createObjectURL(new Blob([r.txt], { type: 'text/plain' })), l = h('a', { href: u, download: r.nombre }); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000); } catch (er) { banner('No se pudo descargar.'); } };
-    const anular = async a => { const mot = prompt('Anular el TXT «' + a.archivo + '» del ' + fmtF(a.fecha) + ' (' + (a.topografo || nomDe(a.llave)) + ').\nEl topógrafo deberá subirlo corregido. Queda registrado quién lo anuló y por qué.\n\nMotivo de la anulación (obligatorio):'); if (mot === null) return; if (mot.trim().length < 5) { banner('Escribe el motivo de la anulación (mínimo 5 letras).'); return; } try { const r = await api({ accion: 'admin_oe_lev_anular', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo, motivo: mot.trim() }); if (!r.ok) { banner(r.mensaje || 'No se pudo anular.'); return; } OEAV = null; pintarOe(); } catch (er) { banner('No se pudo anular.'); } };
+    const anular = async a => { const mot = prompt('Anular el TXT «' + a.archivo + '» del ' + fmtF(a.fecha) + ' (' + (a.topografo || nomDe(a.llave)) + ').\nPara corregirlo, vuelve a cargar el TXT.\n\nMotivo de la anulación (obligatorio):'); if (mot === null) return; if (mot.trim().length < 5) { banner('Escribe el motivo de la anulación (mínimo 5 letras).'); return; } try { const r = await api({ accion: 'admin_oe_lev_anular', llave: LLAVE, fecha: a.fecha, top: a.llave, archivo: a.archivo, motivo: mot.trim() }); if (!r.ok) { banner(r.mensaje || 'No se pudo anular.'); return; } OEAV = null; pintarOe(); } catch (er) { banner('No se pudo anular.'); } };
     const fb = h('tbody', {});
     const ed = oeEd();
     Object.keys(arch).map(k => arch[k]).sort((x, y) => y.fecha.localeCompare(x.fecha) || x.archivo.localeCompare(y.archivo)).forEach(a => fb.appendChild(h('tr', {}, h('td', { style: 'white-space:nowrap' }, fmtF(a.fecha)), h('td', {}, a.topografo || nomDe(a.llave)), h('td', { style: 'word-break:break-all' }, a.archivo), h('td', {}, a.capas.map(oeNom).join(', ')),
@@ -2934,13 +2934,13 @@ async function pintarOeAvance(c) {
         const fs2 = L2.map(a => a.fecha).sort(); bajar(zipear(it), 'TXT_OE_' + fs2[0] + '_a_' + fs2[fs2.length - 1] + '.zip');
         banner('✔ ZIP con ' + it.length + ' TXT descargado' + (mal.length ? '. No se encontraron: ' + mal.join(', ') : '.'), 'ok');
       } catch (e3) { banner('No se pudo armar el ZIP (sin conexión).'); } finally { bZip.disabled = false; bZip.textContent = t0; } };
-    seccion('txt', 'Archivos TXT cargados', nA, h('div', {}, h('div', { class: 'small', style: 'margin:0 0 6px' }, ed ? '📍 Ver lo ubica en el mapa. ⬇ TXT descarga el archivo original. Anular lo quita del avance (se pide el motivo y queda en el control de cambios).' : '📍 Ver lo ubica en el mapa.'),
+    seccion('txt', 'Archivos TXT cargados', nA, h('div', {}, 
       h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Fecha', 'Topógrafo', 'Archivo', 'Actividades', 'Mapa'].concat(ed ? ['Descargar', 'Anular'] : []).map(t => h('th', {}, t)))), fb))), nA && ed ? bZip : null);
     let cuerpoC;
     if (!AN.length) cuerpoC = h('div', { class: 'trok' }, 'No hay cambios en estas fechas.');
     else { const cb = h('tbody', {}); AN.slice().sort((x, y) => y.cambio.localeCompare(x.cambio)).forEach(x => cb.appendChild(h('tr', {}, h('td', {}, /^\d{4}-\d{2}-\d{2}/.test(x.cambio) ? x.cambio.slice(8, 10) + '/' + x.cambio.slice(5, 7) + '/' + x.cambio.slice(0, 4) + ' ' + x.cambio.slice(11, 16) : '—'), h('td', {}, fmtF(x.fecha)), h('td', {}, x.topografo), h('td', {}, x.archivo), h('td', { style: 'font-weight:800' }, x.resultado), h('td', {}, sinLlaveTxt(x.usuario)), h('td', {}, x.motivo))));
       cuerpoC = h('div', { class: 'tw' }, h('table', {}, h('thead', {}, h('tr', {}, ['Cuándo', 'Fecha del TXT', 'Topógrafo', 'Archivo', 'Qué se hizo', 'Quién', 'Por qué'].map(t => h('th', {}, t)))), cb)); }
-    seccion('camb', 'Control de cambios de TXT', AN.length, h('div', {}, h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Cada anulación o reemplazo queda registrado: qué archivo, quién lo hizo, cuándo y por qué.'), cuerpoC));
+    seccion('camb', 'Control de cambios de TXT', AN.length, h('div', {}, h('div', { class: 'small', style: 'margin:0 0 6px' }, 'Quién, cuándo y por qué.'), cuerpoC));
   }
   refrescar(false);
   cargarLeaflet().then(() => {
@@ -3036,9 +3036,9 @@ async function subirXlsOe(file) {
   const ov = h('div', { style: 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px' },
     h('div', { style: 'background:#fff;border-radius:12px;padding:16px;width:min(820px,100%);max-height:85vh;overflow:auto' },
       h('b', { style: 'font-size:17px' }, 'Revisa antes de aplicar' + (nuevos.length ? ': ' + nuevos.length + ' centro(s) de costo nuevo(s)' : '') + (mods.length ? ' · ' + mods.length + ' registro(s) con cambios' : '')),
-      h('div', { class: 'small', style: 'margin:4px 0' }, 'Cada cambio queda en el control de cambios (quién, cuándo, antes y después). Los registros modificados ya no los puede editar el topógrafo.'),
+      h('div', { class: 'small', style: 'margin:4px 0' }, 'Todo queda en el control de cambios.'),
       errores.length ? h('div', { style: 'color:#b3261e;margin:8px 0' }, h('ul', {}, errores.slice(0, 50).map(x => h('li', { class: 'small' }, x)))) : null,
-      verN.length ? h('div', { style: 'margin:8px 0' }, h('b', {}, 'Centros de costo que se crean (se suman a la lista y a la app de O. Ejecutada)'), h('ul', {}, verN.slice(0, 200).map(x => h('li', { class: 'small' }, x)))) : null,
+      verN.length ? h('div', { style: 'margin:8px 0' }, h('b', {}, 'Centros de costo nuevos'), h('ul', {}, verN.slice(0, 200).map(x => h('li', { class: 'small' }, x)))) : null,
       ver.length ? h('b', {}, 'Registros modificados') : null,
       h('ul', { style: 'margin:8px 0' }, ver.slice(0, 300).map(x => h('li', { class: 'small' }, x))), ver.length > 300 ? h('div', { class: 'small' }, '… y ' + (ver.length - 300) + ' más') : null,
       h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, h('button', { class: 'sec', onclick: () => ov.remove() }, 'Cancelar'), h('button', { style: 'background:#0a7a32;color:#fff;border:0', onclick: async () => { ov.remove();
