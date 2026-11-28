@@ -44,6 +44,8 @@ main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padd
 #buscar,#buscarG{border:2.5px solid #0a7a32!important;background:#fff!important;color:#10202c!important;font-weight:700;font-size:1.05rem;box-shadow:0 2px 8px rgba(10,122,50,.18)}#buscar::placeholder,#buscarG::placeholder{color:#3d4b56;opacity:1;font-weight:600}#buscar,#buscarG{display:block;width:100%;max-width:100%;box-sizing:border-box;margin-left:auto;margin-right:auto}#buscarG{margin:4px auto 6px;min-height:50px;text-align:center}#buscarG:focus{text-align:left}
 
 .ufg{display:grid;grid-template-columns:1.6fr repeat(6,1fr);gap:4px;margin:0 0 8px;padding:2px 0}.ufg button{min-width:0;min-height:38px;padding:0 2px;border-radius:999px;border:2px solid #0a7a32;background:#fff;color:#0a4d22;font-weight:800;font-size:.88rem}.ufg button.on{background:#0a7a32;color:#fff}
+
+.hitog{display:block;width:100%;box-sizing:border-box;min-height:44px;margin:0 0 8px;border:2px solid #0a7a32;border-radius:12px;background:#fff;color:#0a4d22;font-weight:800;font-size:1rem;padding:0 10px}.hitog.on{background:#0a7a32;color:#fff}
 img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:#000;margin-top:10px}
 .lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
 .dcard{padding:0;overflow:hidden}.dcard>*:not(.dh){margin-left:14px;margin-right:14px}.dcard>.btn.blk{width:calc(100% - 28px)}.dcard>.rt{margin-bottom:14px}.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:14px;font-size:1.05rem;color:#0f172a;text-align:left;cursor:pointer;margin-bottom:0}.dh b{flex:1}.dh i{font-style:normal;color:#0a7f2e;font-size:1.1rem}.dh.vac{cursor:default;opacity:.7}.dcard>.hh:first-of-type,.dcard>.btn+.hh{margin-top:12px}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}.rr .btn{min-height:34px;padding:4px 10px}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.uch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.uch button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:12px;min-height:54px;font-weight:700;font-size:.98rem;cursor:pointer;padding:6px}.uch button.on{background:#0a7f2e;border-color:#0a7f2e;color:#fff}.otro{margin:10px 0 4px;min-height:48px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
@@ -127,7 +129,7 @@ const esRed = h => h === '2.11' || h === '2.12';
 const esMant = h => h === 'MANT';
 const redLista0 = r => !!(S.cat && S.cat.redes && S.cat.redes.some(x => x[0] === r));
 // Centros de costo creados por la oficina en el Dashboard: se suman a la lista de su hito y UF (en su paquete o en «Nuevos centros de costo»)
-S.idx = null; S.ccx = lsGet('oe_ccx') || []; S.ufg = lsGet('oe_ufg') || '';
+S.idx = null; S.ccx = lsGet('oe_ccx') || []; S.ufg = lsGet('oe_ufg') || ''; S.hg = lsGet('oe_hg') || '';
 function conNuevos(L, h, uf) {
   const X = (S.ccx || []).filter(x => x[4] === h && (!x[3] || x[3] === uf)); if (!X.length) return L;
   const usados = new Set([].concat(...L.map(p => p[1].map(a => String(a[0]).toUpperCase()))));
@@ -237,13 +239,17 @@ function idxCat() {
 // Filtro de UF del buscador general (una fila de botones)
 function vUfG() {
   const L = ['', ...Array.from(new Set(idxCat().map(e => e[1]))).sort()];
-  return '<div class="ufg">' + L.map(u => '<button type="button" class="' + ((S.ufg || '') === u ? 'on' : '') + '" data-a="ufG" data-v="' + u + '">' + (u || 'Todas') + '</button>').join('') + '</div>';
+  const q = String(S.qg || '').trim(), sinT = t => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), qq = sinT(q), n = {};
+  if (q.length >= 3) idxCat().forEach(e => { if (S.ufg && e[1] !== S.ufg) return; if (sinT(e[5]).includes(qq)) n[e[0]] = (n[e[0]] || 0) + 1; });
+  const H = (S.cat ? S.cat.hitos : []).map(x => '<option value="' + x[0] + '"' + (S.hg === x[0] ? ' selected' : '') + '>' + esc(x[1]) + (q.length >= 3 ? ' (' + (n[x[0]] || 0) + ')' : '') + '</option>').join('');
+  return '<div class="ufg">' + L.map(u => '<button type="button" class="' + ((S.ufg || '') === u ? 'on' : '') + '" data-a="ufG" data-v="' + u + '">' + (u || 'Todas') + '</button>').join('') + '</div>' +
+    '<select id="hitoG" class="hitog' + (S.hg ? ' on' : '') + '"><option value="">Todos los hitos' + (q.length >= 3 ? ' (' + Object.keys(n).reduce((a, k) => a + n[k], 0) + ')' : '') + '</option>' + H + '</select>';
 }
 function vBusG() {
   const q = String(S.qg || '').trim(); if (q.length < 3) return '';
   const sinT = t => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), qq = sinT(q), G = {}, orden = [];
-  idxCat().forEach(e => { if (S.ufg && e[1] !== S.ufg) return; if (!sinT(e[5]).includes(qq)) return; const k = e[5].trim().toUpperCase() + '|' + e[6]; if (!G[k]) { G[k] = { d: e[5], u: e[6], op: [] }; orden.push(k); } G[k].op.push(e); });
-  if (!orden.length) return '<div class="peq mut" style="margin:8px 2px 10px">No hay actividades con «' + esc(q) + '»' + (S.ufg ? ' en la ' + esc(S.ufg) : '') + '. Elige el hito abajo.</div>';
+  idxCat().forEach(e => { if (S.ufg && e[1] !== S.ufg) return; if (S.hg && e[0] !== S.hg) return; if (!sinT(e[5]).includes(qq)) return; const k = e[5].trim().toUpperCase() + '|' + e[6]; if (!G[k]) { G[k] = { d: e[5], u: e[6], op: [] }; orden.push(k); } G[k].op.push(e); });
+  if (!orden.length) return '<div class="peq mut" style="margin:8px 2px 10px">No hay actividades con «' + esc(q) + '»' + (S.ufg ? ' en la ' + esc(S.ufg) : '') + (S.hg ? ' en ' + esc(nomHito(S.hg)) : '') + '. Cambia los filtros o elige el hito abajo.</div>';
   return '<div class="peq mut" style="margin:10px 2px 6px;font-weight:800">Toca dónde hiciste la actividad</div>' + orden.slice(0, 15).map(k => { const g = G[k];
     return '<div class="ag"><b>' + esc(g.d) + '</b><small>' + undTxt(g.u) + '</small>' + g.op.slice(0, 12).map(e => '<button type="button" class="agb" data-a="actGG" data-v="' + esc(e.slice(0, 3).join('|') + '|' + e[4]) + '">' + esc(nomHito(e[0]) + (esMant(e[0]) ? '' : ' · ' + e[1]) + ' · ' + e[3]) + (estDe(e[4]) ? '<small>' + esc(estDe(e[4])) + '</small>' : '') + '</button>').join('') +
       (g.op.length > 12 ? '<div class="peq mut" style="margin-top:6px">Y ' + (g.op.length - 12) + ' lugares más: escribe más letras o elige el hito abajo.</div>' : '') + '</div>'; }).join('') +
@@ -603,6 +609,7 @@ document.addEventListener('click', async ev => {
 });
 document.addEventListener('input', ev => {
   const t = ev.target;
+  if (t.id === 'hitoG') { S.hg = t.value; lsSet('oe_hg', t.value); render(); return; }
   if (t.id === 'buscarG') { S.qg = t.value; render(); const n = $('#buscarG'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
   if (t.id === 'buscar') { S.q = t.value; render(); const n = $('#buscar'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
   const k = t.dataset && t.dataset.f; if (!k || !S.f) return;
