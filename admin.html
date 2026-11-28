@@ -294,7 +294,7 @@ header>span{gap:6px!important;min-width:0}
       <div><label>Mes</label><select id="mes"></select></div>
       <div><label>Desde</label><input type="date" id="desde"></div>
       <div><label>Hasta</label><input type="date" id="hasta"></div>
-      <div id="fTopW" hidden><label>Topógrafo</label><select id="fTop"></select></div>
+      <div id="fTopW" hidden style="grid-column:1/-1;min-width:220px"><label>Topógrafo</label><select id="fTop" style="width:100%"></select></div>
       <div class="acts"><button id="act">Actualizar</button>
       <button id="infSem" style="background:#0d3b66;color:#fff;border:2px solid #0d3b66;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.35)">📄 Informe</button></div>
       <span id="estado" class="small"></span>
@@ -1649,8 +1649,7 @@ function pintarTr() {
     }
     top.appendChild(cj);
   }
-  const mp = (TR.maquinas || []).filter(x => x.pv);
-  if (mp.length) top.appendChild(h('button', { class: 'trav', onclick: () => { TRTAB = 'geo'; pintarTr(); } }, '🏗️ ' + mp.length + (mp.length === 1 ? ' máquina nueva por validar: ' : ' máquinas nuevas por validar: ') + mp.slice(0, 3).map(x => x.n).join(', ') + (mp.length > 3 ? '…' : '')));
+  // (sin alerta de máquinas nuevas: se revisan en Distancias y sitios)
   const dp = (TR.dist || []).filter(x => x.pv);
   if (dp.length) {
     const cj = h('div', { class: 'trav', style: 'display:block;text-align:left;cursor:default' }, h('b', {}, '📏 ' + dp.length + (dp.length === 1 ? ' distancia por validar' : ' distancias por validar') + ' (destino o UF nuevos)'));
@@ -2191,15 +2190,6 @@ function verFotoOe(r) {
   }).catch(() => { ov.textContent = 'Sin señal'; });
 }
 // Resumen por día y topógrafo (reportes y levantamientos) con los filtros globales del Dashboard
-// Alerta: días del rango (lunes a sábado, hasta ayer) sin ningún levantamiento TXT cargado. Los carga en Avance un administrador con edición de OE.
-function oeAlertaLev(c, lev) {
-  const con = new Set((lev || []).map(x => x.fecha)), DS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'], ayer = sumDias(bogota(), -1), F = [];
-  for (let f = $('desde').value; f && f <= $('hasta').value && f <= ayer && F.length < 120; f = sumDias(f, 1)) { const d = new Date(f + 'T12:00:00').getDay(); if (d !== 0 && !con.has(f)) F.push(DS[d] + ' ' + fmtF(f).slice(0, 5)); }
-  if (!F.length) return;
-  c.appendChild(h('div', { style: 'font-weight:700;margin:0 0 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff1e0;border:2px solid #e08a1e;color:#7a3e00;border-radius:10px;padding:10px 12px' },
-    h('span', { style: 'flex:1;min-width:240px' }, '⚠ ' + F.length + (F.length === 1 ? ' día sin levantamiento cargado: ' : ' días sin levantamiento cargado: ') + F.join(', ') + '. ', h('span', { style: 'font-weight:500' }, 'Lo carga un editor de OE en Avance.')),
-    oeEd() && OETAB !== 'avance' ? h('button', { style: 'width:auto', onclick: () => { OETAB = 'avance'; selSet('oe', 'avance'); navOe(); pintarOe(); window.scrollTo(0, 0); } }, '⬆ Ir a cargar') : null));
-}
 async function pintarOeResumen(c) {
   const k = $('desde').value + '|' + $('hasta').value, puedeLev = true; // el conteo de levantamientos lo ve todo administrador
   if (puedeLev && (!OEAV || OEAV.k !== k)) {
@@ -2211,7 +2201,6 @@ async function pintarOeResumen(c) {
     return;
   }
   if (OEAV && OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando resumen…')); return; }
-  oeAlertaLev(c, OEAV && OEAV.lev);
   const seg = h('div', { style: 'display:inline-flex;gap:4px;background:#e7ebef;border-radius:12px;padding:4px;margin:0 0 10px' }, [['usr', '👤 Por usuario'], ['cuad', '👷 Por cuadrilla']].map(([k, t]) => h('button', { type: 'button', style: 'width:auto;min-height:34px;padding:0 14px;border:0;border-radius:9px;font-weight:800;' + (OERESV === k ? 'background:#0a7a32;color:#fff' : 'background:transparent;color:#334'), onclick: () => { OERESV = k; selSet('oeresv', k); const y = window.scrollY; pintarOe(); window.scrollTo(0, y); } }, t)));
   c.appendChild(seg);
   if (OERESV === 'cuad') { oeResumenCuad(c); return; }
@@ -2764,7 +2753,6 @@ async function pintarOeAvance(c) {
   }
   if (OEAV.cargando) { c.appendChild(h('div', { class: 'trok' }, 'Cargando levantamientos…')); return; }
   if (OEAV.err) { c.appendChild(h('div', { class: 'trok' }, OEAV.err)); return; }
-  oeAlertaLev(c, OEAV.lev);
   const A = (OEAV.lev || []).map(x => Object.assign({}, x, { cod: x.capa, capa: oeNom(x.capa) })); // capa = nombre estándar (equivalencias); cod = como viene en el TXT
   if (!A.length) c.appendChild(h('div', { class: 'trok', style: 'margin-bottom:8px' }, 'Sin levantamientos en estas fechas.')); // el mapa se muestra igual (plano base y ubicación en obra)
   const capas = Array.from(new Set(A.map(x => x.capa))).sort(), tops = Array.from(new Set(A.map(x => x.llave))).sort((a, b) => (nomDe(a) || a).localeCompare(nomDe(b) || b));
