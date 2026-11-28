@@ -41,7 +41,9 @@ main.oe{max-width:640px;margin:0 auto;padding:14px 14px 40px}main.oe.conbar{padd
 
 .ag{border:1.5px solid #d6dde3;border-radius:14px;padding:10px 12px;margin:0 0 8px;background:#fff}.ag>b{display:block;font-size:15px}.ag>small{display:block;color:#5b6b78;margin-bottom:6px}.agb{display:block;width:100%;text-align:left;margin-top:6px;padding:9px 12px;border-radius:10px;border:1.5px solid #0a7a32;background:#eef8f1;color:#0a4d22;font-weight:800;font-size:14px}.agb small{display:block;font-weight:500;color:#4a5a66;font-size:12px}
 
-#buscar,#buscarG{border:2.5px solid #0a7a32!important;background:#fff!important;color:#10202c!important;font-weight:700;font-size:1.05rem;box-shadow:0 2px 8px rgba(10,122,50,.18)}#buscar::placeholder,#buscarG::placeholder{color:#3d4b56;opacity:1;font-weight:600}#buscarG{margin:4px 0 6px;min-height:50px}
+#buscar,#buscarG{border:2.5px solid #0a7a32!important;background:#fff!important;color:#10202c!important;font-weight:700;font-size:1.05rem;box-shadow:0 2px 8px rgba(10,122,50,.18)}#buscar::placeholder,#buscarG::placeholder{color:#3d4b56;opacity:1;font-weight:600}#buscar,#buscarG{display:block;width:100%;max-width:100%;box-sizing:border-box;margin-left:auto;margin-right:auto}#buscarG{margin:4px auto 6px;min-height:50px;text-align:center}#buscarG:focus{text-align:left}
+
+.ufg{display:grid;grid-template-columns:1.6fr repeat(6,1fr);gap:4px;margin:0 0 8px;padding:2px 0}.ufg button{min-width:0;min-height:38px;padding:0 2px;border-radius:999px;border:2px solid #0a7a32;background:#fff;color:#0a4d22;font-weight:800;font-size:.88rem}.ufg button.on{background:#0a7a32;color:#fff}
 img.prev{width:100%;max-height:300px;object-fit:contain;border-radius:10px;background:#000;margin-top:10px}
 .lb{display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid #475569;border-radius:14px;min-height:64px;font-weight:800;font-size:1.1rem;background:#fff;cursor:pointer}
 .dcard{padding:0;overflow:hidden}.dcard>*:not(.dh){margin-left:14px;margin-right:14px}.dcard>.btn.blk{width:calc(100% - 28px)}.dcard>.rt{margin-bottom:14px}.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:14px;font-size:1.05rem;color:#0f172a;text-align:left;cursor:pointer;margin-bottom:0}.dh b{flex:1}.dh i{font-style:normal;color:#0a7f2e;font-size:1.1rem}.dh.vac{cursor:default;opacity:.7}.dcard>.hh:first-of-type,.dcard>.btn+.hh{margin-top:12px}.hh{background:#e3f6ea;color:#14532d;font-weight:800;border-radius:8px;padding:5px 9px;margin:10px 0 2px}.rl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:7px 0}.rl>div{min-width:0}.rl b{display:block}.rl .tt{display:block;white-space:nowrap;color:#0a7f2e;font-style:normal}.rr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}.rr .btn{min-height:34px;padding:4px 10px}.rt{margin:10px 0;font-size:1.02rem}.btn.wa{background:#1f9d55;border-color:#14532d;box-shadow:0 3px 0 #14532d}main.oe{padding-bottom:110px}.uch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.uch button{border:2px solid #475569;background:#fff;color:#0f172a;border-radius:12px;min-height:54px;font-weight:700;font-size:.98rem;cursor:pointer;padding:6px}.uch button.on{background:#0a7f2e;border-color:#0a7f2e;color:#fff}.otro{margin:10px 0 4px;min-height:48px}.pv{min-height:1.3em;color:#0a7f2e;font-weight:800;margin-top:4px}.gpsl{margin-top:12px;font-size:.95rem}
@@ -125,7 +127,7 @@ const esRed = h => h === '2.11' || h === '2.12';
 const esMant = h => h === 'MANT';
 const redLista0 = r => !!(S.cat && S.cat.redes && S.cat.redes.some(x => x[0] === r));
 // Centros de costo creados por la oficina en el Dashboard: se suman a la lista de su hito y UF (en su paquete o en «Nuevos centros de costo»)
-S.idx = null; S.ccx = lsGet('oe_ccx') || [];
+S.idx = null; S.ccx = lsGet('oe_ccx') || []; S.ufg = lsGet('oe_ufg') || '';
 function conNuevos(L, h, uf) {
   const X = (S.ccx || []).filter(x => x[4] === h && (!x[3] || x[3] === uf)); if (!X.length) return L;
   const usados = new Set([].concat(...L.map(p => p[1].map(a => String(a[0]).toUpperCase()))));
@@ -232,11 +234,16 @@ function idxCat() {
     ufs.forEach(uf => pqs({ uf, red: 'CAPEX' }, hh).forEach((p, i) => p[1].forEach(a => I.push([hh, uf, i, p[0], a[0], a[1], a[2]])))); });
   return (S.idx = I);
 }
+// Filtro de UF del buscador general (una fila de botones)
+function vUfG() {
+  const L = ['', ...Array.from(new Set(idxCat().map(e => e[1]))).sort()];
+  return '<div class="ufg">' + L.map(u => '<button type="button" class="' + ((S.ufg || '') === u ? 'on' : '') + '" data-a="ufG" data-v="' + u + '">' + (u || 'Todas') + '</button>').join('') + '</div>';
+}
 function vBusG() {
   const q = String(S.qg || '').trim(); if (q.length < 3) return '';
   const sinT = t => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(), qq = sinT(q), G = {}, orden = [];
-  idxCat().forEach(e => { if (!sinT(e[5]).includes(qq)) return; const k = e[5].trim().toUpperCase() + '|' + e[6]; if (!G[k]) { G[k] = { d: e[5], u: e[6], op: [] }; orden.push(k); } G[k].op.push(e); });
-  if (!orden.length) return '<div class="peq mut" style="margin:8px 2px 10px">No hay actividades con «' + esc(q) + '». Elige el hito abajo.</div>';
+  idxCat().forEach(e => { if (S.ufg && e[1] !== S.ufg) return; if (!sinT(e[5]).includes(qq)) return; const k = e[5].trim().toUpperCase() + '|' + e[6]; if (!G[k]) { G[k] = { d: e[5], u: e[6], op: [] }; orden.push(k); } G[k].op.push(e); });
+  if (!orden.length) return '<div class="peq mut" style="margin:8px 2px 10px">No hay actividades con «' + esc(q) + '»' + (S.ufg ? ' en la ' + esc(S.ufg) : '') + '. Elige el hito abajo.</div>';
   return '<div class="peq mut" style="margin:10px 2px 6px;font-weight:800">Toca dónde hiciste la actividad</div>' + orden.slice(0, 15).map(k => { const g = G[k];
     return '<div class="ag"><b>' + esc(g.d) + '</b><small>' + undTxt(g.u) + '</small>' + g.op.slice(0, 12).map(e => '<button type="button" class="agb" data-a="actGG" data-v="' + esc(e.slice(0, 3).join('|') + '|' + e[4]) + '">' + esc(nomHito(e[0]) + (esMant(e[0]) ? '' : ' · ' + e[1]) + ' · ' + e[3]) + (estDe(e[4]) ? '<small>' + esc(estDe(e[4])) + '</small>' : '') + '</button>').join('') +
       (g.op.length > 12 ? '<div class="peq mut" style="margin-top:6px">Y ' + (g.op.length - 12) + ' lugares más: escribe más letras o elige el hito abajo.</div>' : '') + '</div>'; }).join('') +
@@ -244,7 +251,7 @@ function vBusG() {
 }
 function vInicio() {
   const reg = todosDia(), por = {}; reg.forEach(x => { por[x.hito] = (por[x.hito] || 0) + 1; });
-  let h = '<div class="ini">' + vDia() + '<input type="search" id="buscarG" class="bus" placeholder="🔍 Buscar actividad en todos los hitos…" value="' + esc(S.qg || '') + '" autocomplete="off">' + vBusG() + '<h2 class="preg">¿En qué hito trabajaste?</h2><div class="hs">';
+  let h = '<div class="ini">' + vDia() + '<input type="search" id="buscarG" class="bus" placeholder="🔍 Buscar actividad…" value="' + esc(S.qg || '') + '" autocomplete="off">' + vUfG() + vBusG() + '<h2 class="preg">¿En qué hito trabajaste?</h2><div class="hs">';
   (S.cat ? S.cat.hitos : []).forEach(x => { const n = por[x[0]] || 0; h += '<button type="button" class="bg" data-a="hito" data-v="' + x[0] + '"><span class="bg-i">' + (ICO[x[0]] || '📍') + '</span><b>' + esc(x[1]) + '</b><small>' + (n ? n + (n === 1 ? ' registro' : ' registros') : '&nbsp;') + '</small>' + (n ? '<i class="n">' + n + '</i>' : '') + '</button>'; });
   h += '</div>';
   h += '</div>';
@@ -559,6 +566,7 @@ document.addEventListener('click', async ev => {
   if (a === 'refrescar') { if (S.tab === 'res') pedirMis(); sincronizar(); if (!navigator.onLine) pedirDia(); return; }
   if (a === 'salir') { if (!S.pend.length || confirm('Hay registros sin subir en este equipo. No se pierden, pero no se subirán hasta que entres de nuevo. ¿Salir?')) { salir(); render(); } return; }
   if (a === 'dia') { cambioDia(sumDias(S.fecha, Number(v))); return; }
+  if (a === 'ufG') { S.ufg = v; lsSet('oe_ufg', v); render(); return; }
   if (a === 'actGG') { const [hh, uf, pi, ...rest] = v.split('|'), c = rest.join('|');
     S.hito = hh; S.f = nuevoForm(); S.f.uf = uf; if (esRed(hh)) { S.f.red = 'CAPEX'; S.f.redTipo = 'CAPEX'; } S.f.pq = String(pi); S.f.atajo = true; S.qg = ''; S.q = '';
     const x = actsPq().find(y => y[0] === c); if (!x) { toast('No se encontró la actividad.'); render(); return; } S.f.act = { c: x[0], d: x[1], u: x[2] };
